@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# Generated output (not tracked)
+output/
+state/
+*.log
+logs/
+
+# Sample documents (large binaries, not tracked)
+data test/
+test_docs/
+
+# OS
+.DS_Store
+Thumbs.db
