@@ -67,7 +67,7 @@ def test_claim_category_values():
 
 
 def test_all_enums_are_str_serializable():
-    from src.models.enums import LayoutType, SensitivityTag, Language
+    from src.models.enums import Language, LayoutType, SensitivityTag
     assert str(LayoutType.TITLE) == "TITLE"
     assert str(SensitivityTag.COMPLIANCE) == "compliance"
     assert str(Language.AR) == "ar"
@@ -78,4 +78,5 @@ def test_enum_count():
     import src.models.enums as enums_module
     enum_classes = [v for v in vars(enums_module).values()
                     if isinstance(v, type) and issubclass(v, StrEnum) and v is not StrEnum]
-    assert len(enum_classes) == 19, f"Expected 19 enums, found {len(enum_classes)}: {[c.__name__ for c in enum_classes]}"
+    msg = f"Expected 19 enums, found {len(enum_classes)}: {[c.__name__ for c in enum_classes]}"
+    assert len(enum_classes) == 19, msg
