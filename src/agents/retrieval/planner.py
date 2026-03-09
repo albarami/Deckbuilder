@@ -11,14 +11,16 @@ from src.services.llm import LLMError, call_llm
 from .prompts import PLANNER_SYSTEM_PROMPT
 
 
-async def run(state: DeckForgeState) -> DeckForgeState:
-    """Retrieval Planner — generate search queries for the RFP.
+async def plan(
+    state: DeckForgeState,
+) -> tuple[DeckForgeState, RetrievalQueries | None]:
+    """Core planning logic — returns state and transient queries.
 
-    Reads state.rfp_context and state.output_language, calls the LLM to
-    produce RetrievalQueries.  The parsed queries are transient — they are
-    not stored in DeckForgeState.  The pipeline orchestrator (LangGraph)
-    will consume them when chaining planner → search → ranker.
+    Exposed for the pipeline retrieval node which chains
+    planner → search → ranker.  The queries are transient and
+    not stored in DeckForgeState.
     """
+    queries: RetrievalQueries | None = None
     user_message = json.dumps({
         "rfp_context": state.rfp_context.model_dump() if state.rfp_context else None,
         "output_language": state.output_language,
@@ -31,8 +33,7 @@ async def run(state: DeckForgeState) -> DeckForgeState:
             user_message=user_message,
             response_model=RetrievalQueries,
         )
-        # Planner output is transient per design doc — pipeline node
-        # chains planner → search → ranker.  Token accounting only.
+        queries = result.parsed
         state.session.total_input_tokens += result.input_tokens
         state.session.total_output_tokens += result.output_tokens
         state.session.total_llm_calls += 1
@@ -46,4 +47,13 @@ async def run(state: DeckForgeState) -> DeckForgeState:
         ))
         state.last_error = state.errors[-1]
 
+    return state, queries
+
+
+async def run(state: DeckForgeState) -> DeckForgeState:
+    """Standalone entry point — discards transient queries.
+
+    Used by direct agent tests.  Pipeline uses plan() instead.
+    """
+    state, _ = await plan(state)
     return state
