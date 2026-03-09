@@ -427,3 +427,168 @@ def test_models_reexport():
     ]
     for symbol in exports:
         assert symbol is not None
+
+
+# ── retrieval.py tests ──
+
+def test_search_query_creation():
+    from src.models.retrieval import SearchQuery
+
+    sq = SearchQuery(
+        query="SAP HANA implementation project",
+        strategy="rfp_aligned",
+        target_criterion="Technical > Previous Experience",
+        language="en",
+        priority="high",
+    )
+    assert sq.query == "SAP HANA implementation project"
+    assert sq.strategy == "rfp_aligned"
+    assert sq.language == "en"
+    assert sq.priority == "high"
+
+
+def test_search_query_uses_enums():
+    from src.models.retrieval import SearchQuery
+
+    sq = SearchQuery(
+        query="test query",
+        strategy="capability_match",
+        target_criterion=None,
+        language="ar",
+        priority="critical",
+    )
+    assert sq.strategy == "capability_match"
+    assert sq.language == "ar"
+    assert sq.priority == "critical"
+
+
+def test_search_query_rejects_extra_fields():
+    from src.models.retrieval import SearchQuery
+
+    with pytest.raises(Exception):
+        SearchQuery(
+            query="test",
+            strategy="rfp_aligned",
+            target_criterion=None,
+            language="en",
+            priority="high",
+            fake_field="bad",
+        )
+
+
+def test_retrieval_summary_creation():
+    from src.models.retrieval import RetrievalSummary
+
+    summary = RetrievalSummary(
+        total_queries=22,
+        by_strategy={"rfp_aligned": 8, "capability_match": 5, "similar_rfp": 3, "team_resource": 3, "framework": 3},
+        highest_priority_criteria=["Previous Experience (60% of Technical)", "Compliance Requirements"],
+    )
+    assert summary.total_queries == 22
+    assert summary.by_strategy["rfp_aligned"] == 8
+    assert len(summary.highest_priority_criteria) == 2
+
+
+def test_retrieval_queries_creation():
+    from src.models.retrieval import RetrievalQueries, RetrievalSummary, SearchQuery
+
+    queries = RetrievalQueries(
+        search_queries=[
+            SearchQuery(
+                query="SAP HANA implementation project",
+                strategy="rfp_aligned",
+                target_criterion="Technical > Previous Experience",
+                language="en",
+                priority="high",
+            ),
+            SearchQuery(
+                query="SAP Gold partner certificate",
+                strategy="capability_match",
+                target_criterion="Compliance > SAP Gold Partnership",
+                language="en",
+                priority="critical",
+            ),
+        ],
+        retrieval_summary=RetrievalSummary(
+            total_queries=2,
+            by_strategy={"rfp_aligned": 1, "capability_match": 1},
+            highest_priority_criteria=["Previous Experience"],
+        ),
+    )
+    assert len(queries.search_queries) == 2
+    assert queries.retrieval_summary.total_queries == 2
+
+
+def test_retrieval_queries_rejects_extra_fields():
+    from src.models.retrieval import RetrievalQueries, RetrievalSummary
+
+    with pytest.raises(Exception):
+        RetrievalQueries(
+            search_queries=[],
+            retrieval_summary=RetrievalSummary(
+                total_queries=0,
+                by_strategy={},
+                highest_priority_criteria=[],
+            ),
+            unexpected_field="bad",
+        )
+
+
+def test_excluded_document_creation():
+    from src.models.retrieval import ExcludedDocument
+
+    excluded = ExcludedDocument(
+        doc_id="DOC-022",
+        reason="Duplicate of DOC-047 (older version)",
+    )
+    assert excluded.doc_id == "DOC-022"
+    assert "Duplicate" in excluded.reason
+
+
+def test_ranked_sources_output_creation():
+    from src.models.retrieval import ExcludedDocument, RankedSourcesOutput
+    from src.models.state import RetrievedSource
+
+    output = RankedSourcesOutput(
+        ranked_sources=[
+            RetrievedSource(
+                doc_id="DOC-047",
+                title="SIDF SAP Migration Report",
+                relevance_score=95,
+                summary="Directly relevant.",
+                matched_criteria=["Technical > Previous Experience"],
+                recommendation="include",
+            ),
+        ],
+        excluded_documents=[
+            ExcludedDocument(doc_id="DOC-022", reason="Duplicate of DOC-047"),
+        ],
+    )
+    assert len(output.ranked_sources) == 1
+    assert output.ranked_sources[0].doc_id == "DOC-047"
+    assert len(output.excluded_documents) == 1
+    assert output.excluded_documents[0].doc_id == "DOC-022"
+
+
+def test_ranked_sources_output_empty():
+    from src.models.retrieval import RankedSourcesOutput
+
+    output = RankedSourcesOutput()
+    assert output.ranked_sources == []
+    assert output.excluded_documents == []
+
+
+def test_retrieval_models_reexport():
+    """Verify retrieval models are importable from src.models."""
+    from src.models import (
+        ExcludedDocument,
+        RankedSourcesOutput,
+        RetrievalQueries,
+        RetrievalSummary,
+        SearchQuery,
+    )
+    assert SearchQuery is not None
+    assert RetrievalSummary is not None
+    assert RetrievalQueries is not None
+    assert ExcludedDocument is not None
+    assert RankedSourcesOutput is not None
