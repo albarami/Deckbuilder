@@ -1,0 +1,5 @@
+RFP Name (English): Renewal of Support Services for SAP Systems
+RFP Name (Arabic): تجديد خدمات الدعم لأنظمة ساب
+Issuing Entity: Saudi Industrial Development Fund (SIDF) via Etimad procurement platform
+Mandate: Renew and supply SAP software licenses and technical support services for a period of 24 months, covering all SAP modules currently deployed at SIDF including ERP, BW, Solution Manager, and GRC.
+Scope of Work: Renew SAP software licenses for all deployed modules. Provide Level 2 and Level 3 technical support. Deliver quarterly system health checks. Perform SAP kernel and support pack upgrades. Provide on-site support staff (2 consultants, 5 days/week). Deliver knowledge transfer sessions to SIDF IT team.

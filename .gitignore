@@ -21,6 +21,12 @@ state/
 *.log
 logs/
 
+# Confidential RFP documents (never commit)
+real_example/
+test_docs/*.pdf
+test_docs/*.docx
+test_docs/*.pptx
+
 # Sample documents (large binaries, not tracked)
 data test/
 test_docs/
