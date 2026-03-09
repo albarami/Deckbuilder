@@ -11,11 +11,10 @@ import json
 import sys
 import uuid
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
 from src.models.state import DeckForgeState
+from src.pipeline.dry_run import get_dry_run_patches
 from src.pipeline.graph import build_graph, load_state, save_state
-from src.services.llm import LLMResponse
 
 # ──────────────────────────────────────────────────────────────
 # Input handling — JSON or plain text → DeckForgeState
@@ -43,49 +42,6 @@ def create_state_from_input(path: str) -> DeckForgeState:
 def resume_state(path: str) -> DeckForgeState:
     """Load a previously saved DeckForgeState from JSON."""
     return load_state(path)
-
-
-# ──────────────────────────────────────────────────────────────
-# Dry-run patches — mock all LLM calls for offline testing
-# ──────────────────────────────────────────────────────────────
-
-_DRY_RUN_TARGETS = [
-    "src.agents.context.agent.call_llm",
-    "src.agents.retrieval.planner.call_llm",
-    "src.agents.retrieval.ranker.call_llm",
-    "src.agents.analysis.agent.call_llm",
-    "src.agents.research.agent.call_llm",
-    "src.agents.structure.agent.call_llm",
-    "src.agents.content.agent.call_llm",
-    "src.agents.qa.agent.call_llm",
-    "src.pipeline.graph.local_search",
-    "src.pipeline.graph.load_documents",
-]
-
-
-def _make_dry_response() -> LLMResponse:
-    """Create a minimal LLMResponse for dry-run mode."""
-    return LLMResponse(
-        parsed=None,
-        input_tokens=0,
-        output_tokens=0,
-        model="dry-run",
-        latency_ms=0.0,
-    )
-
-
-def get_dry_run_patches() -> list:
-    """Return a list of unittest.mock.patch objects for dry-run mode.
-
-    Patches call_llm in all 8 agent modules plus search and load_documents.
-    Caller is responsible for starting/stopping the patches.
-    """
-    patches = []
-    for target in _DRY_RUN_TARGETS:
-        mock = AsyncMock(return_value=_make_dry_response())
-        p = patch(target, mock)
-        patches.append(p)
-    return patches
 
 
 # ──────────────────────────────────────────────────────────────
