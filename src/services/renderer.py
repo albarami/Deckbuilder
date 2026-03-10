@@ -98,40 +98,82 @@ def _populate_title(slide: Any, title: str) -> None:
             return
 
 
-def _populate_body(
-    slide: Any,
-    slide_obj: SlideObject,
-    log_entry: dict[str, Any],
-) -> None:
-    """Populate body content placeholder with text elements."""
-    if not slide_obj.body_content or not slide_obj.body_content.text_elements:
-        return
+def _find_body_placeholder(slide: Any) -> Any | None:
+    """Find the best placeholder for body content.
 
-    elements = slide_obj.body_content.text_elements
+    Priority:
+      1. idx=1 with type BODY (2) or OBJECT (7) — standard content layouts
+      2. idx=1 with type SUBTITLE (4) — Title Slide layout (used for TITLE/CLOSING)
+      3. idx=1 with any text frame — catch-all for non-standard layouts
 
-    # Find body/content placeholder (idx=1 for most layouts)
-    body_ph = None
+    Returns None if no suitable placeholder is found (e.g. Title Only, Agenda).
+    """
+    # Pass 1: standard BODY/OBJECT at idx=1
     for ph in slide.placeholders:
-        idx = ph.placeholder_format.idx
-        if idx == 1 and ph.placeholder_format.type in (2, 7):  # BODY or OBJECT
-            body_ph = ph
-            break
+        if ph.placeholder_format.idx == 1 and ph.placeholder_format.type in (2, 7):
+            return ph
 
-    if body_ph is None:
-        log_entry["status"] = RenderStatus.WARNING
-        log_entry["message"] += " No body placeholder found — body content skipped."
-        return
+    # Pass 2: SUBTITLE at idx=1 (Title Slide layout)
+    for ph in slide.placeholders:
+        if ph.placeholder_format.idx == 1 and ph.has_text_frame:
+            return ph
 
-    # Clear existing text and add bullet points
-    tf = body_ph.text_frame
+    return None
+
+
+def _fill_text_frame(tf: Any, elements: list[str]) -> None:
+    """Fill a text frame with bullet-point elements."""
     tf.clear()
-
     for i, text in enumerate(elements):
         if i == 0:
             tf.paragraphs[0].text = text
         else:
             p = tf.add_paragraph()
             p.text = text
+
+
+def _add_body_textbox(
+    slide: Any,
+    elements: list[str],
+) -> None:
+    """Add a text box with body content when no placeholder exists.
+
+    Used for layouts like Title Only (STAT_CALLOUT) and ToC/Agenda
+    that have no body/content placeholder.
+    """
+    left = Inches(0.7)
+    top = Inches(1.8)
+    width = Inches(8.6)
+    height = Inches(5.0)
+    txBox = slide.shapes.add_textbox(left, top, width, height)
+    tf = txBox.text_frame
+    tf.word_wrap = True
+    _fill_text_frame(tf, elements)
+
+
+def _populate_body(
+    slide: Any,
+    slide_obj: SlideObject,
+    log_entry: dict[str, Any],
+) -> None:
+    """Populate body content placeholder with text elements.
+
+    Falls back to a text box for layouts without a body placeholder
+    (Title Only, ToC/Agenda). Body content is never silently dropped.
+    """
+    if not slide_obj.body_content or not slide_obj.body_content.text_elements:
+        return
+
+    elements = slide_obj.body_content.text_elements
+    body_ph = _find_body_placeholder(slide)
+
+    if body_ph is not None:
+        _fill_text_frame(body_ph.text_frame, elements)
+        return
+
+    # No placeholder — add a textbox fallback
+    _add_body_textbox(slide, elements)
+    log_entry["message"] += " Used textbox fallback for body content."
 
 
 def _populate_two_col(
@@ -155,14 +197,7 @@ def _populate_two_col(
         ph = col_phs.get(col_idx)
         if ph is None or not items:
             continue
-        tf = ph.text_frame
-        tf.clear()
-        for i, text in enumerate(items):
-            if i == 0:
-                tf.paragraphs[0].text = text
-            else:
-                p = tf.add_paragraph()
-                p.text = text
+        _fill_text_frame(ph.text_frame, items)
 
 
 def _add_speaker_notes(slide: Any, notes: str) -> None:
@@ -309,9 +344,22 @@ async def render_pptx(
     # Save
     prs.save(output_path)
 
+    # Verification: reopen and confirm slide count matches
+    verify_prs = Presentation(output_path)
+    actual_count = len(verify_prs.slides)
+    if actual_count != len(slides):
+        import logging
+
+        logging.getLogger(__name__).error(
+            "PPTX verification failed: expected %d slides, found %d in %s",
+            len(slides),
+            actual_count,
+            output_path,
+        )
+
     return RenderResult(
         pptx_path=output_path,
-        slide_count=len(slides),
+        slide_count=actual_count,
         render_log=render_log,
     )
 
