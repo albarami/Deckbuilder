@@ -4,7 +4,7 @@ Architecture:
 - SearchBackend Protocol: swap local numpy for Azure AI Search
 - NumpySearchBackend: Local cosine similarity search (dev/test)
 - AzureAISearchBackend: Production stub (implemented in M12)
-- index_documents(): Full pipeline: extract → chunk → embed → index
+- index_documents(): Full pipeline: extract → dedup → chunk → embed → index → classify → extract entities
 - semantic_search(): Query the index, return Retrieval Ranker format
 
 Backward compatibility: local_search() and load_documents() preserved.
@@ -264,12 +264,15 @@ def _get_backend() -> NumpySearchBackend:
 async def index_documents(
     docs_path: str,
     cache_path: str = "./state/index/",
+    *,
+    skip_entities: bool = False,
 ) -> int:
-    """Full indexing pipeline: extract → chunk → embed → index.
+    """Full indexing pipeline: extract → dedup → chunk → embed → index → classify → extract entities.
 
     Args:
         docs_path: Path to directory containing documents.
         cache_path: Path to cache embeddings.
+        skip_entities: If True, skip entity extraction (for faster indexing).
 
     Returns:
         Number of documents indexed.
@@ -298,6 +301,32 @@ async def index_documents(
 
     # Save index to disk
     backend.save(cache_path)
+
+    # Step 5 + 6: Entity extraction → merge into knowledge graph
+    if not skip_entities:
+        from src.agents.indexing.entity_extractor import (
+            extract_entities_batch,
+            load_knowledge_graph,
+            merge_into_knowledge_graph,
+            save_knowledge_graph,
+        )
+
+        kg_path = f"{cache_path}/knowledge_graph.json"
+        kg = load_knowledge_graph(kg_path)
+
+        doc_pairs = [
+            (doc, f"DOC-{i:03d}") for i, doc in enumerate(docs, start=1)
+        ]
+        results = await extract_entities_batch(doc_pairs)
+        doc_ids = [pair[1] for pair in doc_pairs]
+
+        kg = await merge_into_knowledge_graph(kg, results, doc_ids)
+        save_knowledge_graph(kg, kg_path)
+
+        logger.info(
+            "Knowledge graph: %d people, %d projects, %d clients",
+            len(kg.people), len(kg.projects), len(kg.clients),
+        )
 
     return len(docs)
 

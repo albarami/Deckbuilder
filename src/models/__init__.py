@@ -5,6 +5,7 @@ from .claims import CaseStudy, ClaimObject, GapObject, ReferenceIndex, SourceMan
 from .common import BilingualText, ChangeLogEntry, DateRange, DeckForgeBaseModel  # noqa: F401
 from .enums import *  # noqa: F401, F403
 from .indexing import IndexedDateRange, IndexingInput, IndexingOutput  # noqa: F401
+from .knowledge import ClientRecord, KnowledgeGraph, PersonProfile, ProjectRecord  # noqa: F401
 from .qa import DeckValidationSummary, QAResult, SlideValidation  # noqa: F401
 from .report import ReportSection, ResearchReport  # noqa: F401
 from .retrieval import (  # noqa: F401
