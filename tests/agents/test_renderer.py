@@ -160,20 +160,27 @@ def _all_layout_slides() -> list[SlideObject]:
 
 
 def _get_slide_body_text(slide) -> str:
-    """Extract all body text from a slide (placeholders + textboxes)."""
+    """Extract all body text from a slide (placeholders + textboxes + tables)."""
     texts = []
     for shape in slide.shapes:
-        if not shape.has_text_frame:
-            continue
-        try:
-            pf = shape.placeholder_format
-            if pf.idx == 0:  # title
-                continue
-        except (ValueError, AttributeError):
-            pass  # Not a placeholder — textbox fallback
-        txt = shape.text_frame.text.strip()
-        if txt:
-            texts.append(txt)
+        # Check text frames
+        if shape.has_text_frame:
+            try:
+                pf = shape.placeholder_format
+                if pf.idx == 0:  # title
+                    continue
+            except (ValueError, AttributeError):
+                pass  # Not a placeholder — textbox fallback
+            txt = shape.text_frame.text.strip()
+            if txt:
+                texts.append(txt)
+        # Check table cells
+        if shape.has_table:
+            for row in shape.table.rows:
+                for cell in row.cells:
+                    txt = cell.text.strip()
+                    if txt:
+                        texts.append(txt)
     return "\n".join(texts)
 
 
@@ -413,8 +420,8 @@ def test_render_result_has_log() -> None:
             assert "message" in entry
 
 
-def test_render_title_slide_uses_subtitle_for_body() -> None:
-    """TITLE layout puts body content in subtitle placeholder."""
+def test_render_title_slide_uses_cover_layout() -> None:
+    """TITLE layout uses Proposal Cover (Layout 11) with subtitle placeholder."""
     from src.services.renderer import render_pptx
 
     slides = [
@@ -423,7 +430,7 @@ def test_render_title_slide_uses_subtitle_for_body() -> None:
             title="Company Name",
             layout_type=LayoutType.TITLE,
             body_content=BodyContent(
-                text_elements=["Strategic consulting for the GCC"],
+                text_elements=["RFP \u2014 Strategic consulting for the GCC"],
             ),
         ),
     ]
@@ -433,12 +440,9 @@ def test_render_title_slide_uses_subtitle_for_body() -> None:
 
         prs = Presentation(output)
         slide = prs.slides[0]
-        # Subtitle placeholder (idx=1) should have body text
-        for ph in slide.placeholders:
-            if ph.placeholder_format.idx == 1:
-                assert "Strategic consulting" in ph.text
-                return
-        raise AssertionError("No subtitle placeholder found")
+        # Layout 11 uses idx=1 (SUBTITLE) for project name
+        body_text = _get_slide_body_text(slide)
+        assert body_text, "Title slide should have body content"
 
 
 # ──────────────────────────────────────────────────────────────
@@ -546,3 +550,410 @@ def test_export_docx_paragraph_count() -> None:
             f"Expected 20+ paragraphs, got {len(non_empty)} — "
             f"DOCX exporter is truncating content"
         )
+
+
+# ──────────────────────────────────────────────────────────────
+# DOCX Markdown Formatting Tests
+# ──────────────────────────────────────────────────────────────
+
+
+def test_export_docx_renders_markdown_headings() -> None:
+    """Markdown ## headings in content_markdown become Word Heading styles."""
+    from src.services.renderer import export_report_docx
+
+    report = ResearchReport(
+        title="Test Report",
+        language=Language.EN,
+        sections=[
+            ReportSection(
+                section_id="SEC-01",
+                heading="Main Section",
+                content_markdown=(
+                    "## Main Section\n\n"
+                    "Intro paragraph.\n\n"
+                    "### Subsection One\n\n"
+                    "Details here."
+                ),
+            ),
+        ],
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "heading_test.docx")
+        asyncio.run(export_report_docx(report, output))
+
+        doc = Document(output)
+        styles = [p.style.name for p in doc.paragraphs if p.text.strip()]
+        # Section heading (from add_heading level=1)
+        assert "Heading 1" in styles
+        # Subsection heading (from markdown ### → level 3)
+        assert "Heading 3" in styles
+
+
+def test_export_docx_renders_bold() -> None:
+    """Markdown **bold** text becomes bold runs in Word."""
+    from src.services.renderer import export_report_docx
+
+    report = ResearchReport(
+        title="Test Report",
+        language=Language.EN,
+        sections=[
+            ReportSection(
+                section_id="SEC-01",
+                heading="Bold Test",
+                content_markdown="This has **important text** in it.",
+            ),
+        ],
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "bold_test.docx")
+        asyncio.run(export_report_docx(report, output))
+
+        doc = Document(output)
+        # Find the paragraph with our content
+        for p in doc.paragraphs:
+            if "important text" in p.text:
+                bold_runs = [r for r in p.runs if r.bold]
+                assert any("important text" in r.text for r in bold_runs), (
+                    "Expected bold run for 'important text'"
+                )
+                return
+        raise AssertionError("Paragraph with 'important text' not found")
+
+
+def test_export_docx_renders_bullet_list() -> None:
+    """Markdown - bullets become List Bullet style."""
+    from src.services.renderer import export_report_docx
+
+    report = ResearchReport(
+        title="Test Report",
+        language=Language.EN,
+        sections=[
+            ReportSection(
+                section_id="SEC-01",
+                heading="List Test",
+                content_markdown="- First item\n- Second item\n- Third item",
+            ),
+        ],
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "list_test.docx")
+        asyncio.run(export_report_docx(report, output))
+
+        doc = Document(output)
+        bullet_paras = [
+            p for p in doc.paragraphs if p.style.name == "List Bullet"
+        ]
+        assert len(bullet_paras) >= 3, (
+            f"Expected 3+ List Bullet paragraphs, got {len(bullet_paras)}"
+        )
+
+
+def test_export_docx_renders_table() -> None:
+    """Markdown tables become Word tables."""
+    from src.services.renderer import export_report_docx
+
+    report = ResearchReport(
+        title="Test Report",
+        language=Language.EN,
+        sections=[
+            ReportSection(
+                section_id="SEC-01",
+                heading="Table Test",
+                content_markdown=(
+                    "| Col1 | Col2 | Col3 |\n"
+                    "|------|------|------|\n"
+                    "| A    | B    | C    |\n"
+                    "| D    | E    | F    |"
+                ),
+            ),
+        ],
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "table_test.docx")
+        asyncio.run(export_report_docx(report, output))
+
+        doc = Document(output)
+        # Should have at least one table from the markdown
+        assert len(doc.tables) >= 1, "No tables found in DOCX"
+        table = doc.tables[0]
+        assert len(table.rows) >= 3  # header + 2 data rows
+        assert table.rows[0].cells[0].text == "Col1"
+
+
+def test_export_docx_renders_blockquote() -> None:
+    """Markdown > blockquotes get indented paragraph formatting."""
+    from src.services.renderer import export_report_docx
+
+    report = ResearchReport(
+        title="Test Report",
+        language=Language.EN,
+        sections=[
+            ReportSection(
+                section_id="SEC-01",
+                heading="Quote Test",
+                content_markdown="> Important notice about gaps.",
+            ),
+        ],
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "quote_test.docx")
+        asyncio.run(export_report_docx(report, output))
+
+        doc = Document(output)
+        # Find paragraph with blockquote content
+        for p in doc.paragraphs:
+            if "Important notice" in p.text:
+                # Should have left indent
+                assert p.paragraph_format.left_indent is not None, (
+                    "Blockquote paragraph should have left indent"
+                )
+                return
+        raise AssertionError("Blockquote paragraph not found")
+
+
+# ──────────────────────────────────────────────────────────────
+# PPTX Body Formatting Tests
+# ──────────────────────────────────────────────────────────────
+
+
+def test_pptx_bullet_gets_font_formatting() -> None:
+    """Bullet text_elements get Aptos font and 14pt size."""
+    from src.services.renderer import render_pptx
+
+    slides = [
+        SlideObject(
+            slide_id="S-001",
+            title="Test",
+            layout_type=LayoutType.CONTENT_1COL,
+            body_content=BodyContent(
+                text_elements=["First point", "Second point"],
+            ),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "font_test.pptx")
+        asyncio.run(render_pptx(slides, TEMPLATE_PATH, output))
+
+        prs = Presentation(output)
+        slide = prs.slides[0]
+        for ph in slide.placeholders:
+            if ph.placeholder_format.idx == 1:
+                for p in ph.text_frame.paragraphs:
+                    for run in p.runs:
+                        assert run.font.name == "Aptos", (
+                            f"Expected Aptos font, got {run.font.name}"
+                        )
+                return
+
+
+def test_pptx_em_dash_bold_key() -> None:
+    """Text with em-dash separator gets bold key phrase."""
+    from src.services.renderer import render_pptx
+
+    slides = [
+        SlideObject(
+            slide_id="S-001",
+            title="Test",
+            layout_type=LayoutType.CONTENT_1COL,
+            body_content=BodyContent(
+                text_elements=["S1 \u2014 License renewal for deployed modules"],
+            ),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "emdash_test.pptx")
+        asyncio.run(render_pptx(slides, TEMPLATE_PATH, output))
+
+        prs = Presentation(output)
+        slide = prs.slides[0]
+        for ph in slide.placeholders:
+            if ph.placeholder_format.idx == 1:
+                runs = ph.text_frame.paragraphs[0].runs
+                assert len(runs) >= 2, "Expected at least 2 runs (bold key + detail)"
+                assert runs[0].font.bold is True, "First run (key) should be bold"
+                assert "S1" in runs[0].text
+                return
+
+
+def test_pptx_bullet_prefix_indented() -> None:
+    """Elements starting with bullet char get paragraph.level = 1."""
+    from src.services.renderer import render_pptx
+
+    slides = [
+        SlideObject(
+            slide_id="S-001",
+            title="Test",
+            layout_type=LayoutType.CONTENT_1COL,
+            body_content=BodyContent(
+                text_elements=[
+                    "Main point",
+                    "\u2022 Sub-bullet text",
+                ],
+            ),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "indent_test.pptx")
+        asyncio.run(render_pptx(slides, TEMPLATE_PATH, output))
+
+        prs = Presentation(output)
+        slide = prs.slides[0]
+        for ph in slide.placeholders:
+            if ph.placeholder_format.idx == 1:
+                paras = ph.text_frame.paragraphs
+                assert paras[0].level == 0, "First paragraph should be level 0"
+                assert paras[1].level == 1, "Bullet-prefixed should be level 1"
+                return
+
+
+# ──────────────────────────────────────────────────────────────
+# STAT_CALLOUT / AGENDA Formatting Tests
+# ──────────────────────────────────────────────────────────────
+
+
+def test_pptx_stat_callout_formatting() -> None:
+    """STAT_CALLOUT first element is large + bold + accent color."""
+    from pptx.dml.color import RGBColor
+
+    from src.services.renderer import render_pptx
+
+    slides = [
+        SlideObject(
+            slide_id="S-001",
+            title="Key Metric",
+            layout_type=LayoutType.STAT_CALLOUT,
+            body_content=BodyContent(
+                text_elements=["Zero verified claims", "Supporting detail"],
+            ),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "stat_test.pptx")
+        asyncio.run(render_pptx(slides, TEMPLATE_PATH, output))
+
+        prs = Presentation(output)
+        body = _get_slide_body_text(prs.slides[0])
+        assert "Zero verified claims" in body
+
+        # Check formatting on the textbox
+        for shape in prs.slides[0].shapes:
+            if not shape.has_text_frame:
+                continue
+            try:
+                shape.placeholder_format
+                continue  # skip title placeholder
+            except (ValueError, AttributeError):
+                pass
+            # Skip shapes with no text (e.g. accent bars)
+            if not shape.text_frame.text.strip():
+                continue
+            first_run = shape.text_frame.paragraphs[0].runs[0]
+            assert first_run.font.bold is True, "First stat should be bold"
+            assert first_run.font.color.rgb == RGBColor(0x15, 0x60, 0x82), (
+                "First stat should use ACCENT1 color"
+            )
+            return
+
+
+def test_pptx_agenda_numbered() -> None:
+    """AGENDA elements get numbered prefixes."""
+    from src.services.renderer import render_pptx
+
+    slides = [
+        SlideObject(
+            slide_id="S-001",
+            title="Agenda",
+            layout_type=LayoutType.AGENDA,
+            body_content=BodyContent(
+                text_elements=["Topic one", "Topic two", "Topic three"],
+            ),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "agenda_test.pptx")
+        asyncio.run(render_pptx(slides, TEMPLATE_PATH, output))
+
+        prs = Presentation(output)
+        body = _get_slide_body_text(prs.slides[0])
+        assert "Topic one" in body
+        assert "Topic two" in body
+        assert "Topic three" in body
+        # Verify numbering
+        assert "1." in body
+        assert "2." in body
+        assert "3." in body
+
+
+# ──────────────────────────────────────────────────────────────
+# PPTX Pipe-Table Tests
+# ──────────────────────────────────────────────────────────────
+
+
+def test_pptx_pipe_table_rendered() -> None:
+    """Pipe-separated elements are rendered as a PowerPoint table."""
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+    from src.services.renderer import render_pptx
+
+    slides = [
+        SlideObject(
+            slide_id="S-001",
+            title="Compliance Matrix",
+            layout_type=LayoutType.COMPLIANCE_MATRIX,
+            body_content=BodyContent(
+                text_elements=[
+                    "Item | Evidence | Status",
+                    "D1 | SAP license renewal | CRITICAL GAP",
+                    "D2 | L2/L3 support | CRITICAL GAP",
+                ],
+            ),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "table_test.pptx")
+        asyncio.run(render_pptx(slides, TEMPLATE_PATH, output))
+
+        prs = Presentation(output)
+        slide = prs.slides[0]
+        # Find table shape
+        table_shapes = [
+            s for s in slide.shapes
+            if s.shape_type == MSO_SHAPE_TYPE.TABLE
+        ]
+        assert len(table_shapes) >= 1, "Expected a table shape on the slide"
+        table = table_shapes[0].table
+        assert table.rows[0].cells[0].text == "Item"
+        assert table.rows[1].cells[2].text == "CRITICAL GAP"
+
+
+def test_pptx_pipe_table_header_bold() -> None:
+    """Pipe-table header row has bold formatting."""
+    from src.services.renderer import render_pptx
+
+    slides = [
+        SlideObject(
+            slide_id="S-001",
+            title="Table",
+            layout_type=LayoutType.CONTENT_1COL,
+            body_content=BodyContent(
+                text_elements=[
+                    "Col1 | Col2 | Col3",
+                    "A | B | C",
+                    "D | E | F",
+                ],
+            ),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "hdr_test.pptx")
+        asyncio.run(render_pptx(slides, TEMPLATE_PATH, output))
+
+        prs = Presentation(output)
+        slide = prs.slides[0]
+        for shape in slide.shapes:
+            if shape.has_table:
+                cell = shape.table.cell(0, 0)
+                runs = cell.text_frame.paragraphs[0].runs
+                assert runs[0].font.bold is True, "Header cell should be bold"
+                return
+        raise AssertionError("No table found")

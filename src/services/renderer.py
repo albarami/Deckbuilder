@@ -1,24 +1,26 @@
-"""Design Agent — deterministic PPTX renderer and DOCX exporter.
+"""Design Agent -- deterministic PPTX renderer and DOCX exporter.
 
 No LLM involvement. Loads the Strategic Gears master template
 (Presentation6.pptx) and populates slides from validated SlideObjects.
 
 Template layouts (Presentation6.pptx):
-  0: Title Slide       — CENTER_TITLE(0) + SUBTITLE(1)
-  1: Title and Content  — TITLE(0) + OBJECT(1)
-  2: Section Header     — TITLE(0) + BODY(1)
-  3: Two Content        — TITLE(0) + OBJECT(1) + OBJECT(2)
-  4: Comparison         — TITLE(0) + BODY(1) + OBJECT(2) + BODY(3) + OBJECT(4)
-  5: Title Only         — TITLE(0)
-  6: Blank              — (footer only)
-  7: Content with Caption — TITLE(0) + OBJECT(1) + BODY(2)
-  8: Picture with Caption — TITLE(0) + PICTURE(1) + BODY(2)
+  0: Title Slide       -- CENTER_TITLE(0) + SUBTITLE(1)
+  1: Title and Content  -- TITLE(0) + OBJECT(1)
+  2: Section Header     -- TITLE(0) + BODY(1)
+  3: Two Content        -- TITLE(0) + OBJECT(1) + OBJECT(2)
+  4: Comparison         -- TITLE(0) + BODY(1) + OBJECT(2) + BODY(3) + OBJECT(4)
+  5: Title Only         -- TITLE(0)
+  6: Blank              -- (footer only)
+  7: Content with Caption -- TITLE(0) + OBJECT(1, right 6.75in) + BODY(2, left 4.30in)
+  8: Picture with Caption -- TITLE(0) + PICTURE(1) + BODY(2)
   9: Title and Vertical Text
  10: Vertical Title and Text
- 11: Proposal Cover     — SUBTITLE(1) + BODY(10,11) + PICTURE(12)
- 12: ToC / Agenda       — TITLE(0) + TABLE(10)
+ 11: Proposal Cover     -- SUBTITLE(1) + BODY(10,11) + PICTURE(12)
+ 12: ToC / Agenda       -- TITLE(0) + TABLE(10)
 """
 
+import datetime
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -30,33 +32,49 @@ from pptx.util import Inches
 from src.models.enums import Language, LayoutType, RenderStatus
 from src.models.report import ResearchReport
 from src.models.slides import SlideObject
+from src.services.formatting import (
+    add_accent_bar,
+    add_pptx_table,
+    add_styled_table_from_elements,
+    format_agenda,
+    format_closing_slide,
+    format_comparison_body,
+    format_cover_body,
+    format_cover_subtitle,
+    format_stat_callout,
+    format_text_frame,
+    is_pipe_table,
+    render_markdown_to_docx,
+)
 
-# ──────────────────────────────────────────────────────────────
-# Layout mapping — DeckForge LayoutType → template layout index
-# ──────────────────────────────────────────────────────────────
+logger = logging.getLogger(__name__)
+
+# ----------------------------------------------------------------
+# Layout mapping -- DeckForge LayoutType -> template layout index
+# ----------------------------------------------------------------
 
 LAYOUT_MAP: dict[LayoutType, int] = {
-    LayoutType.TITLE: 0,
-    LayoutType.AGENDA: 12,
-    LayoutType.SECTION: 2,
-    LayoutType.CONTENT_1COL: 1,
-    LayoutType.CONTENT_2COL: 3,
-    LayoutType.DATA_CHART: 1,
-    LayoutType.FRAMEWORK: 7,
-    LayoutType.COMPARISON: 4,
-    LayoutType.STAT_CALLOUT: 5,
-    LayoutType.TEAM: 1,
-    LayoutType.TIMELINE: 1,
-    LayoutType.COMPLIANCE_MATRIX: 1,
-    LayoutType.CLOSING: 0,
+    LayoutType.TITLE: 11,              # Proposal Cover (with photo BG)
+    LayoutType.AGENDA: 12,             # ToC / Agenda (with table placeholder)
+    LayoutType.SECTION: 2,             # Section Header
+    LayoutType.CONTENT_1COL: 1,        # Title and Content
+    LayoutType.CONTENT_2COL: 3,        # Two Content
+    LayoutType.DATA_CHART: 1,          # Title and Content (chart in OBJECT)
+    LayoutType.FRAMEWORK: 1,           # Title and Content (formatted body)
+    LayoutType.COMPARISON: 4,          # Comparison (4 body areas)
+    LayoutType.STAT_CALLOUT: 5,        # Title Only (custom textbox)
+    LayoutType.TEAM: 5,               # Title Only (styled table)
+    LayoutType.TIMELINE: 5,           # Title Only (styled table)
+    LayoutType.COMPLIANCE_MATRIX: 5,  # Title Only (styled table)
+    LayoutType.CLOSING: 0,             # Title Slide (bookend)
 }
 
 _DEFAULT_LAYOUT_IDX = 1  # "Title and Content" as fallback
 
 
-# ──────────────────────────────────────────────────────────────
-# RenderResult — output of render_pptx()
-# ──────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
+# RenderResult
+# ----------------------------------------------------------------
 
 
 class RenderResult:
@@ -73,9 +91,9 @@ class RenderResult:
         self.render_log = render_log
 
 
-# ──────────────────────────────────────────────────────────────
-# PPTX Renderer
-# ──────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
+# Layout-specific populate functions
+# ----------------------------------------------------------------
 
 
 def _get_layout_index(layout_type: LayoutType) -> int:
@@ -83,108 +101,134 @@ def _get_layout_index(layout_type: LayoutType) -> int:
     return LAYOUT_MAP.get(layout_type, _DEFAULT_LAYOUT_IDX)
 
 
-def _populate_title(slide: Any, title: str) -> None:
-    """Set the title placeholder text."""
-    for ph in slide.placeholders:
-        idx = ph.placeholder_format.idx
-        if idx == 0:
-            ph.text = title
-            return
-    # Layout 11 (Proposal Cover) has no idx=0, use subtitle (idx=1)
-    for ph in slide.placeholders:
-        idx = ph.placeholder_format.idx
-        if idx == 1:
-            ph.text = title
-            return
+def _populate_title_slide(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 11 (Proposal Cover).
 
-
-def _find_body_placeholder(slide: Any) -> Any | None:
-    """Find the best placeholder for body content.
-
-    Priority:
-      1. idx=1 with type BODY (2) or OBJECT (7) — standard content layouts
-      2. idx=1 with type SUBTITLE (4) — Title Slide layout (used for TITLE/CLOSING)
-      3. idx=1 with any text frame — catch-all for non-standard layouts
-
-    Returns None if no suitable placeholder is found (e.g. Title Only, Agenda).
+    idx=1 (SUBTITLE): Project name / proposal title
+    idx=10 (BODY): Client name / issuing entity
+    idx=11 (BODY): Date
+    idx=12 (PICTURE): Client logo placeholder (skipped)
     """
-    # Pass 1: standard BODY/OBJECT at idx=1
-    for ph in slide.placeholders:
-        if ph.placeholder_format.idx == 1 and ph.placeholder_format.type in (2, 7):
-            return ph
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
 
-    # Pass 2: SUBTITLE at idx=1 (Title Slide layout)
-    for ph in slide.placeholders:
-        if ph.placeholder_format.idx == 1 and ph.has_text_frame:
-            return ph
+    # Parse title components from elements
+    project_name = slide_obj.title
+    client_name = ""
+    date_str = datetime.date.today().strftime("%d %B %Y")
+    extra_lines = []
 
-    return None
-
-
-def _fill_text_frame(tf: Any, elements: list[str]) -> None:
-    """Fill a text frame with bullet-point elements."""
-    tf.clear()
-    for i, text in enumerate(elements):
-        if i == 0:
-            tf.paragraphs[0].text = text
+    for elem in elements:
+        lower = elem.lower()
+        if "issuing entity" in lower or "client" in lower.split("\u2014")[0] if "\u2014" in lower else "":
+            # Extract value after em-dash
+            parts = elem.split("\u2014", 1)
+            if len(parts) > 1:
+                client_name = parts[1].strip()
+            else:
+                client_name = elem.strip()
+        elif "date" in lower or "format" in lower:
+            parts = elem.split("\u2014", 1)
+            if len(parts) > 1:
+                date_str = parts[1].strip()
+        elif "rfp" in lower and "\u2014" in elem:
+            parts = elem.split("\u2014", 1)
+            if len(parts) > 1:
+                project_name = parts[1].strip()
         else:
-            p = tf.add_paragraph()
-            p.text = text
+            extra_lines.append(elem)
+
+    # If no client extracted, try to extract from elements
+    if not client_name and elements:
+        for elem in elements:
+            if "\u2014" in elem:
+                parts = elem.split("\u2014", 1)
+                key = parts[0].strip().lower()
+                if any(kw in key for kw in ["issuing", "entity", "client"]):
+                    client_name = parts[1].strip()
+                    break
+
+    for ph in slide.placeholders:
+        idx = ph.placeholder_format.idx
+        if idx == 1:  # SUBTITLE - Project name
+            format_cover_subtitle(ph, project_name)
+        elif idx == 10:  # BODY - Client name
+            format_cover_body(ph, client_name or "Strategic Gears Consulting", font_size=18)
+        elif idx == 11:  # BODY - Date
+            format_cover_body(ph, date_str, font_size=14)
 
 
-def _add_body_textbox(
-    slide: Any,
-    elements: list[str],
-) -> None:
-    """Add a text box with body content when no placeholder exists.
+def _populate_agenda_slide(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 12 (ToC / Agenda).
 
-    Used for layouts like Title Only (STAT_CALLOUT) and ToC/Agenda
-    that have no body/content placeholder.
+    idx=0 (TITLE): "Table of Contents" or custom title
+    idx=10 (TABLE): Table placeholder - we add a textbox instead
+                    since table placeholders are tricky.
     """
-    left = Inches(0.7)
-    top = Inches(1.8)
-    width = Inches(8.6)
-    height = Inches(5.0)
+    # Set title
+    for ph in slide.placeholders:
+        if ph.placeholder_format.idx == 0:
+            ph.text = slide_obj.title
+            break
+
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
+    if not elements:
+        return
+
+    # Add formatted agenda as textbox (Layout 12 has complex BG shape already)
+    from pptx.util import Inches as I
+    left = I(0.92)
+    top = I(2.0)
+    width = I(8.0)
+    height = I(4.5)
     txBox = slide.shapes.add_textbox(left, top, width, height)
     tf = txBox.text_frame
     tf.word_wrap = True
-    _fill_text_frame(tf, elements)
+    format_agenda(tf, elements)
 
 
-def _populate_body(
-    slide: Any,
-    slide_obj: SlideObject,
-    log_entry: dict[str, Any],
-) -> None:
-    """Populate body content placeholder with text elements.
+def _populate_content_1col(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 1 (Title and Content) or Layout 7 (Content with Caption).
 
-    Falls back to a text box for layouts without a body placeholder
-    (Title Only, ToC/Agenda). Body content is never silently dropped.
+    idx=0 (TITLE): Slide title
+    idx=1 (OBJECT): Body content with formatted bullets
     """
-    if not slide_obj.body_content or not slide_obj.body_content.text_elements:
+    _set_title(slide, slide_obj.title)
+
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
+    if not elements:
         return
 
-    elements = slide_obj.body_content.text_elements
+    # Check if pipe-table data -> render as table
+    if is_pipe_table(elements):
+        add_pptx_table(slide, elements)
+        return
+
+    # Find body placeholder
     body_ph = _find_body_placeholder(slide)
-
     if body_ph is not None:
-        _fill_text_frame(body_ph.text_frame, elements)
+        format_text_frame(body_ph.text_frame, elements)
+    else:
+        _add_body_textbox(slide, elements)
+
+
+def _populate_content_2col(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 3 (Two Content).
+
+    idx=0 (TITLE): Slide title
+    idx=1 (OBJECT): Left column
+    idx=2 (OBJECT): Right column
+    """
+    _set_title(slide, slide_obj.title)
+
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
+    if not elements:
         return
 
-    # No placeholder — add a textbox fallback
-    _add_body_textbox(slide, elements)
-    log_entry["message"] += " Used textbox fallback for body content."
-
-
-def _populate_two_col(
-    slide: Any,
-    slide_obj: SlideObject,
-) -> None:
-    """Populate two-column layout (idx=1 and idx=2)."""
-    if not slide_obj.body_content or not slide_obj.body_content.text_elements:
+    # Pipe tables override columns
+    if is_pipe_table(elements):
+        add_pptx_table(slide, elements)
         return
 
-    elements = slide_obj.body_content.text_elements
     mid = len(elements) // 2
 
     col_phs: dict[int, Any] = {}
@@ -197,7 +241,253 @@ def _populate_two_col(
         ph = col_phs.get(col_idx)
         if ph is None or not items:
             continue
-        _fill_text_frame(ph.text_frame, items)
+        format_text_frame(ph.text_frame, items)
+
+
+def _populate_comparison(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 4 (Comparison).
+
+    idx=0 (TITLE): Slide title
+    idx=1 (BODY): Left sub-header
+    idx=2 (OBJECT): Left content
+    idx=3 (BODY): Right sub-header
+    idx=4 (OBJECT): Right content
+
+    If content has pipe tables, renders as a table instead.
+    """
+    _set_title(slide, slide_obj.title)
+
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
+    if not elements:
+        return
+
+    # Pipe table -> render as full-width table
+    if is_pipe_table(elements):
+        add_pptx_table(slide, elements, top_inches=2.0)
+        return
+
+    # Split elements into two halves
+    mid = len(elements) // 2
+    left_elems = elements[:mid]
+    right_elems = elements[mid:]
+
+    placeholders: dict[int, Any] = {}
+    for ph in slide.placeholders:
+        placeholders[ph.placeholder_format.idx] = ph
+
+    # Left sub-header (idx=1, BODY) - use first left element as header
+    if 1 in placeholders and left_elems:
+        format_comparison_body(placeholders[1], [left_elems[0]])
+        left_content = left_elems[1:] if len(left_elems) > 1 else left_elems
+    else:
+        left_content = left_elems
+
+    # Right sub-header (idx=3, BODY) - use first right element as header
+    if 3 in placeholders and right_elems:
+        format_comparison_body(placeholders[3], [right_elems[0]])
+        right_content = right_elems[1:] if len(right_elems) > 1 else right_elems
+    else:
+        right_content = right_elems
+
+    # Left content (idx=2, OBJECT)
+    if 2 in placeholders and left_content:
+        format_text_frame(placeholders[2].text_frame, left_content, font_size_pt=13)
+
+    # Right content (idx=4, OBJECT)
+    if 4 in placeholders and right_content:
+        format_text_frame(placeholders[4].text_frame, right_content, font_size_pt=13)
+
+
+def _populate_stat_callout(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 5 (Title Only) for STAT_CALLOUT.
+
+    idx=0 (TITLE): Slide title
+    Custom textbox: Large stat number + supporting points
+    """
+    _set_title(slide, slide_obj.title)
+
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
+    if not elements:
+        return
+
+    # Add accent bar
+    add_accent_bar(slide)
+
+    # Custom stat callout textbox
+    left = Inches(1.5)
+    top = Inches(2.2)
+    width = Inches(10.0)
+    height = Inches(4.5)
+    txBox = slide.shapes.add_textbox(left, top, width, height)
+    tf = txBox.text_frame
+    tf.word_wrap = True
+    format_stat_callout(tf, elements)
+
+
+def _populate_team(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 5 (Title Only) for TEAM layout.
+
+    Renders as a styled table with navy header row.
+    """
+    _set_title(slide, slide_obj.title)
+
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
+    if not elements:
+        return
+
+    # Add accent bar
+    add_accent_bar(slide)
+
+    # If pipe-table data, use styled table
+    if is_pipe_table(elements):
+        add_pptx_table(slide, elements, top_inches=2.2)
+    else:
+        # Render as em-dash separated table
+        add_styled_table_from_elements(
+            slide, elements, has_header=False, top_inches=2.2,
+        )
+
+
+def _populate_timeline(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 5 (Title Only) for TIMELINE layout.
+
+    Renders as a styled table with phase/period rows.
+    """
+    _set_title(slide, slide_obj.title)
+
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
+    if not elements:
+        return
+
+    # Add accent bar
+    add_accent_bar(slide)
+
+    # If pipe-table data, use styled table
+    if is_pipe_table(elements):
+        add_pptx_table(slide, elements, top_inches=2.2)
+    else:
+        # Render as em-dash separated table
+        add_styled_table_from_elements(
+            slide, elements, has_header=False, top_inches=2.2,
+        )
+
+
+def _populate_compliance_matrix(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 5 (Title Only) for COMPLIANCE_MATRIX.
+
+    Always renders as a styled table with status color coding.
+    """
+    _set_title(slide, slide_obj.title)
+
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
+    if not elements:
+        return
+
+    # Add accent bar
+    add_accent_bar(slide)
+
+    # Compliance matrix always renders as table
+    if is_pipe_table(elements):
+        add_pptx_table(slide, elements, top_inches=2.2)
+    else:
+        add_styled_table_from_elements(
+            slide, elements, has_header=False, top_inches=2.2,
+        )
+
+
+def _populate_framework(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 1 (Title and Content) for FRAMEWORK.
+
+    Uses the standard content placeholder with formatted bullets.
+    """
+    _set_title(slide, slide_obj.title)
+
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
+    if not elements:
+        return
+
+    # Check for pipe table
+    if is_pipe_table(elements):
+        add_pptx_table(slide, elements)
+        return
+
+    body_ph = _find_body_placeholder(slide)
+    if body_ph is not None:
+        format_text_frame(body_ph.text_frame, elements)
+    else:
+        _add_body_textbox(slide, elements)
+
+
+def _populate_closing(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 0 (Title Slide) for CLOSING.
+
+    Bookend that matches the opening. Uses CENTER_TITLE + SUBTITLE.
+    """
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
+    format_closing_slide(slide, slide_obj.title, elements)
+
+
+def _populate_section(slide: Any, slide_obj: SlideObject) -> None:
+    """Populate Layout 2 (Section Header).
+
+    idx=0 (TITLE): Large section heading
+    idx=1 (BODY): Optional descriptive text
+    """
+    _set_title(slide, slide_obj.title)
+
+    elements = slide_obj.body_content.text_elements if slide_obj.body_content else []
+    if not elements:
+        return
+
+    for ph in slide.placeholders:
+        if ph.placeholder_format.idx == 1 and ph.has_text_frame:
+            format_text_frame(ph.text_frame, elements, font_size_pt=16)
+            return
+
+
+# ----------------------------------------------------------------
+# Generic helpers
+# ----------------------------------------------------------------
+
+
+def _set_title(slide: Any, title: str) -> None:
+    """Set the title placeholder text (idx=0)."""
+    for ph in slide.placeholders:
+        if ph.placeholder_format.idx == 0:
+            ph.text = title
+            return
+
+
+def _find_body_placeholder(slide: Any) -> Any | None:
+    """Find the best placeholder for body content.
+
+    Priority:
+      1. idx=1 with type BODY (2) or OBJECT (7) -- standard content layouts
+      2. idx=1 with type SUBTITLE (4) -- Title Slide layout
+      3. idx=1 with any text frame -- catch-all
+    """
+    for ph in slide.placeholders:
+        if ph.placeholder_format.idx == 1 and ph.placeholder_format.type in (2, 7):
+            return ph
+    for ph in slide.placeholders:
+        if ph.placeholder_format.idx == 1 and ph.has_text_frame:
+            return ph
+    return None
+
+
+def _add_body_textbox(
+    slide: Any,
+    elements: list[str],
+) -> None:
+    """Add a text box with body content when no placeholder exists."""
+    left = Inches(0.92)
+    top = Inches(2.0)
+    width = Inches(11.5)
+    height = Inches(4.76)
+    txBox = slide.shapes.add_textbox(left, top, width, height)
+    tf = txBox.text_frame
+    tf.word_wrap = True
+    format_text_frame(tf, elements)
 
 
 def _add_speaker_notes(slide: Any, notes: str) -> None:
@@ -234,14 +524,13 @@ def _add_chart(
     if spec.type not in supported:
         log_entry["status"] = RenderStatus.WARNING
         log_entry["message"] += (
-            f" Chart type '{spec.type}' not yet supported — skipped."
+            f" Chart type '{spec.type}' not yet supported -- skipped."
         )
         return
 
-    # Charts require data — if no y_axis data, skip
     if not spec.y_axis or not spec.y_axis.get("values"):
         log_entry["status"] = RenderStatus.WARNING
-        log_entry["message"] += " Chart has no data — skipped."
+        log_entry["message"] += " Chart has no data -- skipped."
         return
 
     from pptx.chart.data import CategoryChartData
@@ -261,7 +550,6 @@ def _add_chart(
         spec.y_axis["values"],
     )
 
-    # Place chart in center of slide
     x = Inches(1.5)
     y = Inches(2.0)
     cx = Inches(8.0)
@@ -272,6 +560,32 @@ def _add_chart(
         x, y, cx, cy,
         chart_data,
     )
+
+
+# ----------------------------------------------------------------
+# Layout dispatch table
+# ----------------------------------------------------------------
+
+_LAYOUT_HANDLERS: dict[LayoutType, Any] = {
+    LayoutType.TITLE: _populate_title_slide,
+    LayoutType.AGENDA: _populate_agenda_slide,
+    LayoutType.SECTION: _populate_section,
+    LayoutType.CONTENT_1COL: _populate_content_1col,
+    LayoutType.CONTENT_2COL: _populate_content_2col,
+    LayoutType.DATA_CHART: _populate_content_1col,  # Chart handled separately
+    LayoutType.FRAMEWORK: _populate_framework,
+    LayoutType.COMPARISON: _populate_comparison,
+    LayoutType.STAT_CALLOUT: _populate_stat_callout,
+    LayoutType.TEAM: _populate_team,
+    LayoutType.TIMELINE: _populate_timeline,
+    LayoutType.COMPLIANCE_MATRIX: _populate_compliance_matrix,
+    LayoutType.CLOSING: _populate_closing,
+}
+
+
+# ----------------------------------------------------------------
+# PPTX Renderer
+# ----------------------------------------------------------------
 
 
 async def render_pptx(
@@ -314,17 +628,45 @@ async def render_pptx(
         layout = prs.slide_layouts[layout_idx]
         slide = prs.slides.add_slide(layout)
 
-        # Populate title
-        _populate_title(slide, slide_obj.title)
-
-        # Populate body content
-        if slide_obj.layout_type in (
-            LayoutType.CONTENT_2COL,
-            LayoutType.COMPARISON,
-        ):
-            _populate_two_col(slide, slide_obj)
+        # Dispatch to layout-specific handler
+        handler = _LAYOUT_HANDLERS.get(slide_obj.layout_type)
+        if handler:
+            try:
+                handler(slide, slide_obj)
+            except Exception as e:
+                logger.warning(
+                    "Layout handler for %s failed: %s. Falling back.",
+                    slide_obj.layout_type, e,
+                )
+                log_entry["status"] = RenderStatus.WARNING
+                log_entry["message"] += f" Handler error: {e}. Used fallback."
+                # Fallback: basic title + body
+                _set_title(slide, slide_obj.title)
+                if slide_obj.body_content and slide_obj.body_content.text_elements:
+                    body_ph = _find_body_placeholder(slide)
+                    if body_ph:
+                        format_text_frame(
+                            body_ph.text_frame,
+                            slide_obj.body_content.text_elements,
+                        )
+                    else:
+                        _add_body_textbox(
+                            slide, slide_obj.body_content.text_elements,
+                        )
         else:
-            _populate_body(slide, slide_obj, log_entry)
+            # No specific handler -- generic populate
+            _set_title(slide, slide_obj.title)
+            if slide_obj.body_content and slide_obj.body_content.text_elements:
+                body_ph = _find_body_placeholder(slide)
+                if body_ph:
+                    format_text_frame(
+                        body_ph.text_frame,
+                        slide_obj.body_content.text_elements,
+                    )
+                else:
+                    _add_body_textbox(
+                        slide, slide_obj.body_content.text_elements,
+                    )
 
         # Add chart if specified
         _add_chart(slide, slide_obj, log_entry)
@@ -348,9 +690,7 @@ async def render_pptx(
     verify_prs = Presentation(output_path)
     actual_count = len(verify_prs.slides)
     if actual_count != len(slides):
-        import logging
-
-        logging.getLogger(__name__).error(
+        logger.error(
             "PPTX verification failed: expected %d slides, found %d in %s",
             len(slides),
             actual_count,
@@ -364,9 +704,9 @@ async def render_pptx(
     )
 
 
-# ──────────────────────────────────────────────────────────────
-# DOCX Exporter — Research Report
-# ──────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
+# DOCX Exporter -- Research Report
+# ----------------------------------------------------------------
 
 
 async def export_report_docx(
@@ -374,31 +714,14 @@ async def export_report_docx(
     output_path: str,
     language: Language = Language.EN,
 ) -> str:
-    """Export Research Report as .docx file.
-
-    Args:
-        report: Approved ResearchReport from the pipeline.
-        output_path: Path to write the .docx file.
-        language: Output language.
-
-    Returns:
-        The output file path.
-    """
+    """Export Research Report as .docx file."""
     doc = Document()
-
-    # Title
     doc.add_heading(report.title, level=0)
 
-    # Sections
     for section in report.sections:
         doc.add_heading(section.heading, level=1)
-        # Split markdown content into paragraphs
-        for para_text in section.content_markdown.split("\n\n"):
-            stripped = para_text.strip()
-            if stripped:
-                doc.add_paragraph(stripped)
+        render_markdown_to_docx(doc, section.content_markdown)
 
-    # Gaps table
     if report.all_gaps:
         doc.add_heading("Evidence Gaps", level=1)
         table = doc.add_table(rows=1, cols=4)
@@ -416,7 +739,6 @@ async def export_report_docx(
             row[2].text = str(gap.severity)
             row[3].text = gap.action_required
 
-    # Source index
     if report.source_index:
         doc.add_heading("Source Index", level=1)
         table = doc.add_table(rows=1, cols=3)
@@ -432,8 +754,6 @@ async def export_report_docx(
             row[1].text = src.document_title
             row[2].text = src.sharepoint_path
 
-    # Ensure output directory exists
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-
     doc.save(output_path)
     return output_path

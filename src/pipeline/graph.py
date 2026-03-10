@@ -1,8 +1,11 @@
-"""LangGraph StateGraph — wires all 9 agents into the DeckForge pipeline.
+"""LangGraph StateGraph — wires the DeckForge pipeline.
 
-Pipeline flow:
+Pipeline flow (M10 — iterative builder):
   START → context → gate_1 → retrieval → gate_2 → analysis → research
-  → gate_3 → structure → gate_4 → content → qa → gate_5 → render → END
+  → gate_3 → build_slides → gate_4 → qa → gate_5 → render → END
+
+build_slides replaces the old structure + content nodes with a 5-turn
+iterative builder (Draft → Review → Refine → Final Review → Presentation).
 
 Gate nodes use LangGraph's interrupt() for human-in-the-loop approval.
 The CLI runner resumes with Command(resume={"approved": True/False, ...}).
@@ -17,13 +20,12 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import interrupt
 
 from src.agents.analysis import agent as analysis_agent
-from src.agents.content import agent as content_agent
 from src.agents.context import agent as context_agent
+from src.agents.iterative.builder import run_iterative_build
 from src.agents.qa import agent as qa_agent
 from src.agents.research import agent as research_agent
 from src.agents.retrieval import planner as retrieval_planner
 from src.agents.retrieval import ranker as retrieval_ranker
-from src.agents.structure import agent as structure_agent
 from src.models.enums import PipelineStage
 from src.models.state import DeckForgeState, ErrorInfo, GateDecision
 from src.services.renderer import export_report_docx, render_pptx
@@ -98,10 +100,19 @@ def _gate_3_summary(state: DeckForgeState) -> str:
 
 
 def _gate_4_summary(state: DeckForgeState) -> str:
+    if state.written_slides:
+        count = len(state.written_slides.slides)
+        mode = state.evidence_mode
+        drafts = len(state.deck_drafts)
+        reviews = len(state.deck_reviews)
+        return (
+            f"Built slides: {count} slides ({mode} mode)"
+            f" | {drafts} drafts, {reviews} reviews"
+        )
     if state.slide_outline:
         count = len(state.slide_outline.slides)
         return f"Slide outline: {count} slides."
-    return "No slide outline generated."
+    return "No slides built."
 
 
 def _gate_5_summary(state: DeckForgeState) -> str:
@@ -206,23 +217,18 @@ async def research_node(state: DeckForgeState) -> dict[str, Any]:
     }
 
 
-async def structure_node(state: DeckForgeState) -> dict[str, Any]:
-    """Structure Agent — convert report into slide outline."""
-    result = await structure_agent.run(state)
-    return {
-        "slide_outline": result.slide_outline,
-        "current_stage": result.current_stage,
-        "session": result.session,
-        "errors": result.errors,
-        "last_error": result.last_error,
-    }
+async def build_slides_node(state: DeckForgeState) -> dict[str, Any]:
+    """5-turn iterative slide builder — replaces structure + content agents.
 
-
-async def content_node(state: DeckForgeState) -> dict[str, Any]:
-    """Content Agent — write slide copy from outline + report."""
-    result = await content_agent.run(state)
+    Runs Draft → Review → Refine → Final Review → Presentation in sequence.
+    Gate 4 now shows complete built slides (not just an outline).
+    """
+    result = await run_iterative_build(state)
     return {
         "written_slides": result.written_slides,
+        "deck_drafts": result.deck_drafts,
+        "deck_reviews": result.deck_reviews,
+        "evidence_mode": result.evidence_mode,
         "current_stage": result.current_stage,
         "session": result.session,
         "errors": result.errors,
@@ -317,11 +323,11 @@ def route_after_gate_2(state: DeckForgeState) -> str:
 
 
 def route_after_gate_3(state: DeckForgeState) -> str:
-    return _route_after_gate(state, "gate_3", "structure")
+    return _route_after_gate(state, "gate_3", "build_slides")
 
 
 def route_after_gate_4(state: DeckForgeState) -> str:
-    return _route_after_gate(state, "gate_4", "content")
+    return _route_after_gate(state, "gate_4", "qa")
 
 
 def route_after_gate_5(state: DeckForgeState) -> str:
@@ -349,9 +355,8 @@ def build_graph() -> CompiledStateGraph:
     graph.add_node("analysis", analysis_node)
     graph.add_node("research", research_node)
     graph.add_node("gate_3", gate_3_node)
-    graph.add_node("structure", structure_node)
+    graph.add_node("build_slides", build_slides_node)
     graph.add_node("gate_4", gate_4_node)
-    graph.add_node("content", content_node)
     graph.add_node("qa", qa_node)
     graph.add_node("gate_5", gate_5_node)
     graph.add_node("render", render_node)
@@ -371,13 +376,12 @@ def build_graph() -> CompiledStateGraph:
     graph.add_edge("analysis", "research")
     graph.add_edge("research", "gate_3")
     graph.add_conditional_edges(
-        "gate_3", route_after_gate_3, ["structure", END]
+        "gate_3", route_after_gate_3, ["build_slides", END]
     )
-    graph.add_edge("structure", "gate_4")
+    graph.add_edge("build_slides", "gate_4")
     graph.add_conditional_edges(
-        "gate_4", route_after_gate_4, ["content", END]
+        "gate_4", route_after_gate_4, ["qa", END]
     )
-    graph.add_edge("content", "qa")
     graph.add_edge("qa", "gate_5")
     graph.add_conditional_edges(
         "gate_5", route_after_gate_5, ["render", END]
