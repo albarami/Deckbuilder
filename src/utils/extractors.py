@@ -166,6 +166,10 @@ def extract_pdf(filepath: str) -> ExtractedDocument:
     1. Try PyPDF2 first (fast, free, works for digitally-born PDFs)
     2. If text is sparse (< 50 chars/page avg), fall back to Tesseract OCR
     3. If Tesseract unavailable, return degraded quality gracefully
+
+    Handles both sync and async calling contexts:
+    - From sync code: creates a new event loop with asyncio.run()
+    - From async code: uses the existing loop to run the coroutine
     """
     import asyncio
 
@@ -173,7 +177,23 @@ def extract_pdf(filepath: str) -> ExtractedDocument:
 
     path = Path(filepath)
     try:
-        ocr_result = asyncio.run(extract_pdf_with_ocr(filepath, backend="auto"))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            # Already inside an async context — run coroutine on the existing loop.
+            # Since OCR backends are CPU-bound (pytesseract, pypdf2), they don't
+            # actually need async I/O. We use a new thread to avoid blocking.
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                ocr_result = pool.submit(
+                    asyncio.run, extract_pdf_with_ocr(filepath, backend="auto")
+                ).result()
+        else:
+            # No running loop — safe to use asyncio.run()
+            ocr_result = asyncio.run(extract_pdf_with_ocr(filepath, backend="auto"))
     except Exception as e:
         return _make_error_doc(filepath, f"Failed to extract PDF: {e}", "pdf")
 

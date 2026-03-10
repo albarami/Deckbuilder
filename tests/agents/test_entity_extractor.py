@@ -58,6 +58,7 @@ async def test_extract_entities_finds_people() -> None:
         people=[
             {
                 "name": "Hattan Saaty",
+                "person_type": "internal_team",
                 "current_role": "CEO",
                 "company": "Strategic Gears",
                 "certifications": ["PMP"],
@@ -65,6 +66,7 @@ async def test_extract_entities_finds_people() -> None:
             },
             {
                 "name": "Laith Abdin",
+                "person_type": "internal_team",
                 "current_role": "COO",
                 "company": "Strategic Gears",
             },
@@ -83,6 +85,7 @@ async def test_extract_entities_finds_people() -> None:
 
     assert len(result.people) == 2
     assert result.people[0]["name"] == "Hattan Saaty"
+    assert result.people[0]["person_type"] == "internal_team"
     assert result.people[0]["current_role"] == "CEO"
     assert result.people[1]["name"] == "Laith Abdin"
 
@@ -176,11 +179,12 @@ async def test_merge_deduplicates_same_person() -> None:
 
     existing = KnowledgeGraph()
 
-    # First doc: person with PMP cert
+    # First doc: person with PMP cert, classified as internal_team
     result1 = EntityExtractionResult(
         people=[
             {
                 "name": "Ahmad Al Omary",
+                "person_type": "internal_team",
                 "current_role": "Senior Consultant",
                 "certifications": ["PMP"],
                 "domain_expertise": ["ERP"],
@@ -211,6 +215,7 @@ async def test_merge_deduplicates_same_person() -> None:
     # Should be merged into ONE person, not two
     assert len(kg.people) == 1
     person = kg.people[0]
+    assert person.person_type == "internal_team"
     assert "PMP" in person.certifications
     assert "ITIL" in person.certifications
     assert "TOGAF" in person.certifications
@@ -375,3 +380,56 @@ async def test_entity_extractor_handles_llm_error() -> None:
     assert len(result.people) == 0
     assert len(result.projects) == 0
     assert len(result.clients) == 0
+
+
+# ── Test 9: Smart content builder prioritizes team slides ─────────────
+
+
+def test_smart_content_prioritizes_team_slides() -> None:
+    """For PPTX files, team/bio slides appear first in content."""
+    from src.agents.indexing.entity_extractor import _build_smart_content
+    from src.models.extraction import ExtractedSlide
+
+    doc = ExtractedDocument(
+        filepath="/fake/team.pptx",
+        filename="team.pptx",
+        file_type="pptx",
+        slides=[
+            ExtractedSlide(
+                slide_number=1,
+                title="Project Overview",
+                body_text="This project is about SAP migration",
+            ),
+            ExtractedSlide(
+                slide_number=2,
+                title="Case Study",
+                body_text="We delivered a CRM system for the client",
+            ),
+            ExtractedSlide(
+                slide_number=50,
+                title="Our Team",
+                body_text="Hattan Saaty, CEO, 20+ years of experience",
+            ),
+            ExtractedSlide(
+                slide_number=51,
+                title="Senior Partner",
+                body_text="Nagaraj Padmanabhan, Partner, certifications: PMP, TOGAF",
+            ),
+        ],
+        full_text="",
+    )
+
+    content = _build_smart_content(doc)
+
+    # Team slides should appear BEFORE other slides
+    team_pos = content.find("Hattan Saaty")
+    project_pos = content.find("SAP migration")
+    assert team_pos >= 0, "Team content not found"
+    assert project_pos >= 0, "Project content not found"
+    assert team_pos < project_pos, (
+        f"Team content (pos {team_pos}) should appear before "
+        f"project content (pos {project_pos})"
+    )
+
+    # Should contain the section header
+    assert "TEAM & LEADERSHIP PROFILES" in content

@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -61,10 +62,20 @@ class EntityExtractionResult(DeckForgeBaseModel):
 # System Prompt
 # ──────────────────────────────────────────────────────────────
 
-ENTITY_EXTRACTION_PROMPT = """From this document, extract ALL mentions of:
+ENTITY_EXTRACTION_PROMPT = """You are an entity extraction agent for a management consulting firm.
+From this document, extract ALL mentions of:
 
 1. PEOPLE — full name, role/title, qualifications, certifications, years of experience,
    nationality, email, phone. If a person appears multiple times, merge into one entry.
+
+   CRITICAL: Classify each person's person_type:
+   - "internal_team" — consultants, partners, directors, analysts who work FOR the
+     consulting firm (e.g., Strategic Gears, SG). These are people proposed on RFPs.
+     Look for: team slides, "Our Team", bio pages, leadership sections, "Proposed Team".
+   - "client_contact" — people who work for the CLIENT organization. Named contacts,
+     project sponsors, stakeholders, executives at the client entity.
+   - "reference_figure" — historical figures, scholars, authors cited in frameworks
+     or references. NOT useful for proposals.
 
 2. PROJECTS — project name, client name, dates, scope, outcomes, team size, contract value,
    technologies used, methodologies applied. Extract from case studies, past experience
@@ -77,10 +88,14 @@ ENTITY_EXTRACTION_PROMPT = """From this document, extract ALL mentions of:
 
 Extract ONLY what is explicitly stated. Do NOT guess or infer.
 If a name is mentioned without a role, extract the name and set role to null.
+IMPORTANT: Only extract REAL person names (first + last name). Do NOT extract
+generic role titles like "Managing Partner", "QA Lead", "Finance" as people —
+those are roles, not person names.
 Output ONLY valid JSON matching the schema.
 
 For each person, include these fields where available:
-- name (required), name_ar, email, phone, current_role, company, nationality,
+- name (required), name_ar, person_type (required: "internal_team"|"client_contact"|"reference_figure"),
+  email, phone, current_role, company, nationality,
   years_experience (int), certifications (list), education (list),
   domain_expertise (list), languages (list)
 
@@ -95,6 +110,81 @@ For each client, include these fields where available:
 
 
 # ──────────────────────────────────────────────────────────────
+# Smart Content Builder
+# ──────────────────────────────────────────────────────────────
+
+# Keywords that signal team/bio slides.
+# Two-tier: _TEAM_KEYWORDS_STRONG are strong signals (match anywhere in text).
+# _TEAM_KEYWORDS_WEAK require word boundary matching (avoid "sector" → "cto" false match).
+_TEAM_KEYWORDS_STRONG = [
+    "our team", "proposed team", "team profile", "team member",
+    "key personnel", "years of experience",
+    "certifications", "qualification", "biography",
+]
+
+# These are titles that could appear as substrings in other words,
+# so we match them with word boundaries.
+_TEAM_KEYWORDS_WORD_BOUNDARY = [
+    "ceo", "coo", "cto", "cfo",
+    "partner", "director", "senior consultant", "associate partner",
+    "senior partner", "managing partner", "leadership",
+]
+
+# Pre-compile word boundary patterns
+_TEAM_WB_PATTERNS = [
+    re.compile(r"\b" + re.escape(kw) + r"\b", re.IGNORECASE)
+    for kw in _TEAM_KEYWORDS_WORD_BOUNDARY
+]
+
+
+def _is_team_slide(text: str) -> bool:
+    """Check if slide text contains team/bio signals."""
+    text_lower = text.lower()
+    # Strong keywords: simple substring match
+    if any(kw in text_lower for kw in _TEAM_KEYWORDS_STRONG):
+        return True
+    # Weak keywords: word boundary match
+    return any(pat.search(text) for pat in _TEAM_WB_PATTERNS)
+
+
+def _build_smart_content(doc: ExtractedDocument) -> str:
+    """Build content for entity extraction, prioritizing team/bio sections.
+
+    For PPTX files with slides, team/bio slides are placed FIRST in the content
+    so they're within the truncation window. This ensures we capture consultant
+    profiles even in large documents.
+    """
+    if doc.file_type != "pptx" or not doc.slides:
+        # Non-PPTX: just use full_text with truncation
+        return (doc.full_text or "")[:_MAX_CONTENT_CHARS]
+
+    # Separate team slides from other slides
+    team_slides: list[str] = []
+    other_slides: list[str] = []
+
+    for slide in doc.slides:
+        slide_text = f"[Slide {slide.slide_number}] {slide.title}\n{slide.body_text}"
+        if slide.speaker_notes:
+            slide_text += f"\n{slide.speaker_notes}"
+
+        if _is_team_slide(slide_text):
+            team_slides.append(slide_text)
+        else:
+            other_slides.append(slide_text)
+
+    # Build content: team slides FIRST, then other slides
+    parts = []
+    if team_slides:
+        parts.append("=== TEAM & LEADERSHIP PROFILES ===\n")
+        parts.extend(team_slides)
+        parts.append("\n=== OTHER CONTENT ===\n")
+
+    parts.extend(other_slides)
+    full = "\n\n".join(parts)
+    return full[:_MAX_CONTENT_CHARS]
+
+
+# ──────────────────────────────────────────────────────────────
 # Extraction Functions
 # ──────────────────────────────────────────────────────────────
 
@@ -104,7 +194,7 @@ async def extract_entities(
     doc_id: str,
 ) -> EntityExtractionResult:
     """Extract people, projects, clients from a single document using GPT-5.4."""
-    content_text = doc.full_text[:_MAX_CONTENT_CHARS] if doc.full_text else ""
+    content_text = _build_smart_content(doc)
     if not content_text.strip():
         return EntityExtractionResult()
 
@@ -229,6 +319,12 @@ def _merge_person(existing: PersonProfile, data: dict, doc_id: str) -> PersonPro
     # Update scalar fields only if currently None
     if existing.name_ar is None and data.get("name_ar"):
         existing.name_ar = data["name_ar"]
+    # person_type: "internal_team" wins over others (most useful for RFPs)
+    if data.get("person_type"):
+        if existing.person_type is None:
+            existing.person_type = data["person_type"]
+        elif data["person_type"] == "internal_team":
+            existing.person_type = "internal_team"
     if existing.email is None and data.get("email"):
         existing.email = data["email"]
     if existing.phone is None and data.get("phone"):
@@ -363,6 +459,7 @@ async def merge_into_knowledge_graph(
                     person_id=f"PER-{person_counter:03d}",
                     name=name,
                     name_ar=person_data.get("name_ar"),
+                    person_type=person_data.get("person_type"),
                     email=person_data.get("email"),
                     phone=person_data.get("phone"),
                     current_role=person_data.get("current_role"),
@@ -381,7 +478,7 @@ async def merge_into_knowledge_graph(
         # Merge projects
         for project_data in result.projects:
             proj_name = project_data.get("project_name", "")
-            proj_client = project_data.get("client", "")
+            proj_client = project_data.get("client") or ""
             if not proj_name:
                 continue
 
@@ -396,7 +493,7 @@ async def merge_into_knowledge_graph(
                     project_id=f"PRJ-{project_counter:03d}",
                     project_name=proj_name,
                     project_name_ar=project_data.get("project_name_ar"),
-                    client=proj_client,
+                    client=proj_client or "Unknown",
                     client_type=project_data.get("client_type"),
                     country=project_data.get("country"),
                     city=project_data.get("city"),

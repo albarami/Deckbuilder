@@ -19,6 +19,7 @@ class PersonProfile(DeckForgeBaseModel):
     person_id: str  # PER-001
     name: str
     name_ar: str | None = None
+    person_type: str | None = None  # "internal_team", "client_contact", "reference_figure"
     email: str | None = None
     phone: str | None = None
     current_role: str | None = None
