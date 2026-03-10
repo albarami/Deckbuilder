@@ -342,9 +342,11 @@ def _populate_team(slide: Any, slide_obj: SlideObject) -> None:
     if is_pipe_table(elements):
         add_pptx_table(slide, elements, top_inches=2.2)
     else:
-        # Render as em-dash separated table
+        # Render as em-dash separated table with navy header
         add_styled_table_from_elements(
-            slide, elements, has_header=False, top_inches=2.2,
+            slide, elements, has_header=False,
+            column_headers=["Role", "Details"],
+            top_inches=2.2,
         )
 
 
@@ -366,9 +368,11 @@ def _populate_timeline(slide: Any, slide_obj: SlideObject) -> None:
     if is_pipe_table(elements):
         add_pptx_table(slide, elements, top_inches=2.2)
     else:
-        # Render as em-dash separated table
+        # Render as em-dash separated table with navy header
         add_styled_table_from_elements(
-            slide, elements, has_header=False, top_inches=2.2,
+            slide, elements, has_header=False,
+            column_headers=["Phase", "Details"],
+            top_inches=2.2,
         )
 
 
@@ -391,7 +395,9 @@ def _populate_compliance_matrix(slide: Any, slide_obj: SlideObject) -> None:
         add_pptx_table(slide, elements, top_inches=2.2)
     else:
         add_styled_table_from_elements(
-            slide, elements, has_header=False, top_inches=2.2,
+            slide, elements, has_header=False,
+            column_headers=["Requirement", "Status"],
+            top_inches=2.2,
         )
 
 

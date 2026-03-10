@@ -512,6 +512,7 @@ def add_styled_table_from_elements(
     slide: Any,
     elements: list[str],
     has_header: bool = True,
+    column_headers: list[str] | None = None,
     left_inches: float = 0.92,
     top_inches: float = 2.0,
     width_inches: float = 11.5,
@@ -520,6 +521,11 @@ def add_styled_table_from_elements(
 
     Treats each element as a row with em-dash separated columns.
     Used for TEAM, TIMELINE layouts where content is in "key -- detail" format.
+
+    Args:
+        column_headers: If provided, prepend a navy header row with these
+            labels before the data rows. Overrides has_header for the
+            header styling.
     """
     # Parse elements into rows
     parsed_rows: list[list[str]] = []
@@ -541,7 +547,13 @@ def add_styled_table_from_elements(
         return None
 
     num_cols = max(len(r) for r in parsed_rows)
+    # Ensure num_cols matches column_headers if provided
+    if column_headers:
+        num_cols = max(num_cols, len(column_headers))
     num_rows = len(parsed_rows)
+    # Extra row for explicit column headers
+    if column_headers:
+        num_rows += 1
 
     left = PptxInches(left_inches)
     top = PptxInches(top_inches)
@@ -555,13 +567,29 @@ def add_styled_table_from_elements(
     table = table_shape.table
     _remove_table_banding(table)
 
+    # Render explicit column headers as navy row 0
+    data_row_offset = 0
+    if column_headers:
+        data_row_offset = 1
+        for c in range(num_cols):
+            cell = table.cell(0, c)
+            _set_cell_fill(cell, NAVY)
+            _set_cell_margins(cell)
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            header_text = column_headers[c] if c < len(column_headers) else ""
+            _format_cell_text(
+                cell, header_text,
+                font_size_pt=12, bold=True, color=WHITE,
+            )
+
     for r, row_data in enumerate(parsed_rows):
-        is_header = has_header and r == 0
+        table_row = r + data_row_offset
+        is_header = (not column_headers) and has_header and r == 0
         fill_color = NAVY if is_header else (LIGHT_GRAY if r % 2 == 0 else WHITE)
         text_color = WHITE if is_header else DARK_TEXT
 
         for c in range(num_cols):
-            cell = table.cell(r, c)
+            cell = table.cell(table_row, c)
             _set_cell_fill(cell, fill_color)
             _set_cell_margins(cell)
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE

@@ -36,7 +36,7 @@ async def run(state: DeckForgeState) -> DeckForgeState:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=DeckDraft,
-            max_tokens=8000,
+            max_tokens=16000,
         )
         state.deck_drafts.append(result.parsed.model_dump(mode="json"))
         state.current_stage = PipelineStage.SLIDE_BUILDING

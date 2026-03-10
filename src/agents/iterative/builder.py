@@ -17,7 +17,7 @@ from src.models.state import DeckForgeState
 logger = logging.getLogger(__name__)
 
 # Minimum acceptable slide count from the Draft Agent
-MIN_DRAFT_SLIDES = 8
+MIN_DRAFT_SLIDES = 15
 
 
 def _detect_evidence_mode(state: DeckForgeState) -> str:
