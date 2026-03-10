@@ -49,10 +49,10 @@ def _make_input_state() -> DeckForgeState:
 
 
 def _draft_response() -> LLMResponse:
-    # Must produce >= MIN_DRAFT_SLIDES (8) to avoid retry guard
+    # Must produce >= MIN_DRAFT_SLIDES (15) to avoid retry guard
     slides = [
         SlideText(slide_number=i, title=f"Slide {i}", bullets=[f"B{i}"])
-        for i in range(1, 11)
+        for i in range(1, 17)
     ]
     return LLMResponse(
         parsed=DeckDraft(

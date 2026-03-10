@@ -957,3 +957,80 @@ def test_pptx_pipe_table_header_bold() -> None:
                 assert runs[0].font.bold is True, "Header cell should be bold"
                 return
         raise AssertionError("No table found")
+
+
+def test_pptx_team_table_has_navy_header() -> None:
+    """TEAM layout em-dash table gets a navy header row with 'Role' and 'Details'."""
+    from src.services.renderer import render_pptx
+
+    slides = [
+        SlideObject(
+            slide_id="S-001",
+            title="Proposed Team",
+            layout_type=LayoutType.TEAM,
+            body_content=BodyContent(
+                text_elements=[
+                    "SAP Basis Lead \u2014 Senior consultant with 10+ years",
+                    "Project Manager \u2014 PMP certified, SIDF experience",
+                ],
+            ),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "team_header_test.pptx")
+        asyncio.run(render_pptx(slides, TEMPLATE_PATH, output))
+
+        prs = Presentation(output)
+        slide = prs.slides[0]
+        for shape in slide.shapes:
+            if shape.has_table:
+                table = shape.table
+                # Header row should have "Role" and "Details"
+                assert table.cell(0, 0).text.strip() == "Role"
+                assert table.cell(0, 1).text.strip() == "Details"
+                # Data should start at row 1
+                assert "SAP Basis Lead" in table.cell(1, 0).text
+                # 3 rows total (1 header + 2 data)
+                assert len(table.rows) == 3
+                # Verify navy fill on header via XML
+                nsmap = {"a": "http://schemas.openxmlformats.org/drawingml/2006/main"}
+                tc = table.cell(0, 0)._tc
+                tcPr = tc.find("a:tcPr", nsmap)
+                solid = tcPr.find("a:solidFill", nsmap)
+                srgb = solid.find("a:srgbClr", nsmap)
+                assert srgb.get("val").upper() == "0E2841"
+                return
+        raise AssertionError("No table found on TEAM slide")
+
+
+def test_pptx_timeline_table_has_navy_header() -> None:
+    """TIMELINE layout em-dash table gets a navy header row."""
+    from src.services.renderer import render_pptx
+
+    slides = [
+        SlideObject(
+            slide_id="S-001",
+            title="Project Timeline",
+            layout_type=LayoutType.TIMELINE,
+            body_content=BodyContent(
+                text_elements=[
+                    "Phase 1 \u2014 Discovery (Weeks 1-4)",
+                    "Phase 2 \u2014 Implementation (Weeks 5-16)",
+                ],
+            ),
+        ),
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = os.path.join(tmpdir, "timeline_header_test.pptx")
+        asyncio.run(render_pptx(slides, TEMPLATE_PATH, output))
+
+        prs = Presentation(output)
+        slide = prs.slides[0]
+        for shape in slide.shapes:
+            if shape.has_table:
+                table = shape.table
+                assert table.cell(0, 0).text.strip() == "Phase"
+                assert table.cell(0, 1).text.strip() == "Details"
+                assert len(table.rows) == 3
+                return
+        raise AssertionError("No table found on TIMELINE slide")

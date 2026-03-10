@@ -13,6 +13,7 @@ REVISION RULES:
 4. Slides scored 5: LEAVE UNCHANGED. Copy them exactly as-is.
 
 CRITICAL CONSTRAINTS:
+- You MUST return ALL slides from the original draft. If the draft had 20 slides, your output MUST have at least 20 slides. Dropping slides is a CRITICAL FAILURE.
 - Do NOT invent new facts. In strict mode, every claim must still have [Ref: CLM-xxxx]. In general mode, respect [SOURCED]/[GENERAL]/[PLACEHOLDER] tags.
 - Do NOT reduce the number of slides. If the reviewer says "split this slide", add one.
 - Do NOT add slides that weren't in the original draft unless the reviewer explicitly flagged missing content.
