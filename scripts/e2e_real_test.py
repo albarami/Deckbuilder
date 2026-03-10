@@ -17,6 +17,10 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv(override=True)  # Override empty system env vars with .env values
+
 # Force UTF-8 output on Windows
 sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
@@ -54,13 +58,13 @@ def _save_json(data: object, path: str) -> None:
 async def run_e2e() -> None:
     """Execute full pipeline step-by-step with real LLM calls."""
     from src.agents.analysis import agent as analysis_agent
-    from src.agents.content import agent as content_agent
     from src.agents.context import agent as context_agent
+    from src.agents.iterative.builder import run_iterative_build
     from src.agents.qa import agent as qa_agent
     from src.agents.research import agent as research_agent
     from src.agents.retrieval import planner as retrieval_planner
     from src.agents.retrieval import ranker as retrieval_ranker
-    from src.agents.structure import agent as structure_agent
+    from src.models.iterative import DeckDraft, DeckReview
     from src.models.state import (
         DeckForgeState,
         GateDecision,
@@ -338,69 +342,128 @@ async def run_e2e() -> None:
     print("\n>> AUTO-APPROVED")
     state.gate_3 = GateDecision(gate_number=3, approved=True)
 
-    # ── STEP 5: Structure Agent ──────────────────────────────
-    _separator("STEP 5: STRUCTURE AGENT (GPT-5.4)")
+    # ── STEP 5: 5-Turn Iterative Slide Builder (M10) ─────────
+    _separator("STEP 5: 5-TURN ITERATIVE SLIDE BUILDER")
+    tokens_before = (state.session.total_input_tokens, state.session.total_output_tokens)
+    calls_before = state.session.total_llm_calls
+
     t0 = time.perf_counter()
-    state = await structure_agent.run(state)
-    timings["5_structure"] = time.perf_counter() - t0
+    state = await run_iterative_build(state)
+    timings["5_iterative_builder"] = time.perf_counter() - t0
 
     if state.last_error:
         print(f"ERROR: {state.last_error.message}")
         print("Continuing despite error...")
 
-    outline = state.slide_outline
-    if outline:
-        print(f"Slide Outline ({timings['5_structure']:.1f}s): {len(outline.slides)} slides")
-        for i, sl in enumerate(outline.slides):
-            print(f"  Slide {i+1}: [{sl.layout_type}] {sl.title}")
-            if sl.content_guidance:
-                print(f"           Guidance: {sl.content_guidance[:100]}...")
+    print(f"Evidence Mode: {state.evidence_mode}")
+    print(f"Total Time: {timings['5_iterative_builder']:.1f}s")
+    calls_used = state.session.total_llm_calls - calls_before
+    tokens_in_used = state.session.total_input_tokens - tokens_before[0]
+    tokens_out_used = state.session.total_output_tokens - tokens_before[1]
+    print(f"LLM Calls: {calls_used} | Tokens: in={tokens_in_used:,}, out={tokens_out_used:,}")
+
+    # Show Turn 1: Draft
+    print(f"\n  --- Turn 1: Draft Agent (Opus) ---")
+    if state.deck_drafts:
+        draft_1 = DeckDraft(**state.deck_drafts[0])
+        print(f"  Slides: {len(draft_1.slides)} | Mode: {draft_1.mode}")
+        for sl in draft_1.slides[:5]:
+            evidence = f" [{sl.evidence_level}]" if sl.evidence_level else ""
+            print(f"    S{sl.slide_number}: {sl.title}{evidence}")
+            for b in sl.bullets[:2]:
+                print(f"      - {b[:120]}...")
+        if len(draft_1.slides) > 5:
+            print(f"    ... and {len(draft_1.slides) - 5} more slides")
     else:
-        print(f"No slide outline produced (time={timings['5_structure']:.1f}s)")
+        print("  (No draft produced)")
 
-    print(f"\nTokens: in={state.session.total_input_tokens}, out={state.session.total_output_tokens}")
-    if outline:
-        _save_json(outline, "output/step5_slide_outline.json")
+    # Show Turn 2: Review
+    print(f"\n  --- Turn 2: Review Agent (GPT) ---")
+    if state.deck_reviews:
+        review_1 = DeckReview(**state.deck_reviews[0])
+        print(f"  Overall Score: {review_1.overall_score}/5")
+        if review_1.coherence_issues:
+            print(f"  Coherence Issues: {len(review_1.coherence_issues)}")
+            for issue in review_1.coherence_issues[:3]:
+                print(f"    ! {issue[:120]}...")
+        for cr in review_1.critiques[:5]:
+            issues_text = ", ".join(cr.issues[:2]) if cr.issues else "OK"
+            print(f"    S{cr.slide_number}: score={cr.score}/5 | {issues_text[:120]}")
+        if len(review_1.critiques) > 5:
+            print(f"    ... and {len(review_1.critiques) - 5} more critiques")
+    else:
+        print("  (No review produced)")
 
-    # ── GATE 4 ──────────────────────────────────────────────
-    _separator("GATE 4: SLIDE OUTLINE REVIEW")
-    if outline:
-        for i, sl in enumerate(outline.slides):
-            print(f"  Slide {i+1}: [{sl.layout_type}] {sl.title}")
-            if sl.source_claims:
-                print(f"           Claims: {sl.source_claims[:5]}")
-    print("\n>> AUTO-APPROVED")
-    state.gate_4 = GateDecision(gate_number=4, approved=True)
+    # Show Turn 3: Refine
+    print(f"\n  --- Turn 3: Refine Agent (Opus) ---")
+    if len(state.deck_drafts) >= 2:
+        draft_2 = DeckDraft(**state.deck_drafts[1])
+        print(f"  Slides: {len(draft_2.slides)} | Mode: {draft_2.mode}")
+        for sl in draft_2.slides[:5]:
+            evidence = f" [{sl.evidence_level}]" if sl.evidence_level else ""
+            print(f"    S{sl.slide_number}: {sl.title}{evidence}")
+            for b in sl.bullets[:2]:
+                print(f"      - {b[:120]}...")
+        if len(draft_2.slides) > 5:
+            print(f"    ... and {len(draft_2.slides) - 5} more slides")
+    else:
+        print("  (No refined draft produced)")
 
-    # ── STEP 6: Content Agent ────────────────────────────────
-    _separator("STEP 6: CONTENT AGENT (GPT-5.4)")
-    t0 = time.perf_counter()
-    state = await content_agent.run(state)
-    timings["6_content"] = time.perf_counter() - t0
+    # Show Turn 4: Final Review
+    print(f"\n  --- Turn 4: Final Review Agent (GPT) ---")
+    if len(state.deck_reviews) >= 2:
+        review_2 = DeckReview(**state.deck_reviews[1])
+        print(f"  Overall Score: {review_2.overall_score}/5")
+        if review_2.coherence_issues:
+            print(f"  Coherence Issues: {len(review_2.coherence_issues)}")
+            for issue in review_2.coherence_issues[:3]:
+                print(f"    ! {issue[:120]}...")
+        for cr in review_2.critiques[:5]:
+            issues_text = ", ".join(cr.issues[:2]) if cr.issues else "OK"
+            print(f"    S{cr.slide_number}: score={cr.score}/5 | {issues_text[:120]}")
+        if len(review_2.critiques) > 5:
+            print(f"    ... and {len(review_2.critiques) - 5} more critiques")
+    else:
+        print("  (No final review produced)")
 
-    if state.last_error:
-        print(f"ERROR: {state.last_error.message}")
-        print("Continuing despite error...")
-
+    # Show Turn 5: Presentation (Final Slides)
+    print(f"\n  --- Turn 5: Presentation Agent (Opus) ---")
     written = state.written_slides
     if written:
-        print(f"Written Slides ({timings['6_content']:.1f}s): {len(written.slides)} slides")
-        # Show 3 sample slides
-        for sl in written.slides[:3]:
-            print(f"\n  --- Slide: {sl.title} [{sl.layout_type}] ---")
+        print(f"  Final Slides: {len(written.slides)} slides")
+        for sl in written.slides[:5]:
+            print(f"\n    Slide: {sl.title} [{sl.layout_type}]")
             if sl.body_content and sl.body_content.text_elements:
-                body_preview = " | ".join(sl.body_content.text_elements[:4])
-                print(f"  Body ({len(sl.body_content.text_elements)} bullets): {body_preview[:300]}...")
+                body_preview = " | ".join(sl.body_content.text_elements[:3])
+                print(f"    Body ({len(sl.body_content.text_elements)} elements): {body_preview[:200]}...")
             else:
-                print("  Body: (empty)")
-            print(f"  Speaker Notes: {(sl.speaker_notes or 'N/A')[:200]}...")
-            print(f"  Source Refs: {sl.source_refs}")
+                print("    Body: (empty)")
+            print(f"    Speaker Notes: {(sl.speaker_notes or 'N/A')[:150]}...")
+            print(f"    Source Refs: {sl.source_refs}")
+        if len(written.slides) > 5:
+            print(f"\n    ... and {len(written.slides) - 5} more slides")
     else:
-        print(f"No written slides produced (time={timings['6_content']:.1f}s)")
+        print("  (No written slides produced)")
 
     print(f"\nTokens: in={state.session.total_input_tokens}, out={state.session.total_output_tokens}")
     if written:
-        _save_json(written, "output/step6_written_slides.json")
+        _save_json(written, "output/step5_written_slides.json")
+    if state.deck_drafts:
+        _save_json(state.deck_drafts, "output/step5_deck_drafts.json")
+    if state.deck_reviews:
+        _save_json(state.deck_reviews, "output/step5_deck_reviews.json")
+
+    # ── GATE 4 ──────────────────────────────────────────────
+    _separator("GATE 4: BUILT SLIDES REVIEW")
+    if written:
+        print(f"Evidence Mode: {state.evidence_mode}")
+        print(f"Total Slides: {len(written.slides)}")
+        print(f"Drafts: {len(state.deck_drafts)} | Reviews: {len(state.deck_reviews)}")
+        for i, sl in enumerate(written.slides):
+            refs = f" refs={sl.source_refs}" if sl.source_refs else ""
+            print(f"  Slide {i+1}: [{sl.layout_type}] {sl.title}{refs}")
+    print("\n>> AUTO-APPROVED")
+    state.gate_4 = GateDecision(gate_number=4, approved=True)
 
     # ── STEP 7: QA Agent ─────────────────────────────────────
     _separator("STEP 7: QA AGENT (GPT-5.4)")

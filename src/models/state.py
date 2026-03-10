@@ -110,9 +110,14 @@ class DeckForgeState(DeckForgeBaseModel):
     report_markdown: str = ""  # The full approved report as markdown
     gate_3: GateDecision | None = None
 
-    # ─── Gate 4: Slide Outline ───
+    # ─── Gate 4: Slide Outline / Built Slides ───
     slide_outline: SlideOutline | None = None
     gate_4: GateDecision | None = None
+
+    # ─── Iterative Builder (M10) ───
+    evidence_mode: str = "strict"  # "strict" | "general"
+    deck_drafts: list[dict] = Field(default_factory=list)  # Intermediate DeckDraft JSONs
+    deck_reviews: list[dict] = Field(default_factory=list)  # Intermediate DeckReview JSONs
 
     # ─── Content + QA ───
     written_slides: WrittenSlides | None = None

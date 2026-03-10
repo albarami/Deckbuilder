@@ -126,6 +126,7 @@ class PipelineStage(StrEnum):
     ANALYSIS = "analysis"
     REPORT_REVIEW = "report_review"
     OUTLINE_REVIEW = "outline_review"
+    SLIDE_BUILDING = "slide_building"
     CONTENT_GENERATION = "content_generation"
     QA = "qa"
     DECK_REVIEW = "deck_review"

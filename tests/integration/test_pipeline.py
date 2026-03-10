@@ -10,6 +10,7 @@ from langgraph.types import Command
 from src.models.claims import ClaimObject, GapObject, ReferenceIndex, SourceManifestEntry
 from src.models.common import BilingualText
 from src.models.enums import PipelineStage
+from src.models.iterative import DeckDraft, DeckReview, SlideCritique, SlideText
 from src.models.qa import DeckValidationSummary, QAResult, SlideValidation
 from src.models.report import ReportSection, ResearchReport
 from src.models.retrieval import (
@@ -196,6 +197,58 @@ _SEARCH_RESULTS = [
 ]
 
 
+def _deck_draft() -> DeckDraft:
+    return DeckDraft(
+        slides=[
+            SlideText(slide_number=1, title="Executive Summary",
+                      bullets=["Strategic Gears — SAP expertise"],
+                      evidence_level="sourced"),
+            SlideText(slide_number=2, title="Our SAP Experience",
+                      bullets=["6-month SAP migration [Ref: CLM-001]"],
+                      evidence_level="sourced"),
+        ],
+        turn_number=1,
+        mode="strict",
+    )
+
+
+def _deck_review() -> DeckReview:
+    return DeckReview(
+        critiques=[
+            SlideCritique(slide_number=1, score=4, issues=[]),
+            SlideCritique(slide_number=2, score=3, issues=["Add more detail"]),
+        ],
+        overall_score=4,
+        turn_number=2,
+    )
+
+
+def _refined_deck_draft() -> DeckDraft:
+    return DeckDraft(
+        slides=[
+            SlideText(slide_number=1, title="Executive Summary",
+                      bullets=["Strategic Gears — SAP expertise"],
+                      evidence_level="sourced"),
+            SlideText(slide_number=2, title="Our SAP Experience",
+                      bullets=["Completed SAP migration in 6 months [Ref: CLM-001]"],
+                      evidence_level="sourced"),
+        ],
+        turn_number=3,
+        mode="strict",
+    )
+
+
+def _final_deck_review() -> DeckReview:
+    return DeckReview(
+        critiques=[
+            SlideCritique(slide_number=1, score=5, issues=[]),
+            SlideCritique(slide_number=2, score=4, issues=[]),
+        ],
+        overall_score=5,
+        turn_number=4,
+    )
+
+
 def _make_input_state() -> DeckForgeState:
     """Minimal DeckForgeState for pipeline intake."""
     return DeckForgeState(
@@ -232,10 +285,20 @@ async def test_full_pipeline_happy_path() -> None:
         "src.agents.research.agent.call_llm": _llm_response(
             _research_report()
         ),
-        "src.agents.structure.agent.call_llm": _llm_response(
-            _slide_outline()
+        # 5-turn iterative builder agents (M10)
+        "src.agents.draft.agent.call_llm": _llm_response(
+            _deck_draft()
         ),
-        "src.agents.content.agent.call_llm": _llm_response(
+        "src.agents.review.agent.call_llm": _llm_response(
+            _deck_review()
+        ),
+        "src.agents.refine.agent.call_llm": _llm_response(
+            _refined_deck_draft()
+        ),
+        "src.agents.final_review.agent.call_llm": _llm_response(
+            _final_deck_review()
+        ),
+        "src.agents.presentation.agent.call_llm": _llm_response(
             _written_slides()
         ),
         "src.agents.qa.agent.call_llm": _llm_response(_qa_result()),
@@ -284,7 +347,7 @@ async def test_full_pipeline_happy_path() -> None:
         assert result["qa_result"] is not None
         assert result["rfp_context"] is not None
         assert result["written_slides"] is not None
-        assert result["session"].total_llm_calls >= 7
+        assert result["session"].total_llm_calls >= 10
         # Render node should have produced PPTX and DOCX
         assert result.get("pptx_path") is not None
         assert result.get("report_docx_path") is not None

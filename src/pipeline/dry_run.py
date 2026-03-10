@@ -25,6 +25,7 @@ from src.models.enums import (
     SearchStrategy,
     SensitivityTag,
 )
+from src.models.iterative import DeckDraft, DeckReview, SlideCritique, SlideText
 from src.models.qa import DeckValidationSummary, QAResult, SlideValidation
 from src.models.report import ReportSection, ResearchReport
 from src.models.retrieval import (
@@ -37,7 +38,6 @@ from src.models.rfp import RFPContext
 from src.models.slides import (
     BodyContent,
     SlideObject,
-    SlideOutline,
     WrittenSlides,
 )
 from src.models.state import RetrievedSource
@@ -143,24 +143,64 @@ def _research_response() -> LLMResponse:
     ))
 
 
-def _structure_response() -> LLMResponse:
-    return _wrap(SlideOutline(
+def _draft_response() -> LLMResponse:
+    """Turn 1: Draft Agent (Opus) — initial DeckDraft."""
+    return _wrap(DeckDraft(
         slides=[
-            SlideObject(
-                slide_id="S-001",
-                title="Executive Summary",
-                layout_type=LayoutType.TITLE,
-            ),
-            SlideObject(
-                slide_id="S-002",
-                title="Our SAP Experience",
-                layout_type=LayoutType.CONTENT_1COL,
-            ),
+            SlideText(slide_number=1, title="Executive Summary",
+                      bullets=["Strategic Gears — 20+ years SAP expertise"],
+                      evidence_level="sourced"),
+            SlideText(slide_number=2, title="Our SAP Experience",
+                      bullets=["Delivered SAP migration in 6 months [Ref: CLM-001]"],
+                      evidence_level="sourced"),
         ],
+        turn_number=1,
+        mode="strict",
     ))
 
 
-def _content_response() -> LLMResponse:
+def _review_response() -> LLMResponse:
+    """Turn 2: Review Agent (GPT) — DeckReview with per-slide critiques."""
+    return _wrap(DeckReview(
+        critiques=[
+            SlideCritique(slide_number=1, score=4, issues=[]),
+            SlideCritique(slide_number=2, score=3, issues=["Add more detail on migration scope"]),
+        ],
+        overall_score=4,
+        turn_number=2,
+    ))
+
+
+def _refine_response() -> LLMResponse:
+    """Turn 3: Refine Agent (Opus) — refined DeckDraft."""
+    return _wrap(DeckDraft(
+        slides=[
+            SlideText(slide_number=1, title="Executive Summary",
+                      bullets=["Strategic Gears — 20+ years SAP expertise"],
+                      evidence_level="sourced"),
+            SlideText(slide_number=2, title="Our SAP Experience",
+                      bullets=["Completed SAP S/4HANA migration in 6 months [Ref: CLM-001]"],
+                      evidence_level="sourced"),
+        ],
+        turn_number=3,
+        mode="strict",
+    ))
+
+
+def _final_review_response() -> LLMResponse:
+    """Turn 4: Final Review Agent (GPT) — final DeckReview."""
+    return _wrap(DeckReview(
+        critiques=[
+            SlideCritique(slide_number=1, score=5, issues=[]),
+            SlideCritique(slide_number=2, score=4, issues=[]),
+        ],
+        overall_score=5,
+        turn_number=4,
+    ))
+
+
+def _presentation_response() -> LLMResponse:
+    """Turn 5: Presentation Agent (Opus) — final WrittenSlides."""
     return _wrap(WrittenSlides(
         slides=[
             SlideObject(
@@ -231,8 +271,11 @@ def get_dry_run_patches() -> list:
         ("src.agents.retrieval.ranker.call_llm", _ranker_response()),
         ("src.agents.analysis.agent.call_llm", _analysis_response()),
         ("src.agents.research.agent.call_llm", _research_response()),
-        ("src.agents.structure.agent.call_llm", _structure_response()),
-        ("src.agents.content.agent.call_llm", _content_response()),
+        ("src.agents.draft.agent.call_llm", _draft_response()),
+        ("src.agents.review.agent.call_llm", _review_response()),
+        ("src.agents.refine.agent.call_llm", _refine_response()),
+        ("src.agents.final_review.agent.call_llm", _final_review_response()),
+        ("src.agents.presentation.agent.call_llm", _presentation_response()),
         ("src.agents.qa.agent.call_llm", _qa_response()),
         ("src.pipeline.graph.local_search", _SEARCH_RESULTS),
         ("src.pipeline.graph.load_documents", _LOADED_DOCUMENTS),
