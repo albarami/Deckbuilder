@@ -98,12 +98,11 @@ async def _call_openai(  # noqa: UP047
             "type": "json_schema",
             "json_schema": {
                 "name": response_model.__name__,
-                "strict": True,
                 "schema": response_model.model_json_schema(),
             },
         },
         temperature=temperature,
-        max_tokens=max_tokens,
+        max_completion_tokens=max_tokens,
     )
     content = response.choices[0].message.content
     if content is None:
