@@ -2,7 +2,7 @@
 
 Pipeline flow:
   START → context → gate_1 → retrieval → gate_2 → analysis → research
-  → gate_3 → structure → gate_4 → content → qa → gate_5 → END
+  → gate_3 → structure → gate_4 → content → qa → gate_5 → render → END
 
 Gate nodes use LangGraph's interrupt() for human-in-the-loop approval.
 The CLI runner resumes with Command(resume={"approved": True/False, ...}).
@@ -25,7 +25,8 @@ from src.agents.retrieval import planner as retrieval_planner
 from src.agents.retrieval import ranker as retrieval_ranker
 from src.agents.structure import agent as structure_agent
 from src.models.enums import PipelineStage
-from src.models.state import DeckForgeState, GateDecision
+from src.models.state import DeckForgeState, ErrorInfo, GateDecision
+from src.services.renderer import export_report_docx, render_pptx
 from src.services.search import load_documents, local_search
 
 # ──────────────────────────────────────────────────────────────
@@ -241,6 +242,55 @@ async def qa_node(state: DeckForgeState) -> dict[str, Any]:
     }
 
 
+async def render_node(state: DeckForgeState) -> dict[str, Any]:
+    """Design Agent — render PPTX and export DOCX (deterministic, no LLM).
+
+    Uses final_slides if available, otherwise falls back to written_slides.
+    Template path defaults to templates/Presentation6.pptx.
+    Output goes to output/ directory.
+    """
+    # Determine slides to render
+    slides = state.final_slides
+    if not slides and state.written_slides:
+        slides = state.written_slides.slides
+
+    if not slides:
+        return {
+            "current_stage": PipelineStage.ERROR,
+            "last_error": ErrorInfo(
+                agent="render",
+                error_type="NoSlides",
+                message="No slides available for rendering.",
+            ),
+        }
+
+    # Resolve paths
+    template_path = "templates/Presentation6.pptx"
+    output_dir = Path("output")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    pptx_path = str(output_dir / "deck.pptx")
+    docx_path = str(output_dir / "report.docx")
+
+    language = state.output_language
+
+    # Render PPTX
+    render_result = await render_pptx(slides, template_path, pptx_path, language)
+
+    result: dict[str, Any] = {
+        "pptx_path": render_result.pptx_path,
+        "final_slides": slides,
+        "current_stage": PipelineStage.FINALIZED,
+    }
+
+    # Export DOCX if research report exists
+    if state.research_report:
+        await export_report_docx(state.research_report, docx_path, language)
+        result["report_docx_path"] = docx_path
+
+    return result
+
+
 # ──────────────────────────────────────────────────────────────
 # Conditional routing — skip remaining pipeline on error
 # ──────────────────────────────────────────────────────────────
@@ -275,7 +325,7 @@ def route_after_gate_4(state: DeckForgeState) -> str:
 
 
 def route_after_gate_5(state: DeckForgeState) -> str:
-    return END
+    return _route_after_gate(state, "gate_5", "render")
 
 
 # ──────────────────────────────────────────────────────────────
@@ -304,6 +354,7 @@ def build_graph() -> CompiledStateGraph:
     graph.add_node("content", content_node)
     graph.add_node("qa", qa_node)
     graph.add_node("gate_5", gate_5_node)
+    graph.add_node("render", render_node)
 
     # Linear edges
     graph.add_edge(START, "context")
@@ -329,8 +380,9 @@ def build_graph() -> CompiledStateGraph:
     graph.add_edge("content", "qa")
     graph.add_edge("qa", "gate_5")
     graph.add_conditional_edges(
-        "gate_5", route_after_gate_5, [END]
+        "gate_5", route_after_gate_5, ["render", END]
     )
+    graph.add_edge("render", END)
 
     checkpointer = MemorySaver()
     return graph.compile(checkpointer=checkpointer)

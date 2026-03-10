@@ -151,6 +151,11 @@ async def run_pipeline(args: argparse.Namespace) -> None:
             s = final_state.qa_result.deck_summary
             print(f"  QA: {s.passed} passed, {s.failed} failed")
 
+        if final_state.pptx_path:
+            print(f"  PPTX: {final_state.pptx_path}")
+        if final_state.report_docx_path:
+            print(f"  DOCX: {final_state.report_docx_path}")
+
     finally:
         for p in patches:
             p.stop()
@@ -182,6 +187,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="Mock all LLM calls for offline testing",
+    )
+    parser.add_argument(
+        "--output", "-o",
+        default="./output",
+        help="Directory for rendered PPTX and DOCX files (default: ./output)",
     )
     parser.add_argument(
         "--state-dir",

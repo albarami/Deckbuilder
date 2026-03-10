@@ -280,11 +280,15 @@ async def test_full_pipeline_happy_path() -> None:
                 Command(resume={"approved": True}), config
             )
 
-        # Pipeline should complete — QA is the last agent stage
+        # Pipeline should complete — render is the last node
         assert result["qa_result"] is not None
         assert result["rfp_context"] is not None
         assert result["written_slides"] is not None
         assert result["session"].total_llm_calls >= 7
+        # Render node should have produced PPTX and DOCX
+        assert result.get("pptx_path") is not None
+        assert result.get("report_docx_path") is not None
+        assert result["current_stage"] == PipelineStage.FINALIZED
     finally:
         for p in patches:
             p.stop()
@@ -411,3 +415,45 @@ async def test_state_persistence() -> None:
         assert loaded.ai_assist_summary == (
             "SAP Support Renewal RFP from SIDF"
         )
+
+
+@pytest.mark.asyncio
+async def test_full_pipeline_with_render() -> None:
+    """Full pipeline through all gates → render produces .pptx and .docx."""
+    from pptx import Presentation as PptxPresentation
+
+    from src.pipeline.dry_run import get_dry_run_patches
+    from src.pipeline.graph import build_graph
+
+    graph = build_graph()
+    state = _make_input_state()
+
+    patches = get_dry_run_patches()
+    for p in patches:
+        p.start()
+    try:
+        config = {"configurable": {"thread_id": "test-render"}}
+        result = await graph.ainvoke(state, config)  # type: ignore[arg-type]
+
+        # Resume through all 5 gates
+        for _ in range(5):
+            result = await graph.ainvoke(
+                Command(resume={"approved": True}), config  # type: ignore[arg-type]
+            )
+
+        # Verify render output
+        assert result["current_stage"] == PipelineStage.FINALIZED
+        pptx_path = result.get("pptx_path")
+        docx_path = result.get("report_docx_path")
+
+        assert pptx_path is not None
+        assert os.path.exists(pptx_path)
+        assert docx_path is not None
+        assert os.path.exists(docx_path)
+
+        # Verify PPTX has correct slide count (2 from dry-run mocks)
+        prs = PptxPresentation(pptx_path)
+        assert len(prs.slides) == 2
+    finally:
+        for p in patches:
+            p.stop()
