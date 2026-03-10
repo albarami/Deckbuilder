@@ -105,10 +105,13 @@ async def _call_openai(  # noqa: UP047
         max_completion_tokens=max_tokens,
     )
     content = response.choices[0].message.content
-    if content is None:
+    if not content:
         raise LLMError(
             model=model, attempts=1,
-            last_error=ValueError("OpenAI returned empty content (message.content is None)"),
+            last_error=ValueError(
+                f"OpenAI returned empty content (message.content={content!r}). "
+                f"Finish reason: {response.choices[0].finish_reason}"
+            ),
         )
     if response.usage is None:
         raise LLMError(

@@ -23,9 +23,10 @@ EMBEDDING_MODEL = "text-embedding-3-large"
 EMBEDDING_DIM = 3072
 BATCH_SIZE = 100
 # text-embedding-3-large has 8191 token max.
-# Arabic text uses ~1.5 chars/token, English ~4 chars/token.
-# Conservative limit for mixed-language content.
-MAX_TEXT_CHARS = 8000
+# Arabic UTF-8 text tokenizes at ~0.6 chars/token (each Arabic char
+# becomes multiple byte-pair tokens). 4000 chars * 1.67 tokens/char
+# ≈ 6680 tokens — safely under the 8191 limit.
+MAX_TEXT_CHARS = 4000
 
 
 def _hash_text(text: str) -> str:

@@ -3,12 +3,14 @@
 Usage:
     python -m scripts.run_pipeline --input rfp_summary.json [--docs ./test_docs] [--dry-run]
     python -m scripts.run_pipeline --resume ./state/session.json
+    python -m scripts.run_pipeline --index --docs-path "./data test/"
 """
 
 import argparse
 import asyncio
 import json
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -161,6 +163,70 @@ async def run_pipeline(args: argparse.Namespace) -> None:
             p.stop()
 
 
+async def run_index(args: argparse.Namespace) -> None:
+    """Run the full indexing pipeline on a document directory."""
+    import logging
+
+    from src.services.search import index_documents
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
+    docs_path = args.docs_path
+    cache_path = args.cache_path
+    skip_entities = args.skip_entities
+
+    print(f"{'=' * 70}")
+    print("DeckForge Indexing Pipeline")
+    print(f"  Docs path:    {docs_path}")
+    print(f"  Cache path:   {cache_path}")
+    print(f"  Skip entities: {skip_entities}")
+    print(f"{'=' * 70}\n")
+
+    start_time = time.perf_counter()
+    manifest = await index_documents(
+        docs_path=docs_path,
+        cache_path=cache_path,
+        skip_entities=skip_entities,
+    )
+    total_time = time.perf_counter() - start_time
+
+    # Display results
+    print(f"\n{'=' * 70}")
+    print(f"INDEXING COMPLETE ({total_time:.1f}s)")
+    print(f"{'=' * 70}")
+    print(f"  Total documents:        {manifest['total_documents']}")
+    print(f"  Unique documents:       {manifest.get('unique_documents', '?')}")
+    print(f"  Duplicates skipped:     {manifest['duplicates_skipped']}")
+    print(f"  Near-duplicates flagged: {manifest['near_duplicates_flagged']}")
+    print(f"  Total chunks:           {manifest['total_chunks']}")
+
+    # Classifications
+    print("\n  Classifications:")
+    for doc_type, count in sorted(manifest.get("classifications", {}).items()):
+        print(f"    {doc_type}: {count}")
+
+    # Knowledge graph
+    kg = manifest.get("knowledge_graph_summary", {})
+    print("\n  Knowledge Graph:")
+    print(f"    People:        {kg.get('people', 0)}")
+    print(f"    Internal team: {kg.get('internal_team', 0)}")
+    print(f"    Projects:      {kg.get('projects', 0)}")
+    print(f"    Clients:       {kg.get('clients', 0)}")
+
+    # Timings
+    print("\n  Step Timings:")
+    for step, secs in manifest.get("timings_seconds", {}).items():
+        print(f"    {step}: {secs}s")
+
+    print(f"\n  Embedding model: {manifest.get('embedding_model', '?')}")
+    print(f"  Dimensions:      {manifest.get('embedding_dimensions', '?')}")
+    print(f"  Manifest saved:  {cache_path}/manifest.json")
+    print(f"{'=' * 70}")
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
@@ -177,11 +243,31 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--resume", "-r",
         help="Path to saved state JSON to resume from",
     )
+    input_group.add_argument(
+        "--index",
+        action="store_true",
+        help="Run the indexing pipeline on a document directory",
+    )
 
     parser.add_argument(
         "--docs", "-d",
         default="./test_docs",
         help="Path to local documents directory (default: ./test_docs)",
+    )
+    parser.add_argument(
+        "--docs-path",
+        default="./data test/",
+        help="Path to document directory for indexing (default: ./data test/)",
+    )
+    parser.add_argument(
+        "--cache-path",
+        default="./state/index/",
+        help="Path to save index artifacts (default: ./state/index/)",
+    )
+    parser.add_argument(
+        "--skip-entities",
+        action="store_true",
+        help="Skip entity extraction during indexing",
     )
     parser.add_argument(
         "--dry-run",
@@ -205,6 +291,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> None:
     """Entry point for the CLI runner."""
     args = parse_args(argv)
+
+    # Index mode
+    if args.index:
+        if not Path(args.docs_path).exists():
+            print(
+                f"Error: Docs directory not found: {args.docs_path}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        asyncio.run(run_index(args))
+        return
 
     # Validate input file exists
     if args.input and not Path(args.input).exists():

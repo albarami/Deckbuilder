@@ -1,6 +1,6 @@
 """Slide models — used across Structure, Content, QA, and Design agents."""
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -60,7 +60,7 @@ class SlideOutline(DeckForgeBaseModel):
     """Output of the Structure Agent — ordered list of slide outlines."""
     slides: list[SlideObject]
     slide_count: int = 0
-    weight_allocation: dict[str, str] = Field(default_factory=dict)
+    weight_allocation: dict[str, Any] = Field(default_factory=dict)
 
 
 class WrittenSlides(DeckForgeBaseModel):

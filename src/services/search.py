@@ -4,7 +4,7 @@ Architecture:
 - SearchBackend Protocol: swap local numpy for Azure AI Search
 - NumpySearchBackend: Local cosine similarity search (dev/test)
 - AzureAISearchBackend: Production stub (implemented in M12)
-- index_documents(): Full pipeline: extract → dedup → chunk → embed → index → classify → extract entities
+- index_documents(): Full 9-step pipeline with manifest output
 - semantic_search(): Query the index, return Retrieval Ranker format
 
 Backward compatibility: local_search() and load_documents() preserved.
@@ -12,16 +12,31 @@ Backward compatibility: local_search() and load_documents() preserved.
 
 import json
 import logging
+import time
+from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
 import numpy as np
 from pydantic import Field
 
+from src.agents.indexing.classifier import classify_directory
+from src.agents.indexing.entity_extractor import (
+    extract_entities_batch,
+    merge_into_knowledge_graph,
+    save_knowledge_graph,
+)
 from src.models.common import DeckForgeBaseModel
+from src.models.knowledge import KnowledgeGraph
 from src.models.retrieval import SearchQuery
-from src.services.embeddings import EmbeddingService
+from src.services.deduplication import (
+    detect_exact_duplicates,
+    detect_near_duplicates,
+)
+from src.services.embeddings import EMBEDDING_DIM, EMBEDDING_MODEL, EmbeddingService
 from src.utils.chunking import DocumentChunk, chunk_directory
+from src.utils.extractors import extract_directory
 
 logger = logging.getLogger(__name__)
 
@@ -266,69 +281,249 @@ async def index_documents(
     cache_path: str = "./state/index/",
     *,
     skip_entities: bool = False,
-) -> int:
-    """Full indexing pipeline: extract → dedup → chunk → embed → index → classify → extract entities.
+) -> dict:
+    """Full 9-step indexing pipeline with manifest output.
+
+    Steps:
+        1. Extract all documents (PPTX, PDF, DOCX, XLSX)
+        2. Detect & skip exact duplicates (SHA-256)
+        3. Detect & flag near-duplicates (cosine > 0.95)
+        4. Chunk all unique documents (3-level hierarchy)
+        5. Embed all chunks (text-embedding-3-large, .npz cache)
+        6. Classify each document (GPT-5.4 → IndexingOutput)
+        7. Extract entities (GPT-5.4 → KnowledgeGraph)
+        8. Merge entities into knowledge graph
+        9. Save manifest + knowledge graph + embeddings
 
     Args:
         docs_path: Path to directory containing documents.
-        cache_path: Path to cache embeddings.
-        skip_entities: If True, skip entity extraction (for faster indexing).
+        cache_path: Path to save index artifacts.
+        skip_entities: If True, skip entity extraction steps 7-8.
 
     Returns:
-        Number of documents indexed.
+        Manifest dict with pipeline results and per-document details.
     """
-    from src.utils.extractors import extract_directory
+    timings: dict[str, float] = {}
+    cache_dir = Path(cache_path)
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
-    # Step 1: Extract
+    # ── Step 1: Extract ──────────────────────────────────────
+    t0 = time.perf_counter()
     docs = extract_directory(docs_path)
+    timings["extract"] = time.perf_counter() - t0
+
     if not docs:
         logger.warning("No documents found in %s", docs_path)
-        return 0
+        manifest = _build_empty_manifest(cache_path)
+        _save_manifest(manifest, cache_path)
+        return manifest
 
-    logger.info("Extracted %d documents from %s", len(docs), docs_path)
+    logger.info("Step 1: Extracted %d documents from %s", len(docs), docs_path)
 
-    # Step 2: Chunk
-    chunks = chunk_directory(docs)
-    logger.info("Created %d chunks from %d documents", len(chunks), len(docs))
+    # Build doc_id map
+    doc_ids = [f"DOC-{i:03d}" for i in range(1, len(docs) + 1)]
+    doc_id_map = dict(zip(doc_ids, docs))
 
-    # Step 3: Embed
+    # ── Step 2: Exact duplicate detection ────────────────────
+    t0 = time.perf_counter()
+    exact_dedup_results = detect_exact_duplicates(docs)
+    timings["exact_dedup"] = time.perf_counter() - t0
+
+    # Map dedup results by doc_id
+    dedup_map: dict[str, str] = {}  # doc_id → "keep" | "skip" | "flag"
+    for r in exact_dedup_results:
+        dedup_map[r.doc_id] = r.action
+
+    # Filter to unique docs only
+    skip_ids = {r.doc_id for r in exact_dedup_results if r.action == "skip_exact"}
+    unique_doc_ids = [did for did in doc_ids if did not in skip_ids]
+    unique_docs = [doc_id_map[did] for did in unique_doc_ids]
+
+    duplicates_skipped = len(skip_ids)
+    logger.info(
+        "Step 2: %d exact duplicates skipped, %d unique docs",
+        duplicates_skipped, len(unique_docs),
+    )
+
+    # ── Step 3: Near-duplicate detection ─────────────────────
+    # Near-dedup needs Level 1 embeddings. We'll do it after embedding
+    # but flag results here for the manifest.
+
+    # ── Step 4: Chunk ────────────────────────────────────────
+    t0 = time.perf_counter()
+    chunks = chunk_directory(unique_docs)
+    timings["chunk"] = time.perf_counter() - t0
+
+    # Count chunks per doc
+    chunks_per_doc: Counter[str] = Counter()
+    for chunk in chunks:
+        chunks_per_doc[chunk.doc_id] += 1
+
+    logger.info(
+        "Step 4: Created %d chunks from %d documents",
+        len(chunks), len(unique_docs),
+    )
+
+    # ── Step 5: Embed ────────────────────────────────────────
+    t0 = time.perf_counter()
     service = EmbeddingService()
-    embeddings = await service.embed_and_cache(chunks, f"{cache_path}/embeddings")
+    embeddings = await service.embed_and_cache(
+        chunks, f"{cache_path}/embeddings",
+    )
+    timings["embed"] = time.perf_counter() - t0
 
-    # Step 4: Index
+    logger.info(
+        "Step 5: Embedded %d chunks (%d dimensions)",
+        len(chunks), embeddings.shape[1] if embeddings.ndim > 1 else 0,
+    )
+
+    # ── Step 3 (deferred): Near-duplicate detection ──────────
+    t0 = time.perf_counter()
+    near_dedup_results = detect_near_duplicates(
+        embeddings, [c.chunk_id for c in chunks],
+    )
+    timings["near_dedup"] = time.perf_counter() - t0
+
+    near_duplicates_flagged = sum(
+        1 for r in near_dedup_results if r.action == "flag_near"
+    )
+    for r in near_dedup_results:
+        if r.action == "flag_near":
+            dedup_map[r.doc_id] = "flag_near"
+
+    logger.info(
+        "Step 3: %d near-duplicates flagged", near_duplicates_flagged,
+    )
+
+    # ── Step 5b: Index in search backend ─────────────────────
     backend = _get_backend()
     await backend.index(chunks, embeddings)
-
-    # Save index to disk
     backend.save(cache_path)
 
-    # Step 5 + 6: Entity extraction → merge into knowledge graph
+    # ── Step 6: Classify ─────────────────────────────────────
+    t0 = time.perf_counter()
+    classifications = await classify_directory(unique_docs)
+    timings["classify"] = time.perf_counter() - t0
+
+    # Map classifications by filename
+    classification_map: dict[str, object] = {}
+    for doc, cls_output in classifications:
+        classification_map[doc.filename] = cls_output
+
+    doc_type_counts: Counter[str] = Counter()
+    for _, cls_output in classifications:
+        doc_type_counts[cls_output.doc_type] += 1
+
+    logger.info(
+        "Step 6: Classified %d documents: %s",
+        len(classifications), dict(doc_type_counts),
+    )
+
+    # ── Steps 7-8: Entity extraction + Knowledge graph ───────
+    kg = KnowledgeGraph()
     if not skip_entities:
-        from src.agents.indexing.entity_extractor import (
-            extract_entities_batch,
-            load_knowledge_graph,
-            merge_into_knowledge_graph,
-            save_knowledge_graph,
+        t0 = time.perf_counter()
+        doc_pairs = [
+            (doc_id_map[did], did) for did in unique_doc_ids
+        ]
+        entity_results = await extract_entities_batch(doc_pairs)
+        timings["entity_extraction"] = time.perf_counter() - t0
+
+        t0 = time.perf_counter()
+        kg = await merge_into_knowledge_graph(
+            kg, entity_results, unique_doc_ids,
         )
+        timings["merge_kg"] = time.perf_counter() - t0
 
         kg_path = f"{cache_path}/knowledge_graph.json"
-        kg = load_knowledge_graph(kg_path)
-
-        doc_pairs = [
-            (doc, f"DOC-{i:03d}") for i, doc in enumerate(docs, start=1)
-        ]
-        results = await extract_entities_batch(doc_pairs)
-        doc_ids = [pair[1] for pair in doc_pairs]
-
-        kg = await merge_into_knowledge_graph(kg, results, doc_ids)
         save_knowledge_graph(kg, kg_path)
 
         logger.info(
-            "Knowledge graph: %d people, %d projects, %d clients",
+            "Steps 7-8: Knowledge graph: %d people, %d projects, %d clients",
             len(kg.people), len(kg.projects), len(kg.clients),
         )
 
-    return len(docs)
+    # ── Step 9: Build and save manifest ──────────────────────
+    internal_team_count = sum(
+        1 for p in kg.people if p.person_type == "internal_team"
+    )
+
+    # Build per-document entries
+    doc_entries = []
+    for i, did in enumerate(doc_ids):
+        doc = doc_id_map[did]
+        cls_output = classification_map.get(doc.filename)
+        doc_type = cls_output.doc_type if cls_output else "other"
+        quality_score = cls_output.quality_score if cls_output else 0
+        dedup_status = dedup_map.get(did, "keep")
+
+        doc_entries.append({
+            "doc_id": did,
+            "filename": doc.filename,
+            "file_type": doc.file_type,
+            "file_size_bytes": doc.file_size_bytes,
+            "doc_type": str(doc_type),
+            "quality_score": quality_score,
+            "chunks": chunks_per_doc.get(did, 0),
+            "dedup_status": dedup_status,
+            "extraction_quality": str(doc.extraction_quality),
+        })
+
+    manifest = {
+        "indexed_at": datetime.now(UTC).isoformat(),
+        "total_documents": len(docs),
+        "unique_documents": len(unique_docs),
+        "total_chunks": len(chunks),
+        "duplicates_skipped": duplicates_skipped,
+        "near_duplicates_flagged": near_duplicates_flagged,
+        "classifications": dict(doc_type_counts),
+        "knowledge_graph_summary": {
+            "people": len(kg.people),
+            "internal_team": internal_team_count,
+            "projects": len(kg.projects),
+            "clients": len(kg.clients),
+        },
+        "embedding_model": EMBEDDING_MODEL,
+        "embedding_dimensions": EMBEDDING_DIM,
+        "timings_seconds": {k: round(v, 2) for k, v in timings.items()},
+        "documents": doc_entries,
+    }
+
+    _save_manifest(manifest, cache_path)
+    logger.info("Step 9: Manifest saved to %s/manifest.json", cache_path)
+
+    return manifest
+
+
+def _build_empty_manifest(cache_path: str) -> dict:
+    """Build an empty manifest for when no documents are found."""
+    return {
+        "indexed_at": datetime.now(UTC).isoformat(),
+        "total_documents": 0,
+        "unique_documents": 0,
+        "total_chunks": 0,
+        "duplicates_skipped": 0,
+        "near_duplicates_flagged": 0,
+        "classifications": {},
+        "knowledge_graph_summary": {
+            "people": 0,
+            "internal_team": 0,
+            "projects": 0,
+            "clients": 0,
+        },
+        "embedding_model": EMBEDDING_MODEL,
+        "embedding_dimensions": EMBEDDING_DIM,
+        "timings_seconds": {},
+        "documents": [],
+    }
+
+
+def _save_manifest(manifest: dict, cache_path: str) -> None:
+    """Save manifest JSON to disk."""
+    manifest_path = Path(cache_path) / "manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2, default=str)
 
 
 async def semantic_search(

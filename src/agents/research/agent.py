@@ -36,6 +36,7 @@ async def run(state: DeckForgeState) -> DeckForgeState:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=ResearchReport,
+            max_tokens=16000,
         )
         state.research_report = result.parsed
         state.report_markdown = result.parsed.full_markdown

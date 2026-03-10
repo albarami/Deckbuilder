@@ -40,6 +40,7 @@ async def run(state: DeckForgeState) -> DeckForgeState:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=SlideOutline,
+            max_tokens=8000,
         )
         state.slide_outline = result.parsed
         state.current_stage = PipelineStage.OUTLINE_REVIEW

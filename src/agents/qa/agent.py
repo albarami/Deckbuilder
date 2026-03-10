@@ -63,6 +63,7 @@ async def run(state: DeckForgeState) -> DeckForgeState:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=QAResult,
+            max_tokens=8000,
         )
         state.qa_result = result.parsed
         state.current_stage = PipelineStage.QA

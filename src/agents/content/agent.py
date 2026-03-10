@@ -32,6 +32,7 @@ async def run(state: DeckForgeState) -> DeckForgeState:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=WrittenSlides,
+            max_tokens=16000,
         )
         state.written_slides = result.parsed
         state.current_stage = PipelineStage.CONTENT_GENERATION
