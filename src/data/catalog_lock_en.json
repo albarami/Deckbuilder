@@ -1,0 +1,1291 @@
+{
+  "template_hash": "sha256:23166d7120e9bb0baa090b527d19c316cf6d9e987f603fea6d7580ffdc3a1510",
+  "language": "en",
+  "generated_at": "2026-03-12T00:03:48.575685+00:00",
+  "a1_immutable": {
+    "ksa_context": {
+      "slide_idx": 4,
+      "semantic_layout_id": "ksa_context",
+      "display_name": "KSA",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "vision_pillars": {
+      "slide_idx": 5,
+      "semantic_layout_id": "vision_pillars",
+      "display_name": "Pillars of the Vision",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "vision_programs_numbers": {
+      "slide_idx": 6,
+      "semantic_layout_id": "vision_programs_numbers",
+      "display_name": "Vision Realization Programs Numbers",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "vision_programs": {
+      "slide_idx": 7,
+      "semantic_layout_id": "vision_programs",
+      "display_name": "Vision Realization Programs",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "main_cover": {
+      "slide_idx": 18,
+      "semantic_layout_id": "main_cover",
+      "display_name": "Main Cover",
+      "shape_count": 1,
+      "media_count": 0
+    },
+    "overview": {
+      "slide_idx": 19,
+      "semantic_layout_id": "overview",
+      "display_name": "Overview",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "what_drives_us": {
+      "slide_idx": 20,
+      "semantic_layout_id": "what_drives_us",
+      "display_name": "What Drives Us",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "at_a_glance": {
+      "slide_idx": 21,
+      "semantic_layout_id": "at_a_glance",
+      "display_name": "At a Glance",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "why_sg": {
+      "slide_idx": 22,
+      "semantic_layout_id": "why_sg",
+      "display_name": "Why Strategic Gears",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "deep_experience_1": {
+      "slide_idx": 23,
+      "semantic_layout_id": "deep_experience_1",
+      "display_name": "Deep Experience 1/4",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "deep_experience_2": {
+      "slide_idx": 24,
+      "semantic_layout_id": "deep_experience_2",
+      "display_name": "Deep Experience 2/4",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "deep_experience_3": {
+      "slide_idx": 25,
+      "semantic_layout_id": "deep_experience_3",
+      "display_name": "Deep Experience 3/4",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "deep_experience_4": {
+      "slide_idx": 26,
+      "semantic_layout_id": "deep_experience_4",
+      "display_name": "Deep Experience 4/4",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "expertise": {
+      "slide_idx": 27,
+      "semantic_layout_id": "expertise",
+      "display_name": "A House of Expertise",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "vast_network": {
+      "slide_idx": 28,
+      "semantic_layout_id": "vast_network",
+      "display_name": "Vast Network",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "purpose_1": {
+      "slide_idx": 29,
+      "semantic_layout_id": "purpose_1",
+      "display_name": "Purpose Beyond Business 1/2",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "purpose_2": {
+      "slide_idx": 30,
+      "semantic_layout_id": "purpose_2",
+      "display_name": "Purpose Beyond Business 2/2",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "services_overview": {
+      "slide_idx": 31,
+      "semantic_layout_id": "services_overview",
+      "display_name": "Our Services",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "our_leadership": {
+      "slide_idx": 69,
+      "semantic_layout_id": "our_leadership",
+      "display_name": "Our Leadership",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "know_more": {
+      "slide_idx": 79,
+      "semantic_layout_id": "know_more",
+      "display_name": "Know More Page",
+      "shape_count": 0,
+      "media_count": 0
+    },
+    "contact": {
+      "slide_idx": 80,
+      "semantic_layout_id": "contact",
+      "display_name": "Contact",
+      "shape_count": 0,
+      "media_count": 0
+    }
+  },
+  "a2_shells": {
+    "proposal_cover": {
+      "slide_idx": 0,
+      "semantic_layout_id": "proposal_cover",
+      "display_name": "Proposal Cover",
+      "allowlist": {
+        "shell_id": "proposal_cover",
+        "approved_injection_placeholders": {
+          "1": "ph_1",
+          "10": "ph_10",
+          "11": "ph_11",
+          "12": "ph_12"
+        },
+        "candidate_preserved_text_regions": [],
+        "candidate_preserved_tables": [],
+        "must_clear_text_regions": [],
+        "must_clear_tables": [],
+        "effective_text_region_count": 0,
+        "effective_table_count": 0,
+        "source_breakdown": {
+          "slide": 0,
+          "layout": 0,
+          "master": 0
+        }
+      }
+    },
+    "intro_message": {
+      "slide_idx": 1,
+      "semantic_layout_id": "intro_message",
+      "display_name": "Introduction Message",
+      "allowlist": {
+        "shell_id": "intro_message",
+        "approved_injection_placeholders": {
+          "0": "ph_0",
+          "1": "ph_1",
+          "13": "ph_13",
+          "14": "ph_14",
+          "15": "ph_15",
+          "16": "ph_16",
+          "17": "ph_17"
+        },
+        "candidate_preserved_text_regions": [
+          {
+            "shape_name": "Slide Number Placeholder 8",
+            "source": "master",
+            "text_preview": "‹#›"
+          }
+        ],
+        "candidate_preserved_tables": [],
+        "must_clear_text_regions": [],
+        "must_clear_tables": [],
+        "effective_text_region_count": 1,
+        "effective_table_count": 0,
+        "source_breakdown": {
+          "slide": 0,
+          "layout": 0,
+          "master": 1
+        }
+      }
+    },
+    "toc_agenda": {
+      "slide_idx": 2,
+      "semantic_layout_id": "toc_table",
+      "display_name": "ToC / Agenda",
+      "allowlist": {
+        "shell_id": "toc_agenda",
+        "approved_injection_placeholders": {
+          "0": "ph_0",
+          "10": "ph_10"
+        },
+        "candidate_preserved_text_regions": [],
+        "candidate_preserved_tables": [],
+        "must_clear_text_regions": [],
+        "must_clear_tables": [],
+        "effective_text_region_count": 0,
+        "effective_table_count": 0,
+        "source_breakdown": {
+          "slide": 0,
+          "layout": 0,
+          "master": 0
+        }
+      }
+    }
+  },
+  "section_dividers": {
+    "01": {
+      "slide_idx": 3,
+      "semantic_layout_id": "section_divider_01",
+      "display_name": "01",
+      "allowlist": {
+        "shell_id": "section_01",
+        "approved_injection_placeholders": {
+          "0": "ph_0",
+          "10": "ph_10"
+        },
+        "candidate_preserved_text_regions": [],
+        "candidate_preserved_tables": [],
+        "must_clear_text_regions": [],
+        "must_clear_tables": [],
+        "effective_text_region_count": 0,
+        "effective_table_count": 0,
+        "source_breakdown": {
+          "slide": 0,
+          "layout": 0,
+          "master": 0
+        }
+      }
+    },
+    "02": {
+      "slide_idx": 8,
+      "semantic_layout_id": "section_divider_02",
+      "display_name": "02",
+      "allowlist": {
+        "shell_id": "section_02",
+        "approved_injection_placeholders": {
+          "0": "ph_0",
+          "10": "ph_10"
+        },
+        "candidate_preserved_text_regions": [],
+        "candidate_preserved_tables": [],
+        "must_clear_text_regions": [],
+        "must_clear_tables": [],
+        "effective_text_region_count": 0,
+        "effective_table_count": 0,
+        "source_breakdown": {
+          "slide": 0,
+          "layout": 0,
+          "master": 0
+        }
+      }
+    },
+    "03": {
+      "slide_idx": 10,
+      "semantic_layout_id": "section_divider_03",
+      "display_name": "03",
+      "allowlist": {
+        "shell_id": "section_03",
+        "approved_injection_placeholders": {
+          "0": "ph_0",
+          "10": "ph_10"
+        },
+        "candidate_preserved_text_regions": [],
+        "candidate_preserved_tables": [],
+        "must_clear_text_regions": [],
+        "must_clear_tables": [],
+        "effective_text_region_count": 0,
+        "effective_table_count": 0,
+        "source_breakdown": {
+          "slide": 0,
+          "layout": 0,
+          "master": 0
+        }
+      }
+    },
+    "04": {
+      "slide_idx": 14,
+      "semantic_layout_id": "section_divider_04",
+      "display_name": "04",
+      "allowlist": {
+        "shell_id": "section_04",
+        "approved_injection_placeholders": {
+          "0": "ph_0",
+          "10": "ph_10"
+        },
+        "candidate_preserved_text_regions": [],
+        "candidate_preserved_tables": [],
+        "must_clear_text_regions": [],
+        "must_clear_tables": [],
+        "effective_text_region_count": 0,
+        "effective_table_count": 0,
+        "source_breakdown": {
+          "slide": 0,
+          "layout": 0,
+          "master": 0
+        }
+      }
+    },
+    "05": {
+      "slide_idx": 16,
+      "semantic_layout_id": "section_divider_05",
+      "display_name": "05",
+      "allowlist": {
+        "shell_id": "section_05",
+        "approved_injection_placeholders": {
+          "0": "ph_0",
+          "10": "ph_10"
+        },
+        "candidate_preserved_text_regions": [],
+        "candidate_preserved_tables": [],
+        "must_clear_text_regions": [],
+        "must_clear_tables": [],
+        "effective_text_region_count": 0,
+        "effective_table_count": 0,
+        "source_breakdown": {
+          "slide": 0,
+          "layout": 0,
+          "master": 0
+        }
+      }
+    },
+    "06": {
+      "slide_idx": 17,
+      "semantic_layout_id": "section_divider_06",
+      "display_name": "06",
+      "allowlist": {
+        "shell_id": "section_06",
+        "approved_injection_placeholders": {
+          "0": "ph_0",
+          "10": "ph_10"
+        },
+        "candidate_preserved_text_regions": [],
+        "candidate_preserved_tables": [],
+        "must_clear_text_regions": [],
+        "must_clear_tables": [],
+        "effective_text_region_count": 0,
+        "effective_table_count": 0,
+        "source_breakdown": {
+          "slide": 0,
+          "layout": 0,
+          "master": 0
+        }
+      }
+    }
+  },
+  "case_study_pool": {
+    "general": [
+      {
+        "slide_idx": 9,
+        "semantic_layout_id": "case_study_detailed",
+        "display_name": "Services - Detailed Case",
+        "semantic_id": "case_study_9"
+      },
+      {
+        "slide_idx": 33,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_33"
+      },
+      {
+        "slide_idx": 34,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_34"
+      },
+      {
+        "slide_idx": 35,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_35"
+      },
+      {
+        "slide_idx": 36,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_36"
+      },
+      {
+        "slide_idx": 37,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_37"
+      },
+      {
+        "slide_idx": 38,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_38"
+      },
+      {
+        "slide_idx": 39,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_39"
+      },
+      {
+        "slide_idx": 41,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_41"
+      },
+      {
+        "slide_idx": 42,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_42"
+      },
+      {
+        "slide_idx": 43,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_43"
+      },
+      {
+        "slide_idx": 44,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_44"
+      },
+      {
+        "slide_idx": 45,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_45"
+      },
+      {
+        "slide_idx": 46,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_46"
+      },
+      {
+        "slide_idx": 47,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_47"
+      },
+      {
+        "slide_idx": 48,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_48"
+      },
+      {
+        "slide_idx": 49,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_49"
+      },
+      {
+        "slide_idx": 51,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_51"
+      },
+      {
+        "slide_idx": 52,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_52"
+      },
+      {
+        "slide_idx": 53,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_53"
+      },
+      {
+        "slide_idx": 54,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_54"
+      },
+      {
+        "slide_idx": 55,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_55"
+      },
+      {
+        "slide_idx": 57,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_57"
+      },
+      {
+        "slide_idx": 58,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_58"
+      },
+      {
+        "slide_idx": 59,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_59"
+      },
+      {
+        "slide_idx": 61,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_61"
+      },
+      {
+        "slide_idx": 62,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_62"
+      },
+      {
+        "slide_idx": 64,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_64"
+      },
+      {
+        "slide_idx": 65,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_65"
+      },
+      {
+        "slide_idx": 66,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_66"
+      },
+      {
+        "slide_idx": 68,
+        "semantic_layout_id": "case_study_cases",
+        "display_name": "Services - Cases",
+        "semantic_id": "case_study_68"
+      }
+    ]
+  },
+  "team_bio_pool": [
+    {
+      "slide_idx": 70,
+      "semantic_layout_id": "team_two_members",
+      "display_name": "two team members",
+      "semantic_id": "team_bio_70",
+      "team_family": "team_two_members",
+      "member_names": [
+        "20+ years of experience",
+        "HATTAN SAATY",
+        "NASSER ALQAHTANI",
+        "MANAGING PARTNER",
+        "Strategy",
+        "Marketing"
+      ]
+    },
+    {
+      "slide_idx": 71,
+      "semantic_layout_id": "team_two_members",
+      "display_name": "two team members",
+      "semantic_id": "team_bio_71",
+      "team_family": "team_two_members",
+      "member_names": [
+        "21+ years of experience",
+        "NAGARAJ PADMANABHAN",
+        "SENIOR PARTNER",
+        "RICHARD PARKIN",
+        "PARTNER",
+        "Digital & cloud transformation"
+      ]
+    },
+    {
+      "slide_idx": 72,
+      "semantic_layout_id": "team_two_members",
+      "display_name": "two team members",
+      "semantic_id": "team_bio_72",
+      "team_family": "team_two_members",
+      "member_names": [
+        "13+ years of experience",
+        "LAITH ABDIN",
+        "PARTNER",
+        "AHMAD ABZAKH",
+        "ASSOCIATE PARTNER",
+        "Strategy development"
+      ]
+    },
+    {
+      "slide_idx": 73,
+      "semantic_layout_id": "team_two_members",
+      "display_name": "two team members",
+      "semantic_id": "team_bio_73",
+      "team_family": "team_two_members",
+      "member_names": [
+        "12+ years of experience",
+        "AHMAD AL OMARY",
+        "ASSOCIATE PARTNER",
+        "FARHAN KHAN",
+        "ASSOCIATE PARTNER",
+        "Business strategies"
+      ]
+    },
+    {
+      "slide_idx": 74,
+      "semantic_layout_id": "team_two_members",
+      "display_name": "two team members",
+      "semantic_id": "team_bio_74",
+      "team_family": "team_two_members",
+      "member_names": [
+        "17+ years of experience",
+        "HANNI EL SAYED",
+        "ASSOCIATE PARTNER",
+        "AHMED ESSAM",
+        "ASSOCIATE PARTNER",
+        "Digital transformation"
+      ]
+    },
+    {
+      "slide_idx": 75,
+      "semantic_layout_id": "team_two_members",
+      "display_name": "two team members",
+      "semantic_id": "team_bio_75",
+      "team_family": "team_two_members",
+      "member_names": [
+        "10+ years of experience",
+        "PABLO DELGADO",
+        "PRINCIPAL",
+        "BASHEER BASATA",
+        "DIRECTOR",
+        "Education strategy"
+      ]
+    },
+    {
+      "slide_idx": 76,
+      "semantic_layout_id": "team_two_members",
+      "display_name": "two team members",
+      "semantic_id": "team_bio_76",
+      "team_family": "team_two_members",
+      "member_names": [
+        "10+ years of experience",
+        "ABDULAZIZ ALSHATHRI",
+        "DIRECTOR",
+        "SADEQ ALKAMEL",
+        "DIRECTOR",
+        "Strategy development and execution"
+      ]
+    },
+    {
+      "slide_idx": 77,
+      "semantic_layout_id": "team_two_members",
+      "display_name": "two team members",
+      "semantic_id": "team_bio_77",
+      "team_family": "team_two_members",
+      "member_names": [
+        "10+ years of experience",
+        "SEIF ABDELMAGUID",
+        "EGYPT COUNTRY MANAGER & DIRECTOR",
+        "Strategy development",
+        "Strategy implementation",
+        "Commercial due diligence"
+      ]
+    },
+    {
+      "slide_idx": 78,
+      "semantic_layout_id": "team_two_members",
+      "display_name": "two team members",
+      "semantic_id": "team_bio_78",
+      "team_family": "team_two_members",
+      "member_names": [
+        "10+ years of experience",
+        "AMMAR MADANI",
+        "CHIEF HUMAN RESOURCES OFFICER",
+        "HASHIM ALSADAH",
+        "CHIEF OPERATING OFFICER",
+        "Human resources operations"
+      ]
+    }
+  ],
+  "service_divider_pool": [
+    {
+      "slide_idx": 32,
+      "semantic_layout_id": "svc_strategy",
+      "display_name": "Strategy",
+      "semantic_id": "svc_divider_strategy",
+      "service_category": "strategy"
+    },
+    {
+      "slide_idx": 40,
+      "semantic_layout_id": "svc_organizational_excellence",
+      "display_name": "Organizational Excellence",
+      "semantic_id": "svc_divider_organizational_excellence",
+      "service_category": "organizational excellence"
+    },
+    {
+      "slide_idx": 50,
+      "semantic_layout_id": "svc_marketing",
+      "display_name": "Marketing",
+      "semantic_id": "svc_divider_marketing",
+      "service_category": "marketing"
+    },
+    {
+      "slide_idx": 56,
+      "semantic_layout_id": "svc_digital_cloud_ai",
+      "display_name": "Digital, Cloud, and AI",
+      "semantic_id": "svc_divider_digital_cloud_and_ai",
+      "service_category": "digital, cloud, and ai"
+    },
+    {
+      "slide_idx": 60,
+      "semantic_layout_id": "svc_people_advisory",
+      "display_name": "People Advisory",
+      "semantic_id": "svc_divider_people_advisory",
+      "service_category": "people advisory"
+    },
+    {
+      "slide_idx": 63,
+      "semantic_layout_id": "svc_deals_advisory",
+      "display_name": "Deals Advisory",
+      "semantic_id": "svc_divider_deals_advisory",
+      "service_category": "deals advisory"
+    },
+    {
+      "slide_idx": 67,
+      "semantic_layout_id": "svc_research",
+      "display_name": "Research",
+      "semantic_id": "svc_divider_research",
+      "service_category": "research"
+    }
+  ],
+  "layouts": {
+    "main_cover": {
+      "display_name": "Main Cover",
+      "master_idx": 0,
+      "placeholder_count": 1,
+      "placeholders": {
+        "1": "SUBTITLE"
+      }
+    },
+    "proposal_cover": {
+      "display_name": "Proposal Cover",
+      "master_idx": 0,
+      "placeholder_count": 4,
+      "placeholders": {
+        "1": "SUBTITLE",
+        "10": "BODY",
+        "11": "BODY",
+        "12": "PICTURE"
+      }
+    },
+    "toc_table": {
+      "display_name": "ToC / Agenda",
+      "master_idx": 0,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "10": "TABLE"
+      }
+    },
+    "know_more": {
+      "display_name": "Know More Page",
+      "master_idx": 0,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "contact": {
+      "display_name": "Contact",
+      "master_idx": 0,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "intro_message": {
+      "display_name": "Introduction Message",
+      "master_idx": 1,
+      "placeholder_count": 7,
+      "placeholders": {
+        "0": "TITLE",
+        "13": "BODY",
+        "1": "BODY",
+        "14": "BODY",
+        "15": "BODY",
+        "16": "BODY",
+        "17": "BODY"
+      }
+    },
+    "ksa_context": {
+      "display_name": "KSA",
+      "master_idx": 1,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "vision_pillars": {
+      "display_name": "Pillars of the Vision",
+      "master_idx": 1,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "vision_programs_numbers": {
+      "display_name": "Vision Realization Programs Numbers",
+      "master_idx": 1,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "vision_programs": {
+      "display_name": "Vision Realization Programs",
+      "master_idx": 1,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "content_heading_only": {
+      "display_name": "Heading only",
+      "master_idx": 1,
+      "placeholder_count": 1,
+      "placeholders": {
+        "0": "CENTER_TITLE"
+      }
+    },
+    "content_heading_desc": {
+      "display_name": "Heading and description",
+      "master_idx": 1,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "13": "BODY"
+      }
+    },
+    "layout_heading_description_and_content_box": {
+      "display_name": "Heading, description, and content box",
+      "master_idx": 1,
+      "placeholder_count": 3,
+      "placeholders": {
+        "0": "TITLE",
+        "1": "OBJECT",
+        "13": "BODY"
+      }
+    },
+    "layout_heading_description_and_two_rows_of_content_boxes": {
+      "display_name": "Heading, description, and two rows of content boxes",
+      "master_idx": 1,
+      "placeholder_count": 4,
+      "placeholders": {
+        "0": "TITLE",
+        "1": "OBJECT",
+        "13": "BODY",
+        "14": "OBJECT"
+      }
+    },
+    "content_heading_content": {
+      "display_name": "Heading and content",
+      "master_idx": 1,
+      "placeholder_count": 3,
+      "placeholders": {
+        "0": "TITLE",
+        "1": "OBJECT",
+        "2": "OBJECT"
+      }
+    },
+    "layout_heading_and_4_boxes_of_content": {
+      "display_name": "Heading and 4-boxes of content",
+      "master_idx": 1,
+      "placeholder_count": 5,
+      "placeholders": {
+        "0": "TITLE",
+        "1": "OBJECT",
+        "2": "OBJECT",
+        "13": "OBJECT",
+        "14": "OBJECT"
+      }
+    },
+    "layout_heading_and_two_content_with_tiltes": {
+      "display_name": "Heading and two content with tiltes",
+      "master_idx": 1,
+      "placeholder_count": 5,
+      "placeholders": {
+        "0": "TITLE",
+        "1": "BODY",
+        "2": "OBJECT",
+        "3": "BODY",
+        "4": "OBJECT"
+      }
+    },
+    "layout_heading_and_subheading": {
+      "display_name": "Heading and subheading",
+      "master_idx": 1,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "1": "BODY"
+      }
+    },
+    "layout_heading_text_box_and_content": {
+      "display_name": "Heading, text box, and content",
+      "master_idx": 1,
+      "placeholder_count": 3,
+      "placeholders": {
+        "0": "TITLE",
+        "1": "OBJECT",
+        "2": "BODY"
+      }
+    },
+    "layout_full_page_title": {
+      "display_name": "Full page title",
+      "master_idx": 1,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "1": "PICTURE"
+      }
+    },
+    "layout_blank": {
+      "display_name": "Blank",
+      "master_idx": 1,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "methodology_overview_4": {
+      "display_name": "Methodology -4- Overview of Phases",
+      "master_idx": 2,
+      "placeholder_count": 13,
+      "placeholders": {
+        "41": "BODY",
+        "23": "BODY",
+        "33": "BODY",
+        "35": "BODY",
+        "37": "BODY",
+        "39": "BODY",
+        "42": "BODY",
+        "43": "BODY",
+        "44": "BODY",
+        "45": "BODY",
+        "46": "BODY",
+        "47": "BODY",
+        "13": "BODY"
+      }
+    },
+    "methodology_focused_4": {
+      "display_name": "Methdology -4- Focused Phase",
+      "master_idx": 2,
+      "placeholder_count": 14,
+      "placeholders": {
+        "41": "BODY",
+        "23": "BODY",
+        "33": "BODY",
+        "35": "BODY",
+        "37": "BODY",
+        "39": "BODY",
+        "42": "BODY",
+        "43": "BODY",
+        "0": "TITLE",
+        "44": "BODY",
+        "45": "BODY",
+        "46": "BODY",
+        "47": "BODY",
+        "13": "BODY"
+      }
+    },
+    "methodology_overview_3": {
+      "display_name": "Methodology -3- Overview of Phases",
+      "master_idx": 2,
+      "placeholder_count": 10,
+      "placeholders": {
+        "41": "BODY",
+        "23": "BODY",
+        "33": "BODY",
+        "35": "BODY",
+        "42": "BODY",
+        "43": "BODY",
+        "44": "BODY",
+        "45": "BODY",
+        "47": "BODY",
+        "13": "BODY"
+      }
+    },
+    "methodology_focused_3": {
+      "display_name": "Methdology -3- Focused Phase",
+      "master_idx": 2,
+      "placeholder_count": 11,
+      "placeholders": {
+        "0": "TITLE",
+        "41": "BODY",
+        "23": "BODY",
+        "33": "BODY",
+        "35": "BODY",
+        "42": "BODY",
+        "43": "BODY",
+        "44": "BODY",
+        "45": "BODY",
+        "47": "BODY",
+        "13": "BODY"
+      }
+    },
+    "methodology_detail": {
+      "display_name": "Methodolgy - Detailed Phase",
+      "master_idx": 2,
+      "placeholder_count": 4,
+      "placeholders": {
+        "42": "BODY",
+        "43": "BODY",
+        "0": "TITLE",
+        "44": "BODY"
+      }
+    },
+    "overview": {
+      "display_name": "Overview",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "what_drives_us": {
+      "display_name": "What Drives Us",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "at_a_glance": {
+      "display_name": "At a Glance",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "why_sg": {
+      "display_name": "Why Strategic Gears",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "deep_experience_1": {
+      "display_name": "Deep Experience 1/4",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "deep_experience_2": {
+      "display_name": "Deep Experience 2/4",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "deep_experience_3": {
+      "display_name": "Deep Experience 3/4",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "deep_experience_4": {
+      "display_name": "Deep Experience 4/4",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "expertise": {
+      "display_name": "A House of Expertise",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "vast_network": {
+      "display_name": "Vast Network",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "purpose_1": {
+      "display_name": "Purpose Beyond Business 1/2",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "purpose_2": {
+      "display_name": "Purpose Beyond Business 2/2",
+      "master_idx": 3,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "section_divider_01": {
+      "display_name": "01",
+      "master_idx": 4,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "10": "BODY"
+      }
+    },
+    "section_divider_02": {
+      "display_name": "02",
+      "master_idx": 4,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "10": "BODY"
+      }
+    },
+    "section_divider_03": {
+      "display_name": "03",
+      "master_idx": 4,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "10": "BODY"
+      }
+    },
+    "section_divider_04": {
+      "display_name": "04",
+      "master_idx": 4,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "10": "BODY"
+      }
+    },
+    "section_divider_05": {
+      "display_name": "05",
+      "master_idx": 4,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "10": "BODY"
+      }
+    },
+    "section_divider_06": {
+      "display_name": "06",
+      "master_idx": 4,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "10": "BODY"
+      }
+    },
+    "section_divider_07": {
+      "display_name": "07",
+      "master_idx": 4,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "10": "BODY"
+      }
+    },
+    "section_divider_08": {
+      "display_name": "08",
+      "master_idx": 4,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "10": "BODY"
+      }
+    },
+    "section_divider_09": {
+      "display_name": "09",
+      "master_idx": 4,
+      "placeholder_count": 2,
+      "placeholders": {
+        "0": "TITLE",
+        "10": "BODY"
+      }
+    },
+    "our_leadership": {
+      "display_name": "Our Leadership",
+      "master_idx": 5,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "team_two_members": {
+      "display_name": "two team members",
+      "master_idx": 5,
+      "placeholder_count": 11,
+      "placeholders": {
+        "13": "PICTURE",
+        "14": "BODY",
+        "15": "BODY",
+        "16": "BODY",
+        "17": "PICTURE",
+        "19": "BODY",
+        "20": "BODY",
+        "34": "TABLE",
+        "1": "OBJECT",
+        "35": "OBJECT",
+        "36": "BODY"
+      }
+    },
+    "services_overview": {
+      "display_name": "Our Services",
+      "master_idx": 6,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "svc_strategy": {
+      "display_name": "Strategy",
+      "master_idx": 6,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "svc_organizational_excellence": {
+      "display_name": "Organizational Excellence",
+      "master_idx": 6,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "svc_marketing": {
+      "display_name": "Marketing",
+      "master_idx": 6,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "svc_digital_cloud_ai": {
+      "display_name": "Digital, Cloud, and AI",
+      "master_idx": 6,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "svc_people_advisory": {
+      "display_name": "People Advisory",
+      "master_idx": 6,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "svc_deals_advisory": {
+      "display_name": "Deals Advisory",
+      "master_idx": 6,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "svc_research": {
+      "display_name": "Research",
+      "master_idx": 6,
+      "placeholder_count": 0,
+      "placeholders": {}
+    },
+    "case_study_cases": {
+      "display_name": "Services - Cases",
+      "master_idx": 6,
+      "placeholder_count": 17,
+      "placeholders": {
+        "41": "BODY",
+        "20": "PICTURE",
+        "23": "BODY",
+        "25": "BODY",
+        "32": "BODY",
+        "13": "BODY",
+        "17": "BODY",
+        "33": "BODY",
+        "34": "PICTURE",
+        "35": "BODY",
+        "36": "BODY",
+        "37": "BODY",
+        "38": "PICTURE",
+        "39": "BODY",
+        "40": "BODY",
+        "42": "BODY",
+        "0": "TITLE"
+      }
+    },
+    "case_study_detailed": {
+      "display_name": "Services - Detailed Case",
+      "master_idx": 6,
+      "placeholder_count": 6,
+      "placeholders": {
+        "43": "BODY",
+        "20": "PICTURE",
+        "0": "TITLE",
+        "44": "BODY",
+        "45": "BODY",
+        "46": "BODY"
+      }
+    }
+  }
+}
