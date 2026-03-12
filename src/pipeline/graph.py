@@ -26,9 +26,10 @@ from src.agents.qa import agent as qa_agent
 from src.agents.research import agent as research_agent
 from src.agents.retrieval import planner as retrieval_planner
 from src.agents.retrieval import ranker as retrieval_ranker
-from src.models.enums import PipelineStage
+from src.models.enums import PipelineStage, RendererMode
 from src.models.state import DeckForgeState, ErrorInfo, GateDecision
 from src.services.renderer import export_report_docx, render_pptx
+from src.services.scorer_profiles import ScorerProfile
 from src.services.search import load_documents, local_search
 
 # ──────────────────────────────────────────────────────────────
@@ -248,13 +249,40 @@ async def qa_node(state: DeckForgeState) -> dict[str, Any]:
     }
 
 
+def get_scorer_profile(mode: RendererMode) -> ScorerProfile:
+    """Map RendererMode to the corresponding ScorerProfile.
+
+    Legacy renderer uses legacy scorer profile.
+    Template-v2 renderer uses official_template_v2 scorer profile.
+    """
+    if mode == RendererMode.TEMPLATE_V2:
+        return ScorerProfile.OFFICIAL_TEMPLATE_V2
+    return ScorerProfile.LEGACY
+
+
 async def render_node(state: DeckForgeState) -> dict[str, Any]:
     """Design Agent — render PPTX and export DOCX (deterministic, no LLM).
 
-    Uses final_slides if available, otherwise falls back to written_slides.
-    Template path defaults to templates/Presentation6.pptx.
-    Output goes to output/ directory.
+    Dispatches to legacy render_pptx() or renderer_v2.render_v2()
+    based on ``state.renderer_mode``.  Default is LEGACY.
+
+    Legacy path: uses final_slides + templates/Presentation6.pptx.
+    Template-v2 path: uses ProposalManifest + official .potx template
+    + catalog lock.
+
+    Scorer profile is dispatched by renderer mode.
     """
+    mode = state.renderer_mode
+
+    if mode == RendererMode.TEMPLATE_V2:
+        return await _render_template_v2(state)
+
+    # ── Legacy path (default, unchanged) ──────────────────────
+    return await _render_legacy(state)
+
+
+async def _render_legacy(state: DeckForgeState) -> dict[str, Any]:
+    """Legacy renderer — unchanged from pre-v2 behavior."""
     # Determine slides to render
     slides = state.final_slides
     if not slides and state.written_slides:
@@ -295,6 +323,120 @@ async def render_node(state: DeckForgeState) -> dict[str, Any]:
         result["report_docx_path"] = docx_path
 
     return result
+
+
+async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
+    """Template-v2 renderer — manifest-driven, template-anchored.
+
+    Requires a ProposalManifest, TemplateManager, and catalog lock.
+    Returns error if prerequisites are not yet available (v2 pipeline
+    not fully wired).
+
+    The scorer profile for composition QA is dispatched by renderer mode.
+    """
+    from src.services.renderer_v2 import render_v2
+    from src.services.template_manager import TemplateManager
+
+    output_dir = Path("output")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    pptx_path = output_dir / "deck.pptx"
+    docx_path = str(output_dir / "report.docx")
+
+    language = state.output_language
+    lang_suffix = "ar" if language.value == "ar" else "en"
+
+    # Resolve catalog lock and template paths
+    data_dir = Path("src/data")
+    catalog_lock_path = data_dir / f"catalog_lock_{lang_suffix}.json"
+
+    if not catalog_lock_path.exists():
+        return {
+            "current_stage": PipelineStage.ERROR,
+            "last_error": ErrorInfo(
+                agent="render_v2",
+                error_type="MissingCatalogLock",
+                message=(
+                    f"Catalog lock not found at {catalog_lock_path}.  "
+                    f"Run template auditor (PHASE 0) first."
+                ),
+            ),
+        }
+
+    # Build manifest from slides (or find in state).
+    # Full manifest construction is wired in later phases.
+    # For now, fail-closed if no slides available.
+    slides = state.final_slides
+    if not slides and state.written_slides:
+        slides = state.written_slides.slides
+
+    if not slides:
+        return {
+            "current_stage": PipelineStage.ERROR,
+            "last_error": ErrorInfo(
+                agent="render_v2",
+                error_type="NoSlides",
+                message="No slides available for v2 rendering.",
+            ),
+        }
+
+    # Initialize TemplateManager from template path
+    try:
+        template_path = data_dir / f"template_{lang_suffix}.potx"
+        if not template_path.exists():
+            # Fallback: try the common templates directory
+            template_path = Path("templates") / f"PROPOSAL_TEMPLATE_{lang_suffix.upper()}.potx"
+
+        tm = TemplateManager(str(template_path), catalog_lock_path)
+    except Exception as exc:
+        return {
+            "current_stage": PipelineStage.ERROR,
+            "last_error": ErrorInfo(
+                agent="render_v2",
+                error_type="TemplateManagerError",
+                message=f"Failed to initialize TemplateManager: {exc}",
+            ),
+        }
+
+    # Build a ProposalManifest from state.
+    # TODO(Phase 17+): Replace with full manifest construction.
+    try:
+        from src.models.proposal_manifest import ProposalManifest
+        from src.services.renderer_v2 import RenderResult as V2RenderResult
+
+        manifest = ProposalManifest(entries=[])
+
+        # Render via renderer_v2
+        v2_result = render_v2(manifest, tm, catalog_lock_path, pptx_path)
+
+        result: dict[str, Any] = {
+            "pptx_path": str(pptx_path) if v2_result.success else None,
+            "current_stage": PipelineStage.FINALIZED if v2_result.success else PipelineStage.ERROR,
+        }
+
+        if not v2_result.success:
+            errors = v2_result.manifest_errors + v2_result.render_errors
+            result["last_error"] = ErrorInfo(
+                agent="render_v2",
+                error_type="RenderV2Error",
+                message="; ".join(errors) if errors else "Unknown v2 render error",
+            )
+
+        # Export DOCX if research report exists
+        if state.research_report and v2_result.success:
+            await export_report_docx(state.research_report, docx_path, language)
+            result["report_docx_path"] = docx_path
+
+        return result
+
+    except Exception as exc:
+        return {
+            "current_stage": PipelineStage.ERROR,
+            "last_error": ErrorInfo(
+                agent="render_v2",
+                error_type="RenderV2Exception",
+                message=f"Template-v2 render failed: {exc}",
+            ),
+        }
 
 
 # ──────────────────────────────────────────────────────────────

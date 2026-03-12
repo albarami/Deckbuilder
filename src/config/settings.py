@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     state_path: str = "./state"
     log_level: str = "DEBUG"
 
+    # Renderer feature flag — "legacy" (default) or "template_v2"
+    renderer_mode: str = "legacy"
+
 
 @lru_cache
 def get_settings() -> Settings:

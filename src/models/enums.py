@@ -173,3 +173,16 @@ class RenderStatus(StrEnum):
     SUCCESS = "success"
     WARNING = "warning"
     ERROR = "error"
+
+
+class RendererMode(StrEnum):
+    """Feature flag controlling which renderer is used.
+
+    LEGACY  — the original renderer.py (default, unchanged).
+    TEMPLATE_V2 — template-anchored renderer_v2.py (official .potx).
+
+    Legacy remains the default until all acceptance gates pass.
+    """
+
+    LEGACY = "legacy"
+    TEMPLATE_V2 = "template_v2"
