@@ -1,7 +1,9 @@
-"""Tests for Phase 14 — scorer_profiles.py.
+"""Tests for Phase 14 — scorer_profiles.py + composition_scorer.py integration.
 
 Tests renderer-mode-aware scorer profile dispatch, legacy profile
-immutability, template-v2 profile isolation, and no cross-contamination.
+immutability, template-v2 profile isolation, no cross-contamination,
+AND that composition_scorer.py actually dispatches scoring behavior
+based on the active profile.
 
 Critical invariant: legacy profile values are **pinned** — any change
 is a cross-contamination bug.
@@ -11,6 +13,14 @@ from __future__ import annotations
 
 import pytest
 
+from src.services.composition_scorer import (
+    CompositionResult,
+    ShapeInfo,
+    SlideScore,
+    Violation,
+    ViolationSeverity,
+    score_composition,
+)
 from src.services.scorer_profiles import (
     ProfileConfig,
     ScorerProfile,
@@ -239,3 +249,316 @@ class TestNoCrossContamination:
         assert legacy_before is legacy_after
         assert legacy_before.brand_fonts == ("Aptos",)
         assert legacy_before.body_font_min_pt == 10.0
+
+
+# ══════════════════════════════════════════════════════════════════════
+# INTEGRATION: composition_scorer actually dispatches by profile
+# ══════════════════════════════════════════════════════════════════════
+
+
+def _shape(
+    font_name: str = "Aptos",
+    font_size_pt: float = 11.0,
+    left_in: float = 1.0,
+    text: str = "Sample text content",
+    **kwargs,
+) -> ShapeInfo:
+    """Convenience helper to build a ShapeInfo for testing."""
+    defaults = dict(
+        slide_index=0, slide_id="slide_0", shape_name="TestShape",
+        shape_type="placeholder", top_in=2.0, width_in=8.0, height_in=1.0,
+        is_placeholder=True, placeholder_idx=0,
+    )
+    defaults.update(kwargs)
+    return ShapeInfo(
+        font_name=font_name, font_size_pt=font_size_pt,
+        left_in=left_in, text=text, **defaults,
+    )
+
+
+# ── score_composition dispatches by profile ───────────────────────────
+
+
+class TestScorerDispatchesByProfile:
+    """Prove that score_composition() actually uses the profile parameter."""
+
+    def test_default_profile_is_legacy(self):
+        shapes = [_shape(font_name="Aptos", font_size_pt=11.0)]
+        result = score_composition(shapes, [])
+        assert result.profile_used == ScorerProfile.LEGACY
+
+    def test_explicit_v2_profile_stored(self):
+        shapes = [_shape(font_name="Euclid Flex", font_size_pt=10.0)]
+        result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        assert result.profile_used == ScorerProfile.OFFICIAL_TEMPLATE_V2
+
+
+# ── Brand font enforcement differs by profile ─────────────────────────
+
+
+class TestBrandFontDispatch:
+    """Prove that brand font checking uses profile-specific font lists."""
+
+    def test_aptos_clean_under_legacy(self):
+        """Aptos is the legacy brand font — no font_brand violation."""
+        shapes = [_shape(font_name="Aptos", font_size_pt=11.0)]
+        result = score_composition(shapes, [], profile=ScorerProfile.LEGACY)
+        font_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "font_brand"
+        ]
+        assert len(font_violations) == 0
+
+    def test_aptos_flagged_under_v2(self):
+        """Aptos is NOT the v2 brand font — should flag font_brand."""
+        shapes = [_shape(font_name="Aptos", font_size_pt=10.0)]
+        result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        font_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "font_brand"
+        ]
+        assert len(font_violations) > 0
+
+    def test_euclid_clean_under_v2(self):
+        """Euclid Flex is the v2 brand font — no font_brand violation."""
+        shapes = [_shape(font_name="Euclid Flex", font_size_pt=10.0)]
+        result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        font_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "font_brand"
+        ]
+        assert len(font_violations) == 0
+
+    def test_euclid_flagged_under_legacy(self):
+        """Euclid Flex is NOT the legacy brand font — should flag."""
+        shapes = [_shape(font_name="Euclid Flex", font_size_pt=11.0)]
+        result = score_composition(shapes, [], profile=ScorerProfile.LEGACY)
+        font_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "font_brand"
+        ]
+        assert len(font_violations) > 0
+
+
+# ── Font size floor differs by profile ─────────────────────────────────
+
+
+class TestFontSizeFloorDispatch:
+    """Prove that hard_floor_pt differs between profiles."""
+
+    def test_9pt_ok_under_v2(self):
+        """9pt is valid under v2 (hard floor = 9pt)."""
+        shapes = [_shape(font_name="Euclid Flex", font_size_pt=9.0)]
+        result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        size_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "font_min_soft"
+        ]
+        assert len(size_violations) == 0
+
+    def test_9pt_blocker_under_legacy(self):
+        """9pt is below legacy hard floor (10pt) — should be a blocker."""
+        shapes = [_shape(font_name="Aptos", font_size_pt=9.0)]
+        result = score_composition(shapes, [], profile=ScorerProfile.LEGACY)
+        size_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "font_min_soft"
+        ]
+        assert len(size_violations) > 0
+        assert size_violations[0].severity == ViolationSeverity.BLOCKER
+
+    def test_10pt_ok_under_legacy(self):
+        """10pt is at the legacy hard floor — no violation."""
+        shapes = [_shape(font_name="Aptos", font_size_pt=10.0)]
+        result = score_composition(shapes, [], profile=ScorerProfile.LEGACY)
+        size_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "font_min_soft"
+        ]
+        assert len(size_violations) == 0
+
+    def test_8pt_blocker_under_both(self):
+        """8pt is below both profiles' floors."""
+        for profile in (ScorerProfile.LEGACY, ScorerProfile.OFFICIAL_TEMPLATE_V2):
+            font = "Aptos" if profile == ScorerProfile.LEGACY else "Euclid Flex"
+            shapes = [_shape(font_name=font, font_size_pt=8.0)]
+            result = score_composition(shapes, [], profile=profile)
+            size_violations = [
+                v for s in result.slide_scores for v in s.violations
+                if v.rule == "font_min_soft"
+            ]
+            assert len(size_violations) > 0, f"8pt should be blocker under {profile}"
+
+
+# ── Left margin differs by profile ────────────────────────────────────
+
+
+class TestLeftMarginDispatch:
+    """Prove bounds_margin_left_min_in is profile-specific."""
+
+    def test_0_6in_ok_under_legacy(self):
+        """0.6in left is above legacy minimum (0.5in)."""
+        shapes = [_shape(left_in=0.6)]
+        result = score_composition(shapes, [], profile=ScorerProfile.LEGACY)
+        margin_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "bounds_left_margin"
+        ]
+        assert len(margin_violations) == 0
+
+    def test_0_6in_flagged_under_v2(self):
+        """0.6in left is below v2 minimum (0.82in)."""
+        shapes = [_shape(font_name="Euclid Flex", left_in=0.6)]
+        result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        margin_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "bounds_left_margin"
+        ]
+        assert len(margin_violations) > 0
+
+    def test_0_85in_ok_under_v2(self):
+        """0.85in left is above v2 minimum (0.82in)."""
+        shapes = [_shape(font_name="Euclid Flex", left_in=0.85)]
+        result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        margin_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "bounds_left_margin"
+        ]
+        assert len(margin_violations) == 0
+
+
+# ── Template fidelity only under v2 ───────────────────────────────────
+
+
+class TestTemplateFidelityDispatch:
+    """Prove template_fidelity rule only fires under v2 profile."""
+
+    def _non_template_textbox(self) -> ShapeInfo:
+        return _shape(
+            shape_type="textbox", is_placeholder=False,
+            shape_name="ProgrammaticBox", text="Some injected content here",
+            top_in=3.0, left_in=1.0, width_in=5.0, height_in=1.0,
+            font_name="Euclid Flex", font_size_pt=10.0,
+        )
+
+    def test_no_fidelity_check_under_legacy(self):
+        """Legacy profile does not enforce template fidelity."""
+        shapes = [self._non_template_textbox()]
+        result = score_composition(shapes, [], profile=ScorerProfile.LEGACY)
+        fidelity_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "template_fidelity"
+        ]
+        assert len(fidelity_violations) == 0
+
+    def test_fidelity_check_fires_under_v2(self):
+        """V2 profile detects non-template textboxes."""
+        shapes = [self._non_template_textbox()]
+        result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        fidelity_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "template_fidelity"
+        ]
+        assert len(fidelity_violations) > 0
+
+    def test_decorative_shapes_excluded_under_v2(self):
+        """Template-native decorative elements don't trigger fidelity."""
+        # Shape at very top = template chrome
+        decorative = _shape(
+            shape_type="textbox", is_placeholder=False,
+            shape_name="HeaderBar", text="SG",
+            top_in=0.1, left_in=0.0, width_in=13.0, height_in=0.2,
+            font_name="Euclid Flex", font_size_pt=8.0,
+        )
+        shapes = [decorative]
+        result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        fidelity_violations = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "template_fidelity"
+        ]
+        assert len(fidelity_violations) == 0
+
+
+# ── Overlap strictness same for both profiles ─────────────────────────
+
+
+class TestOverlapSameStrictness:
+    """Prove overlap detection uses the same threshold for both profiles."""
+
+    def _overlapping_shapes(self) -> list[ShapeInfo]:
+        a = _shape(
+            shape_name="ShapeA", top_in=2.0, height_in=1.5,
+            left_in=1.0, width_in=5.0,
+        )
+        b = _shape(
+            shape_name="ShapeB", top_in=3.0, height_in=1.5,
+            left_in=1.0, width_in=5.0,
+        )
+        return [a, b]
+
+    def test_overlap_detected_under_legacy(self):
+        shapes = self._overlapping_shapes()
+        result = score_composition(shapes, [], profile=ScorerProfile.LEGACY)
+        overlap = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "overlap_severe"
+        ]
+        assert len(overlap) > 0
+
+    def test_overlap_detected_under_v2(self):
+        shapes = self._overlapping_shapes()
+        result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        overlap = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "overlap_severe"
+        ]
+        assert len(overlap) > 0
+
+    def test_same_overlap_count_both_profiles(self):
+        """Same shapes → same overlap violations regardless of profile."""
+        shapes = self._overlapping_shapes()
+        legacy = score_composition(shapes, [], profile=ScorerProfile.LEGACY)
+        v2 = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        legacy_overlaps = [
+            v for s in legacy.slide_scores for v in s.violations
+            if v.rule == "overlap_severe"
+        ]
+        v2_overlaps = [
+            v for s in v2.slide_scores for v in s.violations
+            if v.rule == "overlap_severe"
+        ]
+        assert len(legacy_overlaps) == len(v2_overlaps)
+
+
+# ── CompositionResult data model ──────────────────────────────────────
+
+
+class TestCompositionResultModel:
+    def test_blocker_count(self):
+        v = Violation(rule="font_min_soft", message="too small",
+                      severity=ViolationSeverity.BLOCKER, slide_id="s0")
+        ss = SlideScore(slide_id="s0", violations=(v,))
+        r = CompositionResult(slide_scores=(ss,))
+        assert r.blocker_count == 1
+
+    def test_total_violations(self):
+        v1 = Violation(rule="r1", message="m1", severity=ViolationSeverity.WARNING)
+        v2 = Violation(rule="r2", message="m2", severity=ViolationSeverity.BLOCKER)
+        ss = SlideScore(slide_id="s0", violations=(v1, v2))
+        r = CompositionResult(slide_scores=(ss,))
+        assert r.total_violations == 2
+
+    def test_empty_result(self):
+        r = CompositionResult()
+        assert r.blocker_count == 0
+        assert r.total_violations == 0
+
+    def test_frozen_shape_info(self):
+        s = _shape()
+        with pytest.raises(AttributeError):
+            s.font_name = "X"  # type: ignore[misc]
+
+    def test_frozen_violation(self):
+        v = Violation(rule="r", message="m", severity=ViolationSeverity.INFO)
+        with pytest.raises(AttributeError):
+            v.rule = "x"  # type: ignore[misc]
