@@ -4,14 +4,19 @@ Before placeholder injectors write proposal-specific content, the
 A2 shell must be sanitized.  Sanitization uses the allowlist model
 from the catalog lock to determine what stays and what gets cleared.
 
+A2 assets include:
+  - 3 cover shells (proposal_cover, intro_message, toc_agenda)
+  - 6 section dividers (section_divider_01 .. section_divider_06)
+
 Sanitization rules (fail-closed):
   - Clear non-approved placeholder text (placeholder not on allowlist)
   - Clear non-placeholder text boxes not on preserved-regions allowlist
   - Clear table cell text in non-approved tables
   - Clear speaker notes with forbidden template-example content
   - Clear alt-text / description fields with forbidden content
-  - Clear comments / hidden metadata if present and forbidden
-  - Fail closed on unknown text-bearing elements outside the allowlist
+  - Clear comments / hidden metadata if they contain forbidden content
+  - FAIL CLOSED: raise SanitizationError on unknown text-bearing
+    elements that are not a recognized sanitization target type
 
 Every cleared element is logged in a SanitizationReport.
 
@@ -45,7 +50,7 @@ class ClearedElement:
     """Record of a single cleared element during sanitization."""
 
     shell_id: str
-    element_type: str       # "placeholder" | "text_box" | "table" | "speaker_notes" | "alt_text" | "comment"
+    element_type: str       # "placeholder" | "text_box" | "table" | "speaker_notes" | "alt_text" | "comment" | "hidden_metadata"
     shape_name: str
     reason: str             # why it was cleared
     had_content: bool       # whether it actually had text before clearing
@@ -76,10 +81,37 @@ class ShellAllowlist:
     preserved_table_names: set[str]         # table shapes to preserve
 
 
+def _parse_allowlist(shell_id: str, shell_data: dict) -> ShellAllowlist:
+    """Parse a single shell's allowlist from catalog lock data."""
+    al = shell_data.get("allowlist", {})
+
+    # Approved injection placeholders
+    approved_phs = al.get("approved_injection_placeholders", {})
+    approved_indices = {int(idx) for idx in approved_phs}
+
+    # Preserved text regions (by shape name)
+    preserved_regions = al.get("candidate_preserved_text_regions", [])
+    preserved_names = {r["shape_name"] for r in preserved_regions if "shape_name" in r}
+
+    # Preserved tables (by shape name)
+    preserved_tables = al.get("candidate_preserved_tables", [])
+    preserved_table_names = {t["shape_name"] for t in preserved_tables if "shape_name" in t}
+
+    return ShellAllowlist(
+        shell_id=shell_id,
+        approved_placeholder_indices=approved_indices,
+        preserved_shape_names=preserved_names,
+        preserved_table_names=preserved_table_names,
+    )
+
+
 def load_a2_allowlists(
     catalog_lock_path: Path,
 ) -> dict[str, ShellAllowlist]:
     """Load A2 shell allowlists from the catalog lock.
+
+    Loads from both ``a2_shells`` (cover shells) and ``section_dividers``
+    (divider shells).  Returns all 9 A2 asset allowlists.
 
     Parameters
     ----------
@@ -94,7 +126,7 @@ def load_a2_allowlists(
     Raises
     ------
     SanitizationError
-        If catalog lock is missing or malformed.
+        If catalog lock is missing or has no A2 assets.
     """
     if not catalog_lock_path.exists():
         raise SanitizationError(
@@ -104,33 +136,23 @@ def load_a2_allowlists(
     with open(catalog_lock_path, encoding="utf-8") as f:
         lock = json.load(f)
 
-    a2_shells = lock.get("a2_shells", {})
-    if not a2_shells:
-        raise SanitizationError(
-            "Catalog lock has no 'a2_shells' section"
-        )
-
     allowlists: dict[str, ShellAllowlist] = {}
+
+    # ── A2 cover shells (proposal_cover, intro_message, toc_agenda) ──
+    a2_shells = lock.get("a2_shells", {})
     for shell_id, shell_data in a2_shells.items():
-        al = shell_data.get("allowlist", {})
+        allowlists[shell_id] = _parse_allowlist(shell_id, shell_data)
 
-        # Approved injection placeholders
-        approved_phs = al.get("approved_injection_placeholders", {})
-        approved_indices = {int(idx) for idx in approved_phs}
+    # ── Section dividers (01..06) ────────────────────────────────────
+    section_dividers = lock.get("section_dividers", {})
+    for divider_key, divider_data in section_dividers.items():
+        # Canonical shell_id: "section_divider_01" etc.
+        shell_id = f"section_divider_{divider_key}"
+        allowlists[shell_id] = _parse_allowlist(shell_id, divider_data)
 
-        # Preserved text regions (by shape name)
-        preserved_regions = al.get("candidate_preserved_text_regions", [])
-        preserved_names = {r["shape_name"] for r in preserved_regions if "shape_name" in r}
-
-        # Preserved tables (by shape name)
-        preserved_tables = al.get("candidate_preserved_tables", [])
-        preserved_table_names = {t["shape_name"] for t in preserved_tables if "shape_name" in t}
-
-        allowlists[shell_id] = ShellAllowlist(
-            shell_id=shell_id,
-            approved_placeholder_indices=approved_indices,
-            preserved_shape_names=preserved_names,
-            preserved_table_names=preserved_table_names,
+    if not allowlists:
+        raise SanitizationError(
+            "Catalog lock has no A2 shells or section dividers"
         )
 
     return allowlists
@@ -156,6 +178,19 @@ def get_allowlist(
 
 # ── Sanitization engine ────────────────────────────────────────────────
 
+# Shape types that the sanitizer knows how to handle.
+# Any text-bearing element outside this set triggers fail-closed.
+_KNOWN_SHAPE_TYPES = frozenset({
+    "placeholder",      # has is_placeholder = True
+    "text_frame",       # has_text_frame = True (text boxes, etc.)
+    "table",            # has_table = True
+    "picture",          # has no text frame and no table (images)
+    "connector",        # connectors, lines, etc.
+    "group",            # group shapes
+    "freeform",         # freeform shapes
+    "chart",            # embedded charts
+})
+
 
 def _clear_text_frame(text_frame: Any) -> bool:
     """Clear all text from a pptx text frame.  Returns True if content existed."""
@@ -179,18 +214,166 @@ def _clear_table(table: Any) -> bool:
     return had_content
 
 
-def _is_forbidden_notes_content(notes_text: str) -> bool:
-    """Check if speaker notes contain forbidden template-example content."""
-    if not notes_text.strip():
+def _is_forbidden_content(text: str) -> bool:
+    """Check if text contains forbidden template-example content."""
+    if not text.strip():
         return False
-    # Template examples often contain placeholder markers
     forbidden_markers = [
         "lorem ipsum", "sample text", "click to edit",
         "insert text here", "type here", "add text",
         "example:", "[example", "<example",
     ]
-    lower = notes_text.lower()
+    lower = text.lower()
     return any(marker in lower for marker in forbidden_markers)
+
+
+def _classify_shape(shape: Any) -> str:
+    """Classify a non-placeholder shape into a known type string.
+
+    Returns a type from _KNOWN_SHAPE_TYPES, or "unknown" if the shape
+    cannot be classified.
+    """
+    if shape.is_placeholder:
+        return "placeholder"
+    if shape.has_text_frame:
+        return "text_frame"
+    if shape.has_table:
+        return "table"
+
+    # Check for common non-text shape types via shape_type or XML tag
+    shape_type_name = ""
+    try:
+        shape_type_name = str(getattr(shape, "shape_type", "")).lower()
+    except Exception:
+        pass
+
+    # python-pptx MSO_SHAPE_TYPE values
+    if "picture" in shape_type_name or "image" in shape_type_name:
+        return "picture"
+    if "group" in shape_type_name:
+        return "group"
+    if "freeform" in shape_type_name:
+        return "freeform"
+    if "connector" in shape_type_name or "line" in shape_type_name:
+        return "connector"
+    if "chart" in shape_type_name:
+        return "chart"
+
+    # Check XML tag for additional classification
+    try:
+        tag = shape._element.tag.split("}")[-1] if "}" in shape._element.tag else shape._element.tag
+        tag_lower = tag.lower()
+        if "pic" in tag_lower:
+            return "picture"
+        if "grpsp" in tag_lower:
+            return "group"
+        if "cxnsp" in tag_lower:
+            return "connector"
+    except Exception:
+        pass
+
+    return "unknown"
+
+
+def _sanitize_comments(slide: Any, shell_id: str) -> list[ClearedElement]:
+    """Clear comment content with forbidden template-example text.
+
+    In python-pptx, slide comments are accessible via the slide's XML
+    part relationships.  We check for comment text and clear forbidden
+    content.
+    """
+    cleared: list[ClearedElement] = []
+
+    try:
+        # python-pptx stores comments in slide.part related parts
+        slide_element = slide._element
+        ns_p = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
+
+        # Check for extLst / comment references in the slide XML
+        for ext in slide_element.iter(f"{ns_p}extLst"):
+            for child in ext:
+                text = child.text or ""
+                if text and _is_forbidden_content(text):
+                    child.text = ""
+                    cleared.append(ClearedElement(
+                        shell_id=shell_id,
+                        element_type="comment",
+                        shape_name="slide_extension",
+                        reason="forbidden template-example content in extension",
+                        had_content=True,
+                    ))
+
+        # Check slide part for comment relationships
+        if hasattr(slide, "part") and hasattr(slide.part, "rels"):
+            for rel in slide.part.rels.values():
+                rel_type = getattr(rel, "reltype", "")
+                if "comment" in rel_type.lower():
+                    try:
+                        target_part = rel.target_part
+                        if hasattr(target_part, "blob"):
+                            blob_text = target_part.blob.decode("utf-8", errors="ignore")
+                            if _is_forbidden_content(blob_text):
+                                target_part._blob = b""
+                                cleared.append(ClearedElement(
+                                    shell_id=shell_id,
+                                    element_type="comment",
+                                    shape_name="comment_part",
+                                    reason="forbidden template-example content in comments",
+                                    had_content=True,
+                                ))
+                    except Exception:
+                        pass
+
+    except Exception as exc:
+        logger.debug(f"Comment check for {shell_id}: {exc}")
+
+    return cleared
+
+
+def _sanitize_hidden_metadata(slide: Any, shell_id: str) -> list[ClearedElement]:
+    """Clear hidden metadata fields with forbidden template-example content.
+
+    Checks custom XML properties and other metadata stored on the slide.
+    """
+    cleared: list[ClearedElement] = []
+
+    try:
+        slide_element = slide._element
+        ns_p = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
+
+        # Check for customerData or similar hidden metadata
+        for cust_data in slide_element.iter(f"{ns_p}custDataLst"):
+            for child in cust_data:
+                text = child.text or ""
+                if text and _is_forbidden_content(text):
+                    child.text = ""
+                    cleared.append(ClearedElement(
+                        shell_id=shell_id,
+                        element_type="hidden_metadata",
+                        shape_name="custDataLst",
+                        reason="forbidden template-example content in custom data",
+                        had_content=True,
+                    ))
+
+        # Check for hidden text in slide properties
+        for tag_name in ["hf", "txStyles"]:
+            for elem in slide_element.iter(f"{ns_p}{tag_name}"):
+                text = "".join(elem.itertext())
+                if text and _is_forbidden_content(text):
+                    for child in list(elem):
+                        elem.remove(child)
+                    cleared.append(ClearedElement(
+                        shell_id=shell_id,
+                        element_type="hidden_metadata",
+                        shape_name=tag_name,
+                        reason="forbidden template-example content in slide metadata",
+                        had_content=True,
+                    ))
+
+    except Exception as exc:
+        logger.debug(f"Hidden metadata check for {shell_id}: {exc}")
+
+    return cleared
 
 
 def sanitize_shell(
@@ -202,6 +385,9 @@ def sanitize_shell(
 
     Clears all non-approved content from the slide while preserving
     approved injection placeholders and allowlisted preserved regions.
+
+    Raises SanitizationError on unknown text-bearing elements that
+    are not a recognized sanitization target type (fail-closed).
 
     Parameters
     ----------
@@ -216,6 +402,11 @@ def sanitize_shell(
     -------
     SanitizationReport
         Detailed report of all clearing actions.
+
+    Raises
+    ------
+    SanitizationError
+        If an unknown text-bearing element is encountered.
     """
     cleared: list[ClearedElement] = []
     preserved_count = 0
@@ -301,14 +492,25 @@ def sanitize_shell(
             ))
             continue
 
-        # Non-text shapes (images, connectors, etc.) — preserve
+        # ── Non-text shapes ─────────────────────────────────────
+        shape_type = _classify_shape(shape)
+        if shape_type == "unknown":
+            # FAIL CLOSED: unknown text-bearing element outside allowlist
+            raise SanitizationError(
+                f"Shell '{shell_id}': unknown shape type for "
+                f"'{shape_name}' — cannot determine if text-bearing. "
+                f"Fail-closed: shape must be added to allowlist or "
+                f"classified as a known type."
+            )
+
+        # Known non-text shape (picture, connector, group, etc.)
         preserved_count += 1
 
     # ── Speaker notes ───────────────────────────────────────────
     if slide.has_notes_slide:
         notes_frame = slide.notes_slide.notes_text_frame
         notes_text = notes_frame.text if notes_frame else ""
-        if _is_forbidden_notes_content(notes_text):
+        if _is_forbidden_content(notes_text):
             _clear_text_frame(notes_frame)
             cleared.append(ClearedElement(
                 shell_id=shell_id,
@@ -320,28 +522,22 @@ def sanitize_shell(
 
     # ── Alt-text / description fields ───────────────────────────
     for shape in slide.shapes:
-        # python-pptx exposes alt_text via shape._element
         try:
             desc_elem = shape._element
-            # Access nvSpPr/cNvPr or nvGrpSpPr/cNvPr for description attr
-            cNvPr = desc_elem.find(
-                ".//{http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing}cNvPr"
-            )
-            if cNvPr is None:
-                # Try presentation namespace
-                for tag in ["nvSpPr", "nvPicPr", "nvGrpSpPr", "nvCxnSpPr"]:
-                    ns = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
-                    nv = desc_elem.find(f"{ns}{tag}")
-                    if nv is not None:
-                        ns_a = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
-                        cNvPr = nv.find(f"{ns_a}cNvPr") or nv.find(
-                            "{http://schemas.openxmlformats.org/presentationml/2006/main}cNvPr"
-                        )
-                        break
+            cNvPr = None
+            for tag in ["nvSpPr", "nvPicPr", "nvGrpSpPr", "nvCxnSpPr"]:
+                ns = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
+                nv = desc_elem.find(f"{ns}{tag}")
+                if nv is not None:
+                    ns_a = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+                    cNvPr = nv.find(f"{ns_a}cNvPr") or nv.find(
+                        "{http://schemas.openxmlformats.org/presentationml/2006/main}cNvPr"
+                    )
+                    break
 
             if cNvPr is not None:
                 descr = cNvPr.get("descr", "")
-                if descr and _is_forbidden_notes_content(descr):
+                if descr and _is_forbidden_content(descr):
                     cNvPr.set("descr", "")
                     cleared.append(ClearedElement(
                         shell_id=shell_id,
@@ -351,8 +547,13 @@ def sanitize_shell(
                         had_content=True,
                     ))
         except Exception as exc:
-            # Don't fail sanitization on alt-text parsing errors
             logger.debug(f"Alt-text check skipped for {shape.name}: {exc}")
+
+    # ── Comments ────────────────────────────────────────────────
+    cleared.extend(_sanitize_comments(slide, shell_id))
+
+    # ── Hidden metadata ─────────────────────────────────────────
+    cleared.extend(_sanitize_hidden_metadata(slide, shell_id))
 
     # ── Build report ────────────────────────────────────────────
     by_type: dict[str, int] = {}
