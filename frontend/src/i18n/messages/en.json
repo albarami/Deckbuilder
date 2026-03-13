@@ -30,21 +30,39 @@
     "title": "Dashboard",
     "recentProposals": "Recent Proposals",
     "startNew": "Start New Proposal",
-    "noProposals": "No proposals yet. Start your first one."
+    "noProposals": "No proposals yet. Start your first one.",
+    "statsActive": "Active",
+    "statsCompleted": "Completed",
+    "statsTotal": "Total"
   },
   "intake": {
     "title": "New Proposal",
+    "subtitle": "Upload your RFP documents or paste text to begin.",
     "uploadFiles": "Upload RFP Documents",
     "dragDrop": "Drag and drop files here, or click to browse",
-    "supportedFormats": "PDF, DOCX, TXT — max 50MB per file",
+    "supportedFormats": "PDF, DOCX, TXT \u2014 max 50MB per file",
+    "uploading": "Uploading...",
     "orPasteText": "Or paste RFP text directly",
     "pasteHere": "Paste your RFP content here...",
+    "or": "or",
     "configuration": "Proposal Configuration",
     "language": "Language",
     "proposalMode": "Proposal Mode",
     "sector": "Sector",
     "geography": "Geography",
-    "startPipeline": "Generate Proposal"
+    "selectSector": "Select sector...",
+    "selectGeography": "Select geography...",
+    "startPipeline": "Generate Proposal",
+    "starting": "Starting...",
+    "startError": "Failed to start pipeline. Please try again.",
+    "needInput": "Upload files or paste text to get started.",
+    "config": {
+      "languageEn": "English",
+      "languageAr": "Arabic",
+      "modeLite": "Lite",
+      "modeStandard": "Standard",
+      "modeFull": "Full"
+    }
   },
   "pipeline": {
     "title": "Pipeline Progress",
