@@ -328,12 +328,27 @@ async def _render_legacy(state: DeckForgeState) -> dict[str, Any]:
 async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
     """Template-v2 renderer — manifest-driven, template-anchored.
 
-    Requires a ProposalManifest, TemplateManager, and catalog lock.
-    Returns error if prerequisites are not yet available (v2 pipeline
-    not fully wired).
+    Requires ``state.proposal_manifest`` to be populated by an earlier
+    pipeline phase.  Fails closed if the manifest is absent — no empty
+    stub is ever constructed here.
 
     The scorer profile for composition QA is dispatched by renderer mode.
     """
+    # ── Fail-closed: manifest must already exist in state ─────
+    manifest = state.proposal_manifest
+    if manifest is None:
+        return {
+            "current_stage": PipelineStage.ERROR,
+            "last_error": ErrorInfo(
+                agent="render_v2",
+                error_type="MissingManifest",
+                message=(
+                    "Template-v2 render requested but ProposalManifest "
+                    "is not yet present in state."
+                ),
+            ),
+        }
+
     from src.services.renderer_v2 import render_v2
     from src.services.template_manager import TemplateManager
 
@@ -345,7 +360,7 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
     language = state.output_language
     lang_suffix = "ar" if language.value == "ar" else "en"
 
-    # Resolve catalog lock and template paths
+    # Resolve catalog lock path
     data_dir = Path("src/data")
     catalog_lock_path = data_dir / f"catalog_lock_{lang_suffix}.json"
 
@@ -362,28 +377,10 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
             ),
         }
 
-    # Build manifest from slides (or find in state).
-    # Full manifest construction is wired in later phases.
-    # For now, fail-closed if no slides available.
-    slides = state.final_slides
-    if not slides and state.written_slides:
-        slides = state.written_slides.slides
-
-    if not slides:
-        return {
-            "current_stage": PipelineStage.ERROR,
-            "last_error": ErrorInfo(
-                agent="render_v2",
-                error_type="NoSlides",
-                message="No slides available for v2 rendering.",
-            ),
-        }
-
     # Initialize TemplateManager from template path
     try:
         template_path = data_dir / f"template_{lang_suffix}.potx"
         if not template_path.exists():
-            # Fallback: try the common templates directory
             template_path = Path("templates") / f"PROPOSAL_TEMPLATE_{lang_suffix.upper()}.potx"
 
         tm = TemplateManager(str(template_path), catalog_lock_path)
@@ -397,15 +394,8 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
             ),
         }
 
-    # Build a ProposalManifest from state.
-    # TODO(Phase 17+): Replace with full manifest construction.
+    # Render via renderer_v2
     try:
-        from src.models.proposal_manifest import ProposalManifest
-        from src.services.renderer_v2 import RenderResult as V2RenderResult
-
-        manifest = ProposalManifest(entries=[])
-
-        # Render via renderer_v2
         v2_result = render_v2(manifest, tm, catalog_lock_path, pptx_path)
 
         result: dict[str, Any] = {

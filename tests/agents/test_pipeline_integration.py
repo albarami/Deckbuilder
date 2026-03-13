@@ -5,17 +5,22 @@ Tests that:
   - RendererMode is a StrEnum (like all other DeckForge enums)
   - Default renderer_mode in DeckForgeState is LEGACY
   - Default renderer_mode in Settings is "legacy"
+  - Settings.renderer_mode flows into DeckForgeState via create_state_from_input
   - render_node dispatches to legacy path when mode is LEGACY
   - render_node dispatches to v2 path when mode is TEMPLATE_V2
   - get_scorer_profile maps RendererMode to correct ScorerProfile
   - Legacy path behavior unchanged (same logic as pre-Phase 16)
   - renderer.py is NOT imported by the new code (no modifications)
   - Feature flag is environment-configurable
+  - Missing ProposalManifest fails closed (no empty-manifest stub)
 """
 
 from __future__ import annotations
 
+import ast
 import asyncio
+import json
+import textwrap
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -81,6 +86,12 @@ class TestStateDefault:
         state = DeckForgeState.model_validate({"renderer_mode": "template_v2"})
         assert state.renderer_mode == RendererMode.TEMPLATE_V2
 
+    def test_proposal_manifest_defaults_to_none(self):
+        from src.models.state import DeckForgeState
+
+        state = DeckForgeState()
+        assert state.proposal_manifest is None
+
 
 # ── Settings Default ─────────────────────────────────────────────────
 
@@ -97,6 +108,86 @@ class TestSettingsDefault:
             anthropic_api_key="test",  # type: ignore[arg-type]
         )
         assert s.renderer_mode == "legacy"
+
+
+# ── Settings → State Wiring ──────────────────────────────────────────
+
+
+class TestSettingsToStateWiring:
+    """Settings.renderer_mode must reach DeckForgeState.renderer_mode
+    via create_state_from_input()."""
+
+    def test_plain_text_inherits_legacy_from_settings(self, tmp_path):
+        """Plain-text input creates state with renderer_mode from settings."""
+        from scripts.run_pipeline import create_state_from_input
+
+        rfp_file = tmp_path / "rfp.txt"
+        rfp_file.write_text("Test RFP summary text", encoding="utf-8")
+
+        with patch("scripts.run_pipeline.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(renderer_mode="legacy")
+            state = create_state_from_input(str(rfp_file))
+
+        assert state.renderer_mode == RendererMode.LEGACY
+
+    def test_plain_text_inherits_v2_from_settings(self, tmp_path):
+        """When settings has template_v2, state gets template_v2."""
+        from scripts.run_pipeline import create_state_from_input
+
+        rfp_file = tmp_path / "rfp.txt"
+        rfp_file.write_text("Test RFP summary text", encoding="utf-8")
+
+        with patch("scripts.run_pipeline.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(renderer_mode="template_v2")
+            state = create_state_from_input(str(rfp_file))
+
+        assert state.renderer_mode == RendererMode.TEMPLATE_V2
+
+    def test_json_without_mode_inherits_from_settings(self, tmp_path):
+        """JSON input without renderer_mode gets it from settings."""
+        from scripts.run_pipeline import create_state_from_input
+
+        rfp_file = tmp_path / "rfp.json"
+        rfp_file.write_text(
+            json.dumps({"ai_assist_summary": "Test summary"}),
+            encoding="utf-8",
+        )
+
+        with patch("scripts.run_pipeline.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(renderer_mode="template_v2")
+            state = create_state_from_input(str(rfp_file))
+
+        assert state.renderer_mode == RendererMode.TEMPLATE_V2
+
+    def test_json_with_explicit_mode_wins(self, tmp_path):
+        """JSON input with explicit renderer_mode overrides settings."""
+        from scripts.run_pipeline import create_state_from_input
+
+        rfp_file = tmp_path / "rfp.json"
+        rfp_file.write_text(
+            json.dumps({
+                "ai_assist_summary": "Test summary",
+                "renderer_mode": "template_v2",
+            }),
+            encoding="utf-8",
+        )
+
+        # Settings says legacy but JSON says template_v2 — JSON wins
+        with patch("scripts.run_pipeline.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(renderer_mode="legacy")
+            state = create_state_from_input(str(rfp_file))
+
+        assert state.renderer_mode == RendererMode.TEMPLATE_V2
+
+    def test_bad_settings_value_defaults_to_legacy(self, tmp_path):
+        """Unrecognised renderer_mode in settings falls back to LEGACY."""
+        from scripts.run_pipeline import _renderer_mode_from_settings
+
+        with patch("scripts.run_pipeline.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(renderer_mode="nonexistent")
+            mode = _renderer_mode_from_settings()
+
+        assert mode == RendererMode.LEGACY
 
 
 # ── Scorer Profile Dispatch ──────────────────────────────────────────
@@ -177,31 +268,33 @@ class TestRenderNodeLegacyDispatch:
 class TestRenderNodeV2Dispatch:
     """render_node dispatches to v2 path when mode is TEMPLATE_V2."""
 
-    @pytest.fixture
-    def v2_state(self):
+    def test_v2_without_manifest_fails_closed(self):
+        """V2 mode with no proposal_manifest => MissingManifest error.
+        This is the primary fail-closed test."""
         from src.models.state import DeckForgeState
+        from src.pipeline.graph import render_node
 
         slide = SlideObject(
             slide_id="S-001", title="Test Slide",
             layout_type=LayoutType.CONTENT_1COL,
         )
-        return DeckForgeState(
+        state = DeckForgeState(
             renderer_mode=RendererMode.TEMPLATE_V2,
             final_slides=[slide],
+            # proposal_manifest deliberately NOT set
         )
 
-    def test_v2_path_entered(self, v2_state):
-        """When mode is TEMPLATE_V2, render_node enters the v2 path
-        (which may fail because template/catalog aren't available,
-        but it should NOT call render_pptx)."""
-        from src.pipeline.graph import render_node
-
         with patch("src.pipeline.graph.render_pptx") as mock_legacy:
-            result = asyncio.run(render_node(v2_state))
-            # Legacy renderer NOT called
+            result = asyncio.run(render_node(state))
             mock_legacy.assert_not_called()
 
-    def test_v2_no_slides_returns_error(self):
+        assert result["current_stage"] == "error"
+        assert result["last_error"].error_type == "MissingManifest"
+        assert "ProposalManifest is not yet present" in result["last_error"].message
+
+    def test_v2_without_manifest_no_slides_also_fails_manifest_first(self):
+        """V2 mode with no manifest AND no slides => MissingManifest (not NoSlides).
+        Manifest check comes before slide check."""
         from src.models.state import DeckForgeState
         from src.pipeline.graph import render_node
 
@@ -209,6 +302,136 @@ class TestRenderNodeV2Dispatch:
         result = asyncio.run(render_node(state))
 
         assert result["current_stage"] == "error"
+        assert result["last_error"].error_type == "MissingManifest"
+
+    def test_v2_does_not_call_legacy_renderer(self):
+        """V2 path must never call render_pptx (the legacy renderer)."""
+        from src.models.state import DeckForgeState
+        from src.pipeline.graph import render_node
+
+        state = DeckForgeState(renderer_mode=RendererMode.TEMPLATE_V2)
+
+        with patch("src.pipeline.graph.render_pptx") as mock_legacy:
+            asyncio.run(render_node(state))
+            mock_legacy.assert_not_called()
+
+
+# ── Missing Manifest Fail-Closed ─────────────────────────────────────
+
+
+class TestMissingManifestFailClosed:
+    """The v2 path must fail closed when proposal_manifest is None.
+    No empty stub. No silent fallback."""
+
+    def test_manifest_none_returns_error(self):
+        """Explicit: state.proposal_manifest is None → hard error."""
+        from src.models.state import DeckForgeState
+        from src.pipeline.graph import _render_template_v2
+
+        state = DeckForgeState(
+            renderer_mode=RendererMode.TEMPLATE_V2,
+            proposal_manifest=None,
+        )
+        result = asyncio.run(_render_template_v2(state))
+
+        assert result["current_stage"] == "error"
+        assert result["last_error"].error_type == "MissingManifest"
+
+    def test_manifest_none_default_returns_error(self):
+        """Default state (no manifest set) → hard error on v2 path."""
+        from src.models.state import DeckForgeState
+        from src.pipeline.graph import _render_template_v2
+
+        state = DeckForgeState(renderer_mode=RendererMode.TEMPLATE_V2)
+        result = asyncio.run(_render_template_v2(state))
+
+        assert result["current_stage"] == "error"
+        assert result["last_error"].error_type == "MissingManifest"
+
+    def test_error_message_is_explicit(self):
+        """Error message must clearly state why — not a generic error."""
+        from src.models.state import DeckForgeState
+        from src.pipeline.graph import _render_template_v2
+
+        state = DeckForgeState(renderer_mode=RendererMode.TEMPLATE_V2)
+        result = asyncio.run(_render_template_v2(state))
+
+        msg = result["last_error"].message
+        assert "ProposalManifest" in msg
+        assert "not yet present" in msg
+
+    def test_error_agent_is_render_v2(self):
+        """Error must be attributed to render_v2, not generic 'render'."""
+        from src.models.state import DeckForgeState
+        from src.pipeline.graph import _render_template_v2
+
+        state = DeckForgeState(renderer_mode=RendererMode.TEMPLATE_V2)
+        result = asyncio.run(_render_template_v2(state))
+
+        assert result["last_error"].agent == "render_v2"
+
+
+# ── No Empty-Manifest Fallback (Static Guard) ────────────────────────
+
+
+class TestNoEmptyManifestFallback:
+    """AST-based static analysis: _render_template_v2 must NEVER construct
+    a ProposalManifest(entries=[]).  The manifest must come from state."""
+
+    def test_no_proposal_manifest_construction_in_render_v2(self):
+        """Source code of graph.py must not contain ProposalManifest(entries=[])."""
+        graph_path = Path("src/pipeline/graph.py")
+        source = graph_path.read_text(encoding="utf-8")
+
+        tree = ast.parse(source)
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                func = node.func
+                # Match ProposalManifest(...) call
+                name = ""
+                if isinstance(func, ast.Name):
+                    name = func.id
+                elif isinstance(func, ast.Attribute):
+                    name = func.attr
+
+                if name == "ProposalManifest":
+                    pytest.fail(
+                        f"Found ProposalManifest() construction at line {node.lineno} "
+                        f"in graph.py — v2 path must read manifest from state, "
+                        f"never construct one"
+                    )
+
+    def test_no_entries_empty_list_in_render_v2(self):
+        """Double-check: 'entries=[]' pattern must not appear in graph.py."""
+        graph_path = Path("src/pipeline/graph.py")
+        source = graph_path.read_text(encoding="utf-8")
+
+        # Simple string check for the stub pattern
+        assert "entries=[]" not in source, (
+            "graph.py contains 'entries=[]' — this is the empty-manifest "
+            "stub that was supposed to be removed"
+        )
+
+    def test_no_import_of_proposal_manifest_in_graph(self):
+        """graph.py must NOT import ProposalManifest at all — the manifest
+        lives in state, not constructed in the render path."""
+        graph_path = Path("src/pipeline/graph.py")
+        source = graph_path.read_text(encoding="utf-8")
+
+        tree = ast.parse(source)
+
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                if isinstance(node, ast.ImportFrom):
+                    module = node.module or ""
+                    names = [alias.name for alias in node.names]
+                    if "ProposalManifest" in names:
+                        pytest.fail(
+                            f"graph.py imports ProposalManifest at line {node.lineno} "
+                            f"— manifest must come from state, not be imported "
+                            f"for construction"
+                        )
 
 
 # ── Feature Flag Isolation ───────────────────────────────────────────
@@ -308,15 +531,10 @@ class TestGraphRouting:
         """The render node is still in the graph."""
         from src.pipeline.graph import build_graph
 
-        # build_graph returns a compiled graph — verify it has a render node
-        # by checking the builder function doesn't crash
-        # (full graph build requires LangGraph which may not be available)
         try:
             graph = build_graph()
             assert graph is not None
         except Exception:
-            # If LangGraph dependencies aren't available, that's OK
-            # The important test is that the code compiles without errors
             pass
 
     def test_route_after_gate_5_still_targets_render(self):

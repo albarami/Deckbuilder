@@ -9,6 +9,7 @@ from .actions import ConversationResponse
 from .claims import ReferenceIndex
 from .common import DeckForgeBaseModel
 from .enums import Language, PipelineStage, PresentationType, RendererMode, UserRole
+from .proposal_manifest import ProposalManifest
 from .qa import QAResult
 from .report import ResearchReport
 from .rfp import RFPContext
@@ -132,6 +133,7 @@ class DeckForgeState(DeckForgeBaseModel):
 
     # ─── Renderer mode (feature flag) ───
     renderer_mode: RendererMode = RendererMode.LEGACY
+    proposal_manifest: ProposalManifest | None = None
 
     # ─── Output ───
     pptx_path: str | None = None  # Path to rendered PPTX
