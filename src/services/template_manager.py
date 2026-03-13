@@ -113,6 +113,75 @@ def load_catalog_lock(path: Path) -> dict:
     return lock
 
 
+# ── Placeholder index repair ────────────────────────────────────────────
+
+
+_CORRUPT_IDX = 4294967295  # 0xFFFFFFFF — sentinel / corrupt value in some templates
+
+_NSMAP = {
+    "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+    "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
+}
+
+
+def _repair_corrupt_placeholder_indices(slide: Slide) -> int:
+    """Repair corrupt placeholder indices on a cloned slide.
+
+    Some template slides (e.g., AR divider 02) have placeholder idx
+    values of 4294967295 (0xFFFFFFFF) — a corrupt sentinel.  This
+    function detects these and repairs them by matching the placeholder
+    type (e.g., ``body``) against the slide layout's placeholders.
+
+    Returns the number of repaired placeholders.
+    """
+    repaired = 0
+    layout = slide.slide_layout
+
+    # Build a map of layout placeholder types -> indices for repair lookup
+    layout_type_to_idx: dict[str, int] = {}
+    for ly_ph in layout.placeholders:
+        ph_type = ly_ph.placeholder_format.type
+        # Use the XML type string (e.g., 'body', 'title')
+        ly_sp = ly_ph._element
+        ly_nvPr = ly_sp.find(".//p:nvSpPr/p:nvPr/p:ph", _NSMAP)
+        if ly_nvPr is not None:
+            ly_type = ly_nvPr.get("type", "")
+            ly_idx_str = ly_nvPr.get("idx", "")
+            if ly_type and ly_idx_str:
+                try:
+                    layout_type_to_idx[ly_type] = int(ly_idx_str)
+                except ValueError:
+                    pass
+
+    # Scan slide-level shapes for corrupt indices
+    sp_tree = slide.shapes._spTree
+    for sp in sp_tree:
+        if etree.QName(sp.tag).localname != "sp":
+            continue
+        nvPr_ph = sp.find(".//p:nvSpPr/p:nvPr/p:ph", _NSMAP)
+        if nvPr_ph is None:
+            continue
+        idx_str = nvPr_ph.get("idx", "")
+        if not idx_str:
+            continue
+        try:
+            idx_val = int(idx_str)
+        except ValueError:
+            continue
+        if idx_val == _CORRUPT_IDX:
+            ph_type = nvPr_ph.get("type", "")
+            correct_idx = layout_type_to_idx.get(ph_type)
+            if correct_idx is not None:
+                nvPr_ph.set("idx", str(correct_idx))
+                repaired += 1
+                logger.info(
+                    "Repaired corrupt placeholder idx %s -> %d (type=%s)",
+                    idx_str, correct_idx, ph_type,
+                )
+
+    return repaired
+
+
 # ── Template Manager ─────────────────────────────────────────────────────
 
 
@@ -389,6 +458,12 @@ class TemplateManager:
                 sp_tree.append(new_elem)
         # else: source has no explicit shapes — layout-inherited content
         # is automatically provided by add_slide(layout), so keep it as-is
+
+        # Repair corrupt placeholder indices (0xFFFFFFFF = 4294967295)
+        # Some template slides (e.g., AR divider 02) have corrupted
+        # placeholder idx values in the XML.  Repair by matching against
+        # the layout's placeholder index for the same type.
+        _repair_corrupt_placeholder_indices(new_slide)
 
         # Copy slide-level relationships (images, media)
         for rel in source.part.rels.values():
