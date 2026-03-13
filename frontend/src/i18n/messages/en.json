@@ -152,6 +152,25 @@
     "downloadDocx": "Download Research Report (DOCX)",
     "notReady": "Export will be available after the pipeline completes.",
     "slideCount": "{count} slides generated",
-    "downloadError": "Download failed. Please try again."
+    "downloadError": "Download failed. Please try again.",
+    "formatPptx": "PowerPoint (.pptx)",
+    "formatDocx": "Word Document (.docx)",
+    "loadingExport": "Loading export...",
+    "loadError": "Failed to load export data. Please try again.",
+    "sessionLabel": "Session",
+    "viewSlides": "View Slides",
+    "backToPipeline": "Back to Pipeline",
+    "summaryTitle": "Session Summary",
+    "summarySession": "Session",
+    "summaryDuration": "Duration",
+    "summarySlides": "Slides",
+    "summaryGates": "Gates",
+    "summaryLlmCalls": "LLM Calls",
+    "summaryInputTokens": "Input Tokens",
+    "summaryOutputTokens": "Output Tokens",
+    "summaryCost": "Cost",
+    "summaryGateTimeline": "Gate Timeline",
+    "summaryGateNumber": "Gate {number}",
+    "summaryStarted": "Started"
   }
 }
