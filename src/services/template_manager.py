@@ -351,6 +351,11 @@ class TemplateManager:
         Uses XML-level copy to preserve all shapes, relationships,
         and visual structure. The cloned slide is appended to the
         presentation.
+
+        If the source slide has no explicit shapes (all content is
+        inherited from the slide layout — common for A1 institutional
+        slides), the new slide is created from the same layout and
+        its layout-inherited shapes are preserved as-is.
         """
         if source_slide_idx >= len(self._prs.slides):
             raise IndexError(
@@ -361,24 +366,29 @@ class TemplateManager:
         source = self._prs.slides[source_slide_idx]
         layout = source.slide_layout
 
+        # Check if source has explicit shapes (beyond layout inheritance)
+        source_tree = source.shapes._spTree
+        source_shape_tags = [
+            c for c in source_tree
+            if etree.QName(c.tag).localname in ("sp", "pic", "graphicFrame", "grpSp", "cxnSp")
+        ]
+
         # Add a new slide with the same layout
         new_slide = self._prs.slides.add_slide(layout)
 
-        # Deep copy the source slide XML into the new slide
-        # Remove all existing shapes from new slide first
-        sp_tree = new_slide.shapes._spTree
-        for child in list(sp_tree):
-            tag = etree.QName(child.tag).localname
-            if tag in ("sp", "pic", "graphicFrame", "grpSp", "cxnSp"):
-                sp_tree.remove(child)
+        if source_shape_tags:
+            # Source has explicit shapes — deep copy them into the new slide
+            sp_tree = new_slide.shapes._spTree
+            for child in list(sp_tree):
+                tag = etree.QName(child.tag).localname
+                if tag in ("sp", "pic", "graphicFrame", "grpSp", "cxnSp"):
+                    sp_tree.remove(child)
 
-        # Copy shapes from source
-        source_tree = source.shapes._spTree
-        for child in source_tree:
-            tag = etree.QName(child.tag).localname
-            if tag in ("sp", "pic", "graphicFrame", "grpSp", "cxnSp"):
+            for child in source_shape_tags:
                 new_elem = copy.deepcopy(child)
                 sp_tree.append(new_elem)
+        # else: source has no explicit shapes — layout-inherited content
+        # is automatically provided by add_slide(layout), so keep it as-is
 
         # Copy slide-level relationships (images, media)
         for rel in source.part.rels.values():

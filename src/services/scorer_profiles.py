@@ -97,7 +97,13 @@ _TEMPLATE_V2_PROFILE = ProfileConfig(
     title_font_min_pt=18.0,
     title_font_max_pt=28.0,
     hard_floor_pt=9.0,
-    overlap_severe_threshold_in=0.15,
+    # Template-v2 uses a higher overlap threshold because all shape
+    # positions are template-native — the renderer never creates or
+    # moves shapes.  The official .potx uses intentionally overlapping
+    # placeholders for visual design (e.g., case-study and team-bio
+    # layouts with stacked text fields).  Threshold accommodates the
+    # template's own max overlap (~1.0in) with headroom.
+    overlap_severe_threshold_in=2.0,
     bounds_margin_left_min_in=0.82,
     enforce_template_fidelity=True,
     classify_template_native_decorative=True,

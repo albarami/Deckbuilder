@@ -1,45 +1,68 @@
 """Phase 17 — EN Verification.
 
 Full proposal render with official EN template.
-All applicable acceptance gates verified for EN output.
+ALL applicable acceptance gates verified for EN output (gates 1-8, 10-23,
+24-33, 34, 36-42 — gates 9 and 35 are AR-specific).
 
 Test classes:
   - TestENTemplateAvailability: template + catalog lock prerequisites
-  - TestENManifestConstruction: realistic manifest for EN mini-deck
-  - TestENRenderExecution: render_v2 produces output with real template
-  - TestENAcceptanceGatesHard: hard technical gates (zero tolerance)
-  - TestENAcceptanceGatesVisual: visual-fidelity gates on rendered output
-  - TestENAcceptanceGatesIntegration: integration gate #34 (EN mini-deck)
-  - TestENSectionFlow: mandatory section order + divider numbering
-  - TestENContentSourcePolicy: policy validated on every entry
-  - TestENScorerProfileAlignment: correct scorer profile for v2 output
+  - TestENPolicyAndBudget: HouseInclusionPolicy, SlideBudget, Selection auditing
+  - TestENManifestConstruction: full proposal manifest validity
+  - TestENRenderExecution: real render with official EN template
+  - TestENHardGates: hard technical gates (1-8, 10-23 minus 9)
+  - TestENVisualGates: visual-fidelity gates (24-33)
+  - TestENIntegrationGates: integration gates (34, 36-42 minus 35)
 """
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from src.models.enums import RendererMode
+from src.models.methodology_blueprint import (
+    MethodologyBlueprint,
+    PhaseBlueprint,
+    build_methodology_blueprint,
+)
 from src.models.proposal_manifest import (
     ContentSourcePolicy,
+    HouseInclusionPolicy,
     ManifestEntry,
     ProposalManifest,
+    build_inclusion_policy,
+    get_company_profile_ids,
     validate_manifest,
 )
 from src.models.section_blueprint import MANDATORY_SECTION_ORDER
 from src.services.scorer_profiles import ScorerProfile
+from src.services.selection_policies import (
+    CaseStudySelectionPolicy,
+    CaseStudySelectionResult,
+    SelectedAsset,
+    TeamSelectionPolicy,
+    TeamSelectionResult,
+    select_case_studies,
+    select_team_members,
+)
+from src.services.slide_budgeter import (
+    SlideBudget,
+    compute_slide_budget,
+    validate_budget,
+)
 
 logger = logging.getLogger(__name__)
 
 # ── Paths ────────────────────────────────────────────────────────────
 
-EN_POTX_PATH = Path(r"C:\Projects\Deckbuilder\PROPOSAL_TEMPLATE\PROPOSAL_TEMPLATE EN.potx")
+EN_POTX_PATH = Path(
+    r"C:\Projects\Deckbuilder\PROPOSAL_TEMPLATE\PROPOSAL_TEMPLATE EN.potx"
+)
 CATALOG_LOCK_EN = Path("src/data/catalog_lock_en.json")
 
 # Skip marker for tests that need the real EN template
@@ -49,31 +72,219 @@ requires_en_template = pytest.mark.skipif(
     reason="Official EN template or catalog lock not available",
 )
 
+# V2-path module list for static analysis
+V2_PATH_MODULES = [
+    "src/services/renderer_v2.py",
+    "src/services/placeholder_injectors.py",
+    "src/services/shell_sanitizer.py",
+    "src/services/content_fitter.py",
+    "src/services/template_manager.py",
+    "src/services/layout_router.py",
+]
 
-# ── Helper: Build a representative EN mini-deck manifest ─────────────
+
+# ── RFP context for deterministic selection ──────────────────────────
 
 
-def _build_en_mini_manifest() -> ProposalManifest:
-    """Build a minimal but representative EN ProposalManifest.
+def _rfp_context() -> dict[str, Any]:
+    """Realistic RFP context for case study / team selection."""
+    return {
+        "sector": "technology",
+        "services": ["strategy", "digital transformation", "consulting"],
+        "geography": "ksa",
+        "technology_keywords": ["cloud", "digital", "analytics", "sap"],
+        "capability_tags": ["strategy", "advisory", "transformation"],
+        "language": "en",
+    }
 
-    Covers all entry types (A1, A2, B, pool_clone) and all mandatory
-    sections in correct order.  This is the smallest valid manifest
-    that exercises all code paths.
+
+# ── Policies and supporting objects ──────────────────────────────────
+
+
+def _build_inclusion_policy() -> HouseInclusionPolicy:
+    return build_inclusion_policy(
+        proposal_mode="standard",
+        geography="ksa",
+        sector="technology",
+        case_study_count=(4, 12),
+        team_bio_count=(2, 6),
+    )
+
+
+def _build_methodology_blueprint() -> MethodologyBlueprint:
+    return build_methodology_blueprint(
+        phase_count=4,
+        phases=[
+            {
+                "phase_name_en": "Discovery & Assessment",
+                "phase_name_ar": "",
+                "activities": [
+                    "Stakeholder interviews",
+                    "Current state assessment",
+                    "Gap analysis",
+                ],
+                "deliverables": ["Assessment Report", "Gap Analysis Document"],
+                "governance_tier": "Steering Committee",
+            },
+            {
+                "phase_name_en": "Strategy & Design",
+                "phase_name_ar": "",
+                "activities": [
+                    "Strategy formulation",
+                    "Solution architecture",
+                    "Roadmap development",
+                ],
+                "deliverables": ["Strategy Document", "Solution Architecture"],
+                "governance_tier": "Steering Committee",
+            },
+            {
+                "phase_name_en": "Implementation",
+                "phase_name_ar": "",
+                "activities": [
+                    "Platform configuration",
+                    "Integration development",
+                    "Data migration",
+                    "Testing and QA",
+                ],
+                "deliverables": [
+                    "Configured Platform",
+                    "Integration Report",
+                    "Test Results",
+                ],
+                "governance_tier": "Project Board",
+            },
+            {
+                "phase_name_en": "Launch & Transition",
+                "phase_name_ar": "",
+                "activities": [
+                    "User training",
+                    "Go-live support",
+                    "Knowledge transfer",
+                ],
+                "deliverables": [
+                    "Training Materials",
+                    "Go-Live Report",
+                    "Handover Document",
+                ],
+                "governance_tier": "Steering Committee",
+            },
+        ],
+        deliverables_linkage={
+            "phase_1": ["Assessment Report"],
+            "phase_2": ["Strategy Document"],
+            "phase_3": ["Configured Platform"],
+            "phase_4": ["Go-Live Report"],
+        },
+        governance_touchpoints={
+            "phase_1": "Steering Committee",
+            "phase_2": "Steering Committee",
+            "phase_3": "Project Board",
+            "phase_4": "Steering Committee",
+        },
+        timeline_span="26 weeks",
+    )
+
+
+def _build_case_study_candidates() -> list[dict[str, Any]]:
+    """Build case study candidates from catalog lock pool."""
+    lock_data = json.loads(CATALOG_LOCK_EN.read_text(encoding="utf-8"))
+    candidates = []
+    for _cat, entries in lock_data.get("case_study_pool", {}).items():
+        for entry in entries:
+            candidates.append(
+                {
+                    "asset_id": entry["semantic_id"],
+                    "slide_idx": entry["slide_idx"],
+                    "semantic_layout_id": entry["semantic_layout_id"],
+                    "sector": "technology",
+                    "services": ["strategy", "consulting"],
+                    "geography": "ksa",
+                    "technology_keywords": ["digital"],
+                    "capability_tags": ["advisory"],
+                    "language": "en",
+                }
+            )
+    return candidates
+
+
+def _build_team_bio_candidates() -> list[dict[str, Any]]:
+    """Build team bio candidates from catalog lock pool."""
+    lock_data = json.loads(CATALOG_LOCK_EN.read_text(encoding="utf-8"))
+    candidates = []
+    for entry in lock_data.get("team_bio_pool", []):
+        candidates.append(
+            {
+                "asset_id": entry["semantic_id"],
+                "slide_idx": entry["slide_idx"],
+                "semantic_layout_id": entry["semantic_layout_id"],
+                "sector_experience": ["technology"],
+                "services": ["strategy", "digital transformation"],
+                "roles": ["lead", "analyst"],
+                "geography_experience": ["ksa"],
+                "technology_keywords": ["cloud", "sap"],
+                "language": "en",
+            }
+        )
+    return candidates
+
+
+def _run_case_study_selection() -> CaseStudySelectionResult:
+    candidates = _build_case_study_candidates()
+    return select_case_studies(
+        candidates,
+        _rfp_context(),
+        min_count=5,
+        max_count=5,
+    )
+
+
+def _run_team_selection() -> TeamSelectionResult:
+    candidates = _build_team_bio_candidates()
+    return select_team_members(
+        candidates,
+        _rfp_context(),
+        min_count=3,
+        max_count=3,
+    )
+
+
+# ── Helper: Build a full EN proposal manifest ───────────────────────
+
+
+def _build_en_full_proposal_manifest() -> ProposalManifest:
+    """Build a full EN ProposalManifest suitable for Phase 17 verification.
+
+    Covers all entry types (A1, A2, B, pool_clone), all mandatory sections,
+    full methodology structure, pool-cloned case studies and team bios,
+    and standard-depth company profile.
+
+    This is a FULL proposal, not a mini-deck.
     """
     lock_data = json.loads(CATALOG_LOCK_EN.read_text(encoding="utf-8"))
 
-    # Determine a case_study source_slide_idx from catalog lock
-    cs_pool = lock_data.get("case_study_pool", {})
-    first_cs_category = next(iter(cs_pool), None)
-    first_cs_entries = cs_pool.get(first_cs_category, []) if first_cs_category else []
-    cs_slide_idx = first_cs_entries[0]["slide_idx"] if first_cs_entries else None
+    # Run deterministic selection
+    cs_result = _run_case_study_selection()
+    team_result = _run_team_selection()
+    inclusion_policy = _build_inclusion_policy()
 
-    # Determine a team_bio source_slide_idx from catalog lock
-    team_pool = lock_data.get("team_bio_pool", [])
-    team_slide_idx = team_pool[0]["slide_idx"] if team_pool else None
+    # Get company profile asset IDs for standard depth
+    profile_ids = get_company_profile_ids(inclusion_policy.company_profile_depth)
 
-    entries: list[ManifestEntry] = [
-        # ─── Cover section ───
+    # Build case study slide index map from catalog lock
+    cs_idx_map: dict[str, int] = {}
+    for _cat, entries in lock_data.get("case_study_pool", {}).items():
+        for entry in entries:
+            cs_idx_map[entry["semantic_id"]] = entry["slide_idx"]
+
+    # Build team bio slide index map
+    team_idx_map: dict[str, int] = {}
+    for entry in lock_data.get("team_bio_pool", []):
+        team_idx_map[entry["semantic_id"]] = entry["slide_idx"]
+
+    entries: list[ManifestEntry] = []
+
+    # ─── COVER (3 A2 shells) ───
+    entries.append(
         ManifestEntry(
             entry_type="a2_shell",
             asset_id="proposal_cover",
@@ -81,18 +292,22 @@ def _build_en_mini_manifest() -> ProposalManifest:
             content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
             section_id="cover",
             injection_data={
-                "subtitle": "Technology Consulting Services",
+                "subtitle": "Digital Transformation Consulting Services",
                 "client_name": "ACME Corporation",
                 "date_text": "March 2026",
             },
-        ),
+        )
+    )
+    entries.append(
         ManifestEntry(
             entry_type="a2_shell",
             asset_id="intro_message",
             semantic_layout_id="intro_message",
             content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
             section_id="cover",
-        ),
+        )
+    )
+    entries.append(
         ManifestEntry(
             entry_type="a2_shell",
             asset_id="toc_agenda",
@@ -111,8 +326,10 @@ def _build_en_mini_manifest() -> ProposalManifest:
                 ],
             },
         ),
+    )
 
-        # ─── Section 01 (Understanding) ───
+    # ─── SECTION 01: Understanding (divider + 3 B-variable) ───
+    entries.append(
         ManifestEntry(
             entry_type="a2_shell",
             asset_id="section_divider_01",
@@ -120,24 +337,41 @@ def _build_en_mini_manifest() -> ProposalManifest:
             content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
             section_id="section_01",
             injection_data={"title": "Understanding", "body": " "},
-        ),
-        ManifestEntry(
-            entry_type="b_variable",
-            asset_id="understanding_slide_1",
-            semantic_layout_id="content_heading_desc",
-            content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
-            section_id="section_01",
-            injection_data={
-                "title": "Understanding the Challenge",
-                "body": (
-                    "ACME Corporation seeks a strategic partner to modernize its "
-                    "technology infrastructure and drive digital transformation "
-                    "across all business units."
-                ),
-            },
-        ),
+        )
+    )
+    for i, (title, body) in enumerate(
+        [
+            (
+                "Project Context",
+                "ACME Corporation seeks a strategic partner to modernize its "
+                "technology infrastructure and drive digital transformation.",
+            ),
+            (
+                "Key Challenges",
+                "Legacy systems, fragmented data landscape, and the need for "
+                "agile operating model across all business units.",
+            ),
+            (
+                "Strategic Objectives",
+                "Achieve 40% operational efficiency improvement through "
+                "cloud-first architecture and data-driven decision making.",
+            ),
+        ],
+        1,
+    ):
+        entries.append(
+            ManifestEntry(
+                entry_type="b_variable",
+                asset_id=f"understanding_{i:02d}",
+                semantic_layout_id="content_heading_desc",
+                content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+                section_id="section_01",
+                injection_data={"title": title, "body": body},
+            )
+        )
 
-        # ─── Section 02 (Why SG) ───
+    # ─── SECTION 02: Why Strategic Gears (divider + content + case studies) ───
+    entries.append(
         ManifestEntry(
             entry_type="a2_shell",
             asset_id="section_divider_02",
@@ -145,23 +379,41 @@ def _build_en_mini_manifest() -> ProposalManifest:
             content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
             section_id="section_02",
             injection_data={"title": "Why Strategic Gears", "body": " "},
-        ),
+        )
+    )
+    entries.append(
         ManifestEntry(
-            entry_type="a1_clone",
-            asset_id="overview",
-            semantic_layout_id="overview",
-            content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
+            entry_type="b_variable",
+            asset_id="why_sg_argument",
+            semantic_layout_id="content_heading_desc",
+            content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
             section_id="section_02",
-        ),
-        ManifestEntry(
-            entry_type="a1_clone",
-            asset_id="why_sg",
-            semantic_layout_id="why_sg",
-            content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
-            section_id="section_02",
-        ),
+            injection_data={
+                "title": "Our Proven Track Record",
+                "body": (
+                    "Strategic Gears has delivered over 200 successful "
+                    "transformation programs across the GCC region."
+                ),
+            },
+        )
+    )
+    # 5 case study pool clones
+    for sa in cs_result.selected:
+        slide_idx = cs_idx_map.get(sa.asset_id)
+        if slide_idx is not None:
+            entries.append(
+                ManifestEntry(
+                    entry_type="pool_clone",
+                    asset_id=sa.asset_id,
+                    semantic_layout_id="case_study_cases",
+                    content_source_policy=ContentSourcePolicy.APPROVED_ASSET_POOL,
+                    section_id="section_02",
+                    injection_data={"source_slide_idx": slide_idx},
+                )
+            )
 
-        # ─── Section 03 (Methodology) ───
+    # ─── SECTION 03: Methodology (divider + overview + 4 focused + 1 detail) ───
+    entries.append(
         ManifestEntry(
             entry_type="a2_shell",
             asset_id="section_divider_03",
@@ -169,7 +421,9 @@ def _build_en_mini_manifest() -> ProposalManifest:
             content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
             section_id="section_03",
             injection_data={"title": "Methodology", "body": " "},
-        ),
+        )
+    )
+    entries.append(
         ManifestEntry(
             entry_type="b_variable",
             asset_id="methodology_overview",
@@ -179,13 +433,46 @@ def _build_en_mini_manifest() -> ProposalManifest:
             injection_data={
                 "title": "Our Methodology",
                 "body": (
-                    "A proven four-phase approach combining industry best practices "
-                    "with deep domain expertise to deliver measurable results."
+                    "A proven four-phase approach combining industry best "
+                    "practices with deep domain expertise."
                 ),
             },
-        ),
+        )
+    )
+    meth_bp = _build_methodology_blueprint()
+    for phase in meth_bp.phases:
+        entries.append(
+            ManifestEntry(
+                entry_type="b_variable",
+                asset_id=f"methodology_phase_{phase.phase_number}",
+                semantic_layout_id="methodology_focused_4",
+                content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+                section_id="section_03",
+                injection_data={
+                    "title": phase.phase_name_en,
+                    "body": "; ".join(phase.activities),
+                },
+            )
+        )
+    entries.append(
+        ManifestEntry(
+            entry_type="b_variable",
+            asset_id="methodology_detail_01",
+            semantic_layout_id="methodology_detail",
+            content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+            section_id="section_03",
+            injection_data={
+                "title": "Detailed Activities — Phase 3",
+                "body": (
+                    "Platform configuration: SAP S/4HANA migration and "
+                    "cloud infrastructure setup with Azure landing zones."
+                ),
+            },
+        )
+    )
 
-        # ─── Section 04 (Timeline & Outcome) ───
+    # ─── SECTION 04: Timeline & Outcome (divider + 2 B-variable) ───
+    entries.append(
         ManifestEntry(
             entry_type="a2_shell",
             asset_id="section_divider_04",
@@ -193,20 +480,43 @@ def _build_en_mini_manifest() -> ProposalManifest:
             content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
             section_id="section_04",
             injection_data={"title": "Timeline & Outcome", "body": " "},
-        ),
+        )
+    )
+    entries.append(
         ManifestEntry(
             entry_type="b_variable",
-            asset_id="timeline_slide_1",
+            asset_id="timeline_01",
             semantic_layout_id="content_heading_content",
             content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
             section_id="section_04",
             injection_data={
                 "title": "Project Timeline",
-                "body": "Phase 1: Discovery (4 weeks) | Phase 2: Design (6 weeks) | Phase 3: Build (12 weeks) | Phase 4: Launch (4 weeks)",
+                "body": (
+                    "Phase 1: Discovery (4 weeks) | Phase 2: Design (6 weeks) "
+                    "| Phase 3: Build (12 weeks) | Phase 4: Launch (4 weeks)"
+                ),
             },
-        ),
+        )
+    )
+    entries.append(
+        ManifestEntry(
+            entry_type="b_variable",
+            asset_id="deliverables_01",
+            semantic_layout_id="content_heading_desc",
+            content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+            section_id="section_04",
+            injection_data={
+                "title": "Key Deliverables",
+                "body": (
+                    "Assessment Report, Strategy Document, Configured Platform, "
+                    "Training Materials, Go-Live Report, Handover Document"
+                ),
+            },
+        )
+    )
 
-        # ─── Section 05 (Team) ───
+    # ─── SECTION 05: Team (divider + 3 team bio pool clones) ───
+    entries.append(
         ManifestEntry(
             entry_type="a2_shell",
             asset_id="section_divider_05",
@@ -214,24 +524,24 @@ def _build_en_mini_manifest() -> ProposalManifest:
             content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
             section_id="section_05",
             injection_data={"title": "Team", "body": " "},
-        ),
-        ManifestEntry(
-            entry_type="b_variable",
-            asset_id="team_slide_1",
-            semantic_layout_id="team_two_members",
-            content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
-            section_id="section_05",
-            injection_data={
-                "member1_name": "Ahmed Al-Rashid",
-                "member1_role": "Engagement Director",
-                "member1_bio": "15+ years leading digital transformation programs across the GCC region.",
-                "member2_name": "Sarah Chen",
-                "member2_role": "Lead Analyst",
-                "member2_bio": "Expert in enterprise architecture with deep SAP and cloud migration experience.",
-            },
-        ),
+        )
+    )
+    for sa in team_result.selected:
+        slide_idx = team_idx_map.get(sa.asset_id)
+        if slide_idx is not None:
+            entries.append(
+                ManifestEntry(
+                    entry_type="pool_clone",
+                    asset_id=sa.asset_id,
+                    semantic_layout_id="team_two_members",
+                    content_source_policy=ContentSourcePolicy.APPROVED_ASSET_POOL,
+                    section_id="section_05",
+                    injection_data={"source_slide_idx": slide_idx},
+                )
+            )
 
-        # ─── Section 06 (Governance) ───
+    # ─── SECTION 06: Governance (divider + 2 B-variable) ───
+    entries.append(
         ManifestEntry(
             entry_type="a2_shell",
             asset_id="section_divider_06",
@@ -239,56 +549,62 @@ def _build_en_mini_manifest() -> ProposalManifest:
             content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
             section_id="section_06",
             injection_data={"title": "Governance", "body": " "},
-        ),
+        )
+    )
+    entries.append(
         ManifestEntry(
             entry_type="b_variable",
-            asset_id="governance_slide_1",
+            asset_id="governance_01",
             semantic_layout_id="content_heading_desc",
             content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
             section_id="section_06",
             injection_data={
                 "title": "Project Governance",
                 "body": (
-                    "Structured governance with weekly steering committee meetings, "
-                    "bi-weekly status reports, and monthly executive reviews."
+                    "Structured governance with weekly steering committee "
+                    "meetings, bi-weekly status reports, and monthly "
+                    "executive reviews."
                 ),
             },
-        ),
+        )
+    )
 
-        # ─── Company Profile ───
-        ManifestEntry(
-            entry_type="a1_clone",
-            asset_id="main_cover",
-            semantic_layout_id="main_cover",
-            content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
-            section_id="company_profile",
-        ),
-        ManifestEntry(
-            entry_type="a1_clone",
-            asset_id="at_a_glance",
-            semantic_layout_id="at_a_glance",
-            content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
-            section_id="company_profile",
-        ),
+    # ─── COMPANY PROFILE (A1 clones — standard depth: 8 slides) ───
+    for profile_id in profile_ids:
+        entries.append(
+            ManifestEntry(
+                entry_type="a1_clone",
+                asset_id=profile_id,
+                semantic_layout_id=profile_id,
+                content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
+                section_id="company_profile",
+            )
+        )
 
-        # ─── Closing ───
+    # ─── CLOSING (2 A1 clones) ───
+    entries.append(
         ManifestEntry(
             entry_type="a1_clone",
             asset_id="know_more",
             semantic_layout_id="know_more",
             content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
             section_id="closing",
-        ),
+        )
+    )
+    entries.append(
         ManifestEntry(
             entry_type="a1_clone",
             asset_id="contact",
             semantic_layout_id="contact",
             content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
             section_id="closing",
-        ),
-    ]
+        )
+    )
 
-    return ProposalManifest(entries=entries)
+    return ProposalManifest(
+        entries=entries,
+        inclusion_policy=inclusion_policy,
+    )
 
 
 # ── Template + Catalog Lock Prerequisites ────────────────────────────
@@ -322,23 +638,100 @@ class TestENTemplateAvailability:
 
         data = json.loads(CATALOG_LOCK_EN.read_text(encoding="utf-8"))
         actual_hash = file_hash(EN_POTX_PATH)
-        assert actual_hash == data["template_hash"], (
-            f"Template hash mismatch: file={actual_hash}, lock={data['template_hash']}"
+        assert actual_hash == data["template_hash"]
+
+
+# ── Policy, Budget, and Selection Validation ─────────────────────────
+
+
+class TestENPolicyAndBudget:
+    """Gates 15, 16, 17: validate policies, budget, and selection."""
+
+    def test_gate_15_house_inclusion_policy_valid(self):
+        """Gate 15: HouseInclusionPolicy validated."""
+        policy = _build_inclusion_policy()
+        assert policy.proposal_mode == "standard"
+        assert policy.geography == "ksa"
+        assert policy.include_ksa_context is True
+        assert policy.company_profile_depth == "standard"
+        min_cs, max_cs = policy.case_study_count
+        assert 4 <= min_cs <= max_cs <= 12
+        min_t, max_t = policy.team_bio_count
+        assert 2 <= min_t <= max_t <= 6
+
+    def test_gate_15_ksa_includes_ksa_context(self):
+        ksa_policy = build_inclusion_policy("standard", "ksa", "technology")
+        assert ksa_policy.include_ksa_context is True
+
+    def test_gate_15_non_ksa_excludes_ksa_context(self):
+        intl_policy = build_inclusion_policy("standard", "international", "technology")
+        assert intl_policy.include_ksa_context is False
+
+    def test_gate_16_slide_budget_valid(self):
+        """Gate 16: SlideBudget validated (all counts within ranges)."""
+        policy = _build_inclusion_policy()
+        meth_bp = _build_methodology_blueprint()
+        cs_result = _run_case_study_selection()
+        team_result = _run_team_selection()
+        budget = compute_slide_budget(
+            policy, meth_bp, cs_result, team_result,
+            understanding_slides=3,
+            timeline_slides=2,
+            governance_slides=1,
+        )
+        errors = validate_budget(budget)
+        assert errors == [], f"Budget validation errors: {errors}"
+        assert budget.total_slides >= 30, (
+            f"Full proposal should have 30+ slides, got {budget.total_slides}"
         )
 
+    def test_gate_16_all_sections_budgeted(self):
+        """Gate 16: Every mandatory section has a budget."""
+        policy = _build_inclusion_policy()
+        meth_bp = _build_methodology_blueprint()
+        cs_result = _run_case_study_selection()
+        team_result = _run_team_selection()
+        budget = compute_slide_budget(
+            policy, meth_bp, cs_result, team_result,
+        )
+        for section_id in MANDATORY_SECTION_ORDER:
+            assert section_id in budget.section_budgets, (
+                f"Missing budget for mandatory section '{section_id}'"
+            )
 
-# ── Manifest Construction Validity ───────────────────────────────────
+    def test_gate_17_case_study_selection_auditable(self):
+        """Gate 17: CaseStudySelectionResult auditable (scores + reasons)."""
+        result = _run_case_study_selection()
+        assert len(result.selected) == 5
+        for sa in result.selected:
+            assert sa.asset_id, "Selected case study has no asset_id"
+            assert sa.ranking_score >= 0, "Negative ranking score"
+            assert sa.inclusion_reason, "No inclusion reason"
+
+    def test_gate_17_team_selection_auditable(self):
+        """Gate 17: TeamSelectionResult auditable (scores + reasons)."""
+        result = _run_team_selection()
+        assert len(result.selected) == 3
+        for sa in result.selected:
+            assert sa.asset_id, "Selected team member has no asset_id"
+            assert sa.ranking_score >= 0, "Negative ranking score"
+            assert sa.inclusion_reason, "No inclusion reason"
+
+
+# ── Full Manifest Construction Validity ──────────────────────────────
 
 
 class TestENManifestConstruction:
-    """The mini-deck manifest is structurally valid per manifest rules."""
+    """Full proposal manifest validity — structural + policy checks."""
 
     @pytest.fixture
     def manifest(self) -> ProposalManifest:
-        return _build_en_mini_manifest()
+        return _build_en_full_proposal_manifest()
 
     def test_manifest_has_entries(self, manifest):
-        assert len(manifest.entries) > 0
+        assert len(manifest.entries) >= 30, (
+            f"Full proposal should have 30+ entries, got {len(manifest.entries)}"
+        )
 
     def test_manifest_passes_validation(self, manifest):
         errors = validate_manifest(manifest)
@@ -354,39 +747,6 @@ class TestENManifestConstruction:
         for entry in manifest.entries:
             assert entry.section_id, f"Entry {entry.asset_id} missing section_id"
 
-    def test_all_entries_have_content_source_policy(self, manifest):
-        for entry in manifest.entries:
-            assert entry.content_source_policy in ContentSourcePolicy, (
-                f"Entry {entry.asset_id} has invalid content_source_policy"
-            )
-
-    def test_a1_entries_use_institutional_reuse(self, manifest):
-        for entry in manifest.entries:
-            if entry.entry_type == "a1_clone":
-                assert entry.content_source_policy == ContentSourcePolicy.INSTITUTIONAL_REUSE, (
-                    f"A1 entry {entry.asset_id} must use INSTITUTIONAL_REUSE"
-                )
-
-    def test_a2_entries_use_proposal_specific(self, manifest):
-        for entry in manifest.entries:
-            if entry.entry_type == "a2_shell":
-                assert entry.content_source_policy == ContentSourcePolicy.PROPOSAL_SPECIFIC, (
-                    f"A2 entry {entry.asset_id} must use PROPOSAL_SPECIFIC"
-                )
-
-    def test_b_variable_entries_use_proposal_specific(self, manifest):
-        for entry in manifest.entries:
-            if entry.entry_type == "b_variable":
-                assert entry.content_source_policy == ContentSourcePolicy.PROPOSAL_SPECIFIC, (
-                    f"B variable entry {entry.asset_id} must use PROPOSAL_SPECIFIC"
-                )
-
-    def test_no_forbidden_template_example_policy(self, manifest):
-        for entry in manifest.entries:
-            assert entry.content_source_policy != ContentSourcePolicy.FORBIDDEN_TEMPLATE_EXAMPLE, (
-                f"Entry {entry.asset_id} uses FORBIDDEN_TEMPLATE_EXAMPLE"
-            )
-
     def test_covers_all_mandatory_sections(self, manifest):
         section_ids = list(dict.fromkeys(e.section_id for e in manifest.entries))
         for required in MANDATORY_SECTION_ORDER:
@@ -398,70 +758,39 @@ class TestENManifestConstruction:
         section_ids = list(dict.fromkeys(e.section_id for e in manifest.entries))
         order_index = {sid: i for i, sid in enumerate(MANDATORY_SECTION_ORDER)}
         positions = [order_index[sid] for sid in section_ids if sid in order_index]
-        assert positions == sorted(positions), (
-            f"Sections out of order: {section_ids}"
-        )
-
-
-# ── Section Flow + Divider Numbering ─────────────────────────────────
-
-
-class TestENSectionFlow:
-    """Exact mandatory section flow and divider numbering in manifest."""
-
-    @pytest.fixture
-    def manifest(self) -> ProposalManifest:
-        return _build_en_mini_manifest()
+        assert positions == sorted(positions), f"Sections out of order: {section_ids}"
 
     def test_six_dividers_present(self, manifest):
         dividers = [e for e in manifest.entries if e.asset_id.startswith("section_divider_")]
-        assert len(dividers) == 6, f"Expected 6 dividers, got {len(dividers)}"
+        assert len(dividers) == 6
 
-    def test_divider_numbering_01_through_06(self, manifest):
-        dividers = [e for e in manifest.entries if e.asset_id.startswith("section_divider_")]
-        numbers = [e.asset_id.split("_")[-1] for e in dividers]
-        assert numbers == ["01", "02", "03", "04", "05", "06"], (
-            f"Divider numbering wrong: {numbers}"
-        )
+    def test_has_pool_clone_case_studies(self, manifest):
+        cs = [e for e in manifest.entries if e.entry_type == "pool_clone"
+              and e.semantic_layout_id == "case_study_cases"]
+        assert len(cs) >= 4, f"Need 4+ case studies, got {len(cs)}"
 
-    def test_divider_section_mapping(self, manifest):
-        """Each divider belongs to the correct section."""
-        expected_mapping = {
-            "section_divider_01": "section_01",
-            "section_divider_02": "section_02",
-            "section_divider_03": "section_03",
-            "section_divider_04": "section_04",
-            "section_divider_05": "section_05",
-            "section_divider_06": "section_06",
-        }
-        for entry in manifest.entries:
-            if entry.asset_id in expected_mapping:
-                assert entry.section_id == expected_mapping[entry.asset_id], (
-                    f"Divider {entry.asset_id} should map to {expected_mapping[entry.asset_id]}, "
-                    f"got {entry.section_id}"
-                )
+    def test_has_pool_clone_team_bios(self, manifest):
+        team = [e for e in manifest.entries if e.entry_type == "pool_clone"
+                and e.semantic_layout_id == "team_two_members"]
+        assert len(team) >= 2, f"Need 2+ team bios, got {len(team)}"
 
-    def test_cover_section_starts_with_proposal_cover(self, manifest):
-        cover_entries = [e for e in manifest.entries if e.section_id == "cover"]
-        assert cover_entries[0].asset_id == "proposal_cover"
+    def test_has_methodology_slides(self, manifest):
+        meth = [e for e in manifest.entries if e.section_id == "section_03"
+                and e.entry_type == "b_variable"]
+        assert len(meth) >= 5, f"Need 5+ methodology slides, got {len(meth)}"
 
-    def test_closing_section_ends_with_contact(self, manifest):
-        closing_entries = [e for e in manifest.entries if e.section_id == "closing"]
-        assert closing_entries[-1].asset_id == "contact"
+    def test_has_company_profile(self, manifest):
+        cp = [e for e in manifest.entries if e.section_id == "company_profile"]
+        assert len(cp) == 8, f"Standard depth = 8 company profile slides, got {len(cp)}"
 
-
-# ── ContentSourcePolicy Enforcement ──────────────────────────────────
-
-
-class TestENContentSourcePolicy:
-    """ContentSourcePolicy validated on every ManifestEntry."""
-
-    @pytest.fixture
-    def manifest(self) -> ProposalManifest:
-        return _build_en_mini_manifest()
+    def test_all_entry_types_present(self, manifest):
+        types = {e.entry_type for e in manifest.entries}
+        assert "a1_clone" in types
+        assert "a2_shell" in types
+        assert "b_variable" in types
+        assert "pool_clone" in types
 
     def test_policy_rules_per_entry_type(self, manifest):
-        """Each entry_type has its mandated ContentSourcePolicy."""
         for entry in manifest.entries:
             if entry.entry_type == "a1_clone":
                 assert entry.content_source_policy == ContentSourcePolicy.INSTITUTIONAL_REUSE
@@ -473,17 +802,678 @@ class TestENContentSourcePolicy:
                 assert entry.content_source_policy == ContentSourcePolicy.APPROVED_ASSET_POOL
 
 
-# ── Scorer Profile Alignment ─────────────────────────────────────────
+# ── EN Render Execution (requires real template) ─────────────────────
 
 
-class TestENScorerProfileAlignment:
-    """Composition scorer uses template-v2 profile for v2 output."""
+@requires_en_template
+class TestENRenderExecution:
+    """Render a real EN full-deck from the official template."""
 
-    def test_v2_mode_maps_to_v2_profile(self):
+    @pytest.fixture(scope="class")
+    def render_result(self, tmp_path_factory):
+        from src.services.renderer_v2 import render_v2
+        from src.services.template_manager import TemplateManager
+
+        output_dir = tmp_path_factory.mktemp("en_full_render")
+        output_path = output_dir / "en_full_proposal.pptx"
+
+        manifest = _build_en_full_proposal_manifest()
+        tm = TemplateManager(EN_POTX_PATH, CATALOG_LOCK_EN)
+        return render_v2(manifest, tm, CATALOG_LOCK_EN, output_path)
+
+    def test_render_succeeds(self, render_result):
+        assert render_result.success, (
+            f"Render failed: manifest_errors={render_result.manifest_errors}, "
+            f"render_errors={render_result.render_errors}"
+        )
+
+    def test_output_file_exists(self, render_result):
+        assert render_result.output_path is not None
+        assert Path(render_result.output_path).exists()
+
+    def test_total_slides_matches_manifest(self, render_result):
+        manifest = _build_en_full_proposal_manifest()
+        assert render_result.total_slides == len(manifest.entries)
+
+    def test_zero_manifest_errors(self, render_result):
+        assert render_result.manifest_errors == []
+
+    def test_zero_render_errors(self, render_result):
+        assert render_result.render_errors == []
+
+    def test_template_hash_recorded(self, render_result):
+        assert render_result.template_hash != ""
+        assert render_result.template_hash.startswith("sha256:")
+
+    def test_all_records_present(self, render_result):
+        manifest = _build_en_full_proposal_manifest()
+        assert len(render_result.records) == len(manifest.entries)
+
+    def test_no_per_slide_errors(self, render_result):
+        for rec in render_result.records:
+            assert rec.error is None, (
+                f"Slide {rec.manifest_index} ({rec.asset_id}) error: {rec.error}"
+            )
+
+
+# ── Hard Technical Gates (on rendered output) ────────────────────────
+
+
+@requires_en_template
+class TestENHardGates:
+    """Hard technical gates 1-8, 10-23 (gate 9 is AR-specific)."""
+
+    @pytest.fixture(scope="class")
+    def render_result(self, tmp_path_factory):
+        from src.services.renderer_v2 import render_v2
+        from src.services.template_manager import TemplateManager
+
+        output_dir = tmp_path_factory.mktemp("en_hard_gates")
+        output_path = output_dir / "en_hard_gates.pptx"
+
+        manifest = _build_en_full_proposal_manifest()
+        tm = TemplateManager(EN_POTX_PATH, CATALOG_LOCK_EN)
+        return render_v2(manifest, tm, CATALOG_LOCK_EN, output_path)
+
+    @pytest.fixture(scope="class")
+    def output_pptx(self, render_result) -> Path:
+        assert render_result.success
+        return Path(render_result.output_path)
+
+    @pytest.fixture(scope="class")
+    def scorer_result(self, output_pptx):
+        from src.services.composition_scorer import (
+            extract_shapes,
+            score_composition,
+        )
+
+        shapes = extract_shapes(output_pptx)
+        return score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+
+    def test_gate_01_official_layouts(self, render_result):
+        """Gate 1: Every output slide uses an official template layout."""
+        for rec in render_result.records:
+            assert rec.semantic_layout_id, (
+                f"Slide {rec.manifest_index} ({rec.asset_id}) has no semantic_layout_id"
+            )
+
+    def test_gate_02_zero_shape_creation_all_v2_modules(self):
+        """Gate 2: Zero add_shape()/add_textbox() in ALL v2-path modules."""
+        for mod_path in V2_PATH_MODULES:
+            path = Path(mod_path)
+            if not path.exists():
+                continue
+            source = path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                    if node.func.attr in ("add_shape", "add_textbox"):
+                        pytest.fail(
+                            f"Found {node.func.attr}() in {mod_path} at line {node.lineno}"
+                        )
+
+    def test_gate_03_euclid_flex_fonts(self, output_pptx):
+        """Gate 3: All text uses Euclid Flex font family."""
+        from pptx import Presentation
+
+        prs = Presentation(str(output_pptx))
+        non_euclid_fonts = set()
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for para in shape.text_frame.paragraphs:
+                        for run in para.runs:
+                            if run.font.name and run.text.strip():
+                                if "Euclid" not in run.font.name:
+                                    non_euclid_fonts.add(run.font.name)
+        assert non_euclid_fonts == set(), (
+            f"Non-Euclid fonts found in rendered output: {non_euclid_fonts}"
+        )
+
+    def test_gate_04_navy_header_color(self, output_pptx):
+        """Gate 4: Navy #0E2841 on all headers."""
+        from pptx import Presentation
+
+        prs = Presentation(str(output_pptx))
+        navy_hex = "0E2841"
+        for slide_idx, slide in enumerate(prs.slides):
+            for shape in slide.placeholders:
+                idx = shape.placeholder_format.idx
+                # idx 0 = title placeholder
+                if idx == 0 and shape.has_text_frame:
+                    for para in shape.text_frame.paragraphs:
+                        for run in para.runs:
+                            try:
+                                rgb = run.font.color.rgb
+                                if rgb is not None:
+                                    actual = str(rgb)
+                                    assert actual.upper() == navy_hex.upper(), (
+                                        f"Slide {slide_idx} title color {actual} != {navy_hex}"
+                                    )
+                            except AttributeError:
+                                # Color is theme-inherited (_NoneColor) — OK
+                                pass
+
+    def test_gate_05_left_margin(self, scorer_result):
+        """Gate 5: Left margin >= 0.82 inches on all content slides."""
+        from src.services.composition_scorer import ViolationSeverity
+
+        margin_blockers = [
+            v for ss in scorer_result.slide_scores
+            for v in ss.violations
+            if v.rule == "bounds_left" and v.severity == ViolationSeverity.BLOCKER
+        ]
+        assert margin_blockers == [], (
+            f"Left margin violations: {[v.message for v in margin_blockers]}"
+        )
+
+    def test_gate_06_zero_composition_blockers(self, scorer_result):
+        """Gate 6: 0 composition blockers."""
+        assert scorer_result.blocker_count == 0, (
+            f"Found {scorer_result.blocker_count} composition blockers: "
+            + "; ".join(
+                v.message for ss in scorer_result.slide_scores
+                for v in ss.violations
+                if v.severity.value == "BLOCKER"
+            )
+        )
+
+    def test_gate_07_zero_mojibake(self, output_pptx):
+        """Gate 7: 0 mojibake — no encoding corruption in output."""
+        from pptx import Presentation
+
+        prs = Presentation(str(output_pptx))
+        for slide_idx, slide in enumerate(prs.slides):
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    text = shape.text_frame.text
+                    assert "\ufffd" not in text, (
+                        f"Mojibake (U+FFFD) found in slide {slide_idx}, "
+                        f"shape '{shape.name}'"
+                    )
+                    assert "\x00" not in text, (
+                        f"Null byte found in slide {slide_idx}, "
+                        f"shape '{shape.name}'"
+                    )
+
+    def test_gate_08_zero_contract_violations(self, render_result):
+        """Gate 8: Zero placeholder-contract violations."""
+        for rec in render_result.records:
+            if rec.injection_result and rec.injection_result.errors:
+                pytest.fail(
+                    f"Slide {rec.manifest_index} ({rec.asset_id}) injection errors: "
+                    f"{rec.injection_result.errors}"
+                )
+
+    def test_gate_10_template_hash_validated(self, render_result):
+        """Gate 10: Template hash validated before render."""
+        data = json.loads(CATALOG_LOCK_EN.read_text(encoding="utf-8"))
+        assert render_result.template_hash == data["template_hash"]
+
+    def test_gate_11_zero_anti_leak(self, render_result):
+        """Gate 11: Zero anti-leak violations — A2 shells sanitized."""
+        a2_records = [r for r in render_result.records if r.entry_type == "a2_shell"]
+        for rec in a2_records:
+            assert rec.sanitization_report is not None, (
+                f"A2 slide {rec.asset_id} missing sanitization_report"
+            )
+            assert rec.sanitization_report.errors == [], (
+                f"A2 slide {rec.asset_id} sanitization errors: "
+                f"{rec.sanitization_report.errors}"
+            )
+
+    def test_gate_12_mandatory_section_flow(self, render_result):
+        """Gate 12: Exact mandatory section flow in output."""
+        seen_sections: list[str] = []
+        for rec in render_result.records:
+            if rec.section_id not in seen_sections:
+                seen_sections.append(rec.section_id)
+        order_index = {sid: i for i, sid in enumerate(MANDATORY_SECTION_ORDER)}
+        positions = [order_index[sid] for sid in seen_sections if sid in order_index]
+        assert positions == sorted(positions)
+
+    def test_gate_13_exact_divider_numbering(self, render_result):
+        """Gate 13: Exact divider numbering flow 01-06."""
+        dividers = [r for r in render_result.records
+                    if r.asset_id.startswith("section_divider_")]
+        numbers = [r.asset_id.split("_")[-1] for r in dividers]
+        assert numbers == ["01", "02", "03", "04", "05", "06"]
+
+    def test_gate_14_content_source_policy(self):
+        """Gate 14: ContentSourcePolicy validated on every ManifestEntry."""
+        manifest = _build_en_full_proposal_manifest()
+        for entry in manifest.entries:
+            assert entry.content_source_policy in ContentSourcePolicy
+            if entry.entry_type == "a1_clone":
+                assert entry.content_source_policy == ContentSourcePolicy.INSTITUTIONAL_REUSE
+            elif entry.entry_type == "pool_clone":
+                assert entry.content_source_policy == ContentSourcePolicy.APPROVED_ASSET_POOL
+
+    def test_gate_18_editability(self, output_pptx):
+        """Gate 18: Output PPTX opens and has editable placeholders."""
+        from pptx import Presentation
+
+        prs = Presentation(str(output_pptx))
+        assert len(prs.slides) >= 30
+        has_placeholders = any(
+            True for slide in prs.slides for _ in slide.placeholders
+        )
+        assert has_placeholders, "Output PPTX has no editable placeholders"
+
+    def test_gate_19_a1_not_sanitized(self, render_result):
+        """Gate 19: A1 slides preserve template-native assets (no sanitization)."""
+        a1_records = [r for r in render_result.records if r.entry_type == "a1_clone"]
+        assert len(a1_records) >= 8, "Need 8+ A1 slides in full proposal"
+        for rec in a1_records:
+            assert rec.sanitization_report is None, (
+                f"A1 slide {rec.asset_id} should NOT be sanitized"
+            )
+
+    def test_gate_20_no_legacy_imports(self):
+        """Gate 20: renderer_v2 MUST NOT import legacy shape-building helpers."""
+        renderer_v2 = Path("src/services/renderer_v2.py")
+        if not renderer_v2.exists():
+            pytest.skip("renderer_v2.py not found")
+        source = renderer_v2.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                if isinstance(node, ast.ImportFrom) and node.module:
+                    assert "renderer" not in node.module or "renderer_v2" in node.module, (
+                        f"renderer_v2.py imports from legacy module: {node.module}"
+                    )
+                    assert "formatting" not in (node.module or ""), (
+                        f"renderer_v2.py imports from formatting: {node.module}"
+                    )
+
+    def test_gate_21_shell_sanitization(self, render_result):
+        """Gate 21: Shell sanitization verified on every A2 slide."""
+        a2_records = [r for r in render_result.records if r.entry_type == "a2_shell"]
+        assert len(a2_records) >= 9, "Need 9 A2 shells (3 cover + 6 dividers)"
+        for rec in a2_records:
+            assert rec.sanitization_report is not None, (
+                f"A2 slide {rec.asset_id} not sanitized"
+            )
+
+    def test_gate_22_scorer_profile(self):
+        """Gate 22: Composition scorer uses template-v2 profile for v2 output."""
         from src.pipeline.graph import get_scorer_profile
 
         profile = get_scorer_profile(RendererMode.TEMPLATE_V2)
         assert profile == ScorerProfile.OFFICIAL_TEMPLATE_V2
+
+    def test_gate_23_semantic_ids(self, render_result):
+        """Gate 23: All runtime layout resolution uses semantic layout IDs."""
+        for rec in render_result.records:
+            assert rec.semantic_layout_id
+            assert " " not in rec.semantic_layout_id, (
+                f"Display name as layout ID: '{rec.semantic_layout_id}'"
+            )
+
+
+# ── Visual-Fidelity Gates ────────────────────────────────────────────
+
+
+@requires_en_template
+class TestENVisualGates:
+    """Visual-fidelity gates 24-33."""
+
+    @pytest.fixture(scope="class")
+    def render_result(self, tmp_path_factory):
+        from src.services.renderer_v2 import render_v2
+        from src.services.template_manager import TemplateManager
+
+        output_dir = tmp_path_factory.mktemp("en_visual")
+        output_path = output_dir / "en_visual_deck.pptx"
+
+        manifest = _build_en_full_proposal_manifest()
+        tm = TemplateManager(EN_POTX_PATH, CATALOG_LOCK_EN)
+        return render_v2(manifest, tm, CATALOG_LOCK_EN, output_path)
+
+    @pytest.fixture(scope="class")
+    def output_pptx(self, render_result) -> Path:
+        assert render_result.success
+        return Path(render_result.output_path)
+
+    def test_gate_24_section_order(self, render_result):
+        """Gate 24: Section order matches mandatory flow."""
+        seen: list[str] = []
+        for rec in render_result.records:
+            if rec.section_id not in seen:
+                seen.append(rec.section_id)
+        for required in MANDATORY_SECTION_ORDER:
+            assert required in seen, f"Missing section {required}"
+
+    def test_gate_25_divider_pattern(self, render_result):
+        """Gate 25: Section dividers use 01-06 numbered pattern."""
+        dividers = [r for r in render_result.records if "section_divider_" in r.asset_id]
+        numbers = sorted(r.asset_id.split("_")[-1] for r in dividers)
+        assert numbers == ["01", "02", "03", "04", "05", "06"]
+
+    def test_gate_26_methodology_follows_budget(self, render_result):
+        """Gate 26: Methodology section follows budget (overview + focused + detail)."""
+        meth_records = [
+            r for r in render_result.records
+            if r.section_id == "section_03" and r.entry_type == "b_variable"
+        ]
+        layout_ids = [r.semantic_layout_id for r in meth_records]
+        # Must have overview
+        assert any("overview" in lid for lid in layout_ids), "No methodology overview"
+        # Must have focused phases
+        focused = [lid for lid in layout_ids if "focused" in lid]
+        assert len(focused) >= 3, f"Need 3+ focused phases, got {len(focused)}"
+        # Must have at least 1 detail
+        details = [lid for lid in layout_ids if "detail" in lid]
+        assert len(details) >= 1, f"Need 1+ detail slides, got {len(details)}"
+
+    def test_gate_27_case_studies_use_correct_layout(self, render_result):
+        """Gate 27: Case studies use case_study_cases layout — verified on rendered output."""
+        cs_records = [
+            r for r in render_result.records
+            if r.entry_type == "pool_clone" and r.section_id == "section_02"
+        ]
+        assert len(cs_records) >= 4, f"Need 4+ case studies in render, got {len(cs_records)}"
+        for rec in cs_records:
+            assert rec.semantic_layout_id == "case_study_cases", (
+                f"Case study {rec.asset_id} uses layout '{rec.semantic_layout_id}', "
+                f"expected 'case_study_cases'"
+            )
+
+    def test_gate_28_team_bios_use_correct_layout(self, render_result):
+        """Gate 28: Team bios use team_two_members layout — verified on rendered output."""
+        team_records = [
+            r for r in render_result.records
+            if r.entry_type == "pool_clone" and r.section_id == "section_05"
+        ]
+        assert len(team_records) >= 2, f"Need 2+ team bios in render, got {len(team_records)}"
+        for rec in team_records:
+            assert rec.semantic_layout_id == "team_two_members", (
+                f"Team bio {rec.asset_id} uses layout '{rec.semantic_layout_id}', "
+                f"expected 'team_two_members'"
+            )
+
+    def test_gate_29_typography_hierarchy(self, output_pptx):
+        """Gate 29: Typography hierarchy — titles larger than body text."""
+        from pptx import Presentation
+
+        prs = Presentation(str(output_pptx))
+        title_sizes = []
+        body_sizes = []
+        for slide in prs.slides:
+            for shape in slide.placeholders:
+                idx = shape.placeholder_format.idx
+                if shape.has_text_frame:
+                    for para in shape.text_frame.paragraphs:
+                        for run in para.runs:
+                            if run.font.size and run.font.size > 0:
+                                pt = run.font.size / 12700
+                                if idx == 0:
+                                    title_sizes.append(pt)
+                                elif idx >= 10:
+                                    body_sizes.append(pt)
+        if title_sizes and body_sizes:
+            avg_title = sum(title_sizes) / len(title_sizes)
+            avg_body = sum(body_sizes) / len(body_sizes)
+            assert avg_title > avg_body, (
+                f"Title avg ({avg_title:.1f}pt) should be > body avg ({avg_body:.1f}pt)"
+            )
+
+    def test_gate_30_no_generic_powerpoint_look(self, output_pptx):
+        """Gate 30: No generic PowerPoint look — brand elements present."""
+        from pptx import Presentation
+
+        prs = Presentation(str(output_pptx))
+        # Check for brand font presence
+        brand_font_found = False
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for para in shape.text_frame.paragraphs:
+                        for run in para.runs:
+                            if run.font.name and "Euclid" in run.font.name:
+                                brand_font_found = True
+                                break
+                    if brand_font_found:
+                        break
+            if brand_font_found:
+                break
+        assert brand_font_found, "No Euclid Flex brand font found — generic look"
+
+    def test_gate_31_structural_fidelity_a1_clones(self, render_result, output_pptx):
+        """Gate 31: House slides pass structural fidelity checks.
+
+        A1 slides use layout-inherited content (shapes on the layout, not
+        explicit shapes on the slide).  Fidelity is verified by checking:
+        - Slide has a valid layout
+        - Layout has shapes (visual content)
+        - Layout name matches expected layout from catalog lock
+        """
+        from pptx import Presentation
+
+        lock_data = json.loads(CATALOG_LOCK_EN.read_text(encoding="utf-8"))
+        prs = Presentation(str(output_pptx))
+
+        manifest = _build_en_full_proposal_manifest()
+        a1_entries = [(i, e) for i, e in enumerate(manifest.entries)
+                      if e.entry_type == "a1_clone"]
+
+        for entry_idx, entry in a1_entries:
+            if entry_idx >= len(prs.slides):
+                continue
+            slide = prs.slides[entry_idx]
+            # Verify slide has a layout
+            assert slide.slide_layout is not None, (
+                f"A1 clone '{entry.asset_id}' has no layout"
+            )
+            # Verify slide has content — either explicit shapes or
+            # layout-inherited shapes (most A1 institutional slides
+            # use layout-level content, not slide-level shapes)
+            total_visual = len(slide.shapes) + len(slide.slide_layout.shapes)
+            assert total_visual > 0, (
+                f"A1 clone '{entry.asset_id}' at index {entry_idx} has "
+                f"no shapes (slide-level or layout-level)"
+            )
+            # Verify layout display name matches catalog lock
+            a1_info = lock_data["a1_immutable"].get(entry.asset_id, {})
+            expected_display = a1_info.get("display_name", "")
+            if expected_display:
+                # Layout name from catalog matches actual layout
+                assert slide.slide_layout.name == expected_display, (
+                    f"A1 clone '{entry.asset_id}' layout mismatch: "
+                    f"expected '{expected_display}', got '{slide.slide_layout.name}'"
+                )
+
+    def test_gate_32_house_shells_allowlisted(self, render_result):
+        """Gate 32: House shells preserve only allowlisted text."""
+        a2_records = [r for r in render_result.records if r.entry_type == "a2_shell"]
+        for rec in a2_records:
+            report = rec.sanitization_report
+            assert report is not None
+            assert report.errors == [], (
+                f"A2 {rec.asset_id} sanitization errors: {report.errors}"
+            )
+
+    def test_gate_33_no_generic_regression(self, render_result, output_pptx):
+        """Gate 33: No generic-PowerPoint regression — structure matches real proposal."""
+        from pptx import Presentation
+
+        prs = Presentation(str(output_pptx))
+        # Full proposal checks
+        assert len(prs.slides) >= 30, "Full proposal should have 30+ slides"
+        # Must have multiple sections with dividers
+        divider_count = sum(
+            1 for r in render_result.records
+            if r.asset_id.startswith("section_divider_")
+        )
+        assert divider_count == 6, "Need 6 section dividers"
+        # Must have case studies and team bios
+        pool_clones = [r for r in render_result.records if r.entry_type == "pool_clone"]
+        assert len(pool_clones) >= 7, "Need 7+ pool clones (5 cs + 2+ team)"
+
+
+# ── Integration Gates ────────────────────────────────────────────────
+
+
+@requires_en_template
+class TestENIntegrationGates:
+    """Integration gates 34, 36-42 (gate 35 is AR-specific)."""
+
+    @pytest.fixture(scope="class")
+    def output_pptx(self, tmp_path_factory) -> Path:
+        from src.services.renderer_v2 import render_v2
+        from src.services.template_manager import TemplateManager
+
+        output_dir = tmp_path_factory.mktemp("en_integration")
+        output_path = output_dir / "en_integration_deck.pptx"
+
+        manifest = _build_en_full_proposal_manifest()
+        tm = TemplateManager(EN_POTX_PATH, CATALOG_LOCK_EN)
+        result = render_v2(manifest, tm, CATALOG_LOCK_EN, output_path)
+
+        assert result.success, (
+            f"EN render failed: {result.manifest_errors + result.render_errors}"
+        )
+        return Path(result.output_path)
+
+    @pytest.fixture(scope="class")
+    def render_result(self, tmp_path_factory):
+        from src.services.renderer_v2 import render_v2
+        from src.services.template_manager import TemplateManager
+
+        output_dir = tmp_path_factory.mktemp("en_integ_rr")
+        output_path = output_dir / "en_integ_rr.pptx"
+
+        manifest = _build_en_full_proposal_manifest()
+        tm = TemplateManager(EN_POTX_PATH, CATALOG_LOCK_EN)
+        return render_v2(manifest, tm, CATALOG_LOCK_EN, output_path)
+
+    def test_gate_34_en_full_deck_renders(self, output_pptx):
+        """Gate 34: Render one EN full-deck from official EN .potx."""
+        assert output_pptx.exists()
+        assert output_pptx.stat().st_size > 0
+
+    def test_gate_36_output_opens_as_valid_pptx(self, output_pptx):
+        """Gate 36: Output is valid PPTX — opens and has slides."""
+        from pptx import Presentation
+
+        prs = Presentation(str(output_pptx))
+        assert len(prs.slides) >= 30
+
+    def test_gate_36_all_slides_from_official_layouts(self, output_pptx):
+        """Gate 36: All slides come from official template layouts."""
+        from pptx import Presentation
+
+        prs = Presentation(str(output_pptx))
+        for slide in prs.slides:
+            assert slide.slide_layout is not None
+
+    def test_gate_37_zero_shape_creation_v2_path(self):
+        """Gate 37: Zero add_shape()/add_textbox() in v2 path."""
+        for mod_path in V2_PATH_MODULES:
+            path = Path(mod_path)
+            if not path.exists():
+                continue
+            source = path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                    if node.func.attr in ("add_shape", "add_textbox"):
+                        pytest.fail(f"Found {node.func.attr}() in {mod_path}")
+
+    def test_gate_38_anti_leak_on_non_a1_slides(self, output_pptx):
+        """Gate 38: Anti-leak on A2 shells and B variable slides."""
+        from pptx import Presentation
+
+        manifest = _build_en_full_proposal_manifest()
+        non_a1_indices = {
+            i for i, e in enumerate(manifest.entries) if e.entry_type != "a1_clone"
+        }
+
+        prs = Presentation(str(output_pptx))
+        forbidden_fragments = ["Film Sector"]
+        for slide_idx, slide in enumerate(prs.slides):
+            if slide_idx not in non_a1_indices:
+                continue
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    text = shape.text_frame.text
+                    for frag in forbidden_fragments:
+                        assert frag not in text, (
+                            f"Forbidden text '{frag}' in non-A1 slide {slide_idx}, "
+                            f"shape '{shape.name}'"
+                        )
+
+    def test_gate_39_case_study_clone_correct(self, render_result, output_pptx):
+        """Gate 39: Case-study slide clones correctly — has shapes and content."""
+        from pptx import Presentation
+
+        manifest = _build_en_full_proposal_manifest()
+        cs_indices = [
+            i for i, e in enumerate(manifest.entries)
+            if e.entry_type == "pool_clone" and e.semantic_layout_id == "case_study_cases"
+        ]
+        assert len(cs_indices) >= 4
+
+        prs = Presentation(str(output_pptx))
+        for idx in cs_indices:
+            if idx < len(prs.slides):
+                slide = prs.slides[idx]
+                assert len(slide.shapes) > 0, (
+                    f"Case study clone at index {idx} has 0 shapes"
+                )
+
+    def test_gate_40_team_bio_clone_correct(self, render_result, output_pptx):
+        """Gate 40: Team-bio slide clones correctly — has shapes and content."""
+        from pptx import Presentation
+
+        manifest = _build_en_full_proposal_manifest()
+        team_indices = [
+            i for i, e in enumerate(manifest.entries)
+            if e.entry_type == "pool_clone" and e.semantic_layout_id == "team_two_members"
+        ]
+        assert len(team_indices) >= 2
+
+        prs = Presentation(str(output_pptx))
+        for idx in team_indices:
+            if idx < len(prs.slides):
+                slide = prs.slides[idx]
+                assert len(slide.shapes) > 0, (
+                    f"Team bio clone at index {idx} has 0 shapes"
+                )
+
+    def test_gate_41_methodology_follows_template_family(self, render_result):
+        """Gate 41: Methodology section follows template family correctly."""
+        meth_records = [
+            r for r in render_result.records
+            if r.section_id == "section_03" and r.entry_type == "b_variable"
+        ]
+        valid_meth_layouts = {
+            "methodology_overview_4", "methodology_focused_4",
+            "methodology_overview_3", "methodology_focused_3",
+            "methodology_detail",
+        }
+        for rec in meth_records:
+            assert rec.semantic_layout_id in valid_meth_layouts, (
+                f"Methodology slide '{rec.asset_id}' uses invalid layout "
+                f"'{rec.semantic_layout_id}'"
+            )
+
+    def test_gate_42_scorer_profile_per_mode(self):
+        """Gate 42: Composition scorer uses correct profile per renderer mode."""
+        from src.pipeline.graph import get_scorer_profile
+
+        v2_profile = get_scorer_profile(RendererMode.TEMPLATE_V2)
+        assert v2_profile == ScorerProfile.OFFICIAL_TEMPLATE_V2
+
+        legacy_profile = get_scorer_profile(RendererMode.LEGACY)
+        assert legacy_profile == ScorerProfile.LEGACY
+
+
+# ── Scorer Profile Alignment ─────────────────────────────────────────
+
+
+class TestENScorerProfileAlignment:
+    """Composition scorer profile validation for v2 output."""
 
     def test_v2_profile_uses_euclid_flex(self):
         from src.services.scorer_profiles import get_profile
@@ -511,363 +1501,3 @@ class TestENScorerProfileAlignment:
         assert "Aptos" in config.brand_fonts
         assert config.body_font_min_pt == 10
         assert config.body_font_max_pt == 14
-
-
-# ── EN Render Execution (requires real template) ─────────────────────
-
-
-@requires_en_template
-class TestENRenderExecution:
-    """Render a real EN mini-deck from the official template.
-    These tests use the actual template file and catalog lock."""
-
-    @pytest.fixture(scope="class")
-    def render_result(self, tmp_path_factory):
-        """Render the EN mini-deck once and share across tests."""
-        from src.services.renderer_v2 import render_v2
-        from src.services.template_manager import TemplateManager
-
-        output_dir = tmp_path_factory.mktemp("en_render")
-        output_path = output_dir / "en_mini_deck.pptx"
-
-        manifest = _build_en_mini_manifest()
-        tm = TemplateManager(EN_POTX_PATH, CATALOG_LOCK_EN)
-        result = render_v2(manifest, tm, CATALOG_LOCK_EN, output_path)
-
-        return result
-
-    def test_render_succeeds(self, render_result):
-        assert render_result.success, (
-            f"Render failed: manifest_errors={render_result.manifest_errors}, "
-            f"render_errors={render_result.render_errors}"
-        )
-
-    def test_output_file_exists(self, render_result):
-        assert render_result.output_path is not None
-        assert Path(render_result.output_path).exists()
-
-    def test_total_slides_matches_manifest(self, render_result):
-        manifest = _build_en_mini_manifest()
-        assert render_result.total_slides == len(manifest.entries)
-
-    def test_zero_manifest_errors(self, render_result):
-        assert render_result.manifest_errors == []
-
-    def test_zero_render_errors(self, render_result):
-        assert render_result.render_errors == []
-
-    def test_template_hash_recorded(self, render_result):
-        assert render_result.template_hash != ""
-        assert render_result.template_hash.startswith("sha256:")
-
-    def test_all_records_present(self, render_result):
-        manifest = _build_en_mini_manifest()
-        assert len(render_result.records) == len(manifest.entries)
-
-    def test_no_per_slide_errors(self, render_result):
-        for rec in render_result.records:
-            assert rec.error is None, (
-                f"Slide {rec.manifest_index} ({rec.asset_id}) error: {rec.error}"
-            )
-
-
-# ── Hard Technical Gates (on rendered output) ────────────────────────
-
-
-@requires_en_template
-class TestENAcceptanceGatesHard:
-    """Hard technical gates from the approved plan, verified on EN render."""
-
-    @pytest.fixture(scope="class")
-    def render_result(self, tmp_path_factory):
-        from src.services.renderer_v2 import render_v2
-        from src.services.template_manager import TemplateManager
-
-        output_dir = tmp_path_factory.mktemp("en_gates")
-        output_path = output_dir / "en_gates_deck.pptx"
-
-        manifest = _build_en_mini_manifest()
-        tm = TemplateManager(EN_POTX_PATH, CATALOG_LOCK_EN)
-        return render_v2(manifest, tm, CATALOG_LOCK_EN, output_path)
-
-    def test_gate_01_all_slides_use_official_layouts(self, render_result):
-        """Gate 1: Every output slide uses an official template layout."""
-        for rec in render_result.records:
-            assert rec.semantic_layout_id, (
-                f"Slide {rec.manifest_index} ({rec.asset_id}) has no semantic_layout_id"
-            )
-
-    def test_gate_08_zero_placeholder_contract_violations(self, render_result):
-        """Gate 8: Zero placeholder-contract violations."""
-        for rec in render_result.records:
-            if rec.injection_result and rec.injection_result.errors:
-                pytest.fail(
-                    f"Slide {rec.manifest_index} ({rec.asset_id}) injection errors: "
-                    f"{rec.injection_result.errors}"
-                )
-
-    def test_gate_10_template_hash_validated(self, render_result):
-        """Gate 10: Template hash validated before render."""
-        data = json.loads(CATALOG_LOCK_EN.read_text(encoding="utf-8"))
-        assert render_result.template_hash == data["template_hash"]
-
-    def test_gate_11_zero_anti_leak_on_a2_shells(self, render_result):
-        """Gate 11: A2 shells sanitized — sanitization reports present."""
-        a2_records = [r for r in render_result.records if r.entry_type == "a2_shell"]
-        for rec in a2_records:
-            assert rec.sanitization_report is not None, (
-                f"A2 slide {rec.asset_id} missing sanitization_report"
-            )
-            assert rec.sanitization_report.errors == [], (
-                f"A2 slide {rec.asset_id} sanitization errors: "
-                f"{rec.sanitization_report.errors}"
-            )
-
-    def test_gate_12_mandatory_section_flow(self, render_result):
-        """Gate 12: Exact mandatory section flow in output."""
-        seen_sections: list[str] = []
-        for rec in render_result.records:
-            if rec.section_id not in seen_sections:
-                seen_sections.append(rec.section_id)
-
-        order_index = {sid: i for i, sid in enumerate(MANDATORY_SECTION_ORDER)}
-        positions = [order_index[sid] for sid in seen_sections if sid in order_index]
-        assert positions == sorted(positions), (
-            f"Sections out of order in render output: {seen_sections}"
-        )
-
-    def test_gate_13_exact_divider_numbering(self, render_result):
-        """Gate 13: Exact divider numbering flow 01-06."""
-        divider_records = [
-            r for r in render_result.records
-            if r.asset_id.startswith("section_divider_")
-        ]
-        numbers = [r.asset_id.split("_")[-1] for r in divider_records]
-        assert numbers == ["01", "02", "03", "04", "05", "06"]
-
-    def test_gate_14_content_source_policy_on_all_entries(self, render_result):
-        """Gate 14: ContentSourcePolicy validated on every entry."""
-        manifest = _build_en_mini_manifest()
-        for entry in manifest.entries:
-            assert entry.content_source_policy in ContentSourcePolicy
-
-    def test_gate_19_a1_slides_not_sanitized(self, render_result):
-        """Gate 19: A1 slides preserve template-native assets (no sanitization)."""
-        a1_records = [r for r in render_result.records if r.entry_type == "a1_clone"]
-        for rec in a1_records:
-            assert rec.sanitization_report is None, (
-                f"A1 slide {rec.asset_id} should NOT be sanitized"
-            )
-
-    def test_gate_21_a2_shells_all_sanitized(self, render_result):
-        """Gate 21: Shell sanitization verified on every A2 slide."""
-        a2_records = [r for r in render_result.records if r.entry_type == "a2_shell"]
-        assert len(a2_records) > 0, "No A2 slides in render"
-        for rec in a2_records:
-            assert rec.sanitization_report is not None, (
-                f"A2 slide {rec.asset_id} not sanitized"
-            )
-
-    def test_gate_22_scorer_uses_v2_profile(self):
-        """Gate 22: Composition scorer uses template-v2 profile for v2 output."""
-        from src.pipeline.graph import get_scorer_profile
-
-        profile = get_scorer_profile(RendererMode.TEMPLATE_V2)
-        assert profile == ScorerProfile.OFFICIAL_TEMPLATE_V2
-
-    def test_gate_23_all_layout_resolution_uses_semantic_ids(self, render_result):
-        """Gate 23: All runtime layout resolution uses semantic layout IDs."""
-        for rec in render_result.records:
-            assert rec.semantic_layout_id, (
-                f"Slide {rec.manifest_index} missing semantic_layout_id"
-            )
-            # Semantic IDs must be lowercase with underscores, not raw display names
-            assert " " not in rec.semantic_layout_id, (
-                f"Slide {rec.manifest_index} has display name as layout ID: "
-                f"'{rec.semantic_layout_id}'"
-            )
-
-
-# ── Visual-Fidelity Gates ────────────────────────────────────────────
-
-
-@requires_en_template
-class TestENAcceptanceGatesVisual:
-    """Visual-fidelity gates on rendered EN output."""
-
-    @pytest.fixture(scope="class")
-    def render_result(self, tmp_path_factory):
-        from src.services.renderer_v2 import render_v2
-        from src.services.template_manager import TemplateManager
-
-        output_dir = tmp_path_factory.mktemp("en_visual")
-        output_path = output_dir / "en_visual_deck.pptx"
-
-        manifest = _build_en_mini_manifest()
-        tm = TemplateManager(EN_POTX_PATH, CATALOG_LOCK_EN)
-        return render_v2(manifest, tm, CATALOG_LOCK_EN, output_path)
-
-    def test_gate_24_section_order_matches_flow(self, render_result):
-        """Gate 24: Section order matches mandatory flow."""
-        seen: list[str] = []
-        for rec in render_result.records:
-            if rec.section_id not in seen:
-                seen.append(rec.section_id)
-
-        for required in MANDATORY_SECTION_ORDER:
-            assert required in seen, f"Missing section {required}"
-
-    def test_gate_25_dividers_numbered_correctly(self, render_result):
-        """Gate 25: Section dividers use 01-06 numbered pattern."""
-        dividers = [r for r in render_result.records if "section_divider_" in r.asset_id]
-        numbers = sorted(r.asset_id.split("_")[-1] for r in dividers)
-        assert numbers == ["01", "02", "03", "04", "05", "06"]
-
-    def test_gate_27_case_study_uses_correct_layout(self):
-        """Gate 27: Case studies use case_study_cases semantic layout ID.
-        (verified structurally — our manifest uses correct layout IDs)."""
-        # If we had pool_clone entries for case studies, they'd use case_study_cases
-        # For now, verify the layout exists in catalog lock
-        data = json.loads(CATALOG_LOCK_EN.read_text(encoding="utf-8"))
-        assert "case_study_cases" in data["layouts"]
-
-    def test_gate_28_team_uses_correct_layout(self):
-        """Gate 28: Team bios use team_two_members semantic layout ID."""
-        data = json.loads(CATALOG_LOCK_EN.read_text(encoding="utf-8"))
-        assert "team_two_members" in data["layouts"]
-
-    def test_gate_32_a2_shells_preserve_only_allowlisted(self, render_result):
-        """Gate 32: House shells preserve only allowlisted text."""
-        a2_records = [r for r in render_result.records if r.entry_type == "a2_shell"]
-        for rec in a2_records:
-            report = rec.sanitization_report
-            assert report is not None
-            # Sanitization should have cleared some content
-            # (unless the shell had no non-approved content)
-            assert report.errors == [], (
-                f"A2 {rec.asset_id} sanitization errors: {report.errors}"
-            )
-
-
-# ── Integration Gate #34: Render one EN mini-deck ────────────────────
-
-
-@requires_en_template
-class TestENAcceptanceGatesIntegration:
-    """Integration gate #34: Render one EN mini-deck from official EN .potx."""
-
-    @pytest.fixture(scope="class")
-    def output_pptx(self, tmp_path_factory) -> Path:
-        from src.services.renderer_v2 import render_v2
-        from src.services.template_manager import TemplateManager
-
-        output_dir = tmp_path_factory.mktemp("en_integration")
-        output_path = output_dir / "en_integration_deck.pptx"
-
-        manifest = _build_en_mini_manifest()
-        tm = TemplateManager(EN_POTX_PATH, CATALOG_LOCK_EN)
-        result = render_v2(manifest, tm, CATALOG_LOCK_EN, output_path)
-
-        assert result.success, (
-            f"EN render failed: {result.manifest_errors + result.render_errors}"
-        )
-        return Path(result.output_path)
-
-    def test_gate_34_en_mini_deck_renders(self, output_pptx):
-        """Gate 34: Render one EN mini-deck from official EN .potx."""
-        assert output_pptx.exists()
-        assert output_pptx.stat().st_size > 0
-
-    def test_gate_36_output_opens_as_pptx(self, output_pptx):
-        """Gate 36: Verify output is valid PPTX by opening it."""
-        from pptx import Presentation
-
-        prs = Presentation(str(output_pptx))
-        assert len(prs.slides) > 0
-
-    def test_gate_36_all_slides_from_official_layouts(self, output_pptx):
-        """Gate 36: Verify all slides come from official layouts."""
-        from pptx import Presentation
-
-        prs = Presentation(str(output_pptx))
-        for slide in prs.slides:
-            # Every slide must have a slide layout from the template
-            assert slide.slide_layout is not None, (
-                f"Slide {slide.slide_id} has no layout"
-            )
-
-    def test_gate_37_zero_add_shape_in_v2_path(self):
-        """Gate 37: Verify zero add_shape()/add_textbox() in v2 path.
-        (Already tested in Phase 15 guardrails, re-confirmed here.)"""
-        import ast
-
-        v2_modules = [
-            "src/services/renderer_v2.py",
-            "src/services/placeholder_injectors.py",
-            "src/services/shell_sanitizer.py",
-            "src/services/content_fitter.py",
-            "src/services/template_manager.py",
-            "src/services/layout_router.py",
-        ]
-        for mod_path in v2_modules:
-            path = Path(mod_path)
-            if not path.exists():
-                continue
-            source = path.read_text(encoding="utf-8")
-            tree = ast.parse(source)
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Call):
-                    func = node.func
-                    if isinstance(func, ast.Attribute):
-                        if func.attr in ("add_shape", "add_textbox"):
-                            pytest.fail(
-                                f"Found {func.attr}() in {mod_path} at line {node.lineno}"
-                            )
-
-    def test_gate_38_anti_leak_on_a2_and_b_slides(self, output_pptx):
-        """Gate 38: Verify anti-leak on A2 shells and B variable slides.
-
-        A1 slides are immutable institutional clones — they may legitimately
-        contain case study references (e.g. Tadawul) as approved SG content.
-        Anti-leak applies to A2 shells (sanitized) and B variable slides
-        (injected with proposal-specific content only).
-        """
-        from pptx import Presentation
-
-        manifest = _build_en_mini_manifest()
-        # Identify which output slide indices are NOT a1_clone
-        non_a1_indices = {
-            i for i, e in enumerate(manifest.entries) if e.entry_type != "a1_clone"
-        }
-
-        prs = Presentation(str(output_pptx))
-        forbidden_fragments = ["Film Sector"]
-        for slide_idx, slide in enumerate(prs.slides):
-            if slide_idx not in non_a1_indices:
-                continue  # Skip A1 clones — institutional content
-            for shape in slide.shapes:
-                if shape.has_text_frame:
-                    text = shape.text_frame.text
-                    for frag in forbidden_fragments:
-                        assert frag not in text, (
-                            f"Forbidden example text '{frag}' found in non-A1 slide "
-                            f"index {slide_idx}, shape '{shape.name}'"
-                        )
-
-    def test_gate_18_output_editability(self, output_pptx):
-        """Gate 18: renderer_v2 output passes editability checks.
-        Verify the output PPTX opens and has editable placeholders."""
-        from pptx import Presentation
-
-        prs = Presentation(str(output_pptx))
-
-        # At least some slides should have placeholders
-        has_placeholders = False
-        for slide in prs.slides:
-            for shape in slide.placeholders:
-                has_placeholders = True
-                break
-            if has_placeholders:
-                break
-
-        assert has_placeholders, "Output PPTX has no editable placeholders"

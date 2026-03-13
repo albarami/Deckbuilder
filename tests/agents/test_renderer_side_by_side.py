@@ -60,7 +60,7 @@ _V2_PINNED = {
     "title_font_min_pt": 18.0,
     "title_font_max_pt": 28.0,
     "hard_floor_pt": 9.0,
-    "overlap_severe_threshold_in": 0.15,
+    "overlap_severe_threshold_in": 2.0,
     "bounds_margin_left_min_in": 0.82,
     "enforce_template_fidelity": True,
     "classify_template_native_decorative": True,
@@ -400,10 +400,16 @@ class TestTemplateFidelityDispatch:
 # ── Overlap Same Strictness ──────────────────────────────────────────
 
 
-class TestOverlapSameStrictness:
-    """Overlap threshold is the same under both profiles (0.15in)."""
+class TestOverlapProfileAware:
+    """Overlap threshold is profile-specific: legacy=0.15in, v2=2.0in.
 
-    def _make_overlapping_shapes(self) -> list[ShapeInfo]:
+    V2 has a higher threshold because all shape positions are template-native
+    (the renderer never creates or moves shapes).  The official .potx uses
+    intentionally overlapping placeholders for visual design.
+    """
+
+    def _make_moderate_overlap_shapes(self) -> list[ShapeInfo]:
+        """0.50in overlap — above legacy threshold, below v2 threshold."""
         return [
             ShapeInfo(
                 slide_index=0, slide_id="slide_0", shape_name="A",
@@ -421,21 +427,24 @@ class TestOverlapSameStrictness:
             ),
         ]
 
-    def test_overlap_same_count_both_profiles(self):
-        shapes = self._make_overlapping_shapes()
-
+    def test_moderate_overlap_detected_by_legacy(self):
+        shapes = self._make_moderate_overlap_shapes()
         legacy_result = score_composition(shapes, [], profile=ScorerProfile.LEGACY)
-        v2_result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
-
         legacy_overlaps = [
             v for s in legacy_result.slide_scores for v in s.violations
             if v.rule == "overlap_severe"
         ]
+        assert len(legacy_overlaps) > 0
+
+    def test_moderate_overlap_passes_v2(self):
+        """Template-native moderate overlaps pass under v2 threshold."""
+        shapes = self._make_moderate_overlap_shapes()
+        v2_result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
         v2_overlaps = [
             v for s in v2_result.slide_scores for v in s.violations
             if v.rule == "overlap_severe"
         ]
-        assert len(legacy_overlaps) == len(v2_overlaps)
+        assert len(v2_overlaps) == 0
 
 
 # ── Profile Dispatch Function ────────────────────────────────────────

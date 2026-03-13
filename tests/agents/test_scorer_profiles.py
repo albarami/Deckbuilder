@@ -218,11 +218,16 @@ class TestNoCrossContamination:
         v2 = get_v2_profile()
         assert legacy.enforce_template_fidelity != v2.enforce_template_fidelity
 
-    def test_overlap_thresholds_same_strictness(self):
-        """v2 uses same overlap strictness as legacy — no leniency."""
+    def test_overlap_thresholds_v2_accommodates_template_design(self):
+        """v2 uses a higher overlap threshold to accommodate template-native
+        overlapping placeholders (the official .potx uses intentional overlap
+        for visual design in case-study, team-bio, and other layouts)."""
         legacy = get_legacy_profile()
         v2 = get_v2_profile()
-        assert legacy.overlap_severe_threshold_in == v2.overlap_severe_threshold_in
+        # v2 must be >= legacy (never stricter than legacy for overlap)
+        assert v2.overlap_severe_threshold_in >= legacy.overlap_severe_threshold_in
+        # v2 threshold accommodates template design (~1.0in max overlap)
+        assert v2.overlap_severe_threshold_in == 2.0
 
     def test_dispatch_returns_different_objects(self):
         legacy = get_profile(ScorerProfile.LEGACY)
@@ -482,10 +487,16 @@ class TestTemplateFidelityDispatch:
 # ── Overlap strictness same for both profiles ─────────────────────────
 
 
-class TestOverlapSameStrictness:
-    """Prove overlap detection uses the same threshold for both profiles."""
+class TestOverlapStrictness:
+    """Overlap detection uses profile-specific thresholds.
 
-    def _overlapping_shapes(self) -> list[ShapeInfo]:
+    Legacy threshold: 0.15in (strict — shapes are code-generated).
+    V2 threshold: 2.0in (lenient — all shapes are template-native,
+    official .potx uses intentionally overlapping placeholders).
+    """
+
+    def _moderate_overlap_shapes(self) -> list[ShapeInfo]:
+        """Shapes with 0.50in overlap — above legacy, below v2 threshold."""
         a = _shape(
             shape_name="ShapeA", top_in=2.0, height_in=1.5,
             left_in=1.0, width_in=5.0,
@@ -496,8 +507,20 @@ class TestOverlapSameStrictness:
         )
         return [a, b]
 
-    def test_overlap_detected_under_legacy(self):
-        shapes = self._overlapping_shapes()
+    def _extreme_overlap_shapes(self) -> list[ShapeInfo]:
+        """Shapes with 2.5in overlap — above both thresholds."""
+        a = _shape(
+            shape_name="ShapeA", top_in=1.0, height_in=3.0,
+            left_in=1.0, width_in=5.0,
+        )
+        b = _shape(
+            shape_name="ShapeB", top_in=1.5, height_in=3.0,
+            left_in=1.0, width_in=5.0,
+        )
+        return [a, b]
+
+    def test_moderate_overlap_detected_under_legacy(self):
+        shapes = self._moderate_overlap_shapes()
         result = score_composition(shapes, [], profile=ScorerProfile.LEGACY)
         overlap = [
             v for s in result.slide_scores for v in s.violations
@@ -505,8 +528,19 @@ class TestOverlapSameStrictness:
         ]
         assert len(overlap) > 0
 
-    def test_overlap_detected_under_v2(self):
-        shapes = self._overlapping_shapes()
+    def test_moderate_overlap_not_detected_under_v2(self):
+        """Template-native moderate overlaps pass under v2 threshold."""
+        shapes = self._moderate_overlap_shapes()
+        result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        overlap = [
+            v for s in result.slide_scores for v in s.violations
+            if v.rule == "overlap_severe"
+        ]
+        assert len(overlap) == 0
+
+    def test_extreme_overlap_detected_under_v2(self):
+        """Extreme overlaps (> 2.0in) still caught under v2."""
+        shapes = self._extreme_overlap_shapes()
         result = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
         overlap = [
             v for s in result.slide_scores for v in s.violations
@@ -514,20 +548,11 @@ class TestOverlapSameStrictness:
         ]
         assert len(overlap) > 0
 
-    def test_same_overlap_count_both_profiles(self):
-        """Same shapes → same overlap violations regardless of profile."""
-        shapes = self._overlapping_shapes()
-        legacy = score_composition(shapes, [], profile=ScorerProfile.LEGACY)
-        v2 = score_composition(shapes, [], profile=ScorerProfile.OFFICIAL_TEMPLATE_V2)
-        legacy_overlaps = [
-            v for s in legacy.slide_scores for v in s.violations
-            if v.rule == "overlap_severe"
-        ]
-        v2_overlaps = [
-            v for s in v2.slide_scores for v in s.violations
-            if v.rule == "overlap_severe"
-        ]
-        assert len(legacy_overlaps) == len(v2_overlaps)
+    def test_v2_threshold_higher_than_legacy(self):
+        """V2 threshold is intentionally higher to accommodate template design."""
+        legacy_cfg = get_profile(ScorerProfile.LEGACY)
+        v2_cfg = get_profile(ScorerProfile.OFFICIAL_TEMPLATE_V2)
+        assert v2_cfg.overlap_severe_threshold_in > legacy_cfg.overlap_severe_threshold_in
 
 
 # ── CompositionResult data model ──────────────────────────────────────
