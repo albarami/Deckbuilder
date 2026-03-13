@@ -336,7 +336,14 @@ def render_v2(
                 f"Slide {idx} ({entry.asset_id}): {record.error}"
             )
 
-    # ── 6. Save ─────────────────────────────────────────────────────
+    # ── 6. Remove original template slides ────────────────────────
+    if not result.render_errors:
+        try:
+            template_manager.remove_original_slides()
+        except Exception as exc:
+            result.render_errors.append(f"Original slide cleanup failed: {exc}")
+
+    # ── 7. Save ─────────────────────────────────────────────────────
     if not result.render_errors:
         try:
             saved = template_manager.save(output_path)

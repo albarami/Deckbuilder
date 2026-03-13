@@ -159,12 +159,15 @@ class TemplateManager:
 
         self._build_indexes()
 
+        # Track original slide count for later cleanup
+        self._original_slide_count = len(self._prs.slides)
+
         logger.info(
             "TemplateManager loaded: %s (%s), %d slides, %d layouts, "
             "%d A1, %d A2, %d dividers",
             self._language,
             self._potx_path.name,
-            len(self._prs.slides),
+            self._original_slide_count,
             len(self._layouts),
             len(self._a1_assets),
             len(self._a2_shells),
@@ -427,6 +430,41 @@ class TemplateManager:
     def get_service_divider_pool(self) -> list[AssetLocation]:
         """Get service divider pool (disjoint from case studies)."""
         return list(self._service_divider_pool)
+
+    # ── Slide cleanup ────────────────────────────────────────────────
+
+    def remove_original_slides(self) -> int:
+        """Remove all original template slides, keeping only rendered slides.
+
+        After rendering, the presentation contains original template slides
+        (indices 0..N-1) followed by cloned/added slides (indices N..).
+        This method removes the original slides so only rendered output remains.
+
+        Returns the number of slides removed.
+        """
+        count = self._original_slide_count
+        if count <= 0:
+            return 0
+
+        xml_slides = self._prs.slides._sldIdLst
+        ns = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+
+        removed = 0
+        for _ in range(count):
+            if len(xml_slides) == 0:
+                break
+            sld_id = xml_slides[0]
+            r_id = sld_id.get(f"{ns}id")
+            if r_id:
+                try:
+                    self._prs.part.drop_rel(r_id)
+                except KeyError:
+                    pass  # Relationship may already be gone
+            xml_slides.remove(sld_id)
+            removed += 1
+
+        logger.info("Removed %d original template slides", removed)
+        return removed
 
     # ── Output ───────────────────────────────────────────────────────
 
