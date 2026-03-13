@@ -27,6 +27,7 @@ import { StageTracker } from "@/components/pipeline/StageTracker";
 import { AgentStatusCard } from "@/components/pipeline/AgentStatusCard";
 import { PipelineErrorBanner } from "@/components/pipeline/PipelineErrorBanner";
 import { PipelineComplete } from "@/components/pipeline/PipelineComplete";
+import { GatePanel } from "@/components/gates/GatePanel";
 import { Spinner } from "@/components/ui/Spinner";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -182,39 +183,9 @@ export default function PipelineSessionPage() {
             />
           )}
 
-          {/* Gate pending: placeholder for M11.6 */}
+          {/* Gate pending: gate approval UI */}
           {pipeline.status === "gate_pending" && pipeline.currentGate && (
-            <Card variant="elevated">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
-                  <svg
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className="h-6 w-6 text-amber-600"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-sg-navy">
-                    {t("gatePendingTitle", {
-                      number: pipeline.currentGate.gate_number,
-                    })}
-                  </h3>
-                  <p className="text-sm text-sg-slate/70">
-                    {pipeline.currentGate.summary}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-3 text-sm text-sg-slate/60 italic">
-                {t("gateUiComingSoon")}
-              </p>
-            </Card>
+            <GatePanel gate={pipeline.currentGate} />
           )}
 
           {/* Complete: export buttons */}
