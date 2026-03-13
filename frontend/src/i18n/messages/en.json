@@ -1,0 +1,69 @@
+{
+  "app": {
+    "name": "DeckForge",
+    "tagline": "Strategic Proposal Engine"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "newProposal": "New Proposal",
+    "history": "History"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "submit": "Submit",
+    "approve": "Approve",
+    "reject": "Reject",
+    "download": "Download",
+    "upload": "Upload",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "language": "Language",
+    "switchToArabic": "Switch to Arabic",
+    "switchToEnglish": "Switch to English"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "recentProposals": "Recent Proposals",
+    "startNew": "Start New Proposal",
+    "noProposals": "No proposals yet. Start your first one."
+  },
+  "intake": {
+    "title": "New Proposal",
+    "uploadFiles": "Upload RFP Documents",
+    "dragDrop": "Drag and drop files here, or click to browse",
+    "supportedFormats": "PDF, DOCX, TXT — max 50MB per file",
+    "orPasteText": "Or paste RFP text directly",
+    "pasteHere": "Paste your RFP content here...",
+    "configuration": "Proposal Configuration",
+    "language": "Language",
+    "proposalMode": "Proposal Mode",
+    "sector": "Sector",
+    "geography": "Geography",
+    "startPipeline": "Generate Proposal"
+  },
+  "pipeline": {
+    "title": "Pipeline Progress",
+    "running": "Running",
+    "gatePending": "Awaiting Review",
+    "complete": "Complete",
+    "error": "Error",
+    "sessionId": "Session"
+  },
+  "gate": {
+    "title": "Gate {number} Review",
+    "approveLabel": "Approve & Continue",
+    "rejectLabel": "Reject & Revise",
+    "feedbackPlaceholder": "Provide feedback for revision..."
+  },
+  "export": {
+    "title": "Export Deliverables",
+    "downloadPptx": "Download Presentation (PPTX)",
+    "downloadDocx": "Download Research Report (DOCX)",
+    "notReady": "Export will be available after the pipeline completes."
+  }
+}

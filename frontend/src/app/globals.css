@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Strategic Gears Design System — Global Styles
+ *
+ * Color tokens are defined in tailwind.config.ts (sg-navy, sg-teal, etc.)
+ * This file contains base resets and CSS custom properties for
+ * programmatic access.
+ */
+
+@layer base {
+  :root {
+    /* Brand color custom properties (mirrors Tailwind tokens) */
+    --sg-navy: #0E2841;
+    --sg-teal: #156082;
+    --sg-blue: #0F9ED5;
+    --sg-orange: #E97132;
+    --sg-slate: #2D3748;
+    --sg-mist: #F0F4F8;
+    --sg-white: #FFFFFF;
+    --sg-border: #D2D6DC;
+
+    /* Shadows */
+    --shadow-card: 0 1px 3px rgba(14, 40, 65, 0.08), 0 1px 2px rgba(14, 40, 65, 0.06);
+    --shadow-elevated: 0 4px 6px rgba(14, 40, 65, 0.07), 0 2px 4px rgba(14, 40, 65, 0.06);
+    --shadow-focus: 0 0 0 3px rgba(15, 158, 213, 0.3);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-sg-mist text-sg-slate;
+    font-family: var(--font-body), system-ui, sans-serif;
+  }
+
+  /* Arabic body font override */
+  [dir="rtl"] body {
+    font-family: var(--font-arabic), system-ui, sans-serif;
+  }
+
+  /* Headings use display font */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display), system-ui, sans-serif;
+    @apply text-sg-navy;
+    font-weight: 600;
+  }
+
+  /* Focus ring for accessibility */
+  *:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: 0.375rem;
+  }
+}
+
+@layer components {
+  /* Reusable SG card surface */
+  .sg-card {
+    @apply bg-sg-white rounded-lg border border-sg-border;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Elevated card (modals, popovers) */
+  .sg-card-elevated {
+    @apply bg-sg-white rounded-lg border border-sg-border;
+    box-shadow: var(--shadow-elevated);
+  }
+}
