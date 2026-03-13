@@ -66,11 +66,32 @@
   },
   "pipeline": {
     "title": "Pipeline Progress",
+    "idle": "Idle",
     "running": "Running",
     "gatePending": "Awaiting Review",
     "complete": "Complete",
     "error": "Error",
-    "sessionId": "Session"
+    "sessionId": "Session",
+    "loading": "Loading session...",
+    "sessionExpired": "Session Expired",
+    "sessionExpiredMessage": "This pipeline session has expired or was not found. Please start a new proposal.",
+    "startNewProposal": "Start New Proposal",
+    "waitingForPipeline": "Waiting for pipeline to start...",
+    "errorTitle": "Pipeline Error",
+    "dismissError": "Dismiss error",
+    "stageTracker": "Pipeline Stages",
+    "stageGate": "Gate {number}",
+    "stages": {
+      "context": "Context Analysis",
+      "sources": "Source Research",
+      "report": "Report Generation",
+      "slides": "Slide Rendering",
+      "qa": "Quality Assurance"
+    },
+    "agentRunning": "Running ({time})",
+    "agentCompleted": "Completed in {time}",
+    "gatePendingTitle": "Gate {number} — Review Required",
+    "gateUiComingSoon": "Gate approval interface will be available in the next phase."
   },
   "gate": {
     "title": "Gate {number} Review",
@@ -82,6 +103,8 @@
     "title": "Export Deliverables",
     "downloadPptx": "Download Presentation (PPTX)",
     "downloadDocx": "Download Research Report (DOCX)",
-    "notReady": "Export will be available after the pipeline completes."
+    "notReady": "Export will be available after the pipeline completes.",
+    "slideCount": "{count} slides generated",
+    "downloadError": "Download failed. Please try again."
   }
 }
