@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { usePipelineStore } from "./pipeline-store";
-import type { PipelineStatusResponse, SSEEvent } from "@/lib/types/pipeline";
+import type { PipelineStatusResponse } from "@/lib/types/pipeline";
 
 // Reset store between tests
 beforeEach(() => {

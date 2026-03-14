@@ -11,6 +11,7 @@ import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Link } from "@/i18n/routing";
 import { downloadPptx, downloadDocx } from "@/lib/api/export";
 import type { PipelineOutputs } from "@/lib/types/pipeline";
 
@@ -109,6 +110,20 @@ export function PipelineComplete({
           {error}
         </p>
       )}
+
+      {/* Navigation links to detailed views */}
+      <div className="flex flex-wrap gap-2 border-t border-sg-border pt-4">
+        <Link href={`/pipeline/${sessionId}/slides`}>
+          <Button variant="ghost" size="sm">
+            {t("viewSlides")}
+          </Button>
+        </Link>
+        <Link href={`/pipeline/${sessionId}/export`}>
+          <Button variant="ghost" size="sm">
+            {t("viewExport")}
+          </Button>
+        </Link>
+      </div>
     </Card>
   );
 }

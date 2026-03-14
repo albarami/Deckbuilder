@@ -57,6 +57,7 @@ export function StageTracker({
   currentStage,
   status,
   completedGates,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   error,
 }: StageTrackerProps) {
   const t = useTranslations("pipeline");

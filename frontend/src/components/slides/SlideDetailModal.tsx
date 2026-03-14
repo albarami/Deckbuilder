@@ -13,7 +13,6 @@
 
 import { useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/Button";
 import { SlideMetadataPanel } from "./SlideMetadataPanel";
 import { getThumbnailUrl } from "@/lib/api/slides";
 import type { SlideInfo, ThumbnailMode } from "@/lib/types/slides";

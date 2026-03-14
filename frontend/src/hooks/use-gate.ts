@@ -26,7 +26,7 @@ export function useGate() {
     store.setDecidingGate(true);
 
     try {
-      const response = await decideGate(sessionId, gateNumber, {
+      await decideGate(sessionId, gateNumber, {
         approved: true,
       });
 
@@ -59,7 +59,7 @@ export function useGate() {
       store.setDecidingGate(true);
 
       try {
-        const response = await decideGate(sessionId, gateNumber, {
+        await decideGate(sessionId, gateNumber, {
           approved: false,
           feedback,
         });
