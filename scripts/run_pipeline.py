@@ -14,6 +14,8 @@ import time
 import uuid
 from pathlib import Path
 
+from src.config.settings import get_settings
+from src.models.enums import RendererMode
 from src.models.state import DeckForgeState
 from src.pipeline.dry_run import get_dry_run_patches
 from src.pipeline.graph import build_graph, load_state, save_state
@@ -23,22 +25,43 @@ from src.pipeline.graph import build_graph, load_state, save_state
 # ──────────────────────────────────────────────────────────────
 
 
+def _renderer_mode_from_settings() -> RendererMode:
+    """Read renderer_mode from Settings and convert to RendererMode enum.
+
+    Returns RendererMode.LEGACY if the value is unrecognised.
+    """
+    raw = get_settings().renderer_mode
+    try:
+        return RendererMode(raw)
+    except ValueError:
+        return RendererMode.LEGACY
+
+
 def create_state_from_input(path: str) -> DeckForgeState:
     """Create a DeckForgeState from a JSON or plain text file.
 
     JSON files (.json) are parsed and fields are mapped directly
     to DeckForgeState fields. Plain text files read the entire
     content as ai_assist_summary with default values for other fields.
+
+    ``renderer_mode`` is always populated from Settings unless the
+    JSON input already contains an explicit ``renderer_mode`` key.
     """
     filepath = Path(path)
     content = filepath.read_text(encoding="utf-8")
+    mode = _renderer_mode_from_settings()
 
     if filepath.suffix.lower() == ".json":
         data = json.loads(content)
+        # Only inject settings value when JSON doesn't provide its own
+        data.setdefault("renderer_mode", mode.value)
         return DeckForgeState(**data)
 
     # Plain text — content becomes the AI summary
-    return DeckForgeState(ai_assist_summary=content.strip())
+    return DeckForgeState(
+        ai_assist_summary=content.strip(),
+        renderer_mode=mode,
+    )
 
 
 def resume_state(path: str) -> DeckForgeState:

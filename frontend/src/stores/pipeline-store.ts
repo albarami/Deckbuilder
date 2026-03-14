@@ -1,0 +1,242 @@
+/**
+ * Pipeline Store — Zustand state for pipeline session lifecycle.
+ *
+ * Manages:
+ * - Session ID and status
+ * - Current stage and gate info
+ * - Completed gates history
+ * - SSE event log
+ * - Error state
+ * - Pipeline outputs
+ * - Session metadata (LLM calls, tokens, cost)
+ *
+ * Lifecycle: idle → running → gate_pending → running → ... → complete | error
+ */
+
+import { create } from "zustand";
+import type {
+  PipelineStatus,
+  PipelineStatusResponse,
+  GateInfo,
+  GateRecord,
+  PipelineOutputs,
+  SessionMetadata,
+  SSEEvent,
+} from "@/lib/types/pipeline";
+
+// ── Store Shape ───────────────────────────────────────────────────────
+
+interface PipelineState {
+  // Session
+  sessionId: string | null;
+  status: PipelineStatus | "idle";
+  currentStage: string;
+
+  // Gate
+  currentGate: GateInfo | null;
+  completedGates: GateRecord[];
+
+  // Outputs
+  outputs: PipelineOutputs | null;
+
+  // Error
+  error: { agent: string; message: string } | null;
+
+  // Metadata
+  startedAt: string | null;
+  elapsedMs: number;
+  sessionMetadata: SessionMetadata;
+
+  // SSE events (capped at 200 for memory)
+  events: SSEEvent[];
+
+  // Loading states
+  isStarting: boolean;
+  isDecidingGate: boolean;
+}
+
+interface PipelineActions {
+  /** Initialize from a start pipeline response */
+  setSession: (sessionId: string, startedAt: string) => void;
+
+  /** Restore full state from GET /status response (session resume) */
+  restoreFromStatus: (response: PipelineStatusResponse) => void;
+
+  /** Update status */
+  setStatus: (status: PipelineStatus) => void;
+
+  /** Update current stage */
+  setStage: (stage: string) => void;
+
+  /** Set gate pending */
+  setGatePending: (gate: GateInfo) => void;
+
+  /** Record completed gate and resume running */
+  recordGateDecision: (record: GateRecord) => void;
+
+  /** Set pipeline complete with outputs */
+  setComplete: (outputs: PipelineOutputs) => void;
+
+  /** Set pipeline error */
+  setError: (error: { agent: string; message: string }) => void;
+
+  /** Append SSE event */
+  pushEvent: (event: SSEEvent) => void;
+
+  /** Process an SSE event and update store accordingly */
+  handleSSEEvent: (event: SSEEvent) => void;
+
+  /** Update metadata */
+  setMetadata: (metadata: SessionMetadata) => void;
+
+  /** Loading states */
+  setStarting: (v: boolean) => void;
+  setDecidingGate: (v: boolean) => void;
+
+  /** Reset to idle */
+  reset: () => void;
+}
+
+export type PipelineStore = PipelineState & PipelineActions;
+
+// ── Initial State ─────────────────────────────────────────────────────
+
+const initialState: PipelineState = {
+  sessionId: null,
+  status: "idle",
+  currentStage: "",
+  currentGate: null,
+  completedGates: [],
+  outputs: null,
+  error: null,
+  startedAt: null,
+  elapsedMs: 0,
+  sessionMetadata: {
+    total_llm_calls: 0,
+    total_input_tokens: 0,
+    total_output_tokens: 0,
+    total_cost_usd: 0,
+  },
+  events: [],
+  isStarting: false,
+  isDecidingGate: false,
+};
+
+const MAX_EVENTS = 200;
+
+// ── Store ─────────────────────────────────────────────────────────────
+
+export const usePipelineStore = create<PipelineStore>((set, get) => ({
+  ...initialState,
+
+  setSession: (sessionId, startedAt) =>
+    set({
+      sessionId,
+      status: "running",
+      startedAt,
+      currentStage: "intake",
+      error: null,
+      events: [],
+      completedGates: [],
+      currentGate: null,
+      outputs: null,
+    }),
+
+  restoreFromStatus: (response) =>
+    set({
+      sessionId: response.session_id,
+      status: response.status,
+      currentStage: response.current_stage,
+      currentGate: response.current_gate,
+      completedGates: response.completed_gates,
+      startedAt: response.started_at,
+      elapsedMs: response.elapsed_ms,
+      error: response.error,
+      outputs: response.outputs,
+      sessionMetadata: response.session_metadata,
+    }),
+
+  setStatus: (status) => set({ status }),
+
+  setStage: (stage) => set({ currentStage: stage }),
+
+  setGatePending: (gate) =>
+    set({ status: "gate_pending", currentGate: gate }),
+
+  recordGateDecision: (record) =>
+    set((state) => ({
+      completedGates: [...state.completedGates, record],
+      currentGate: null,
+      status: record.approved ? "running" : "complete",
+    })),
+
+  setComplete: (outputs) =>
+    set({
+      status: "complete",
+      currentStage: "finalized",
+      currentGate: null,
+      outputs,
+    }),
+
+  setError: (error) =>
+    set({
+      status: "error",
+      currentStage: "error",
+      error,
+    }),
+
+  pushEvent: (event) =>
+    set((state) => ({
+      events:
+        state.events.length >= MAX_EVENTS
+          ? [...state.events.slice(-MAX_EVENTS + 1), event]
+          : [...state.events, event],
+    })),
+
+  handleSSEEvent: (event) => {
+    const store = get();
+    store.pushEvent(event);
+
+    switch (event.type) {
+      case "stage_change":
+        if (event.stage) store.setStage(event.stage);
+        break;
+
+      case "gate_pending":
+        if (event.gate_number != null) {
+          store.setGatePending({
+            gate_number: event.gate_number,
+            summary: event.summary ?? "",
+            prompt: event.prompt ?? "",
+            gate_data: event.gate_data,
+          });
+        }
+        break;
+
+      case "pipeline_complete":
+        store.setComplete({
+          pptx_ready: true,
+          docx_ready: true,
+          slide_count: event.slide_count ?? 0,
+        });
+        break;
+
+      case "pipeline_error":
+        store.setError({
+          agent: event.agent ?? "unknown",
+          message: event.error ?? "Pipeline failed",
+        });
+        break;
+
+      // agent_start, agent_complete, render_progress, heartbeat
+      // are tracked via events array only
+    }
+  },
+
+  setMetadata: (metadata) => set({ sessionMetadata: metadata }),
+
+  setStarting: (v) => set({ isStarting: v }),
+  setDecidingGate: (v) => set({ isDecidingGate: v }),
+
+  reset: () => set(initialState),
+}));

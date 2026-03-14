@@ -8,7 +8,8 @@ from pydantic import Field
 from .actions import ConversationResponse
 from .claims import ReferenceIndex
 from .common import DeckForgeBaseModel
-from .enums import Language, PipelineStage, PresentationType, UserRole
+from .enums import Language, PipelineStage, PresentationType, RendererMode, UserRole
+from .proposal_manifest import ProposalManifest
 from .qa import QAResult
 from .report import ResearchReport
 from .rfp import RFPContext
@@ -129,6 +130,10 @@ class DeckForgeState(DeckForgeBaseModel):
 
     # ─── Waivers ───
     waivers: list[WaiverObject] = Field(default_factory=list)
+
+    # ─── Renderer mode (feature flag) ───
+    renderer_mode: RendererMode = RendererMode.LEGACY
+    proposal_manifest: ProposalManifest | None = None
 
     # ─── Output ───
     pptx_path: str | None = None  # Path to rendered PPTX
