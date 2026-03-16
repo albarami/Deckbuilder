@@ -9,7 +9,7 @@ from langgraph.types import Command
 
 from src.models.claims import ClaimObject, GapObject, ReferenceIndex, SourceManifestEntry
 from src.models.common import BilingualText
-from src.models.enums import PipelineStage
+from src.models.enums import PipelineStage, RendererMode
 from src.models.iterative import DeckDraft, DeckReview, SlideCritique, SlideText
 from src.models.qa import DeckValidationSummary, QAResult, SlideValidation
 from src.models.report import ReportSection, ResearchReport
@@ -70,6 +70,23 @@ def _ranked_sources() -> RankedSourcesOutput:
     )
 
 
+def _ranked_sources_two_docs() -> RankedSourcesOutput:
+    return RankedSourcesOutput(
+        ranked_sources=[
+            RetrievedSource(
+                doc_id="DOC-001",
+                title="SAP Case Study",
+                relevance_score=95,
+            ),
+            RetrievedSource(
+                doc_id="DOC-002",
+                title="SAP Delivery Framework",
+                relevance_score=89,
+            ),
+        ],
+    )
+
+
 def _reference_index() -> ReferenceIndex:
     return ReferenceIndex(
         claims=[
@@ -119,6 +136,12 @@ def _research_report() -> ResearchReport:
         ],
         full_markdown="# SAP Support Renewal\n\nResearch report content.",
     )
+
+
+def _research_report_without_full_markdown() -> ResearchReport:
+    report = _research_report()
+    report.full_markdown = ""
+    return report
 
 
 def _slide_outline() -> SlideOutline:
@@ -250,10 +273,15 @@ def _final_deck_review() -> DeckReview:
 
 
 def _make_input_state() -> DeckForgeState:
-    """Minimal DeckForgeState for pipeline intake."""
+    """Minimal DeckForgeState for pipeline intake.
+
+    Uses LEGACY renderer because these integration tests don't have
+    the official .potx template or catalog lock files available.
+    """
     return DeckForgeState(
         ai_assist_summary="SAP Support Renewal RFP from SIDF",
         output_language="en",
+        renderer_mode=RendererMode.LEGACY,
     )
 
 
@@ -405,6 +433,20 @@ async def test_pipeline_error_handling() -> None:
         assert result["errors"][0].agent == "context_agent"
 
 
+def test_gate_three_summary_uses_report_sections_when_markdown_missing() -> None:
+    """Gate 3 summary should still acknowledge a generated report without full markdown."""
+    from src.pipeline.graph import _gate_3_summary
+
+    state = _make_input_state()
+    state.research_report = _research_report_without_full_markdown()
+    state.report_markdown = ""
+
+    summary = _gate_3_summary(state)
+
+    assert "Research report ready" in summary
+    assert "1 sections" in summary
+
+
 @pytest.mark.asyncio
 async def test_retrieval_chain() -> None:
     """Verify planner -> search -> ranker chaining in retrieval node."""
@@ -452,6 +494,93 @@ async def test_retrieval_chain() -> None:
         mock_planner.assert_called_once()
         mock_search.assert_called_once()
         mock_ranker.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_gate_two_resume_applies_selected_source_ids() -> None:
+    """Gate 2 resume should persist reviewer-selected source IDs into graph state."""
+    from src.pipeline.graph import build_graph
+
+    graph = build_graph()
+    state = _make_input_state()
+
+    async def _analysis_run(state: DeckForgeState, approved_sources: list[dict]) -> DeckForgeState:
+        state.reference_index = _reference_index()
+        state.current_stage = PipelineStage.ANALYSIS
+        return state
+
+    async def _research_run(state: DeckForgeState) -> DeckForgeState:
+        state.research_report = _research_report()
+        state.report_markdown = state.research_report.full_markdown
+        state.current_stage = PipelineStage.REPORT_REVIEW
+        return state
+
+    with (
+        patch(
+            "src.agents.context.agent.call_llm",
+            new_callable=AsyncMock,
+            return_value=_llm_response(_rfp_context()),
+        ),
+        patch(
+            "src.agents.retrieval.planner.call_llm",
+            new_callable=AsyncMock,
+            return_value=_llm_response(_retrieval_queries()),
+        ),
+        patch(
+            "src.agents.retrieval.ranker.call_llm",
+            new_callable=AsyncMock,
+            return_value=_llm_response(_ranked_sources_two_docs()),
+        ),
+        patch(
+            "src.pipeline.graph.local_search",
+            new_callable=AsyncMock,
+            return_value=_SEARCH_RESULTS,
+        ),
+        patch(
+            "src.pipeline.graph.load_documents",
+            new_callable=AsyncMock,
+            return_value=[
+                {"doc_id": "DOC-001", "title": "SAP Case Study", "content_text": "Case study"},
+                {"doc_id": "DOC-002", "title": "SAP Delivery Framework", "content_text": "Framework"},
+            ],
+        ),
+        patch(
+            "src.pipeline.graph.analysis_agent.run",
+            new_callable=AsyncMock,
+            side_effect=_analysis_run,
+        ),
+        patch(
+            "src.pipeline.graph.research_agent.run",
+            new_callable=AsyncMock,
+            side_effect=_research_run,
+        ),
+    ):
+        config = {"configurable": {"thread_id": "test-gate-2-selection"}}
+
+        result = await graph.ainvoke(state, config)
+        assert "__interrupt__" in result
+
+        result = await graph.ainvoke(
+            Command(resume={"approved": True}),
+            config,
+        )
+        assert "__interrupt__" in result
+
+        result = await graph.ainvoke(
+            Command(
+                resume={
+                    "approved": True,
+                    "modifications": {
+                        "included_sources": ["DOC-002"],
+                    },
+                }
+            ),
+            config,
+        )
+
+        assert "__interrupt__" in result
+        assert result["approved_source_ids"] == ["DOC-002"]
+        assert result["current_stage"] == PipelineStage.REPORT_REVIEW
 
 
 @pytest.mark.asyncio

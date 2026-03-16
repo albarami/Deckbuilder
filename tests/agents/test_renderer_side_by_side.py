@@ -607,12 +607,12 @@ class TestRendererCoexistence:
         assert RendererMode.LEGACY == "legacy"
         assert RendererMode.TEMPLATE_V2 == "template_v2"
 
-    def test_default_renderer_mode_is_legacy(self):
-        """DeckForgeState defaults to legacy renderer."""
+    def test_default_renderer_mode_is_template_v2(self):
+        """DeckForgeState defaults to template_v2 renderer."""
         from src.models.state import DeckForgeState
 
         state = DeckForgeState()
-        assert state.renderer_mode == RendererMode.LEGACY
+        assert state.renderer_mode == RendererMode.TEMPLATE_V2
 
     def test_renderers_are_independent_modules(self):
         """renderer.py and renderer_v2.py have no mutual imports."""

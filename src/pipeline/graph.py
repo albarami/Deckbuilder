@@ -427,7 +427,8 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
             }
 
         language = state.output_language
-        lang_suffix = "ar" if language.value == "ar" else "en"
+        lang_val = language.value if hasattr(language, "value") else str(language)
+        lang_suffix = "ar" if lang_val == "ar" else "en"
         data_dir = Path("src/data")
         catalog_lock_path = data_dir / f"catalog_lock_{lang_suffix}.json"
 
@@ -456,7 +457,8 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
     docx_path = str(output_dir / "report.docx")
 
     language = state.output_language
-    lang_suffix = "ar" if language.value == "ar" else "en"
+    lang_val = language.value if hasattr(language, "value") else str(language)
+    lang_suffix = "ar" if lang_val == "ar" else "en"
 
     # Resolve catalog lock path
     data_dir = Path("src/data")

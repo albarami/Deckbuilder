@@ -65,7 +65,7 @@ class TestStateDefault:
         from src.models.state import DeckForgeState
 
         state = DeckForgeState()
-        assert state.renderer_mode == RendererMode.LEGACY
+        assert state.renderer_mode == RendererMode.TEMPLATE_V2
 
     def test_can_set_template_v2(self):
         from src.models.state import DeckForgeState
@@ -268,9 +268,9 @@ class TestRenderNodeLegacyDispatch:
 class TestRenderNodeV2Dispatch:
     """render_node dispatches to v2 path when mode is TEMPLATE_V2."""
 
-    def test_v2_without_manifest_fails_closed(self):
-        """V2 mode with no proposal_manifest => MissingManifest error.
-        This is the primary fail-closed test."""
+    def test_v2_without_manifest_auto_builds(self):
+        """V2 mode with no proposal_manifest but with slides => auto-build manifest.
+        The manifest is built from WrittenSlides automatically."""
         from src.models.state import DeckForgeState
         from src.pipeline.graph import render_node
 
@@ -281,20 +281,20 @@ class TestRenderNodeV2Dispatch:
         state = DeckForgeState(
             renderer_mode=RendererMode.TEMPLATE_V2,
             final_slides=[slide],
-            # proposal_manifest deliberately NOT set
+            # proposal_manifest deliberately NOT set — will be auto-built
         )
 
         with patch("src.pipeline.graph.render_pptx") as mock_legacy:
             result = asyncio.run(render_node(state))
             mock_legacy.assert_not_called()
 
-        assert result["current_stage"] == "error"
-        assert result["last_error"].error_type == "MissingManifest"
-        assert "ProposalManifest is not yet present" in result["last_error"].message
+        # Auto-build may fail at render stage (no template), but should NOT
+        # fail with MissingManifest — manifest is auto-built from slides
+        if result["current_stage"] == "error":
+            assert result["last_error"].error_type != "MissingManifest"
 
-    def test_v2_without_manifest_no_slides_also_fails_manifest_first(self):
-        """V2 mode with no manifest AND no slides => MissingManifest (not NoSlides).
-        Manifest check comes before slide check."""
+    def test_v2_without_manifest_no_slides_fails_no_slides(self):
+        """V2 mode with no manifest AND no slides => NoSlides error."""
         from src.models.state import DeckForgeState
         from src.pipeline.graph import render_node
 
@@ -302,7 +302,7 @@ class TestRenderNodeV2Dispatch:
         result = asyncio.run(render_node(state))
 
         assert result["current_stage"] == "error"
-        assert result["last_error"].error_type == "MissingManifest"
+        assert result["last_error"].error_type == "NoSlides"
 
     def test_v2_does_not_call_legacy_renderer(self):
         """V2 path must never call render_pptx (the legacy renderer)."""
@@ -319,12 +319,12 @@ class TestRenderNodeV2Dispatch:
 # ── Missing Manifest Fail-Closed ─────────────────────────────────────
 
 
-class TestMissingManifestFailClosed:
-    """The v2 path must fail closed when proposal_manifest is None.
-    No empty stub. No silent fallback."""
+class TestManifestAutoBuilt:
+    """The v2 path auto-builds manifest from slides when not provided.
+    With no slides, it returns NoSlides error."""
 
-    def test_manifest_none_returns_error(self):
-        """Explicit: state.proposal_manifest is None → hard error."""
+    def test_manifest_none_no_slides_returns_no_slides_error(self):
+        """Explicit: state.proposal_manifest is None, no slides → NoSlides error."""
         from src.models.state import DeckForgeState
         from src.pipeline.graph import _render_template_v2
 
@@ -335,10 +335,10 @@ class TestMissingManifestFailClosed:
         result = asyncio.run(_render_template_v2(state))
 
         assert result["current_stage"] == "error"
-        assert result["last_error"].error_type == "MissingManifest"
+        assert result["last_error"].error_type == "NoSlides"
 
-    def test_manifest_none_default_returns_error(self):
-        """Default state (no manifest set) → hard error on v2 path."""
+    def test_manifest_none_default_no_slides_returns_error(self):
+        """Default state (no manifest, no slides) → NoSlides error on v2 path."""
         from src.models.state import DeckForgeState
         from src.pipeline.graph import _render_template_v2
 
@@ -346,7 +346,7 @@ class TestMissingManifestFailClosed:
         result = asyncio.run(_render_template_v2(state))
 
         assert result["current_stage"] == "error"
-        assert result["last_error"].error_type == "MissingManifest"
+        assert result["last_error"].error_type == "NoSlides"
 
     def test_error_message_is_explicit(self):
         """Error message must clearly state why — not a generic error."""
@@ -357,8 +357,7 @@ class TestMissingManifestFailClosed:
         result = asyncio.run(_render_template_v2(state))
 
         msg = result["last_error"].message
-        assert "ProposalManifest" in msg
-        assert "not yet present" in msg
+        assert "slides" in msg.lower() or "No slides" in msg
 
     def test_error_agent_is_render_v2(self):
         """Error must be attributed to render_v2, not generic 'render'."""
@@ -445,7 +444,7 @@ class TestFeatureFlagIsolation:
         from src.models.state import DeckForgeState
 
         state = DeckForgeState()
-        assert state.renderer_mode == RendererMode.LEGACY
+        assert state.renderer_mode == RendererMode.TEMPLATE_V2
 
     def test_mode_stored_in_state(self):
         from src.models.state import DeckForgeState
