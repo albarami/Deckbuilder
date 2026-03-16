@@ -50,6 +50,44 @@ async def context_node(state: DeckForgeState) -> dict[str, Any]:
     }
 
 
+def _resolve_gate_2_approved_source_ids(
+    state: DeckForgeState,
+    decision: dict[str, Any],
+) -> list[str]:
+    """Resolve Gate 2 reviewer selections into persisted approved source IDs."""
+    available_ids = [source.doc_id for source in state.retrieved_sources]
+    modifications = decision.get("modifications") or {}
+
+    included_ids = [
+        source_id
+        for source_id in modifications.get("included_sources", [])
+        if source_id in available_ids
+    ]
+    excluded_ids = {
+        source_id
+        for source_id in modifications.get("excluded_sources", [])
+        if source_id in available_ids
+    }
+    prioritized_ids = [
+        source_id
+        for source_id in modifications.get("prioritized_sources", [])
+        if source_id in available_ids
+    ]
+
+    approved_ids = included_ids or list(available_ids)
+    approved_ids = [
+        source_id for source_id in approved_ids if source_id not in excluded_ids
+    ]
+
+    if not prioritized_ids:
+        return approved_ids
+
+    prioritized_set = set(prioritized_ids)
+    prioritized = [source_id for source_id in prioritized_ids if source_id in approved_ids]
+    remaining = [source_id for source_id in approved_ids if source_id not in prioritized_set]
+    return prioritized + remaining
+
+
 async def gate_node(
     state: DeckForgeState,
     gate_number: int,
@@ -77,7 +115,11 @@ async def gate_node(
             feedback=decision.get("feedback", "Rejected by user"),
         )
 
-    return {gate_field: gate_decision}
+    updates: dict[str, Any] = {gate_field: gate_decision}
+    if gate_number == 2 and gate_decision.approved:
+        updates["approved_source_ids"] = _resolve_gate_2_approved_source_ids(state, decision)
+
+    return updates
 
 
 def _gate_1_summary(state: DeckForgeState) -> str:
@@ -97,6 +139,8 @@ def _gate_3_summary(state: DeckForgeState) -> str:
     if state.report_markdown:
         length = len(state.report_markdown)
         return f"Research report ready ({length} chars)."
+    if state.research_report and state.research_report.sections:
+        return f"Research report ready ({len(state.research_report.sections)} sections)."
     return "No research report generated."
 
 
@@ -194,7 +238,37 @@ async def analysis_node(state: DeckForgeState) -> dict[str, Any]:
         approved_ids = [s.doc_id for s in state.retrieved_sources]
 
     documents = await load_documents(approved_ids)
-    result = await analysis_agent.run(state, documents)
+    result = state
+    merged_index = None
+
+    for document in documents:
+        result = await analysis_agent.run(result, [document])
+        if result.current_stage == PipelineStage.ERROR:
+            return {
+                "reference_index": result.reference_index,
+                "approved_source_ids": approved_ids,
+                "current_stage": result.current_stage,
+                "session": result.session,
+                "errors": result.errors,
+                "last_error": result.last_error,
+            }
+
+        if result.reference_index:
+            if merged_index is None:
+                merged_index = result.reference_index.model_copy(deep=True)
+            else:
+                merged_index.claims.extend(result.reference_index.claims)
+                merged_index.case_studies.extend(result.reference_index.case_studies)
+                merged_index.team_profiles.extend(result.reference_index.team_profiles)
+                merged_index.compliance_evidence.extend(result.reference_index.compliance_evidence)
+                merged_index.frameworks.extend(result.reference_index.frameworks)
+                merged_index.gaps.extend(result.reference_index.gaps)
+                merged_index.contradictions.extend(result.reference_index.contradictions)
+                merged_index.source_manifest.extend(result.reference_index.source_manifest)
+
+    if merged_index is not None:
+        result.reference_index = merged_index
+
     return {
         "reference_index": result.reference_index,
         "approved_source_ids": approved_ids,
@@ -334,20 +408,44 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
 
     The scorer profile for composition QA is dispatched by renderer mode.
     """
-    # ── Fail-closed: manifest must already exist in state ─────
+    # ── Auto-build manifest if not already in state ────────────
     manifest = state.proposal_manifest
     if manifest is None:
-        return {
-            "current_stage": PipelineStage.ERROR,
-            "last_error": ErrorInfo(
-                agent="render_v2",
-                error_type="MissingManifest",
-                message=(
-                    "Template-v2 render requested but ProposalManifest "
-                    "is not yet present in state."
+        from src.services.manifest_builder import build_manifest_from_slides
+
+        slides = state.final_slides or (
+            state.written_slides.slides if state.written_slides else []
+        )
+        if not slides:
+            return {
+                "current_stage": PipelineStage.ERROR,
+                "last_error": ErrorInfo(
+                    agent="render_v2",
+                    error_type="NoSlides",
+                    message="No slides available for rendering.",
                 ),
-            ),
-        }
+            }
+
+        language = state.output_language
+        lang_suffix = "ar" if language.value == "ar" else "en"
+        data_dir = Path("src/data")
+        catalog_lock_path = data_dir / f"catalog_lock_{lang_suffix}.json"
+
+        # Extract context from state
+        geography = "ksa"
+        sector = "technology"
+        if state.rfp_context:
+            geography = getattr(state.rfp_context, "geography", "ksa") or "ksa"
+            sector = getattr(state.rfp_context, "sector", "technology") or "technology"
+
+        manifest = build_manifest_from_slides(
+            slides=slides,
+            rfp_context=state.rfp_context,
+            catalog_lock_path=catalog_lock_path if catalog_lock_path.exists() else None,
+            language=lang_suffix,
+            geography=geography,
+            sector=sector,
+        )
 
     from src.services.renderer_v2 import render_v2
     from src.services.template_manager import TemplateManager

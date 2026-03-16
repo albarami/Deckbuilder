@@ -132,7 +132,7 @@ class DeckForgeState(DeckForgeBaseModel):
     waivers: list[WaiverObject] = Field(default_factory=list)
 
     # ─── Renderer mode (feature flag) ───
-    renderer_mode: RendererMode = RendererMode.LEGACY
+    renderer_mode: RendererMode = RendererMode.TEMPLATE_V2
     proposal_manifest: ProposalManifest | None = None
 
     # ─── Output ───
