@@ -186,3 +186,82 @@ class RendererMode(StrEnum):
 
     LEGACY = "legacy"
     TEMPLATE_V2 = "template_v2"
+
+
+class DeckMode(StrEnum):
+    INTERNAL_REVIEW = "internal_review"
+    CLIENT_SUBMISSION = "client_submission"
+
+
+class DensityBudget(StrEnum):
+    LIGHT = "light"
+    STANDARD = "standard"
+    DENSE = "dense"
+
+
+class DensityViolationSeverity(StrEnum):
+    BLOCKER = "blocker"
+    WARNING = "warning"
+    INFO = "info"
+
+
+class ContentRouting(StrEnum):
+    SLIDE_BODY = "slide_body"
+    SPEAKER_NOTES = "speaker_notes"
+    APPENDIX = "appendix"
+    EXCLUDED = "excluded"
+
+
+class BundleType(StrEnum):
+    CASE_STUDY = "case_study"
+    TEAM_PROFILE = "team_profile"
+    COMPLIANCE = "compliance"
+    FRAMEWORK = "framework"
+    METRIC = "metric"
+
+
+class EvidenceStrength(StrEnum):
+    STRONG = "strong"
+    MODERATE = "moderate"
+    WEAK = "weak"
+    PLACEHOLDER = "placeholder"
+
+
+class SlideTone(StrEnum):
+    PROFESSIONAL = "professional"
+    TECHNICAL = "technical"
+    EXECUTIVE = "executive"
+    CONVERSATIONAL = "conversational"
+
+
+class NoteSeverity(StrEnum):
+    INFO = "info"
+    WARNING = "warning"
+    CRITICAL = "critical"
+
+
+class BlockerType(StrEnum):
+    MISSING_EVIDENCE = "missing_evidence"
+    UNRESOLVED_GAP = "unresolved_gap"
+    COMPLIANCE_FAILURE = "compliance_failure"
+    QUALITY_GATE = "quality_gate"
+
+
+class LintSeverity(StrEnum):
+    BLOCKER = "blocker"
+    WARNING = "warning"
+    INFO = "info"
+
+
+class SubmissionQAStatus(StrEnum):
+    READY = "ready"
+    NEEDS_REVIEW = "needs_review"
+    BLOCKED = "blocked"
+
+
+class CompositionRuleCategory(StrEnum):
+    OVERLAP = "overlap"
+    MARGIN = "margin"
+    FONT = "font"
+    SPACING = "spacing"
+    ALIGNMENT = "alignment"
