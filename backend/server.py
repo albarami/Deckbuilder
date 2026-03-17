@@ -21,6 +21,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from src.pipeline.graph import build_graph
 
 from backend.routers import pipeline, gates, upload, slides, export
 from backend.services.session_manager import SessionManager
@@ -28,14 +29,15 @@ from backend.services.sse_broadcaster import SSEBroadcaster
 
 
 def get_pipeline_mode() -> str:
-    """Read PIPELINE_MODE from environment. Defaults to dry_run."""
-    return os.environ.get("PIPELINE_MODE", "dry_run")
+    """Read PIPELINE_MODE from environment. Defaults to live."""
+    return os.environ.get("PIPELINE_MODE", "live")
 
 
 # ── Shared services (singleton instances) ──────────────────────────
 
 session_manager = SessionManager()
 sse_broadcaster = SSEBroadcaster()
+pipeline_graph = build_graph()
 
 
 @asynccontextmanager
@@ -61,10 +63,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Next.js dev server
-        "http://127.0.0.1:3000",
-    ],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,6 +74,7 @@ app.add_middleware(
 app.state.session_manager = session_manager
 app.state.sse_broadcaster = sse_broadcaster
 app.state.pipeline_mode = get_pipeline_mode()
+app.state.pipeline_graph = pipeline_graph
 
 # ── Register routers ──────────────────────────────────────────────
 

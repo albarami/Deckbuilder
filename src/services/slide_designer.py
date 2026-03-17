@@ -199,7 +199,6 @@ async def generate_all_backgrounds(
     """
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
     total = len(slides)
-    total_cost = 0.0
 
     async def _generate_one(i: int, slide: SlideObject) -> bytes | None:
         async with semaphore:

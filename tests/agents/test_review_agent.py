@@ -130,6 +130,34 @@ async def test_review_scores_each_slide(mock_llm: AsyncMock) -> None:
 
 @pytest.mark.asyncio
 @patch("src.agents.review.agent.call_llm", new_callable=AsyncMock)
+async def test_review_retries_when_output_hits_length_limit(
+    mock_llm: AsyncMock,
+) -> None:
+    """A length-limited structured output retries with a larger token budget."""
+    mock_llm.side_effect = [
+        LLMError(
+            model="gpt-5.4",
+            attempts=1,
+            last_error=ValueError(
+                "OpenAI returned empty content (message.content=''). Finish reason: length"
+            ),
+        ),
+        _make_success_response(),
+    ]
+    state = _make_input_state()
+
+    from src.agents.review.agent import run
+
+    result = await run(state)
+
+    assert len(result.deck_reviews) == 1
+    assert mock_llm.await_count == 2
+    assert mock_llm.await_args_list[0].kwargs["max_tokens"] == 4000
+    assert mock_llm.await_args_list[1].kwargs["max_tokens"] > 4000
+
+
+@pytest.mark.asyncio
+@patch("src.agents.review.agent.call_llm", new_callable=AsyncMock)
 async def test_review_handles_llm_error(mock_llm: AsyncMock) -> None:
     """LLMError is caught, errors populated, stage = ERROR."""
     mock_llm.side_effect = LLMError(

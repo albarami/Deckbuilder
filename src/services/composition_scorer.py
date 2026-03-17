@@ -16,7 +16,7 @@ default — identical to pre-v2 behavior.  Template-v2 profile is isolated.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -112,7 +112,6 @@ def extract_shapes(pptx_path: str | Path) -> list[ShapeInfo]:
     a flat list of ``ShapeInfo`` records.
     """
     from pptx import Presentation
-    from pptx.util import Inches, Pt
 
     prs = Presentation(str(pptx_path))
     shapes_out: list[ShapeInfo] = []

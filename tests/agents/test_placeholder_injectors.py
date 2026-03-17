@@ -35,7 +35,6 @@ from src.services.placeholder_injectors import (
     inject_toc_table,
 )
 
-
 # ── Mock helpers ─────────────────────────────────────────────────────────
 
 

@@ -24,8 +24,14 @@ legacy scorer profile values or legacy test expectations.
 
 from __future__ import annotations
 
+import ast
+import json
+import tempfile
+from pathlib import Path
+
 import pytest
 
+from src.models.enums import RendererMode
 from src.services.composition_scorer import (
     CompositionResult,
     ShapeInfo,
@@ -35,13 +41,11 @@ from src.services.composition_scorer import (
     score_composition,
 )
 from src.services.scorer_profiles import (
-    ProfileConfig,
     ScorerProfile,
     get_legacy_profile,
     get_profile,
     get_v2_profile,
 )
-
 
 # ── Pinned Legacy Values (gold standard — never change) ──────────────
 
@@ -548,13 +552,6 @@ class TestLegacyRendererUntouched:
 # PHASE 19 — Side-by-Side Acceptance Tests
 # ════════════════════════════════════════════════════════════════════
 
-import ast
-import json
-import tempfile
-from pathlib import Path
-
-from src.models.enums import RendererMode
-
 # ── Template paths and skip markers ────────────────────────────────
 
 EN_POTX_PATH = Path(
@@ -721,7 +718,6 @@ def _build_en_side_by_side_manifest():
     """
     from src.models.proposal_manifest import (
         ContentSourcePolicy,
-        HouseInclusionPolicy,
         ManifestEntry,
         ProposalManifest,
         build_inclusion_policy,
@@ -1631,7 +1627,7 @@ class TestPNGExportInfrastructure:
             "export_pngs", "scripts/export_pngs.py"
         )
         assert spec is not None
-        mod = importlib.util.module_from_spec(spec)
+        importlib.util.module_from_spec(spec)
         # Don't execute — just verify the module parses
         assert spec.loader is not None
 

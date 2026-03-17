@@ -15,9 +15,7 @@ import pytest
 from src.models.methodology_blueprint import (
     METHODOLOGY_LAYOUTS_3_PHASE,
     METHODOLOGY_LAYOUTS_4_PHASE,
-    MethodologyBlueprint,
     MethodologyBlueprintError,
-    PhaseBlueprint,
     build_methodology_blueprint,
     validate_methodology_layouts,
 )

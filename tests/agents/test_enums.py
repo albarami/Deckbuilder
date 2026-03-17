@@ -78,5 +78,5 @@ def test_enum_count():
     import src.models.enums as enums_module
     enum_classes = [v for v in vars(enums_module).values()
                     if isinstance(v, type) and issubclass(v, StrEnum) and v is not StrEnum]
-    msg = f"Expected 20 enums, found {len(enum_classes)}: {[c.__name__ for c in enum_classes]}"
-    assert len(enum_classes) == 20, msg
+    msg = f"Expected 32 enums, found {len(enum_classes)}: {[c.__name__ for c in enum_classes]}"
+    assert len(enum_classes) == 32, msg

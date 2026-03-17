@@ -170,6 +170,33 @@ async def test_analysis_uses_system_prompt(mock_call_llm: AsyncMock) -> None:
 
 @pytest.mark.asyncio
 @patch("src.agents.analysis.agent.call_llm", new_callable=AsyncMock)
+async def test_analysis_falls_back_on_raw_request_too_large_error(
+    mock_call_llm: AsyncMock,
+) -> None:
+    """Raw provider request-too-large errors trigger the GPT fallback instead of crashing."""
+    mock_call_llm.side_effect = [
+        RuntimeError(
+            "Error code: 413 - {'error': {'type': 'request_too_large', 'message': 'Request exceeds the maximum size'}}"
+        ),
+        _make_success_response(),
+    ]
+    state = _make_input_state()
+
+    from src.agents.analysis.agent import run
+    from src.config.models import MODEL_MAP
+
+    result = await run(state, _make_sample_approved_sources())
+
+    assert result.current_stage == "analysis"
+    assert result.reference_index is not None
+    assert result.session.total_llm_calls == 1
+    assert mock_call_llm.await_count == 2
+    assert mock_call_llm.await_args_list[0].kwargs["model"] == MODEL_MAP["analysis_agent"]
+    assert mock_call_llm.await_args_list[1].kwargs["model"] == MODEL_MAP["context_agent"]
+
+
+@pytest.mark.asyncio
+@patch("src.agents.analysis.agent.call_llm", new_callable=AsyncMock)
 async def test_analysis_handles_llm_error(mock_call_llm: AsyncMock) -> None:
     """LLMError is caught, state.errors populated, stage set to ERROR."""
     mock_call_llm.side_effect = LLMError(

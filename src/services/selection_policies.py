@@ -26,9 +26,8 @@ selection is auditable (score + reason).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-
 
 # ── Selection result types ──────────────────────────────────────────────
 
@@ -285,7 +284,7 @@ def _score_team_member(
         reasons.append(f"tech:{'+'.join(sorted(matched_keywords))}")
 
     # Language suitability
-    member_languages = {l.lower() for l in member.get("languages", [])}
+    member_languages = {lang.lower() for lang in member.get("languages", [])}
     if rfp_language in member_languages:
         score += policy.language_suitability_weight
         reasons.append(f"language:{rfp_language}")

@@ -18,7 +18,7 @@ placeholder_injectors, content_fitter, and renderer_v2 to prove:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -31,7 +31,6 @@ from src.services.shell_sanitizer import (
     get_allowlist,
     sanitize_shell,
 )
-
 
 # ── Mock helpers ──────────────────────────────────────────────────────
 

@@ -22,8 +22,6 @@ from pptx.opc.constants import RELATIONSHIP_TYPE as RT
 from pptx.slide import Slide, SlideLayout
 
 from src.services.template_auditor import (
-    EN_POTX,
-    AR_POTX,
     file_hash,
     patch_potx,
 )

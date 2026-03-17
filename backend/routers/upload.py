@@ -7,6 +7,8 @@ Endpoint:
 
 from __future__ import annotations
 
+import os
+import tempfile
 import uuid
 from typing import Any
 
@@ -19,6 +21,7 @@ from backend.models.api_models import (
     UploadResponse,
 )
 from backend.services.session_manager import SessionManager
+from src.utils.extractors import extract_document
 
 router = APIRouter(prefix="/api", tags=["upload"])
 
@@ -93,11 +96,27 @@ async def upload_documents(
         if pipeline_mode == "dry_run":
             # Mock text extraction
             extracted_text_length = min(file_size, 5000)
+            content_text = (content[:5000]).decode("utf-8", errors="ignore")
             detected_language = "en"
         else:
-            # Real text extraction would happen here
-            extracted_text_length = len(content)
-            detected_language = "unknown"
+            suffix = _guess_suffix(file.filename or "", content_type)
+            temp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp:
+                    temp.write(content)
+                    temp.flush()
+                    temp_path = temp.name
+
+                if suffix == ".txt":
+                    content_text = content.decode("utf-8", errors="ignore")
+                else:
+                    extracted = extract_document(temp_path)
+                    content_text = extracted.full_text
+                extracted_text_length = len(content_text)
+                detected_language = _detect_language(content_text)
+            finally:
+                if temp_path and os.path.exists(temp_path):
+                    os.unlink(temp_path)
 
         # Store upload metadata
         sm.store_upload(
@@ -107,6 +126,7 @@ async def upload_documents(
                 "size_bytes": file_size,
                 "content_type": content_type,
                 "content": content,  # In-memory only (M11)
+                "content_text": content_text,
                 "extracted_text_length": extracted_text_length,
                 "detected_language": detected_language,
             },
@@ -124,3 +144,25 @@ async def upload_documents(
         )
 
     return UploadResponse(uploads=uploaded)
+
+
+def _guess_suffix(filename: str, content_type: str) -> str:
+    lowered = filename.lower()
+    if lowered.endswith(".pdf"):
+        return ".pdf"
+    if lowered.endswith(".docx"):
+        return ".docx"
+    if lowered.endswith(".txt"):
+        return ".txt"
+
+    return {
+        "application/pdf": ".pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+        "text/plain": ".txt",
+    }.get(content_type, ".txt")
+
+
+def _detect_language(content_text: str) -> str:
+    if any("\u0600" <= char <= "\u06FF" for char in content_text):
+        return "ar"
+    return "en" if content_text.strip() else "unknown"

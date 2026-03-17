@@ -7,6 +7,8 @@ Endpoint:
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException, Request
 
 from backend.models.api_models import (
@@ -16,6 +18,7 @@ from backend.models.api_models import (
     GateDecisionResponse,
     PipelineStatus,
 )
+from backend.services.pipeline_runtime import advance_pipeline_session
 from backend.services.session_manager import SessionManager
 
 router = APIRouter(prefix="/api/pipeline", tags=["gates"])
@@ -30,6 +33,9 @@ async def decide_gate(
 ) -> GateDecisionResponse:
     """Submit a gate approval or rejection decision."""
     sm: SessionManager = request.app.state.session_manager
+    broadcaster = request.app.state.sse_broadcaster
+    graph = request.app.state.pipeline_graph
+    pipeline_mode: str = request.app.state.pipeline_mode
 
     session = sm.get(session_id)
     if not session:
@@ -84,13 +90,27 @@ async def decide_gate(
         gate_number=gate_number,
         approved=body.approved,
         feedback=body.feedback or "",
+        modifications=body.modifications.model_dump() if hasattr(body.modifications, "model_dump") else body.modifications,
     )
 
-    # Determine post-decision status
-    if body.approved:
-        pipeline_status = PipelineStatus.RUNNING
-    else:
-        pipeline_status = PipelineStatus.COMPLETE  # Rejected = pipeline ends
+    pipeline_status = PipelineStatus.RUNNING
+
+    asyncio.create_task(
+        advance_pipeline_session(
+            session_id,
+            graph=graph,
+            session_manager=sm,
+            broadcaster=broadcaster,
+            pipeline_mode=pipeline_mode,
+            resume_payload={
+                "approved": body.approved,
+                "feedback": body.feedback or "",
+                "modifications": body.modifications.model_dump()
+                if hasattr(body.modifications, "model_dump")
+                else body.modifications,
+            },
+        )
+    )
 
     return GateDecisionResponse(
         gate_number=gate_number,

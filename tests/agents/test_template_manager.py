@@ -10,12 +10,11 @@ import json
 import shutil
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from pptx import Presentation as PptxPresentation
 
-from src.services.template_auditor import EN_POTX, file_hash
+from src.services.template_auditor import EN_POTX
 from src.services.template_manager import (
     AssetLocation,
     CatalogLockError,
@@ -182,13 +181,13 @@ class TestSlideCloning:
     def test_clone_a2(self, tm):
         """Clone an A2 shell."""
         original_count = len(tm.presentation.slides)
-        slide = tm.clone_a2("proposal_cover")
+        tm.clone_a2("proposal_cover")
         assert len(tm.presentation.slides) == original_count + 1
 
     def test_clone_divider(self, tm):
         """Clone a section divider."""
         original_count = len(tm.presentation.slides)
-        slide = tm.clone_divider("01")
+        tm.clone_divider("01")
         assert len(tm.presentation.slides) == original_count + 1
 
     def test_clone_preserves_layout_name(self, tm):

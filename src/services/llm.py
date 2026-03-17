@@ -227,5 +227,7 @@ async def call_llm(  # noqa: UP047
             last_error = e
             if attempt < len(_RETRY_DELAYS):
                 await asyncio.sleep(_RETRY_DELAYS[attempt])
+        except Exception as e:  # noqa: BLE001
+            raise LLMError(model=model, attempts=attempt + 1, last_error=e) from e
 
     raise LLMError(model=model, attempts=max_attempts, last_error=last_error)  # type: ignore[arg-type]

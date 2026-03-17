@@ -30,9 +30,7 @@ from src.models.proposal_manifest import (
     validate_manifest,
 )
 from src.services.content_fitter import (
-    FitStrategy,
     SlideFitReport,
-    fit_content,
 )
 from src.services.placeholder_contracts import (
     PlaceholderContract,

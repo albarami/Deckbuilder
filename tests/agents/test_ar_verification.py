@@ -106,7 +106,6 @@ import pytest
 from src.models.enums import RendererMode
 from src.models.methodology_blueprint import (
     MethodologyBlueprint,
-    PhaseBlueprint,
     build_methodology_blueprint,
 )
 from src.models.proposal_manifest import (
@@ -121,16 +120,12 @@ from src.models.proposal_manifest import (
 from src.models.section_blueprint import MANDATORY_SECTION_ORDER
 from src.services.scorer_profiles import ScorerProfile
 from src.services.selection_policies import (
-    CaseStudySelectionPolicy,
     CaseStudySelectionResult,
-    SelectedAsset,
-    TeamSelectionPolicy,
     TeamSelectionResult,
     select_case_studies,
     select_team_members,
 )
 from src.services.slide_budgeter import (
-    SlideBudget,
     compute_slide_budget,
     validate_budget,
 )
@@ -1283,7 +1278,7 @@ class TestARHardGates:
         source = renderer_v2.read_text(encoding="utf-8")
         tree = ast.parse(source)
         for node in ast.walk(tree):
-            if isinstance(node, (ast.Import, ast.ImportFrom)):
+            if isinstance(node, ast.Import | ast.ImportFrom):
                 if isinstance(node, ast.ImportFrom) and node.module:
                     assert "renderer" not in node.module or "renderer_v2" in node.module, (
                         f"renderer_v2.py imports from legacy module: {node.module}"

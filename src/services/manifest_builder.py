@@ -196,7 +196,6 @@ def build_manifest_from_slides(
 
     # Track which sections we've already emitted a divider for
     emitted_sections: set[str] = {"cover"}
-    current_section: str | None = None
 
     for slide, section_id, is_divider in assigned:
         # Skip TITLE and CLOSING layout slides — they are handled

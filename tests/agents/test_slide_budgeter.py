@@ -15,8 +15,6 @@ from src.services.selection_policies import (
     CaseStudySelectionResult,
     SelectedAsset,
     TeamSelectionResult,
-    select_case_studies,
-    select_team_members,
 )
 from src.services.slide_budgeter import (
     BudgetValidationError,
@@ -25,7 +23,6 @@ from src.services.slide_budgeter import (
     compute_slide_budget,
     validate_budget,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 

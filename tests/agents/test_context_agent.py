@@ -88,6 +88,35 @@ async def test_context_agent_uses_system_prompt(mock_call_llm: AsyncMock) -> Non
 
 @pytest.mark.asyncio
 @patch("src.agents.context.agent.call_llm", new_callable=AsyncMock)
+async def test_context_agent_retries_schema_drift_response(
+    mock_call_llm: AsyncMock,
+) -> None:
+    """A structured-output schema drift retries once instead of failing immediately."""
+    mock_call_llm.side_effect = [
+        LLMError(
+            model="gpt-5.4",
+            attempts=1,
+            last_error=ValueError(
+                "Structured output validation failed: 1 validation error for RFPContext\n"
+                "evaluation_criteria.financial.sub_items\n"
+                "  Extra inputs are not permitted [type=extra_forbidden, input_value=[], input_type=list]"
+            ),
+        ),
+        _make_success_response(),
+    ]
+    state = _make_input_state()
+
+    from src.agents.context.agent import run
+
+    result = await run(state)
+
+    assert result.rfp_context is not None
+    assert result.current_stage == "context_review"
+    assert mock_call_llm.await_count == 2
+
+
+@pytest.mark.asyncio
+@patch("src.agents.context.agent.call_llm", new_callable=AsyncMock)
 async def test_context_agent_handles_llm_error(mock_call_llm: AsyncMock) -> None:
     """LLMError is caught, state.errors populated, stage set to ERROR."""
     mock_call_llm.side_effect = LLMError(

@@ -7,7 +7,6 @@ Fail-closed enforcement verified via ParityError on critical mismatch.
 
 from __future__ import annotations
 
-import copy
 import json
 from pathlib import Path
 

@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
+from src.config.settings import get_settings
 from src.utils.chunking import DocumentChunk
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ class EmbeddingService:
         """
         from openai import AsyncOpenAI
 
-        api_key = os.environ.get("OPENAI_API_KEY", "")
+        api_key = get_settings().openai_api_key.get_secret_value()
         if not api_key:
             raise ValueError("OPENAI_API_KEY not set")
 

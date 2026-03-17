@@ -11,7 +11,6 @@ import pytest
 
 from src.models.enums import LayoutType
 from src.models.methodology_blueprint import (
-    MethodologyBlueprint,
     PhaseBlueprint,
     build_methodology_blueprint,
 )
@@ -27,7 +26,6 @@ from src.services.layout_router import (
     route_variable_slides,
 )
 from src.services.slide_budgeter import SlideBudget
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 

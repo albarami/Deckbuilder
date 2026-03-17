@@ -30,13 +30,10 @@ from src.models.proposal_manifest import (
     ProposalManifest,
 )
 from src.services.renderer_v2 import (
-    RenderError,
     RenderResult,
     SlideRenderRecord,
-    TemplateHashError,
     render_v2,
 )
-
 
 # ── Test helpers ──────────────────────────────────────────────────────
 

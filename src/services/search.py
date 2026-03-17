@@ -12,6 +12,7 @@ Backward compatibility: local_search() and load_documents() preserved.
 
 import json
 import logging
+import os
 import time
 from collections import Counter
 from datetime import UTC, datetime
@@ -27,6 +28,7 @@ from src.agents.indexing.entity_extractor import (
     merge_into_knowledge_graph,
     save_knowledge_graph,
 )
+from src.config.settings import get_settings
 from src.models.common import DeckForgeBaseModel
 from src.models.knowledge import KnowledgeGraph
 from src.models.retrieval import SearchQuery
@@ -39,6 +41,15 @@ from src.utils.chunking import DocumentChunk, chunk_directory
 from src.utils.extractors import extract_directory
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_DOCS_PATH = os.environ.get(
+    "KNOWLEDGE_DOCS_PATH",
+    get_settings().local_docs_path,
+)
+DEFAULT_CACHE_PATH = os.environ.get(
+    "KNOWLEDGE_CACHE_PATH",
+    "./state/index/",
+)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -562,6 +573,56 @@ async def semantic_search(
     return all_results[:top_k]
 
 
+async def _ensure_local_backend(
+    docs_path: str,
+    cache_path: str = DEFAULT_CACHE_PATH,
+) -> None:
+    """Ensure the local semantic search backend is indexed and loaded."""
+    backend = _get_backend()
+    cache_dir = Path(cache_path)
+    embeddings_path = cache_dir / "embeddings.npy"
+    chunks_path = cache_dir / "chunks.json"
+
+    if backend._embeddings is not None and backend._chunks:
+        return
+
+    if embeddings_path.exists() and chunks_path.exists():
+        backend.load(cache_path)
+        return
+
+    await index_documents(docs_path=docs_path, cache_path=cache_path)
+
+
+def _list_supported_documents(docs_path: str) -> list[dict]:
+    """List supported documents with a stable DOC-NNN mapping."""
+    docs_dir = Path(docs_path)
+    if not docs_dir.exists():
+        return []
+
+    supported_exts = {".pptx", ".pdf", ".docx", ".xlsx"}
+    results: list[dict] = []
+    doc_counter = 0
+    for filepath in sorted(docs_dir.iterdir()):
+        if not filepath.is_file():
+            continue
+        if filepath.name.startswith("."):
+            continue
+        if filepath.suffix.lower() not in supported_exts:
+            continue
+
+        doc_counter += 1
+        results.append({
+            "doc_id": f"DOC-{doc_counter:03d}",
+            "title": filepath.stem,
+            "metadata": {
+                "filename": filepath.name,
+                "path": str(filepath),
+                "size_bytes": filepath.stat().st_size if filepath.exists() else 0,
+            },
+        })
+    return results
+
+
 # ──────────────────────────────────────────────────────────────
 # Legacy Functions (backward compatibility)
 # ──────────────────────────────────────────────────────────────
@@ -569,7 +630,7 @@ async def semantic_search(
 
 async def local_search(
     queries: list[SearchQuery],
-    docs_path: str = "./test_docs",
+    docs_path: str = DEFAULT_DOCS_PATH,
 ) -> list[dict]:
     """Search local documents and return results for the Retrieval Ranker.
 
@@ -580,57 +641,36 @@ async def local_search(
     if not docs_dir.exists():
         return []
 
-    results: list[dict] = []
-    doc_counter = 0
+    await _ensure_local_backend(docs_path)
 
-    for filepath in sorted(docs_dir.iterdir()):
-        if not filepath.is_file():
-            continue
-        if filepath.name.startswith("."):
-            continue
+    query_strings = [q.query for q in queries if q.query.strip()]
+    if not query_strings:
+        return _list_supported_documents(docs_path)
 
-        doc_counter += 1
-        doc_id = f"DOC-{doc_counter:03d}"
-
-        try:
-            content = filepath.read_text(encoding="utf-8", errors="replace")
-        except (OSError, UnicodeDecodeError):
-            content = ""
-
-        excerpt = content[:500] if content else ""
-
-        results.append({
-            "doc_id": doc_id,
-            "title": filepath.stem,
-            "excerpt": excerpt,
-            "metadata": {
-                "filename": filepath.name,
-                "path": str(filepath),
-                "size_bytes": filepath.stat().st_size if filepath.exists() else 0,
-            },
-            "search_score": 0.8,
-        })
-
-    return results
+    return await semantic_search(query_strings, top_k=10)
 
 
 async def load_documents(
     approved_ids: list[str],
-    docs_path: str = "./test_docs",
+    docs_path: str = DEFAULT_DOCS_PATH,
 ) -> list[dict]:
     """Load full document content for approved source IDs.
 
     Legacy function — preserved for backward compatibility.
     """
-    all_results = await local_search([], docs_path)
-    approved = [r for r in all_results if r["doc_id"] in approved_ids]
+    all_results = _list_supported_documents(docs_path)
+    approved = [r for r in all_results if r["doc_id"] in approved_ids][:3]
 
+    from src.utils.extractors import extract_document
+
+    max_chars_per_document = 5_000
     documents: list[dict] = []
     for result in approved:
         filepath = Path(result["metadata"]["path"])
         try:
-            content = filepath.read_text(encoding="utf-8", errors="replace")
-        except (OSError, UnicodeDecodeError):
+            extracted = extract_document(str(filepath))
+            content = extracted.full_text[:max_chars_per_document] if extracted.full_text else ""
+        except Exception:
             content = result["excerpt"]
 
         documents.append({

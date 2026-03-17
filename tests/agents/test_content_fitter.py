@@ -31,7 +31,6 @@ from src.services.content_fitter import (
     truncate_to_fit,
 )
 
-
 # ── Constants ──────────────────────────────────────────────────────────
 
 
@@ -256,7 +255,7 @@ class TestSplitForContinuation:
         )
         # Together they should cover all original content
         # (minus marker and whitespace trimming)
-        combined = first.replace(CONTINUATION_MARKER, "") + " " + overflow
+        first.replace(CONTINUATION_MARKER, "") + " " + overflow
         # Both parts should be non-empty
         assert len(first) > 0
         assert len(overflow) > 0

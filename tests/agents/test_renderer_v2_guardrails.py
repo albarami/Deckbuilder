@@ -23,7 +23,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ── Module list ───────────────────────────────────────────────────────
 
 _SRC = Path(__file__).resolve().parent.parent.parent / "src" / "services"

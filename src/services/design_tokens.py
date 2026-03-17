@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from pptx.dml.color import RGBColor
 
+from src.models.enums import DensityBudget, LayoutType
 
 # ---------------------------------------------------------------------------
 # Slide canvas
@@ -523,7 +524,6 @@ TABLE_ENHANCED = _TableEnhancementTokens()
 # ---------------------------------------------------------------------------
 # Archetype budgets
 # ---------------------------------------------------------------------------
-from src.models.enums import DensityBudget, LayoutType
 
 
 @dataclass(frozen=True)

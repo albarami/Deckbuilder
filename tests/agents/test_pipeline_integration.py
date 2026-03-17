@@ -20,16 +20,14 @@ from __future__ import annotations
 import ast
 import asyncio
 import json
-import textwrap
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.models.enums import LayoutType, RendererMode
 from src.models.slides import SlideObject
 from src.services.scorer_profiles import ScorerProfile
-
 
 # ── RendererMode Enum ────────────────────────────────────────────────
 
@@ -421,9 +419,8 @@ class TestNoEmptyManifestFallback:
         tree = ast.parse(source)
 
         for node in ast.walk(tree):
-            if isinstance(node, (ast.Import, ast.ImportFrom)):
+            if isinstance(node, ast.Import | ast.ImportFrom):
                 if isinstance(node, ast.ImportFrom):
-                    module = node.module or ""
                     names = [alias.name for alias in node.names]
                     if "ProposalManifest" in names:
                         pytest.fail(
@@ -507,15 +504,15 @@ class TestRenderNodeSignature:
     """render_node must remain async and callable."""
 
     def test_render_node_is_async(self):
-        from src.pipeline.graph import render_node
-
         import asyncio
+
+        from src.pipeline.graph import render_node
         assert asyncio.iscoroutinefunction(render_node)
 
     def test_internal_helpers_exist(self):
-        from src.pipeline.graph import _render_legacy, _render_template_v2
-
         import asyncio
+
+        from src.pipeline.graph import _render_legacy, _render_template_v2
         assert asyncio.iscoroutinefunction(_render_legacy)
         assert asyncio.iscoroutinefunction(_render_template_v2)
 
@@ -537,8 +534,8 @@ class TestGraphRouting:
             pass
 
     def test_route_after_gate_5_still_targets_render(self):
-        from src.pipeline.graph import route_after_gate_5
         from src.models.state import DeckForgeState, GateDecision
+        from src.pipeline.graph import route_after_gate_5
 
         state = DeckForgeState(
             gate_5=GateDecision(gate_number=5, approved=True),

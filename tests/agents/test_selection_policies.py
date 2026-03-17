@@ -20,7 +20,6 @@ from src.services.selection_policies import (
     select_team_members,
 )
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────
 
 

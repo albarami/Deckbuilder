@@ -34,7 +34,6 @@ from src.services.content_fitter import (
     truncate_to_fit,
 )
 
-
 # ── Font Size Guardrails ─────────────────────────────────────────────
 
 

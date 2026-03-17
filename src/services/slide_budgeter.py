@@ -32,7 +32,6 @@ from src.services.selection_policies import (
     TeamSelectionResult,
 )
 
-
 # ── Exceptions ──────────────────────────────────────────────────────────
 
 

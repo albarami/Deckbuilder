@@ -21,7 +21,6 @@ from src.models.proposal_manifest import (
     validate_manifest,
 )
 
-
 # ── ContentSourcePolicy ──────────────────────────────────────────────────
 
 

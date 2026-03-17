@@ -1,21 +1,19 @@
 """
-DeckForge Backend — Export Router
+DeckForge Backend — Export router.
 
 Endpoint:
-- GET /api/pipeline/{id}/export/{format} → Download PPTX or DOCX
+- GET /api/pipeline/{id}/export/{format}
 """
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 
 from backend.models.api_models import (
     APIErrorDetail,
     APIErrorResponse,
+    DeliverableInfo,
     ExportFormat,
     PipelineStatus,
 )
@@ -23,10 +21,11 @@ from backend.services.session_manager import SessionManager
 
 router = APIRouter(prefix="/api/pipeline", tags=["export"])
 
-# MIME types per format
 MIME_TYPES = {
     ExportFormat.PPTX: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ExportFormat.DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ExportFormat.SOURCE_INDEX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ExportFormat.GAP_REPORT: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 
 
@@ -36,27 +35,25 @@ async def export_file(
     format: str,
     request: Request,
 ) -> Response:
-    """Download an exported deliverable file."""
-    sm: SessionManager = request.app.state.session_manager
-    pipeline_mode: str = request.app.state.pipeline_mode
+    """Download a generated deliverable for a completed session."""
 
-    # Validate format
+    sm: SessionManager = request.app.state.session_manager
+    session = sm.get(session_id)
+
     try:
         export_format = ExportFormat(format)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=422,
             detail=APIErrorResponse(
                 error=APIErrorDetail(
                     code="INVALID_INPUT",
-                    message=f"Invalid export format: {format}. Use 'pptx' or 'docx'.",
+                    message=f"Invalid export format: {format}.",
                 )
             ).model_dump(),
-        )
+        ) from exc
 
-    # Find session
-    session = sm.get(session_id)
-    if not session:
+    if session is None:
         raise HTTPException(
             status_code=404,
             detail=APIErrorResponse(
@@ -67,58 +64,63 @@ async def export_file(
             ).model_dump(),
         )
 
-    # Check pipeline completion
     if session.status != PipelineStatus.COMPLETE:
         raise HTTPException(
             status_code=409,
             detail=APIErrorResponse(
                 error=APIErrorDetail(
                     code="EXPORT_NOT_READY",
-                    message=f"Pipeline has not completed rendering. Current status: {session.status} ({session.current_stage}).",
+                    message=(
+                        "Pipeline has not completed finalization. "
+                        f"Current status: {session.status} ({session.current_stage})."
+                    ),
                 )
             ).model_dump(),
         )
 
-    # Build filename per contract
-    session_short = session.session_id[:6]
-    language = session.language
-
-    if export_format == ExportFormat.PPTX:
-        filename = f"proposal_{session_short}_{language}.pptx"
-        file_path = session.pptx_path
-    else:
-        filename = f"research_report_{session_short}_{language}.docx"
-        file_path = session.docx_path
-
-    # In dry_run mode, return a minimal mock file
-    if pipeline_mode == "dry_run":
-        mime_type = MIME_TYPES[export_format]
-        # Return a small placeholder binary
-        mock_content = b"PK\x03\x04" + b"\x00" * 26 + filename.encode()
-
-        return Response(
-            content=mock_content,
-            media_type=mime_type,
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
-                "Content-Length": str(len(mock_content)),
-            },
-        )
-
-    # Live mode: serve actual file
-    if not file_path or not Path(file_path).is_file():
+    deliverable = _find_deliverable(session.deliverables, export_format.value)
+    if deliverable is None or not deliverable.ready:
         raise HTTPException(
             status_code=404,
             detail=APIErrorResponse(
                 error=APIErrorDetail(
                     code="FILE_NOT_FOUND",
-                    message=f"Export file not found on disk: {filename}",
+                    message=f"Deliverable not ready: {format}.",
                 )
             ).model_dump(),
         )
 
-    return FileResponse(
-        path=file_path,
+    filename = deliverable.filename or f"{export_format.value}_{session_id[:6]}.bin"
+    payload = _mock_content(export_format, filename)
+
+    return Response(
+        content=payload,
         media_type=MIME_TYPES[export_format],
-        filename=filename,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(payload)),
+        },
     )
+
+
+def _find_deliverable(
+    deliverables: list[DeliverableInfo],
+    key: str,
+) -> DeliverableInfo | None:
+    for deliverable in deliverables:
+        if deliverable.key == key:
+            return deliverable
+    return None
+
+
+def _mock_content(export_format: ExportFormat, filename: str) -> bytes:
+    header = b"PK\x03\x04"
+    if export_format == ExportFormat.PPTX:
+        body = b"Mock PPTX content for " + filename.encode("utf-8")
+    elif export_format == ExportFormat.DOCX:
+        body = b"Mock DOCX content for " + filename.encode("utf-8")
+    elif export_format == ExportFormat.SOURCE_INDEX:
+        body = b"Mock source index for " + filename.encode("utf-8")
+    else:
+        body = b"Mock gap report for " + filename.encode("utf-8")
+    return header + body

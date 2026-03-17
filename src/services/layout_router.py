@@ -23,7 +23,6 @@ from src.models.enums import LayoutType
 from src.models.methodology_blueprint import MethodologyBlueprint, PhaseBlueprint
 from src.services.slide_budgeter import SlideBudget
 
-
 # ── Exceptions ──────────────────────────────────────────────────────────
 
 

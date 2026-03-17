@@ -32,7 +32,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.services.placeholder_contracts import (
-    ContractViolationError,
     PlaceholderContract,
     validate_placeholders,
 )

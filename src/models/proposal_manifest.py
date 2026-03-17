@@ -18,7 +18,6 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-
 # ── ContentSourcePolicy ──────────────────────────────────────────────────
 
 
@@ -216,7 +215,6 @@ def validate_manifest(manifest: ProposalManifest) -> list[str]:
     10. Case study and team bio counts within policy ranges
     """
     from src.models.section_blueprint import (
-        MANDATORY_SECTION_ORDER,
         validate_section_order,
     )
 

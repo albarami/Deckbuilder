@@ -22,13 +22,11 @@ from src.services.composition_scorer import (
     score_composition,
 )
 from src.services.scorer_profiles import (
-    ProfileConfig,
     ScorerProfile,
     get_legacy_profile,
     get_profile,
     get_v2_profile,
 )
-
 
 # ── ScorerProfile enum ────────────────────────────────────────────────
 

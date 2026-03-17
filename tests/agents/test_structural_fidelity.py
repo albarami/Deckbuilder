@@ -20,14 +20,10 @@ Also verifies that:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from unittest.mock import MagicMock
-
 import pytest
 
 from src.services.composition_scorer import ShapeInfo
 from src.services.shell_sanitizer import ShellAllowlist
-
 
 # ── Fidelity threshold constants ─────────────────────────────────────
 

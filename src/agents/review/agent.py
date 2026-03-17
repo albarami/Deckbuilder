@@ -6,9 +6,31 @@ from src.config.models import MODEL_MAP
 from src.models.enums import PipelineStage
 from src.models.iterative import DeckReview
 from src.models.state import DeckForgeState, ErrorInfo
-from src.services.llm import LLMError, call_llm
+from src.services.llm import LLMError, LLMResponse, call_llm
 
 from .prompts import GENERAL_PROMPT, STRICT_PROMPT
+
+REVIEW_INITIAL_MAX_TOKENS = 4000
+REVIEW_RETRY_MAX_TOKENS = 12000
+
+
+def _is_length_limited_error(error: LLMError) -> bool:
+    """Return True when the review response hit the token ceiling."""
+    message = str(error.last_error).lower()
+    return "finish reason: length" in message or "finish_reason: length" in message
+
+
+def _apply_review_result(
+    state: DeckForgeState,
+    result: LLMResponse[DeckReview],
+) -> DeckForgeState:
+    """Persist a successful review result onto the shared pipeline state."""
+    state.deck_reviews.append(result.parsed.model_dump(mode="json"))
+    state.current_stage = PipelineStage.SLIDE_BUILDING
+    state.session.total_input_tokens += result.input_tokens
+    state.session.total_output_tokens += result.output_tokens
+    state.session.total_llm_calls += 1
+    return state
 
 
 async def run(state: DeckForgeState) -> DeckForgeState:
@@ -38,14 +60,23 @@ async def run(state: DeckForgeState) -> DeckForgeState:
             system_prompt=system_prompt,
             user_message=user_message,
             response_model=DeckReview,
-            max_tokens=4000,
+            max_tokens=REVIEW_INITIAL_MAX_TOKENS,
         )
-        state.deck_reviews.append(result.parsed.model_dump(mode="json"))
-        state.current_stage = PipelineStage.SLIDE_BUILDING
-        state.session.total_input_tokens += result.input_tokens
-        state.session.total_output_tokens += result.output_tokens
-        state.session.total_llm_calls += 1
+        return _apply_review_result(state, result)
     except LLMError as e:
+        if _is_length_limited_error(e):
+            try:
+                retry_result = await call_llm(
+                    model=MODEL_MAP["qa_agent"],
+                    system_prompt=system_prompt,
+                    user_message=user_message,
+                    response_model=DeckReview,
+                    max_tokens=REVIEW_RETRY_MAX_TOKENS,
+                )
+                return _apply_review_result(state, retry_result)
+            except LLMError as retry_error:
+                e = retry_error
+
         state.current_stage = PipelineStage.ERROR
         state.errors.append(ErrorInfo(
             agent="review_agent",

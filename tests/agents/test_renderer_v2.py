@@ -15,12 +15,10 @@ import pytest
 
 from src.models.proposal_manifest import (
     ContentSourcePolicy,
-    HouseInclusionPolicy,
     ManifestEntry,
     ProposalManifest,
 )
 from src.services.renderer_v2 import (
-    RenderError,
     RenderResult,
     SlideRenderRecord,
     TemplateHashError,
@@ -32,7 +30,6 @@ from src.services.renderer_v2 import (
     _render_pool_clone,
     render_v2,
 )
-
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
@@ -216,7 +213,7 @@ class TestRenderBVariable:
             content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
         )
         tm = _make_template_manager()
-        slide = _render_b_variable(entry, tm)
+        _render_b_variable(entry, tm)
         tm.add_slide_from_layout.assert_called_once_with("methodology_overview_4")
 
 
@@ -228,7 +225,7 @@ class TestRenderPoolClone:
             content_source_policy=ContentSourcePolicy.APPROVED_ASSET_POOL,
         )
         tm = _make_template_manager()
-        slide = _render_pool_clone(entry, tm)
+        _render_pool_clone(entry, tm)
         tm.clone_slide.assert_called_once_with(42)
 
     def test_without_source_falls_back_to_layout(self):
@@ -239,7 +236,7 @@ class TestRenderPoolClone:
             content_source_policy=ContentSourcePolicy.APPROVED_ASSET_POOL,
         )
         tm = _make_template_manager()
-        slide = _render_pool_clone(entry, tm)
+        _render_pool_clone(entry, tm)
         tm.add_slide_from_layout.assert_called_once_with("case_study_cases")
 
     def test_none_injection_data_falls_back_to_layout(self):
@@ -249,7 +246,7 @@ class TestRenderPoolClone:
             content_source_policy=ContentSourcePolicy.APPROVED_ASSET_POOL,
         )
         tm = _make_template_manager()
-        slide = _render_pool_clone(entry, tm)
+        _render_pool_clone(entry, tm)
         tm.add_slide_from_layout.assert_called_once_with("team_two_members")
 
 
@@ -280,7 +277,7 @@ class TestInjectContent:
 
         with patch("src.services.renderer_v2.inject_title_body") as mock_inj:
             mock_inj.return_value = MagicMock()
-            result = _inject_content(slide, entry, contract)
+            _inject_content(slide, entry, contract)
             mock_inj.assert_called_once()
 
     def test_center_title_dispatch(self):
@@ -292,7 +289,7 @@ class TestInjectContent:
 
         with patch("src.services.renderer_v2.inject_center_title") as mock_inj:
             mock_inj.return_value = MagicMock()
-            result = _inject_content(slide, entry, contract)
+            _inject_content(slide, entry, contract)
             mock_inj.assert_called_once()
 
     def test_proposal_cover_dispatch(self):
@@ -304,7 +301,7 @@ class TestInjectContent:
 
         with patch("src.services.renderer_v2.inject_proposal_cover") as mock_inj:
             mock_inj.return_value = MagicMock()
-            result = _inject_content(slide, entry, contract)
+            _inject_content(slide, entry, contract)
             mock_inj.assert_called_once()
 
     def test_toc_table_dispatch(self):
@@ -316,7 +313,7 @@ class TestInjectContent:
 
         with patch("src.services.renderer_v2.inject_toc_table") as mock_inj:
             mock_inj.return_value = MagicMock()
-            result = _inject_content(slide, entry, contract)
+            _inject_content(slide, entry, contract)
             mock_inj.assert_called_once()
 
     def test_multi_body_dispatch(self):
@@ -328,7 +325,7 @@ class TestInjectContent:
 
         with patch("src.services.renderer_v2.inject_multi_body") as mock_inj:
             mock_inj.return_value = MagicMock()
-            result = _inject_content(slide, entry, contract)
+            _inject_content(slide, entry, contract)
             mock_inj.assert_called_once()
 
     def test_team_members_dispatch(self):
@@ -343,7 +340,7 @@ class TestInjectContent:
 
         with patch("src.services.renderer_v2.inject_team_members") as mock_inj:
             mock_inj.return_value = MagicMock()
-            result = _inject_content(slide, entry, contract)
+            _inject_content(slide, entry, contract)
             mock_inj.assert_called_once()
 
     def test_unknown_family_returns_none(self):

@@ -11,6 +11,12 @@ from src.services.llm import LLMError, call_llm
 from .prompts import SYSTEM_PROMPT
 
 
+def _is_schema_drift_error(error: LLMError) -> bool:
+    """Return True when the LLM returned near-valid JSON with schema drift."""
+    message = str(error.last_error).lower()
+    return "structured output validation failed" in message
+
+
 async def run(state: DeckForgeState) -> DeckForgeState:
     """Context Agent — parse RFP summary into structured RFPContext."""
     user_message = json.dumps({
@@ -35,6 +41,23 @@ async def run(state: DeckForgeState) -> DeckForgeState:
         state.session.total_output_tokens += result.output_tokens
         state.session.total_llm_calls += 1
     except LLMError as e:
+        if _is_schema_drift_error(e):
+            try:
+                retry_result = await call_llm(
+                    model=MODEL_MAP["context_agent"],
+                    system_prompt=SYSTEM_PROMPT,
+                    user_message=user_message,
+                    response_model=RFPContext,
+                )
+                state.rfp_context = retry_result.parsed
+                state.current_stage = PipelineStage.CONTEXT_REVIEW
+                state.session.total_input_tokens += retry_result.input_tokens
+                state.session.total_output_tokens += retry_result.output_tokens
+                state.session.total_llm_calls += 1
+                return state
+            except LLMError as retry_error:
+                e = retry_error
+
         state.current_stage = PipelineStage.ERROR
         state.errors.append(ErrorInfo(
             agent="context_agent",
