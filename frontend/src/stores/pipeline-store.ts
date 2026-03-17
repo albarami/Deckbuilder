@@ -22,7 +22,9 @@ import type {
   PipelineOutputs,
   SessionMetadata,
   SSEEvent,
+  AgentRunInfo,
 } from "@/lib/types/pipeline";
+import { getStatus } from "@/lib/api/pipeline";
 
 // ── Store Shape ───────────────────────────────────────────────────────
 
@@ -46,6 +48,7 @@ interface PipelineState {
   startedAt: string | null;
   elapsedMs: number;
   sessionMetadata: SessionMetadata;
+  agentRuns: AgentRunInfo[];
 
   // SSE events (capped at 200 for memory)
   events: SSEEvent[];
@@ -117,6 +120,7 @@ const initialState: PipelineState = {
     total_output_tokens: 0,
     total_cost_usd: 0,
   },
+  agentRuns: [],
   events: [],
   isStarting: false,
   isDecidingGate: false,
@@ -140,6 +144,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
       completedGates: [],
       currentGate: null,
       outputs: null,
+      agentRuns: [],
     }),
 
   restoreFromStatus: (response) =>
@@ -154,6 +159,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
       error: response.error,
       outputs: response.outputs,
       sessionMetadata: response.session_metadata,
+      agentRuns: response.agent_runs,
     }),
 
   setStatus: (status) => set({ status }),
@@ -167,7 +173,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
     set((state) => ({
       completedGates: [...state.completedGates, record],
       currentGate: null,
-      status: record.approved ? "running" : "complete",
+      status: "running",  // Both approve and reject keep pipeline running (revision loop)
     })),
 
   setComplete: (outputs) =>
@@ -208,18 +214,57 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
             gate_number: event.gate_number,
             summary: event.summary ?? "",
             prompt: event.prompt ?? "",
+            payload_type: event.gate_payload_type ?? "context_review",
             gate_data: event.gate_data,
           });
         }
         break;
 
-      case "pipeline_complete":
-        store.setComplete({
-          pptx_ready: true,
-          docx_ready: true,
-          slide_count: event.slide_count ?? 0,
-        });
+      case "pipeline_complete": {
+        // Hydrate from backend status to get real readiness values
+        const sessionId = event.session_id ?? store.sessionId;
+        if (sessionId) {
+          void (async () => {
+            try {
+              const statusResponse = await getStatus(sessionId);
+              if (statusResponse.outputs) {
+                store.setComplete({
+                  pptx_ready: statusResponse.outputs.pptx_ready,
+                  docx_ready: statusResponse.outputs.docx_ready,
+                  source_index_ready: statusResponse.outputs.source_index_ready,
+                  gap_report_ready: statusResponse.outputs.gap_report_ready,
+                  slide_count: statusResponse.outputs.slide_count,
+                  preview_ready: statusResponse.outputs.preview_ready,
+                  deliverables: statusResponse.deliverables ?? [],
+                });
+              } else {
+                // Fallback: mark basic outputs ready
+                store.setComplete({
+                  pptx_ready: true,
+                  docx_ready: true,
+                  source_index_ready: false,
+                  gap_report_ready: false,
+                  slide_count: event.slide_count ?? 0,
+                  preview_ready: true,
+                  deliverables: [],
+                });
+              }
+            } catch {
+              // Network error fallback
+              store.setComplete({
+                pptx_ready: true,
+                docx_ready: true,
+                source_index_ready: false,
+                gap_report_ready: false,
+                slide_count: event.slide_count ?? 0,
+                preview_ready: true,
+                deliverables: [],
+              });
+            }
+          })();
+        }
         break;
+      }
 
       case "pipeline_error":
         store.setError({

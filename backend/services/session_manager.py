@@ -11,12 +11,11 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from backend.models.api_models import (
     AgentRunInfo,
-    AgentRunStatus,
     DeliverableInfo,
     GateInfo,
     GatePayloadType,
@@ -24,7 +23,6 @@ from backend.models.api_models import (
     PipelineOutputs,
     PipelineStatus,
     PipelineStatusResponse,
-    RendererMode,
     RfpBriefInput,
     SessionHistoryItem,
     SessionHistoryResponse,
@@ -64,8 +62,8 @@ class PipelineSession:
         self.current_stage: str = "intake"
         self.current_stage_label: str = "Intake"
         self.current_step_number: int | None = 1
-        self.created_at: datetime = datetime.now(timezone.utc)
-        self.last_activity: datetime = datetime.now(timezone.utc)
+        self.created_at: datetime = datetime.now(UTC)
+        self.last_activity: datetime = datetime.now(UTC)
         self.completed_at: datetime | None = None
 
         self.thread_id: str = str(uuid.uuid4())
@@ -81,7 +79,7 @@ class PipelineSession:
         self.deliverables: list[DeliverableInfo] = []
 
         self.metadata: SessionMetadataInfo = SessionMetadataInfo(
-            updated_at=datetime.now(timezone.utc).isoformat()
+            updated_at=datetime.now(UTC).isoformat()
         )
         self.agent_runs: list[AgentRunInfo] = []
 
@@ -99,13 +97,13 @@ class PipelineSession:
     def touch(self) -> None:
         """Update timestamps for recent activity."""
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self.last_activity = now
         self.metadata.updated_at = now.isoformat()
 
     @property
     def elapsed_ms(self) -> int:
-        delta = datetime.now(timezone.utc) - self.created_at
+        delta = datetime.now(UTC) - self.created_at
         return int(delta.total_seconds() * 1000)
 
     @property
@@ -163,7 +161,7 @@ class PipelineSession:
         )
 
     def is_expired(self) -> bool:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if self.status == PipelineStatus.GATE_PENDING:
             return (now - self.last_activity) > timedelta(hours=24)
@@ -293,7 +291,7 @@ class SessionManager:
                 gate_number=gate_number,
                 approved=approved,
                 feedback=feedback,
-                decided_at=datetime.now(timezone.utc).isoformat(),
+                decided_at=datetime.now(UTC).isoformat(),
                 payload_type=payload_type,
             )
         )
@@ -368,18 +366,19 @@ class SessionManager:
         session.deliverables = deliverables
         session.outputs.deliverables = deliverables
         for deliverable in deliverables:
+            real_path = deliverable.path or deliverable.filename
             if deliverable.key == "pptx":
                 session.outputs.pptx_ready = deliverable.ready
-                session.pptx_path = deliverable.filename
+                session.pptx_path = real_path
             elif deliverable.key == "docx":
                 session.outputs.docx_ready = deliverable.ready
-                session.docx_path = deliverable.filename
+                session.docx_path = real_path
             elif deliverable.key == "source_index":
                 session.outputs.source_index_ready = deliverable.ready
-                session.source_index_path = deliverable.filename
+                session.source_index_path = real_path
             elif deliverable.key == "gap_report":
                 session.outputs.gap_report_ready = deliverable.ready
-                session.gap_report_path = deliverable.filename
+                session.gap_report_path = real_path
         session.touch()
 
     def set_complete(
@@ -397,7 +396,7 @@ class SessionManager:
         session.current_stage = "finalized"
         session.current_stage_label = "Finalization & Export"
         session.current_step_number = 10
-        session.completed_at = datetime.now(timezone.utc)
+        session.completed_at = datetime.now(UTC)
         session.outputs.slide_count = slide_count
         if deliverables is not None:
             self.set_deliverables(session_id, deliverables)
@@ -412,7 +411,7 @@ class SessionManager:
         session.current_stage = "error"
         session.current_stage_label = "Pipeline Error"
         session.error_info = {"agent": agent, "message": message}
-        session.completed_at = datetime.now(timezone.utc)
+        session.completed_at = datetime.now(UTC)
         session.touch()
 
     def push_event(self, session_id: str, event: SSEEvent) -> None:

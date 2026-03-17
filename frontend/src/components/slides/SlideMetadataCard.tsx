@@ -54,47 +54,54 @@ export function SlideMetadataCard({
         "group cursor-pointer rounded-lg border-2 p-3 transition-all",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sg-blue focus-visible:ring-offset-2",
         isSelected
-          ? "border-sg-blue bg-sg-blue/5 shadow-md"
-          : "border-sg-border bg-white hover:border-sg-teal hover:shadow-sm",
+          ? "border-sg-blue bg-sg-blue/5 shadow-md dark:border-sky-300 dark:bg-sky-400/10"
+          : "border-sg-border bg-white hover:border-sg-teal hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-sky-300/60",
       ].join(" ")}
       data-testid={`slide-metadata-${slide.slide_number}`}
-      aria-label={`Slide ${slide.slide_number}: ${slide.text_preview}`}
+      aria-label={`Slide ${slide.slide_number}: ${slide.text_preview ?? ""}`}
     >
       {/* Top row: number + entry type */}
       <div className="flex items-center justify-between">
-        <span className="text-lg font-bold text-sg-navy">
+        <span className="text-lg font-bold text-sg-navy dark:text-slate-100">
           {slide.slide_number}
         </span>
-        <Badge variant={ENTRY_TYPE_VARIANTS[slide.entry_type] ?? "default"}>
-          {formatEntryType(slide.entry_type)}
+        <Badge variant={ENTRY_TYPE_VARIANTS[slide.entry_type ?? ""] ?? "default"}>
+          {formatEntryType(slide.entry_type ?? "")}
         </Badge>
       </div>
 
       {/* Section and layout */}
       <div className="mt-2 space-y-1">
-        <div className="flex items-center gap-1.5 text-xs text-sg-slate/60">
+        <div className="flex items-center gap-1.5 text-xs text-sg-slate/60 dark:text-slate-400">
           <FolderIcon />
-          <span className="truncate">{slide.section_id}</span>
+          <span className="truncate">{slide.report_section_ref || slide.section_id || slide.section || ""}</span>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-sg-slate/60">
+        <div className="flex items-center gap-1.5 text-xs text-sg-slate/60 dark:text-slate-400">
           <LayoutIcon />
-          <span className="truncate">{slide.semantic_layout_id}</span>
+          <span className="truncate">{slide.layout_type || slide.semantic_layout_id || ""}</span>
         </div>
       </div>
 
-      {/* Text preview */}
-      {slide.text_preview && (
-        <p className="mt-2 line-clamp-2 text-xs text-sg-slate/70">
-          {slide.text_preview}
+      {slide.key_message && (
+        <p className="mt-2 text-xs font-medium text-sg-blue dark:text-sky-300">
+          {slide.key_message}
+        </p>
+      )}
+
+      {(slide.text_preview || slide.body_content_preview.length > 0) && (
+        <p className="mt-2 line-clamp-2 text-xs text-sg-slate/70 dark:text-slate-300">
+          {slide.text_preview || slide.body_content_preview.join(" • ")}
         </p>
       )}
 
       {/* Bottom: shapes + fonts */}
-      <div className="mt-2 flex items-center gap-2 text-[10px] text-sg-slate/50">
-        <span>{t("shapeCount", { count: slide.shape_count })}</span>
+      <div className="mt-2 flex items-center gap-2 text-[10px] text-sg-slate/50 dark:text-slate-500">
+        <span>{t("shapeCount", { count: slide.shape_count ?? 0 })}</span>
+        <span>·</span>
+        <span>{slide.source_refs.length} refs</span>
         <span>·</span>
         <span className="truncate">
-          {slide.fonts.length > 0 ? slide.fonts.join(", ") : t("noFonts")}
+          {(slide.fonts?.length ?? 0) > 0 ? slide.fonts!.join(", ") : t("noFonts")}
         </span>
       </div>
     </div>

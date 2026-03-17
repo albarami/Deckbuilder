@@ -16,21 +16,21 @@ Environment:
 from __future__ import annotations
 
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.pipeline.graph import build_graph
 
-from backend.routers import pipeline, gates, upload, slides, export
+from backend.routers import export, gates, pipeline, slides, upload
 from backend.services.session_manager import SessionManager
 from backend.services.sse_broadcaster import SSEBroadcaster
+from src.pipeline.graph import build_graph
 
 
 def get_pipeline_mode() -> str:
-    """Read PIPELINE_MODE from environment. Defaults to live."""
-    return os.environ.get("PIPELINE_MODE", "live")
+    """Read PIPELINE_MODE from environment. Defaults to dry_run for safety."""
+    return os.environ.get("PIPELINE_MODE", "dry_run")
 
 
 # ── Shared services (singleton instances) ──────────────────────────

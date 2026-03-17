@@ -57,11 +57,11 @@ export function FileUploadZone({
           !ACCEPTED_TYPES.includes(file.type) &&
           !ACCEPTED_EXTENSIONS.includes(ext)
         ) {
-          errors.push(`${file.name}: unsupported file type`);
+          errors.push(t("unsupportedFileType", { filename: file.name }));
           continue;
         }
         if (file.size > MAX_FILE_SIZE) {
-          errors.push(`${file.name}: exceeds 50MB limit`);
+          errors.push(t("exceedsMaxSize", { filename: file.name }));
           continue;
         }
         valid.push(file);
@@ -69,7 +69,7 @@ export function FileUploadZone({
 
       return { valid, errors };
     },
-    [],
+    [t],
   );
 
   const handleUpload = useCallback(
@@ -93,7 +93,7 @@ export function FileUploadZone({
         if (err instanceof APIError) {
           setUploadError(err.message);
         } else {
-          setUploadError("Upload failed. Please try again.");
+          setUploadError(t("uploadFailed"));
         }
       } finally {
         setIsUploading(false);
@@ -103,7 +103,7 @@ export function FileUploadZone({
         }
       }
     },
-    [validateFiles, onFilesUploaded],
+    [validateFiles, onFilesUploaded, t],
   );
 
   const handleDragOver = useCallback(
@@ -147,7 +147,7 @@ export function FileUploadZone({
 
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-semibold text-sg-navy">
+      <label className="block text-sm font-semibold text-sg-navy dark:text-slate-100">
         {t("uploadFiles")}
       </label>
 
@@ -159,11 +159,11 @@ export function FileUploadZone({
         className={[
           "relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center transition-colors",
           isDragOver && !disabled
-            ? "border-sg-blue bg-sg-blue/5"
-            : "border-sg-border bg-sg-mist/50",
+            ? "border-sg-blue bg-sg-blue/5 dark:border-sky-300 dark:bg-sky-400/10"
+            : "border-sg-border bg-sg-mist/50 dark:border-slate-800 dark:bg-slate-950/60",
           disabled
             ? "cursor-not-allowed opacity-50"
-            : "cursor-pointer hover:border-sg-blue/50 hover:bg-sg-mist",
+            : "cursor-pointer hover:border-sg-blue/50 hover:bg-sg-mist dark:hover:border-sky-300/50 dark:hover:bg-slate-900/80",
         ].join(" ")}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -179,10 +179,10 @@ export function FileUploadZone({
         {/* Upload icon */}
         <UploadIcon />
 
-        <p className="mt-3 text-sm font-medium text-sg-slate">
+        <p className="mt-3 text-sm font-medium text-sg-slate dark:text-slate-200">
           {isUploading ? t("uploading") : t("dragDrop")}
         </p>
-        <p className="mt-1 text-xs text-sg-slate/60">{t("supportedFormats")}</p>
+        <p className="mt-1 text-xs text-sg-slate/60 dark:text-slate-400">{t("supportedFormats")}</p>
 
         {/* Hidden file input */}
         <input
@@ -198,7 +198,7 @@ export function FileUploadZone({
 
         {/* Loading overlay */}
         {isUploading && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white/80">
+          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white/80 dark:bg-slate-950/80">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-sg-blue border-t-transparent" />
           </div>
         )}
@@ -244,12 +244,12 @@ function FileChip({
   const sizeLabel = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`;
 
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-sg-border bg-sg-white px-3 py-1.5 text-sm">
+    <span className="inline-flex items-center gap-2 rounded-full border border-sg-border bg-sg-white px-3 py-1.5 text-sm dark:border-slate-800 dark:bg-slate-950">
       <FileTypeIcon ext={ext} />
-      <span className="max-w-[160px] truncate font-medium text-sg-navy">
+      <span className="max-w-[160px] truncate font-medium text-sg-navy dark:text-slate-100">
         {file.filename}
       </span>
-      <span className="text-xs text-sg-slate/60">{sizeLabel}</span>
+      <span className="text-xs text-sg-slate/60 dark:text-slate-400">{sizeLabel}</span>
       {!disabled && (
         <button
           type="button"
@@ -257,7 +257,7 @@ function FileChip({
             e.stopPropagation();
             onRemove();
           }}
-          className="ml-0.5 rounded-full p-0.5 text-sg-slate/40 transition-colors hover:bg-red-50 hover:text-red-500"
+          className="ml-0.5 rounded-full p-0.5 text-sg-slate/40 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
           aria-label={`Remove ${file.filename}`}
         >
           <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">

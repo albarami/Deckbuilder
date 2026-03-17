@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
-from backend.models.api_models import PipelineStatus
+from backend.models.api_models import DeliverableInfo, GatePayloadType, PipelineStatus
 from backend.services.session_manager import SessionManager
 
 
@@ -68,6 +68,7 @@ async def test_resume_gate_pending_state(
         gate_number=3,
         summary="Report generation complete",
         prompt="Review the generated report before proceeding",
+        payload_type=GatePayloadType.REPORT_REVIEW,
         gate_data={"report_preview": "# Executive Summary\n\nKey findings..."},
     )
 
@@ -91,9 +92,11 @@ async def test_resume_complete_state(
     session_id = _create_session(sm, PipelineStatus.RUNNING)
     sm.set_complete(
         session_id,
-        pptx_path="proposals/output.pptx",
-        docx_path="proposals/output.docx",
         slide_count=25,
+        deliverables=[
+            DeliverableInfo(key="pptx", label="Deck", ready=True, filename="proposals/output.pptx"),
+            DeliverableInfo(key="docx", label="Report", ready=True, filename="proposals/output.docx"),
+        ],
     )
 
     resp = await client.get(f"/api/pipeline/{session_id}/status")
@@ -144,6 +147,7 @@ async def test_resume_with_completed_gates(
         gate_number=3,
         summary="Ready for review",
         prompt="Review results",
+        payload_type=GatePayloadType.REPORT_REVIEW,
     )
 
     resp = await client.get(f"/api/pipeline/{session_id}/status")
@@ -223,8 +227,17 @@ async def test_resume_multiple_sessions_independent(
     s1 = _create_session(sm, PipelineStatus.RUNNING)
     s2 = _create_session(sm, PipelineStatus.RUNNING)
 
-    sm.set_gate_pending(s1, gate_number=2, summary="Gate 2", prompt="Review")
-    sm.set_complete(s2, pptx_path="out.pptx", slide_count=10)
+    sm.set_gate_pending(
+        s1, gate_number=2, summary="Gate 2",
+        prompt="Review", payload_type=GatePayloadType.SOURCE_REVIEW,
+    )
+    sm.set_complete(
+        s2,
+        slide_count=10,
+        deliverables=[
+            DeliverableInfo(key="pptx", label="Deck", ready=True, filename="out.pptx"),
+        ],
+    )
 
     r1 = await client.get(f"/api/pipeline/{s1}/status")
     r2 = await client.get(f"/api/pipeline/{s2}/status")

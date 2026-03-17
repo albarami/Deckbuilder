@@ -83,6 +83,7 @@ export function usePipeline() {
     startedAt: store.startedAt,
     elapsedMs: store.elapsedMs,
     sessionMetadata: store.sessionMetadata,
+    agentRuns: store.agentRuns,
     events: store.events,
     isStarting: store.isStarting,
 

@@ -50,7 +50,9 @@ class ClearedElement:
     """Record of a single cleared element during sanitization."""
 
     shell_id: str
-    element_type: str       # "placeholder" | "text_box" | "table" | "speaker_notes" | "alt_text" | "comment" | "hidden_metadata"
+    # "placeholder" | "text_box" | "table" | "speaker_notes"
+    # | "alt_text" | "comment" | "hidden_metadata"
+    element_type: str
     shape_name: str
     reason: str             # why it was cleared
     had_content: bool       # whether it actually had text before clearing

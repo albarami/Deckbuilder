@@ -63,7 +63,7 @@ export default function ExportPage() {
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
           <Spinner size="lg" label={t("loadingExport")} />
-          <p className="mt-4 text-sm text-sg-slate/60">{t("loadingExport")}</p>
+          <p className="mt-4 text-sm text-sg-slate/60 dark:text-slate-400">{t("loadingExport")}</p>
         </div>
       </div>
     );
@@ -74,15 +74,15 @@ export default function ExportPage() {
   if (error === "not_found" || !statusData) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <Card variant="default" className="max-w-md text-center">
-          <h2 className="text-lg font-semibold text-sg-navy">
+        <Card variant="default" className="max-w-md rounded-2xl text-center dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-lg font-semibold text-sg-navy dark:text-slate-100">
             {tPipeline("sessionExpired")}
           </h2>
-          <p className="mt-2 text-sm text-sg-slate/70">
+          <p className="mt-2 text-sm text-sg-slate/70 dark:text-slate-300">
             {tPipeline("sessionExpiredMessage")}
           </p>
           <Link href="/new">
-            <Button variant="primary" size="md" className="mt-4">
+            <Button variant="primary" size="md" className="mt-4 bg-sg-teal hover:bg-sg-navy">
               {tPipeline("startNewProposal")}
             </Button>
           </Link>
@@ -94,7 +94,7 @@ export default function ExportPage() {
   if (error) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <Card variant="default" className="max-w-md text-center">
+        <Card variant="default" className="max-w-md rounded-2xl text-center dark:border-slate-800 dark:bg-slate-900">
           <h2 className="text-lg font-semibold text-red-600">{error}</h2>
           <Link href={`/pipeline/${sessionId}`}>
             <Button variant="secondary" size="md" className="mt-4">
@@ -110,29 +110,27 @@ export default function ExportPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-sg-navy">{t("title")}</h1>
-          <p className="text-sm text-sg-slate/60">
+          <h1 className="text-xl font-bold text-sg-navy dark:text-slate-100">{t("title")}</h1>
+          <p className="text-sm text-sg-slate/60 dark:text-slate-400">
             {t("sessionLabel")}: {sessionId.slice(0, 8)}
           </p>
         </div>
         <div className="flex gap-2">
           <Link href={`/pipeline/${sessionId}/slides`}>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="dark:text-slate-200 dark:hover:bg-slate-800">
               {t("viewSlides")}
             </Button>
           </Link>
           <Link href={`/pipeline/${sessionId}`}>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="dark:text-slate-200 dark:hover:bg-slate-800">
               {t("backToPipeline")}
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* Export panel with downloads + summary */}
       <ExportPanel
         sessionId={sessionId}
         outputs={statusData.status === "complete" ? statusData.outputs : null}

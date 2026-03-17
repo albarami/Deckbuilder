@@ -1,5 +1,5 @@
 /**
- * Export API module — download PPTX/DOCX deliverables.
+ * Export API module — download deliverables (PPTX, DOCX, Source Index, Gap Report).
  *
  * Uses blob download to trigger browser file save.
  */
@@ -24,6 +24,28 @@ export async function downloadPptx(sessionId: string): Promise<void> {
 export async function downloadDocx(sessionId: string): Promise<void> {
   const { blob, filename } = await getBlob(
     `/api/pipeline/${sessionId}/export/docx`,
+  );
+  triggerDownload(blob, filename);
+}
+
+/**
+ * Download the source index DOCX.
+ * GET /api/pipeline/{id}/export/source_index
+ */
+export async function downloadSourceIndex(sessionId: string): Promise<void> {
+  const { blob, filename } = await getBlob(
+    `/api/pipeline/${sessionId}/export/source_index`,
+  );
+  triggerDownload(blob, filename);
+}
+
+/**
+ * Download the gap report DOCX.
+ * GET /api/pipeline/{id}/export/gap_report
+ */
+export async function downloadGapReport(sessionId: string): Promise<void> {
+  const { blob, filename } = await getBlob(
+    `/api/pipeline/${sessionId}/export/gap_report`,
   );
   triggerDownload(blob, filename);
 }

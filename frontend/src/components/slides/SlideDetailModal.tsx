@@ -94,9 +94,9 @@ export function SlideDetailModal({
       />
 
       {/* Modal content */}
-      <div className="relative z-10 mx-4 flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl lg:flex-row">
+      <div className="relative z-10 mx-4 flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-slate-900 lg:flex-row">
         {/* Left: image/placeholder area */}
-        <div className="flex flex-1 items-center justify-center bg-sg-mist/30 p-6">
+        <div className="flex flex-1 items-center justify-center bg-sg-mist/30 p-6 dark:bg-slate-950/70">
           {thumbnailMode === "rendered" ? (
             <img
               src={thumbnailUrl}
@@ -107,7 +107,7 @@ export function SlideDetailModal({
             <div className="flex h-64 w-full items-center justify-center rounded-lg border-2 border-dashed border-sg-border">
               <div className="text-center">
                 <SlideIconLarge />
-                <p className="mt-2 text-sm text-sg-slate/50">
+                <p className="mt-2 text-sm text-sg-slate/50 dark:text-slate-400">
                   {t("noThumbnailAvailable")}
                 </p>
               </div>
@@ -116,14 +116,14 @@ export function SlideDetailModal({
         </div>
 
         {/* Right: metadata panel */}
-        <div className="w-full overflow-y-auto border-t border-sg-border p-5 lg:w-80 lg:border-s lg:border-t-0">
+        <div className="w-full overflow-y-auto border-t border-sg-border p-5 dark:border-slate-800 lg:w-80 lg:border-s lg:border-t-0">
           <SlideMetadataPanel slide={slide} />
         </div>
 
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute end-3 top-3 rounded-full bg-white/80 p-1.5 text-sg-slate/70 shadow hover:bg-white hover:text-sg-navy"
+          className="absolute end-3 top-3 rounded-full bg-white/80 p-1.5 text-sg-slate/70 shadow hover:bg-white hover:text-sg-navy dark:bg-slate-900/80 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
           aria-label={t("close")}
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5" aria-hidden="true">
@@ -135,7 +135,7 @@ export function SlideDetailModal({
         {hasPrev && (
           <button
             onClick={handlePrev}
-            className="absolute start-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 text-sg-slate/70 shadow hover:bg-white hover:text-sg-navy"
+            className="absolute start-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 text-sg-slate/70 shadow hover:bg-white hover:text-sg-navy dark:bg-slate-900/80 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
             aria-label={t("prevSlide")}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 rtl:rotate-180" aria-hidden="true">
@@ -146,7 +146,7 @@ export function SlideDetailModal({
         {hasNext && (
           <button
             onClick={handleNext}
-            className="absolute end-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 text-sg-slate/70 shadow hover:bg-white hover:text-sg-navy lg:end-[21rem]"
+            className="absolute end-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 text-sg-slate/70 shadow hover:bg-white hover:text-sg-navy dark:bg-slate-900/80 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white lg:end-[21rem]"
             aria-label={t("nextSlide")}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 rtl:rotate-180" aria-hidden="true">

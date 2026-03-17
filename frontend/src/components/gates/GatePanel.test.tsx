@@ -67,11 +67,12 @@ vi.mock("@/stores/locale-store", () => ({
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-function makeGate(gateNumber: number, data?: unknown): GateInfo {
+function makeGate(gateNumber: number, data?: GateInfo["gate_data"]): GateInfo {
   return {
     gate_number: gateNumber,
     summary: `Gate ${gateNumber} summary`,
     prompt: `Please review gate ${gateNumber} output`,
+    payload_type: "context_review",
     gate_data: data,
   };
 }

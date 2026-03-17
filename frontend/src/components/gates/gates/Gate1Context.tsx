@@ -26,21 +26,21 @@ export function Gate1Context({ gate }: Gate1ContextProps) {
 
   return (
     <div data-testid="gate-1-context">
-      <p className="mb-4 text-sm text-sg-slate/70">{gate.summary}</p>
+      <p className="mb-4 text-sm text-sg-slate/70 dark:text-slate-300">{gate.summary}</p>
 
       {entries.length === 0 ? (
-        <p className="text-sm text-sg-slate/50 italic">{t("noData")}</p>
+        <p className="text-sm italic text-sg-slate/50 dark:text-slate-400">{t("noData")}</p>
       ) : (
-        <div className="divide-y divide-sg-border rounded-lg border border-sg-border">
+        <div className="divide-y divide-sg-border rounded-lg border border-sg-border dark:divide-slate-800 dark:border-slate-800">
           {entries.map((entry) => (
             <div
               key={entry.key}
               className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-start sm:gap-4"
             >
-              <dt className="min-w-[140px] text-xs font-semibold uppercase tracking-wider text-sg-slate/60">
+              <dt className="min-w-[140px] text-xs font-semibold uppercase tracking-wider text-sg-slate/60 dark:text-slate-400">
                 {formatKey(entry.key)}
               </dt>
-              <dd className="flex-1 text-sm text-sg-navy">{entry.value}</dd>
+              <dd className="flex-1 text-sm text-sg-navy dark:text-slate-100">{entry.value}</dd>
             </div>
           ))}
         </div>

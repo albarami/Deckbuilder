@@ -73,7 +73,7 @@ export function StartPipelineButton({
         loading={isStarting}
         disabled={!canStart}
         onClick={handleStart}
-        className="w-full"
+        className="w-full bg-sg-teal shadow-sg-glow-teal hover:bg-sg-navy"
         data-testid="start-pipeline-btn"
       >
         {isStarting ? t("starting") : t("startPipeline")}
@@ -81,7 +81,7 @@ export function StartPipelineButton({
 
       {/* Validation hint */}
       {!hasInput && (
-        <p className="text-center text-xs text-sg-slate/60">
+        <p className="text-center text-xs text-sg-slate/60 dark:text-slate-400">
           {t("needInput")}
         </p>
       )}

@@ -34,14 +34,12 @@ export function LocaleLayoutClient({
 
   return (
     <AuthProvider>
-      {/* Top bar — full width */}
       <TopBar />
 
-      {/* Content area — sidebar + main */}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto px-page py-section">
-          <div className="mx-auto max-w-5xl">
+        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1280px]">
             <ErrorBoundary>
               {children}
             </ErrorBoundary>

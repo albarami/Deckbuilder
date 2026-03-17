@@ -17,23 +17,21 @@ from backend.models.api_models import (
     AgentRunInfo,
     AgentRunStatus,
     DeliverableInfo,
+    GapItem,
     Gate1ContextData,
     Gate2SourceReviewData,
     Gate3ReportReviewData,
     Gate4SlideReviewData,
     Gate5QaReviewData,
-    GateInfo,
     GatePayloadType,
-    GapItem,
-    PipelineStatus,
     ReadinessStatus,
     ReportSectionSummary,
     RfpBriefInput,
-    SSEEvent,
     SensitivitySummary,
     SlidePreviewItem,
     SourceIndexItem,
     SourceReviewItem,
+    SSEEvent,
     ThumbnailMode,
 )
 from backend.services.session_manager import PipelineSession, SessionManager
@@ -41,8 +39,6 @@ from backend.services.sse_broadcaster import SSEBroadcaster
 from src.models.enums import Language, PipelineStage, RendererMode
 from src.models.state import DeckForgeState, UploadedDocument
 from src.pipeline.dry_run import get_dry_run_patches
-from src.utils.extractors import extract_document
-
 
 FRONTEND_STAGE_MAP: dict[str, tuple[str, str, int | None]] = {
     PipelineStage.INTAKE.value: ("intake", "Intake", 1),
@@ -338,7 +334,8 @@ def _derive_agent_runs(state: DeckForgeState) -> list[AgentRunInfo]:
             ("review_agent", "Review Agent", "GPT-5.4", "Review checks", "slide_content_review", 7),
             ("refine_agent", "Refine Agent", "Claude Opus 4.6", "Revision pass", "slide_refinement", 8),
             ("final_review_agent", "Final Review Agent", "GPT-5.4", "Final coherence check", "final_slide_review", 9),
-            ("presentation_agent", "Presentation Agent", "Claude Opus 4.6", "Slide package", "presentation_package", 10),
+            ("presentation_agent", "Presentation Agent", "Claude Opus 4.6",
+             "Slide package", "presentation_package", 10),
             ("qa_agent", "QA Agent", "GPT-5.4", "Submission QA", "quality_assurance", 8),
         ]
     }
@@ -379,7 +376,10 @@ def _derive_agent_runs(state: DeckForgeState) -> list[AgentRunInfo]:
 
     if state.qa_result:
         runs["qa_agent"].status = AgentRunStatus.COMPLETE
-        runs["qa_agent"].metric_value = f"{state.qa_result.deck_summary.passed} pass / {state.qa_result.deck_summary.failed} fail"
+        runs["qa_agent"].metric_value = (
+            f"{state.qa_result.deck_summary.passed} pass"
+            f" / {state.qa_result.deck_summary.failed} fail"
+        )
 
     current_stage = state.current_stage.value if hasattr(state.current_stage, "value") else str(state.current_stage)
     gate_number = _gate_number_from_stage(state.current_stage)
@@ -453,7 +453,6 @@ def _build_slide_preview_data(session_id: str, state: DeckForgeState) -> list[di
 
 
 def _derive_deliverables(session_id: str, state: DeckForgeState) -> list[DeliverableInfo]:
-    slide_count = len(state.final_slides or (state.written_slides.slides if state.written_slides else []))
     return [
         DeliverableInfo(
             key="pptx",
@@ -461,27 +460,43 @@ def _derive_deliverables(session_id: str, state: DeckForgeState) -> list[Deliver
             ready=bool(state.pptx_path),
             filename=state.pptx_path.split("\\")[-1] if state.pptx_path else f"proposal_{session_id[:6]}_en.pptx",
             download_url=f"/api/pipeline/{session_id}/export/pptx" if state.pptx_path else None,
+            path=state.pptx_path,
         ),
         DeliverableInfo(
             key="docx",
             label="Research report",
             ready=bool(state.report_docx_path),
-            filename=state.report_docx_path.split("\\")[-1] if state.report_docx_path else f"research_report_{session_id[:6]}_en.docx",
+            filename=(
+                state.report_docx_path.split("\\")[-1]
+                if state.report_docx_path
+                else f"research_report_{session_id[:6]}_en.docx"
+            ),
             download_url=f"/api/pipeline/{session_id}/export/docx" if state.report_docx_path else None,
+            path=state.report_docx_path,
         ),
         DeliverableInfo(
             key="source_index",
             label="Source index",
             ready=bool(getattr(state, "source_index_path", None)),
             filename=f"source_index_{session_id[:6]}.docx",
-            download_url=f"/api/pipeline/{session_id}/export/source_index" if getattr(state, "source_index_path", None) else None,
+            download_url=(
+                f"/api/pipeline/{session_id}/export/source_index"
+                if getattr(state, "source_index_path", None)
+                else None
+            ),
+            path=getattr(state, "source_index_path", None),
         ),
         DeliverableInfo(
             key="gap_report",
             label="Gap report",
             ready=bool(getattr(state, "gap_report_path", None)),
             filename=f"gap_report_{session_id[:6]}.docx",
-            download_url=f"/api/pipeline/{session_id}/export/gap_report" if getattr(state, "gap_report_path", None) else None,
+            download_url=(
+                f"/api/pipeline/{session_id}/export/gap_report"
+                if getattr(state, "gap_report_path", None)
+                else None
+            ),
+            path=getattr(state, "gap_report_path", None),
         ),
     ]
 
@@ -545,7 +560,11 @@ def _build_gate1_payload(state: DeckForgeState) -> Gate1ContextData:
             submission_format={
                 "format": "Structured proposal submission",
                 "delivery_method": "Client portal",
-                "file_requirements": context.submission_format.additional_requirements if context.submission_format else [],
+                "file_requirements": (
+                    context.submission_format.additional_requirements
+                    if context.submission_format
+                    else []
+                ),
                 "additional_instructions": "",
             },
         ),
@@ -553,8 +572,16 @@ def _build_gate1_payload(state: DeckForgeState) -> Gate1ContextData:
         selected_output_language=str(state.output_language),
         user_notes=state.user_notes,
         evaluation_highlights=[
-            f"Technical evaluation weight: {technical_weight}%" if technical_weight is not None else "Technical evaluation weight not specified",
-            f"Financial evaluation weight: {financial_weight}%" if financial_weight is not None else "Financial evaluation weight not specified",
+            (
+                f"Technical evaluation weight: {technical_weight}%"
+                if technical_weight is not None
+                else "Technical evaluation weight not specified"
+            ),
+            (
+                f"Financial evaluation weight: {financial_weight}%"
+                if financial_weight is not None
+                else "Financial evaluation weight not specified"
+            ),
             f"{len(context.compliance_requirements)} compliance requirements identified",
         ],
     )
@@ -566,7 +593,11 @@ def _build_gate2_payload(state: DeckForgeState) -> Gate2SourceReviewData:
             SourceReviewItem(
                 source_id=source.doc_id,
                 title=source.title,
-                relevance_score=float(source.relevance_score) / 100 if source.relevance_score > 1 else float(source.relevance_score),
+                relevance_score=(
+                    float(source.relevance_score) / 100
+                    if source.relevance_score > 1
+                    else float(source.relevance_score)
+                ),
                 snippet=source.summary,
                 matched_criteria=list(source.matched_criteria),
                 selected=source.recommendation == "include",
@@ -658,7 +689,11 @@ def _build_gate5_payload(
         )
 
     summary = qa.deck_summary
-    readiness = ReadinessStatus.BLOCKED if summary.fail_close else (ReadinessStatus.NEEDS_FIXES if summary.failed > 0 else ReadinessStatus.READY)
+    readiness = (
+        ReadinessStatus.BLOCKED
+        if summary.fail_close
+        else (ReadinessStatus.NEEDS_FIXES if summary.failed > 0 else ReadinessStatus.READY)
+    )
     review_status = ReadinessStatus.READY if summary.failed == 0 else ReadinessStatus.NEEDS_FIXES
 
     return Gate5QaReviewData(

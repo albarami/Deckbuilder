@@ -11,6 +11,7 @@ import { useCallback } from "react";
 import { usePipelineStore } from "@/stores/pipeline-store";
 import { decideGate } from "@/lib/api/pipeline";
 import { APIError } from "@/lib/types/api";
+import type { GateDecisionRequest } from "@/lib/types/pipeline";
 
 export function useGate() {
   const store = usePipelineStore();
@@ -18,7 +19,7 @@ export function useGate() {
   /**
    * Approve the current pending gate.
    */
-  const approve = useCallback(async () => {
+  const approve = useCallback(async (modifications?: GateDecisionRequest["modifications"]) => {
     const { sessionId, currentGate } = store;
     if (!sessionId || !currentGate) return;
 
@@ -28,6 +29,7 @@ export function useGate() {
     try {
       await decideGate(sessionId, gateNumber, {
         approved: true,
+        ...(modifications ? { modifications } : {}),
       });
 
       store.recordGateDecision({
@@ -51,7 +53,7 @@ export function useGate() {
    * Reject the current pending gate with feedback.
    */
   const reject = useCallback(
-    async (feedback: string) => {
+    async (feedback: string, modifications?: GateDecisionRequest["modifications"]) => {
       const { sessionId, currentGate } = store;
       if (!sessionId || !currentGate) return;
 
@@ -62,6 +64,7 @@ export function useGate() {
         await decideGate(sessionId, gateNumber, {
           approved: false,
           feedback,
+          ...(modifications ? { modifications } : {}),
         });
 
         store.recordGateDecision({

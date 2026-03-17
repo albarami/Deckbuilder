@@ -21,7 +21,7 @@ import { Gate2Sources, type SourceModifications } from "./gates/Gate2Sources";
 import { Gate3Research } from "./gates/Gate3Research";
 import { Gate4Slides } from "./gates/Gate4Slides";
 import { Gate5QA } from "./gates/Gate5QA";
-import type { GateInfo } from "@/lib/types/pipeline";
+import type { GateDecisionRequest, GateInfo } from "@/lib/types/pipeline";
 
 export interface GatePanelProps {
   /** Gate information from the pipeline store */
@@ -33,14 +33,14 @@ export function GatePanel({ gate }: GatePanelProps) {
   const [modifications, setModifications] = useState<SourceModifications | null>(null);
 
   const handleApprove = useCallback(async () => {
-    await approve();
-  }, [approve]);
+    await approve(modifications as GateDecisionRequest["modifications"]);
+  }, [approve, modifications]);
 
   const handleReject = useCallback(
     async (feedback: string) => {
-      await reject(feedback);
+      await reject(feedback, modifications as GateDecisionRequest["modifications"]);
     },
-    [reject],
+    [reject, modifications],
   );
 
   const handleModificationsChange = useCallback(
@@ -51,31 +51,29 @@ export function GatePanel({ gate }: GatePanelProps) {
   );
 
   return (
-    <Card variant="elevated" data-testid="gate-panel">
-      {/* Header */}
+    <Card
+      variant="elevated"
+      noPadding
+      className="overflow-hidden rounded-2xl shadow-sg-elevated dark:border-slate-800 dark:bg-slate-900"
+      data-testid="gate-panel"
+    >
       <GateHeader gate={gate} />
 
-      {/* Divider */}
-      <hr className="my-4 border-sg-border" />
-
-      {/* Gate-specific content */}
-      <div className="mb-6">
+      <div className="px-6 py-5">
         <GateContent
           gate={gate}
           onModificationsChange={handleModificationsChange}
         />
       </div>
 
-      {/* Divider */}
-      <hr className="mb-4 border-sg-border" />
-
-      {/* Actions */}
-      <GateActions
-        onApprove={handleApprove}
-        onReject={handleReject}
-        modifications={modifications}
-        isDeciding={isDecidingGate}
-      />
+      <div className="border-t border-sg-border bg-sg-mist/60 px-6 py-4 dark:border-slate-800 dark:bg-slate-950/70">
+        <GateActions
+          onApprove={handleApprove}
+          onReject={handleReject}
+          modifications={modifications}
+          isDeciding={isDecidingGate}
+        />
+      </div>
     </Card>
   );
 }

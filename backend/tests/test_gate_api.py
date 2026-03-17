@@ -12,7 +12,7 @@ import asyncio
 import pytest
 from httpx import AsyncClient
 
-from backend.models.api_models import PipelineStatus
+from backend.models.api_models import GatePayloadType, PipelineStatus
 from backend.services.session_manager import SessionManager
 
 
@@ -46,6 +46,7 @@ async def _create_session_at_gate(
         gate_number=gate_number,
         summary=f"Test gate {gate_number} summary",
         prompt=f"Gate {gate_number}: Approve?",
+        payload_type=GatePayloadType.CONTEXT_REVIEW,
     )
     return session_id
 
@@ -83,7 +84,8 @@ async def test_reject_gate_with_feedback(
     data = resp.json()
     assert data["gate_number"] == 1
     assert data["decision"] == "rejected"
-    assert data["pipeline_status"] == "complete"
+    # Gate rejection triggers revision loop, pipeline keeps running
+    assert data["pipeline_status"] == "running"
 
 
 @pytest.mark.asyncio

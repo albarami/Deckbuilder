@@ -41,9 +41,8 @@ export function ExportSummary({
   const t = useTranslations("export");
 
   return (
-    <Card variant="flat" className={`space-y-4 ${className}`} data-testid="export-summary">
-      {/* Title */}
-      <h3 className="text-sm font-semibold text-sg-navy">{t("summaryTitle")}</h3>
+    <Card variant="flat" className={`space-y-4 rounded-2xl dark:border-slate-800 dark:bg-slate-900 ${className}`} data-testid="export-summary">
+      <h3 className="text-sm font-semibold text-sg-navy dark:text-slate-100">{t("summaryTitle")}</h3>
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -107,7 +106,7 @@ export function ExportSummary({
       {/* Gate timeline */}
       {completedGates.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-sg-slate/70">{t("summaryGateTimeline")}</h4>
+          <h4 className="text-xs font-medium text-sg-slate/70 dark:text-slate-300">{t("summaryGateTimeline")}</h4>
           <div className="flex flex-wrap gap-2">
             {completedGates.map((gate) => (
               <Badge
@@ -124,7 +123,7 @@ export function ExportSummary({
       )}
 
       {/* Started at */}
-      <p className="text-xs text-sg-slate/50" data-testid="summary-started-at">
+      <p className="text-xs text-sg-slate/50 dark:text-slate-400" data-testid="summary-started-at">
         {t("summaryStarted")}: {formatTimestamp(startedAt)}
       </p>
     </Card>
@@ -142,8 +141,8 @@ interface StatItemProps {
 function StatItem({ label, value, testId }: StatItemProps) {
   return (
     <div className="space-y-1" data-testid={testId}>
-      <p className="text-xs text-sg-slate/60">{label}</p>
-      <p className="text-sm font-semibold text-sg-navy">{value}</p>
+      <p className="text-xs text-sg-slate/60 dark:text-slate-400">{label}</p>
+      <p className="text-sm font-semibold text-sg-navy dark:text-slate-100">{value}</p>
     </div>
   );
 }

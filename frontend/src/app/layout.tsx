@@ -3,9 +3,9 @@ import { displayFont, ibmPlexSans, ibmPlexMono } from "@/lib/fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DeckForge — Strategic Proposal Engine",
+  title: "Strategic Gears | DeckForge",
   description:
-    "Enterprise proposal generation engine for Strategic Gears consultants. Create, review, and export branded proposals.",
+    "Strategic Gears' enterprise proposal generation system for creating, reviewing, governing, and exporting source-backed consulting proposals.",
 };
 
 /**

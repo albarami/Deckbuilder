@@ -46,7 +46,7 @@ function getLatestAgent(events: SSEEvent[]): AgentInfo | null {
           name: latestStart.name,
           startedAt: latestStart.startedAt,
           completed: true,
-          durationMs: event.duration_ms,
+          durationMs: event.duration_ms ?? undefined,
         };
       }
     }

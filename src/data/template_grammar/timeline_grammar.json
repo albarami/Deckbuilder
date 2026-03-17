@@ -1,0 +1,13 @@
+{
+  "example_text": {
+    "ph_0": "Project Phase Deliverables Table",
+    "Table Placeholder 3": "N\nItem\nDeliverable Description\nUnit\nqty\nDelivery Timeline\n01\nFilm Sector Application Reports\nThe deliverable includes a detailed bilingual report (Arabic and English) containing the full preparation and review of the financial services request based on all submitted documents. It covers the financial and technical evaluations related to films, recommendations, and grant structuring. This is delivered after completing data verification, initial eligibility checks, document validation, and both fi"
+  },
+  "column_patterns": [
+    "Item",
+    "Description",
+    "Unit",
+    "Quantity",
+    "Timeline"
+  ]
+}

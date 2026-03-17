@@ -46,9 +46,12 @@ _SECTION_NAMES_EN = [
     "Timeline & Outcome", "Team", "Governance",
 ]
 _SECTION_NAMES_AR = [
-    "\u0627\u0644\u0641\u0647\u0645", "\u0644\u0645\u0627\u0630\u0627 \u0633\u062a\u0631\u0627\u062a\u064a\u062c\u064a\u0643 \u062c\u064a\u0631\u0632",
-    "\u0627\u0644\u0645\u0646\u0647\u062c\u064a\u0629", "\u0627\u0644\u062c\u062f\u0648\u0644 \u0627\u0644\u0632\u0645\u0646\u064a",
-    "\u0627\u0644\u0641\u0631\u064a\u0642", "\u0627\u0644\u062d\u0648\u0643\u0645\u0629",
+    "\u0627\u0644\u0641\u0647\u0645",
+    "\u0644\u0645\u0627\u0630\u0627 \u0633\u062a\u0631\u0627\u062a\u064a\u062c\u064a\u0643 \u062c\u064a\u0631\u0632",
+    "\u0627\u0644\u0645\u0646\u0647\u062c\u064a\u0629",
+    "\u0627\u0644\u062c\u062f\u0648\u0644 \u0627\u0644\u0632\u0645\u0646\u064a",
+    "\u0627\u0644\u0641\u0631\u064a\u0642",
+    "\u0627\u0644\u062d\u0648\u0643\u0645\u0629",
 ]
 
 _MAX_SECTIONS = 6
@@ -184,7 +187,11 @@ def build_manifest_from_slides(
         content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
         section_id="cover",
         injection_data={
-            "title": "\u062c\u062f\u0648\u0644 \u0627\u0644\u0645\u062d\u062a\u0648\u064a\u0627\u062a" if language == "ar" else "Table of Contents",
+            "title": (
+                "\u062c\u062f\u0648\u0644 \u0627\u0644\u0645\u062d\u062a\u0648\u064a\u0627\u062a"
+                if language == "ar"
+                else "Table of Contents"
+            ),
             "rows": [
                 [f"{i + 1:02d}", sec_names[i]] for i in range(len(sec_names))
             ],

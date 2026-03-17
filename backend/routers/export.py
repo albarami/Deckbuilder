@@ -7,8 +7,11 @@ Endpoint:
 
 from __future__ import annotations
 
+import logging
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 
 from backend.models.api_models import (
     APIErrorDetail,
@@ -17,7 +20,9 @@ from backend.models.api_models import (
     ExportFormat,
     PipelineStatus,
 )
-from backend.services.session_manager import SessionManager
+from backend.services.session_manager import PipelineSession, SessionManager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/pipeline", tags=["export"])
 
@@ -26,6 +31,14 @@ MIME_TYPES = {
     ExportFormat.DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ExportFormat.SOURCE_INDEX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ExportFormat.GAP_REPORT: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+
+# Map export format keys to DeckForgeState path attributes
+_STATE_PATH_ATTRS = {
+    ExportFormat.PPTX: "pptx_path",
+    ExportFormat.DOCX: "report_docx_path",
+    ExportFormat.SOURCE_INDEX: "source_index_path",
+    ExportFormat.GAP_REPORT: "gap_report_path",
 }
 
 
@@ -90,17 +103,64 @@ async def export_file(
             ).model_dump(),
         )
 
-    filename = deliverable.filename or f"{export_format.value}_{session_id[:6]}.bin"
-    payload = _mock_content(export_format, filename)
+    # Resolve the actual file path from the pipeline graph state
+    file_path = _resolve_file_path(session, export_format)
+    if file_path is None or not file_path.exists():
+        logger.warning(
+            "Export file not found on disk for session %s format %s: %s",
+            session_id,
+            format,
+            file_path,
+        )
+        raise HTTPException(
+            status_code=404,
+            detail=APIErrorResponse(
+                error=APIErrorDetail(
+                    code="FILE_NOT_FOUND",
+                    message=f"Rendered file not found on disk for format: {format}.",
+                )
+            ).model_dump(),
+        )
 
-    return Response(
-        content=payload,
+    filename = deliverable.filename or file_path.name
+
+    return FileResponse(
+        path=str(file_path),
         media_type=MIME_TYPES[export_format],
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            "Content-Length": str(len(payload)),
-        },
+        filename=filename,
     )
+
+
+def _resolve_file_path(session: PipelineSession, export_format: ExportFormat) -> Path | None:
+    """Resolve the on-disk path for the requested export format.
+
+    Checks the pipeline graph state first (authoritative source of rendered
+    file paths), then falls back to the session-level path fields.
+    """
+    # Try graph state first (has the full pipeline output paths)
+    if session.graph_state is not None:
+        attr = _STATE_PATH_ATTRS.get(export_format)
+        if attr:
+            raw_path = getattr(session.graph_state, attr, None)
+            if raw_path:
+                resolved = Path(raw_path)
+                if resolved.exists():
+                    return resolved
+
+    # Fallback: session-level path fields (set by set_deliverables)
+    session_path_map = {
+        ExportFormat.PPTX: session.pptx_path,
+        ExportFormat.DOCX: session.docx_path,
+        ExportFormat.SOURCE_INDEX: session.source_index_path,
+        ExportFormat.GAP_REPORT: session.gap_report_path,
+    }
+    raw = session_path_map.get(export_format)
+    if raw:
+        resolved = Path(raw)
+        if resolved.exists():
+            return resolved
+
+    return None
 
 
 def _find_deliverable(
@@ -111,16 +171,3 @@ def _find_deliverable(
         if deliverable.key == key:
             return deliverable
     return None
-
-
-def _mock_content(export_format: ExportFormat, filename: str) -> bytes:
-    header = b"PK\x03\x04"
-    if export_format == ExportFormat.PPTX:
-        body = b"Mock PPTX content for " + filename.encode("utf-8")
-    elif export_format == ExportFormat.DOCX:
-        body = b"Mock DOCX content for " + filename.encode("utf-8")
-    elif export_format == ExportFormat.SOURCE_INDEX:
-        body = b"Mock source index for " + filename.encode("utf-8")
-    else:
-        body = b"Mock gap report for " + filename.encode("utf-8")
-    return header + body

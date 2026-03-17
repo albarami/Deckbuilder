@@ -65,7 +65,7 @@ export function SlideGrid({
   if (error) {
     return (
       <div
-        className="flex min-h-[200px] items-center justify-center rounded-lg border border-red-200 bg-red-50 p-6"
+        className="flex min-h-[200px] items-center justify-center rounded-xl border border-red-200 bg-red-50 p-6 dark:border-red-500/20 dark:bg-red-500/10"
         data-testid="slide-grid-error"
       >
         <p className="text-sm text-red-600">{error}</p>
@@ -77,10 +77,10 @@ export function SlideGrid({
   if (slides.length === 0) {
     return (
       <div
-        className="flex min-h-[200px] items-center justify-center rounded-lg border border-sg-border p-6"
+        className="flex min-h-[200px] items-center justify-center rounded-xl border border-sg-border p-6 dark:border-slate-800 dark:bg-slate-900"
         data-testid="slide-grid-empty"
       >
-        <p className="text-sm text-sg-slate/50">{t("noSlides")}</p>
+        <p className="text-sm text-sg-slate/50 dark:text-slate-400">{t("noSlides")}</p>
       </div>
     );
   }
@@ -89,10 +89,10 @@ export function SlideGrid({
     <div data-testid="slide-grid">
       {/* Grid header */}
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm text-sg-slate/60">
+        <p className="text-sm text-sg-slate/60 dark:text-slate-400">
           {t("slideCount", { count: slides.length })}
         </p>
-        <p className="text-xs text-sg-slate/40">
+        <p className="text-xs text-sg-slate/40 dark:text-slate-500">
           {thumbnailMode === "rendered" ? t("modeRendered") : t("modeMetadata")}
         </p>
       </div>

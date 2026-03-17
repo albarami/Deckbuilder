@@ -90,4 +90,10 @@ export const shadows = {
   elevated: "0 4px 6px rgba(14, 40, 65, 0.07), 0 2px 4px rgba(14, 40, 65, 0.06)",
   /** Focused inputs */
   focus: "0 0 0 3px rgba(15, 158, 213, 0.3)",
+  /** Active pipeline stage glow */
+  glowTeal:
+    "0 0 0 1px rgba(21, 96, 130, 0.18), 0 10px 24px rgba(21, 96, 130, 0.18), 0 0 24px rgba(15, 158, 213, 0.16)",
+  /** Active agent / status glow */
+  glowBlue:
+    "0 0 0 1px rgba(15, 158, 213, 0.18), 0 8px 20px rgba(15, 158, 213, 0.14), 0 0 18px rgba(15, 158, 213, 0.12)",
 } as const;

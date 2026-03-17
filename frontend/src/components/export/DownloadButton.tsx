@@ -64,7 +64,7 @@ export function DownloadButton({
   if (!available) {
     return (
       <div className={className} data-testid="download-unavailable">
-        <Button variant="ghost" size="md" disabled className="w-full">
+        <Button variant="ghost" size="md" disabled className="w-full dark:text-slate-400">
           <UnavailableIcon />
           {unavailableLabel ?? label}
         </Button>

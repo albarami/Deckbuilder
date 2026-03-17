@@ -14,7 +14,6 @@ import pytest
 from backend.models.api_models import SSEEvent
 from backend.services.sse_broadcaster import SSEBroadcaster
 
-
 # ── Unit Tests: SSEBroadcaster ──────────────────────────────────────
 
 

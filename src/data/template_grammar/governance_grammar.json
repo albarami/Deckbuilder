@@ -1,0 +1,14 @@
+{
+  "tier_names": [
+    "Steering Committee",
+    "Operational Committee",
+    "Delivery Team",
+    "Escalation Path"
+  ],
+  "tier_structure": {
+    "name": "",
+    "composition": "",
+    "frequency": "",
+    "responsibility": ""
+  }
+}

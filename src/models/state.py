@@ -8,12 +8,13 @@ from pydantic import Field
 from .actions import ConversationResponse
 from .claims import ReferenceIndex
 from .common import DeckForgeBaseModel
-from .enums import Language, PipelineStage, PresentationType, RendererMode, UserRole
+from .enums import DeckMode, Language, PipelineStage, PresentationType, RendererMode, UserRole
 from .proposal_manifest import ProposalManifest
 from .qa import QAResult
 from .report import ResearchReport
 from .rfp import RFPContext
 from .slides import SlideObject, SlideOutline, WrittenSlides
+from .submission import InternalNotePack, SubmissionQAResult, SubmissionSourcePack, UnresolvedIssueRegistry
 from .waiver import WaiverObject
 
 
@@ -131,6 +132,13 @@ class DeckForgeState(DeckForgeBaseModel):
     # ─── Waivers ───
     waivers: list[WaiverObject] = Field(default_factory=list)
 
+    # ─── Deck Mode & Submission Layer (M10.6) ───
+    deck_mode: DeckMode = DeckMode.INTERNAL_REVIEW
+    submission_source_pack: SubmissionSourcePack | None = None
+    internal_notes: InternalNotePack | None = None
+    unresolved_issues: UnresolvedIssueRegistry | None = None
+    submission_qa_result: SubmissionQAResult | None = None
+
     # ─── Renderer mode (feature flag) ───
     renderer_mode: RendererMode = RendererMode.TEMPLATE_V2
     proposal_manifest: ProposalManifest | None = None
@@ -139,6 +147,7 @@ class DeckForgeState(DeckForgeBaseModel):
     pptx_path: str | None = None  # Path to rendered PPTX
     report_docx_path: str | None = None  # Path to exported report
     source_index_path: str | None = None  # Path to source index document
+    gap_report_path: str | None = None  # Path to gap report document
 
     # ─── Conversation ───
     conversation_history: list[ConversationTurn] = Field(default_factory=list)

@@ -91,9 +91,9 @@ def check_evidence_provenance(
             continue
 
         # Get bundle refs from slide, fallback to brief
-        bundle_refs = slide.evidence_bundle_refs
+        bundle_refs = getattr(slide, "evidence_bundle_refs", None) or []
         if not bundle_refs and slide.slide_id in brief_map:
-            bundle_refs = brief_map[slide.slide_id].evidence_bundle_refs
+            bundle_refs = getattr(brief_map[slide.slide_id], "evidence_bundle_refs", None) or []
 
         if not bundle_refs:
             continue

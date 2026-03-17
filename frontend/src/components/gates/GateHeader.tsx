@@ -7,6 +7,7 @@
 
 "use client";
 
+import { ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/Badge";
 import type { GateInfo } from "@/lib/types/pipeline";
@@ -30,18 +31,18 @@ export function GateHeader({ gate }: GateHeaderProps) {
   const nameKey = GATE_NAME_KEYS[gate.gate_number] ?? "gate1Name";
 
   return (
-    <div data-testid="gate-header">
-      <div className="flex items-center gap-3">
-        {/* Gate number circle */}
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
-          <span className="text-lg font-bold text-amber-700">
-            {gate.gate_number}
-          </span>
+    <div
+      className="sg-brand-surface rounded-t-2xl border-b border-sg-border px-6 py-5 dark:border-slate-800"
+      data-testid="gate-header"
+    >
+      <div className="flex items-start gap-4">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sg-teal text-white shadow-sg-card">
+          <ShieldCheck className="h-5 w-5" aria-hidden="true" />
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-sg-navy">
+            <h2 className="text-xl font-semibold tracking-tight text-sg-navy dark:text-slate-100">
               {(t as (key: string, values?: Record<string, unknown>) => string)(
                 "title",
                 { number: gate.gate_number },
@@ -49,14 +50,13 @@ export function GateHeader({ gate }: GateHeaderProps) {
             </h2>
             <Badge variant="warning">{t("reviewRequired")}</Badge>
           </div>
-          <p className="text-sm text-sg-slate/70">{t(nameKey)}</p>
+          <p className="mt-1 text-sm text-sg-slate/70 dark:text-slate-300">{t(nameKey)}</p>
         </div>
       </div>
 
-      {/* Review prompt from the AI */}
       {gate.prompt && (
-        <div className="mt-3 rounded-lg bg-sg-mist/50 p-3">
-          <p className="text-sm text-sg-slate">{gate.prompt}</p>
+        <div className="mt-4 rounded-xl border border-sg-border/70 bg-white/75 p-4 dark:border-slate-800 dark:bg-slate-950/65">
+          <p className="text-sm text-sg-slate dark:text-slate-200">{gate.prompt}</p>
         </div>
       )}
     </div>

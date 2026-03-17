@@ -9,6 +9,7 @@ import type {
   PipelineStatusResponse,
   GateDecisionRequest,
   GateDecisionResponse,
+  SessionHistoryResponse,
 } from "@/lib/types/pipeline";
 import type { HealthResponse } from "@/lib/types/api";
 
@@ -45,6 +46,14 @@ export function decideGate(
     `/api/pipeline/${sessionId}/gate/${gateNumber}/decide`,
     decision,
   );
+}
+
+/**
+ * List all pipeline sessions.
+ * GET /api/pipeline/sessions
+ */
+export function listSessions(): Promise<SessionHistoryResponse> {
+  return get<SessionHistoryResponse>("/api/pipeline/sessions");
 }
 
 /**

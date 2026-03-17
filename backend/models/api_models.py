@@ -326,6 +326,7 @@ class DeliverableInfo(BaseModel):
     ready: bool
     filename: str | None = None
     download_url: str | None = None
+    path: str | None = Field(default=None, exclude=True)
 
 
 class Gate5QaReviewData(BaseModel):

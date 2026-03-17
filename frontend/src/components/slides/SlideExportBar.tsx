@@ -57,11 +57,10 @@ export function SlideExportBar({
 
   return (
     <div
-      className={`flex flex-wrap items-center gap-3 rounded-lg border border-sg-border bg-white p-3 ${className}`}
+      className={`flex flex-wrap items-center gap-3 rounded-xl border border-sg-border bg-white p-3 dark:border-slate-800 dark:bg-slate-900 ${className}`}
       data-testid="slide-export-bar"
     >
-      {/* Slide count */}
-      <p className="flex-1 text-sm text-sg-slate/70">
+      <p className="flex-1 text-sm text-sg-slate/70 dark:text-slate-300">
         {t("slideCount", { count: slideCount })}
       </p>
 

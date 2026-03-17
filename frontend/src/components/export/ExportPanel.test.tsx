@@ -68,7 +68,11 @@ vi.mock("@/lib/api/export", () => ({
 const mockOutputs: PipelineOutputs = {
   pptx_ready: true,
   docx_ready: true,
+  source_index_ready: false,
+  gap_report_ready: false,
   slide_count: 24,
+  preview_ready: true,
+  deliverables: [],
 };
 
 const mockMetadata: SessionMetadata = {
@@ -225,7 +229,11 @@ describe("ExportPanel", () => {
     const partialOutputs: PipelineOutputs = {
       pptx_ready: true,
       docx_ready: false,
+      source_index_ready: false,
+      gap_report_ready: false,
       slide_count: 10,
+      preview_ready: false,
+      deliverables: [],
     };
     render(<ExportPanel {...defaultProps} outputs={partialOutputs} />);
     const downloadButtons = screen.getAllByTestId("download-button");

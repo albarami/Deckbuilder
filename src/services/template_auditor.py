@@ -1764,7 +1764,11 @@ def run_full_audit(
             "overlap_case_svc": sorted(overlap_case_svc),
             "overlap_case_team": sorted(overlap_case_team),
             "overlap_svc_team": sorted(overlap_svc_team),
-            "all_pools_disjoint": len(overlap_case_svc) == 0 and len(overlap_case_team) == 0 and len(overlap_svc_team) == 0,
+            "all_pools_disjoint": (
+                len(overlap_case_svc) == 0
+                and len(overlap_case_team) == 0
+                and len(overlap_svc_team) == 0
+            ),
         }
         _write_json(audit_dir / "pool_disjointness_proof.json", disjointness)
         artifacts["pool_disjointness_proof"] = audit_dir / "pool_disjointness_proof.json"

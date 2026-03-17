@@ -15,9 +15,8 @@ Features:
 from __future__ import annotations
 
 import asyncio
-import json
-from datetime import datetime, timezone
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 
 from backend.models.api_models import SSEEvent
 
@@ -102,11 +101,11 @@ class SSEBroadcaster:
 
                     yield f"data: {event.model_dump_json()}\n\n"
 
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # Send heartbeat
                     heartbeat = SSEEvent(
                         type="heartbeat",
-                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        timestamp=datetime.now(UTC).isoformat(),
                     )
                     yield f"data: {heartbeat.model_dump_json()}\n\n"
         finally:

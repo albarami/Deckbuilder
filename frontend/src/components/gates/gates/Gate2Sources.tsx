@@ -65,39 +65,39 @@ export function Gate2Sources({ gate, onModificationsChange }: Gate2SourcesProps)
 
   return (
     <div data-testid="gate-2-sources">
-      <p className="mb-4 text-sm text-sg-slate/70">{gate.summary}</p>
+      <p className="mb-4 text-sm text-sg-slate/70 dark:text-slate-300">{gate.summary}</p>
 
       {sources.length === 0 ? (
-        <p className="text-sm text-sg-slate/50 italic">{t("noData")}</p>
+        <p className="text-sm italic text-sg-slate/50 dark:text-slate-400">{t("noData")}</p>
       ) : (
         <div className="space-y-2">
-          <p className="text-xs text-sg-slate/60">
+          <p className="text-xs text-sg-slate/60 dark:text-slate-400">
             {t("sourcesSelected", { count: included.size, total: sources.length })}
           </p>
-          <ul className="divide-y divide-sg-border rounded-lg border border-sg-border">
+          <ul className="divide-y divide-sg-border rounded-lg border border-sg-border dark:divide-slate-800 dark:border-slate-800">
             {sources.map((source) => (
               <li key={source.id} className="flex items-start gap-3 px-4 py-3">
                 <input
                   type="checkbox"
                   checked={included.has(source.id)}
                   onChange={() => handleToggle(source.id)}
-                  className="mt-1 h-4 w-4 rounded border-sg-border text-sg-blue focus:ring-sg-blue/20"
+                  className="mt-1 h-4 w-4 rounded border-sg-border text-sg-blue focus:ring-sg-blue/20 dark:border-slate-700 dark:bg-slate-950"
                   aria-label={`${t("includeSource")}: ${source.title}`}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-sg-navy truncate">
+                    <span className="truncate text-sm font-medium text-sg-navy dark:text-slate-100">
                       {source.title}
                     </span>
                     <RelevanceBadge score={source.relevance_score} />
                   </div>
                   {source.url && (
-                    <p className="mt-0.5 truncate text-xs text-sg-blue/70">
+                    <p className="mt-0.5 truncate text-xs text-sg-blue/70 dark:text-sky-300/80">
                       {source.url}
                     </p>
                   )}
                   {source.snippet && (
-                    <p className="mt-1 text-xs text-sg-slate/60 line-clamp-2">
+                    <p className="mt-1 line-clamp-2 text-xs text-sg-slate/60 dark:text-slate-400">
                       {source.snippet}
                     </p>
                   )}
@@ -122,7 +122,7 @@ function extractSources(data: unknown): SourceItem[] {
   if (!Array.isArray(sources)) return [];
 
   return sources.map((s: Record<string, unknown>, i: number) => ({
-    id: String(s.id ?? `source_${i}`),
+    id: String(s.source_id ?? s.id ?? `source_${i}`),
     title: String(s.title ?? `Source ${i + 1}`),
     url: s.url ? String(s.url) : undefined,
     relevance_score: typeof s.relevance_score === "number" ? s.relevance_score : 0,

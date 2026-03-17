@@ -340,7 +340,7 @@ async def test_full_pipeline_happy_path() -> None:
 
     # Patch search and document loading at graph module level
     search_patch = patch(
-        "src.pipeline.graph.local_search",
+        "src.pipeline.graph.semantic_search",
         new_callable=AsyncMock,
         return_value=_SEARCH_RESULTS,
     )
@@ -472,7 +472,7 @@ async def test_retrieval_chain() -> None:
             return_value=_llm_response(_ranked_sources()),
         ) as mock_ranker,
         patch(
-            "src.pipeline.graph.local_search",
+            "src.pipeline.graph.semantic_search",
             new_callable=AsyncMock,
             return_value=_SEARCH_RESULTS,
         ) as mock_search,
@@ -532,7 +532,7 @@ async def test_gate_two_resume_applies_selected_source_ids() -> None:
             return_value=_llm_response(_ranked_sources_two_docs()),
         ),
         patch(
-            "src.pipeline.graph.local_search",
+            "src.pipeline.graph.semantic_search",
             new_callable=AsyncMock,
             return_value=_SEARCH_RESULTS,
         ),

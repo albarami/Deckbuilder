@@ -7,7 +7,7 @@ Architecture:
 - index_documents(): Full 9-step pipeline with manifest output
 - semantic_search(): Query the index, return Retrieval Ranker format
 
-Backward compatibility: local_search() and load_documents() preserved.
+Backward compatibility: load_documents() preserved.
 """
 
 import json
@@ -31,7 +31,6 @@ from src.agents.indexing.entity_extractor import (
 from src.config.settings import get_settings
 from src.models.common import DeckForgeBaseModel
 from src.models.knowledge import KnowledgeGraph
-from src.models.retrieval import SearchQuery
 from src.services.deduplication import (
     detect_exact_duplicates,
     detect_near_duplicates,
@@ -626,28 +625,6 @@ def _list_supported_documents(docs_path: str) -> list[dict]:
 # ──────────────────────────────────────────────────────────────
 # Legacy Functions (backward compatibility)
 # ──────────────────────────────────────────────────────────────
-
-
-async def local_search(
-    queries: list[SearchQuery],
-    docs_path: str = DEFAULT_DOCS_PATH,
-) -> list[dict]:
-    """Search local documents and return results for the Retrieval Ranker.
-
-    Legacy function — preserved for backward compatibility with existing
-    pipeline nodes. For new code, use semantic_search() instead.
-    """
-    docs_dir = Path(docs_path)
-    if not docs_dir.exists():
-        return []
-
-    await _ensure_local_backend(docs_path)
-
-    query_strings = [q.query for q in queries if q.query.strip()]
-    if not query_strings:
-        return _list_supported_documents(docs_path)
-
-    return await semantic_search(query_strings, top_k=10)
 
 
 async def load_documents(

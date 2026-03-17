@@ -28,9 +28,14 @@ from src.agents.retrieval import planner as retrieval_planner
 from src.agents.retrieval import ranker as retrieval_ranker
 from src.models.enums import PipelineStage, RendererMode
 from src.models.state import DeckForgeState, ErrorInfo, GateDecision
-from src.services.renderer import export_report_docx, render_pptx
+from src.services.renderer import (
+    export_gap_report_docx,
+    export_report_docx,
+    export_source_index_docx,
+    render_pptx,
+)
 from src.services.scorer_profiles import ScorerProfile
-from src.services.search import load_documents, local_search
+from src.services.search import load_documents, semantic_search
 
 # ──────────────────────────────────────────────────────────────
 # Pipeline nodes — thin wrappers that call agents and return
@@ -212,8 +217,14 @@ async def retrieval_node(state: DeckForgeState) -> dict[str, Any]:
             "last_error": state.last_error,
         }
 
-    # Step 2: Search
-    search_results = await local_search(queries.search_queries)
+    # Step 2: Search — extract query strings and call semantic_search directly.
+    # Empty queries fall back to an empty result set (the planner always
+    # produces at least one query, so this is a safety net only).
+    query_strings = [q.query for q in queries.search_queries if q.query.strip()]
+    if not query_strings:
+        search_results: list[dict] = []
+    else:
+        search_results = await semantic_search(query_strings, top_k=10)
 
     # Step 3: Rank
     result = await retrieval_ranker.run(state, search_results)
@@ -396,6 +407,18 @@ async def _render_legacy(state: DeckForgeState) -> dict[str, Any]:
         await export_report_docx(state.research_report, docx_path, language)
         result["report_docx_path"] = docx_path
 
+    # Export source index if data exists
+    if state.research_report and state.research_report.source_index:
+        source_index_path = str(output_dir / "source_index.docx")
+        await export_source_index_docx(state.research_report, source_index_path, language)
+        result["source_index_path"] = source_index_path
+
+    # Export gap report if data exists
+    if state.research_report and state.research_report.all_gaps:
+        gap_report_path = str(output_dir / "gap_report.docx")
+        await export_gap_report_docx(state.research_report, gap_report_path, language)
+        result["gap_report_path"] = gap_report_path
+
     return result
 
 
@@ -482,6 +505,12 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
         template_path = data_dir / f"template_{lang_suffix}.potx"
         if not template_path.exists():
             template_path = Path("templates") / f"PROPOSAL_TEMPLATE_{lang_suffix.upper()}.potx"
+        if not template_path.exists():
+            # Fallback to PROPOSAL_TEMPLATE directory
+            if lang_suffix == "ar":
+                template_path = Path("PROPOSAL_TEMPLATE") / "Arabic_Proposal_Template.potx"
+            else:
+                template_path = Path("PROPOSAL_TEMPLATE") / "PROPOSAL_TEMPLATE EN.potx"
 
         tm = TemplateManager(str(template_path), catalog_lock_path)
     except Exception as exc:
@@ -515,6 +544,18 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
         if state.research_report and v2_result.success:
             await export_report_docx(state.research_report, docx_path, language)
             result["report_docx_path"] = docx_path
+
+            # Export source index if data exists
+            if state.research_report.source_index:
+                source_index_path = str(output_dir / "source_index.docx")
+                await export_source_index_docx(state.research_report, source_index_path, language)
+                result["source_index_path"] = source_index_path
+
+            # Export gap report if data exists
+            if state.research_report.all_gaps:
+                gap_report_path = str(output_dir / "gap_report.docx")
+                await export_gap_report_docx(state.research_report, gap_report_path, language)
+                result["gap_report_path"] = gap_report_path
 
         return result
 

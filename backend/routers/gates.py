@@ -90,7 +90,11 @@ async def decide_gate(
         gate_number=gate_number,
         approved=body.approved,
         feedback=body.feedback or "",
-        modifications=body.modifications.model_dump() if hasattr(body.modifications, "model_dump") else body.modifications,
+        modifications=(
+            body.modifications.model_dump()
+            if hasattr(body.modifications, "model_dump")
+            else body.modifications
+        ),
     )
 
     pipeline_status = PipelineStatus.RUNNING

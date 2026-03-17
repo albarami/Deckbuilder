@@ -20,7 +20,6 @@ from backend.models.api_models import (
     PipelineStatus,
     SlideInfo,
     SlidesResponse,
-    ThumbnailMode,
 )
 from backend.services.session_manager import SessionManager
 
@@ -54,7 +53,10 @@ async def get_slides(
             detail=APIErrorResponse(
                 error=APIErrorDetail(
                     code="EXPORT_NOT_READY",
-                    message=f"Slides are not available yet. Current status: {session.status} ({session.current_stage}).",
+                    message=(
+                        f"Slides are not available yet. "
+                        f"Current status: {session.status} ({session.current_stage})."
+                    ),
                 )
             ).model_dump(),
         )

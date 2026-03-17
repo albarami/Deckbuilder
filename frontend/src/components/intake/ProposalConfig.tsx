@@ -79,7 +79,7 @@ export function ProposalConfig({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-sg-navy">
+      <h3 className="text-sm font-semibold text-sg-navy dark:text-slate-100">
         {t("configuration")}
       </h3>
 
@@ -187,7 +187,7 @@ function SelectField({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-sg-slate">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-sg-slate dark:text-slate-300">
         {label}
       </label>
       <select
@@ -196,12 +196,12 @@ function SelectField({
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         className={[
-          "w-full rounded-lg border bg-sg-white px-3 py-2 text-sm text-sg-slate transition-colors",
-          "focus:border-sg-blue focus:outline-none focus:ring-2 focus:ring-sg-blue/20",
+          "w-full rounded-lg border bg-sg-white px-3 py-2 text-sm text-sg-slate transition-colors dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100",
+          "focus:border-sg-blue focus:outline-none focus:ring-2 focus:ring-sg-blue/20 dark:focus:border-sky-300 dark:focus:ring-sky-400/20",
           disabled
-            ? "cursor-not-allowed border-sg-border/50 bg-sg-mist/50 opacity-60"
-            : "border-sg-border hover:border-sg-blue/40",
-          !value && placeholder ? "text-sg-slate/40" : "",
+            ? "cursor-not-allowed border-sg-border/50 bg-sg-mist/50 opacity-60 dark:border-slate-800 dark:bg-slate-900/70"
+            : "border-sg-border hover:border-sg-blue/40 dark:hover:border-sky-300/50",
+          !value && placeholder ? "text-sg-slate/40 dark:text-slate-500" : "",
         ].join(" ")}
       >
         {placeholder && (

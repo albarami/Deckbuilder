@@ -114,7 +114,7 @@ def test_model_map_has_10_entries():
         import src.config.models
 
         importlib.reload(src.config.models)
-        assert len(src.config.models.MODEL_MAP) == 10
+        assert len(src.config.models.MODEL_MAP) == 11
 
 
 def test_model_map_keys_match_agents():
@@ -132,7 +132,7 @@ def test_model_map_keys_match_agents():
             "context_agent", "retrieval_planner", "retrieval_ranker",
             "analysis_agent", "research_agent", "structure_agent",
             "content_agent", "qa_agent", "conversation_manager",
-            "indexing_classifier",
+            "indexing_classifier", "submission_transform_agent",
         }
         assert set(src.config.models.MODEL_MAP.keys()) == expected_keys
 

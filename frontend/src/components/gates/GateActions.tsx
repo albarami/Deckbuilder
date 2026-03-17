@@ -13,6 +13,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { CheckCircle2, PencilLine, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { FeedbackInput } from "./shared/FeedbackInput";
@@ -37,6 +38,7 @@ export function GateActions({
   className = "",
 }: GateActionsProps) {
   const t = useTranslations("gate");
+  const tCommon = useTranslations("common");
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
@@ -75,9 +77,8 @@ export function GateActions({
 
   return (
     <div className={className} data-testid="gate-actions">
-      {/* Feedback area (shown when rejecting) */}
       {showFeedback && (
-        <div className="mb-4">
+        <div className="mb-5 rounded-xl border border-sg-border bg-sg-white/80 p-4">
           <FeedbackInput
             value={feedback}
             onChange={setFeedback}
@@ -87,30 +88,42 @@ export function GateActions({
         </div>
       )}
 
-      {/* Action buttons */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-end gap-3">
         {!showFeedback ? (
           <>
             <Button
               variant="primary"
-              size="md"
+              size="lg"
               onClick={handleApprove}
               loading={actionType === "approve"}
               disabled={isLoading}
               data-testid="gate-approve-btn"
+              className="order-3 bg-sg-teal px-6 shadow-sg-glow-teal hover:bg-sg-navy"
             >
-              <CheckIcon />
+              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
               {t("approveLabel")}
             </Button>
             <Button
-              variant="danger"
+              variant="secondary"
+              size="md"
+              onClick={handleRejectClick}
+              disabled={isLoading}
+              data-testid="gate-request-changes-btn"
+              className="order-2 border-sg-border text-sg-slate hover:border-sg-navy/20 hover:bg-sg-mist"
+            >
+              <PencilLine className="h-4 w-4" aria-hidden="true" />
+              {t("requestChanges")}
+            </Button>
+            <Button
+              variant="ghost"
               size="md"
               onClick={handleRejectClick}
               disabled={isLoading}
               data-testid="gate-reject-btn"
+              className="order-1 border border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
             >
-              <XIcon />
-              {t("rejectLabel")}
+              <XCircle className="h-4 w-4" aria-hidden="true" />
+              {tCommon("reject")}
             </Button>
           </>
         ) : (
@@ -122,6 +135,7 @@ export function GateActions({
               loading={actionType === "reject"}
               disabled={isLoading || feedback.trim().length < 10}
               data-testid="gate-submit-reject-btn"
+              className="bg-red-600 hover:bg-red-700"
             >
               {t("submitRejection")}
             </Button>
@@ -138,37 +152,5 @@ export function GateActions({
         )}
       </div>
     </div>
-  );
-}
-
-// ── Icons ──────────────────────────────────────────────────────────────
-
-function CheckIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className="h-4 w-4"
-      aria-hidden="true"
-    >
-      <path
-        fillRule="evenodd"
-        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className="h-4 w-4"
-      aria-hidden="true"
-    >
-      <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-    </svg>
   );
 }

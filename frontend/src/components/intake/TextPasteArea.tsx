@@ -34,7 +34,7 @@ export function TextPasteArea({
     <div className="space-y-2">
       <label
         htmlFor="rfp-text-paste"
-        className="block text-sm font-semibold text-sg-navy"
+        className="block text-sm font-semibold text-sg-navy dark:text-slate-100"
       >
         {t("orPasteText")}
       </label>
@@ -49,12 +49,12 @@ export function TextPasteArea({
           dir={direction}
           rows={6}
           className={[
-            "w-full resize-y rounded-lg border bg-sg-white px-4 py-3 text-sm text-sg-slate transition-colors",
-            "placeholder:text-sg-slate/40",
-            "focus:border-sg-blue focus:outline-none focus:ring-2 focus:ring-sg-blue/20",
+            "w-full resize-y rounded-lg border bg-sg-white px-4 py-3 text-sm text-sg-slate transition-colors dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100",
+            "placeholder:text-sg-slate/40 dark:placeholder:text-slate-500",
+            "focus:border-sg-blue focus:outline-none focus:ring-2 focus:ring-sg-blue/20 dark:focus:border-sky-300 dark:focus:ring-sky-400/20",
             disabled
-              ? "cursor-not-allowed border-sg-border/50 bg-sg-mist/50 opacity-60"
-              : "border-sg-border hover:border-sg-blue/40",
+              ? "cursor-not-allowed border-sg-border/50 bg-sg-mist/50 opacity-60 dark:border-slate-800 dark:bg-slate-900/70"
+              : "border-sg-border hover:border-sg-blue/40 dark:hover:border-sky-300/50",
           ].join(" ")}
           aria-describedby="text-paste-char-count"
         />
@@ -63,9 +63,9 @@ export function TextPasteArea({
         {hasContent && (
           <span
             id="text-paste-char-count"
-            className="absolute bottom-3 text-xs text-sg-slate/50 ltr:right-3 rtl:left-3"
+            className="absolute bottom-3 text-xs text-sg-slate/50 dark:text-slate-400 ltr:right-3 rtl:left-3"
           >
-            {charCount.toLocaleString()} chars
+            {t("charCount", { count: charCount.toLocaleString() })}
           </span>
         )}
       </div>

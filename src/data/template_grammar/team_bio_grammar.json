@@ -1,0 +1,25 @@
+{
+  "pool_size": 9,
+  "layout_name": "two team members",
+  "placeholder_count": 11,
+  "sample_text": {
+    "ph_14": "20+ years of experience",
+    "ph_15": "HATTAN SAATY",
+    "ph_16": "CEO",
+    "ph_19": "NASSER ALQAHTANI",
+    "ph_20": "MANAGING PARTNER",
+    "ph_34": "Strategy\nMarketing\nPolicy development\nPricing\nBrand creation\nProduct/brand management",
+    "ph_1": "Hattan has been in management consulting since 2005. He then used his consulting experience and capabilities to establish Strategic Gears in 2015. Hattan's experience covers a wide range of industries",
+    "ph_35": "Nasser has a diversified background including business strategy, public policy, economic analysis and organizational excellence. He has been leading initiatives and programs across multiple sectors in",
+    "ph_36": "15+ years of experience",
+    "Table Placeholder 14": "Saudi economy\nProduct development\nGrowth strategies\nBusiness intelligence\nBusiness development and management"
+  },
+  "bio_structure": [
+    "experience_level",
+    "name",
+    "title",
+    "career_summary",
+    "sectors",
+    "education"
+  ]
+}

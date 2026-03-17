@@ -16,6 +16,7 @@ from httpx import ASGITransport, AsyncClient
 os.environ["PIPELINE_MODE"] = "dry_run"
 
 from backend.server import app, session_manager, sse_broadcaster
+from backend.services.session_manager import SessionManager
 
 
 @pytest.fixture(autouse=True)
@@ -37,9 +38,8 @@ def _clean_sessions() -> None:
 
 
 @pytest.fixture
-def sm() -> "SessionManager":
+def sm() -> SessionManager:
     """Provide the session manager instance."""
-    from backend.services.session_manager import SessionManager
     return session_manager
 
 

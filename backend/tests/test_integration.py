@@ -12,7 +12,7 @@ import asyncio
 import pytest
 from httpx import AsyncClient
 
-from backend.models.api_models import PipelineStatus
+from backend.models.api_models import DeliverableInfo, GatePayloadType, PipelineStatus
 from backend.services.session_manager import SessionManager
 
 
@@ -57,6 +57,7 @@ async def test_full_pipeline_lifecycle(
             gate_number=1,
             summary="Context analysis complete",
             prompt="Review the context analysis results",
+            payload_type=GatePayloadType.CONTEXT_REVIEW,
         )
 
     # 4. Verify gate_pending status via API
@@ -83,7 +84,14 @@ async def test_full_pipeline_lifecycle(
     assert session.completed_gates[0].approved is True
 
     # 7. Mark complete and verify export
-    sm.set_complete(session_id, pptx_path="mock.pptx", docx_path="mock.docx", slide_count=15)
+    sm.set_complete(
+        session_id,
+        slide_count=15,
+        deliverables=[
+            DeliverableInfo(key="pptx", label="Deck", ready=True, filename="mock.pptx"),
+            DeliverableInfo(key="docx", label="Report", ready=True, filename="mock.docx"),
+        ],
+    )
 
     export_resp = await client.get(f"/api/pipeline/{session_id}/export/pptx")
     assert export_resp.status_code == 200
@@ -114,6 +122,7 @@ async def test_pipeline_reject_and_complete(
         gate_number=1,
         summary="Analysis ready",
         prompt="Review analysis",
+        payload_type=GatePayloadType.CONTEXT_REVIEW,
     )
 
     # Reject with feedback
@@ -211,6 +220,7 @@ async def test_multiple_gates_sequential(
             gate_number=gate_num,
             summary=f"Gate {gate_num} ready",
             prompt=f"Review gate {gate_num}",
+            payload_type=GatePayloadType.CONTEXT_REVIEW,
         )
 
         resp = await client.post(

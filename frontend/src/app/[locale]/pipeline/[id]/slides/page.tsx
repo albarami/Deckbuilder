@@ -12,6 +12,7 @@ import { useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import { useSlidesStore } from "@/stores/slides-store";
+import { usePipelineStore } from "@/stores/pipeline-store";
 import { getSlides } from "@/lib/api/slides";
 import { APIError } from "@/lib/types/api";
 import { SlideGrid } from "@/components/slides/SlideGrid";
@@ -27,6 +28,7 @@ export default function SlideBrowserPage() {
   const sessionId = params.id;
 
   const store = useSlidesStore();
+  const pipelineOutputs = usePipelineStore((s) => s.outputs);
 
   // Fetch slides on mount
   useEffect(() => {
@@ -81,32 +83,29 @@ export default function SlideBrowserPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-sg-navy">{t("title")}</h1>
-          <p className="text-sm text-sg-slate/60">
+          <h1 className="text-xl font-bold text-sg-navy dark:text-slate-100">{t("title")}</h1>
+          <p className="text-sm text-sg-slate/60 dark:text-slate-400">
             {t("sessionLabel")}: {sessionId.slice(0, 8)}
           </p>
         </div>
         <Link href={`/pipeline/${sessionId}`}>
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" className="dark:text-slate-200 dark:hover:bg-slate-800">
             {t("backToPipeline")}
           </Button>
         </Link>
       </div>
 
-      {/* Export bar (only when slides are loaded) */}
       {store.slides.length > 0 && (
         <SlideExportBar
           sessionId={sessionId}
-          pptxReady={true}
-          docxReady={true}
+          pptxReady={pipelineOutputs?.pptx_ready ?? false}
+          docxReady={pipelineOutputs?.docx_ready ?? false}
           slideCount={store.slideCount}
         />
       )}
 
-      {/* Slide grid */}
       <SlideGrid
         slides={store.slides}
         thumbnailMode={store.thumbnailMode ?? "metadata_only"}
@@ -117,7 +116,6 @@ export default function SlideBrowserPage() {
         error={store.error}
       />
 
-      {/* Detail modal */}
       {store.selectedSlide && (
         <SlideDetailModal
           slide={store.selectedSlide}

@@ -763,3 +763,85 @@ async def export_report_docx(
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     doc.save(output_path)
     return output_path
+
+
+# ----------------------------------------------------------------
+# DOCX Exporter -- Standalone Source Index
+# ----------------------------------------------------------------
+
+
+async def export_source_index_docx(
+    report: ResearchReport,
+    output_path: str,
+    language: Language = Language.EN,
+) -> str:
+    """Export standalone Source Index as .docx file."""
+    doc = Document()
+    doc.add_heading("Source Index", level=0)
+
+    if not report.source_index:
+        doc.add_paragraph("No source entries available.")
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        doc.save(output_path)
+        return output_path
+
+    table = doc.add_table(rows=1, cols=4)
+    table.style = "Table Grid"
+    hdr = table.rows[0].cells
+    hdr[0].text = "Claim ID"
+    hdr[1].text = "Document Title"
+    hdr[2].text = "SharePoint Path"
+    hdr[3].text = "Date"
+
+    for src in report.source_index:
+        row = table.add_row().cells
+        row[0].text = src.claim_id
+        row[1].text = src.document_title
+        row[2].text = src.sharepoint_path
+        row[3].text = src.date or ""
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    doc.save(output_path)
+    return output_path
+
+
+# ----------------------------------------------------------------
+# DOCX Exporter -- Standalone Gap Report
+# ----------------------------------------------------------------
+
+
+async def export_gap_report_docx(
+    report: ResearchReport,
+    output_path: str,
+    language: Language = Language.EN,
+) -> str:
+    """Export standalone Gap Report as .docx file."""
+    doc = Document()
+    doc.add_heading("Gap Report", level=0)
+
+    if not report.all_gaps:
+        doc.add_paragraph("No evidence gaps identified.")
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        doc.save(output_path)
+        return output_path
+
+    table = doc.add_table(rows=1, cols=5)
+    table.style = "Table Grid"
+    hdr = table.rows[0].cells
+    hdr[0].text = "Gap ID"
+    hdr[1].text = "Description"
+    hdr[2].text = "RFP Criterion"
+    hdr[3].text = "Severity"
+    hdr[4].text = "Action Required"
+
+    for gap in report.all_gaps:
+        row = table.add_row().cells
+        row[0].text = gap.gap_id
+        row[1].text = gap.description
+        row[2].text = gap.rfp_criterion
+        row[3].text = str(gap.severity)
+        row[4].text = gap.action_required
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    doc.save(output_path)
+    return output_path

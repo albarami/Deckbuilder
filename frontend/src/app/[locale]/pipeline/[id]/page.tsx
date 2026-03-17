@@ -1,5 +1,5 @@
 /**
- * Pipeline session page — dispatches view by pipeline status.
+ * Pipeline session page — hero view for the end-to-end proposal workflow.
  *
  * On mount:
  * 1. Extracts session_id from URL
@@ -8,23 +8,26 @@
  *
  * Renders different content based on status:
  * - idle/loading: loading spinner
- * - running: StageTracker + AgentStatusCard
- * - gate_pending: StageTracker + gate info (M11.6 placeholder)
- * - complete: PipelineComplete
- * - error: PipelineErrorBanner
+ * - running: active stage detail + live activity timeline
+ * - gate_pending: gate review UI + live activity timeline
+ * - complete: export actions + live activity timeline
+ * - error: error state + live activity timeline
  * - not found: session expired message
  */
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { AlertTriangle, Clock3, Sparkles, Workflow } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import { usePipeline } from "@/hooks/use-pipeline";
 import { useSSE } from "@/hooks/use-sse";
 import { PipelineHeader } from "@/components/pipeline/PipelineHeader";
-import { StageTracker } from "@/components/pipeline/StageTracker";
-import { AgentStatusCard } from "@/components/pipeline/AgentStatusCard";
+import { PipelineProgressBar } from "@/components/pipeline/PipelineProgressBar";
+import { ActivityTimeline } from "@/components/pipeline/ActivityTimeline";
+import { AgentStatusGrid } from "@/components/pipeline/AgentStatusGrid";
+import { JourneyLegend } from "@/components/pipeline/JourneyLegend";
 import { PipelineErrorBanner } from "@/components/pipeline/PipelineErrorBanner";
 import { PipelineComplete } from "@/components/pipeline/PipelineComplete";
 import { GatePanel } from "@/components/gates/GatePanel";
@@ -32,6 +35,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Link } from "@/i18n/routing";
+import type { GateInfo, PipelineOutputs, PipelineStatus } from "@/lib/types/pipeline";
 
 export default function PipelineSessionPage() {
   const t = useTranslations("pipeline");
@@ -42,20 +46,18 @@ export default function PipelineSessionPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Connect SSE when pipeline is running or gate_pending
   const sseEnabled =
     pipeline.status === "running" || pipeline.status === "gate_pending";
+
   useSSE({
     sessionId: pipeline.sessionId,
     enabled: sseEnabled,
   });
 
-  // On mount: restore session from backend
   useEffect(() => {
     async function restoreSession() {
       if (!sessionId) return;
 
-      // If we already have this session loaded, skip restore
       if (pipeline.sessionId === sessionId && pipeline.status !== "idle") {
         setIsLoading(false);
         return;
@@ -74,7 +76,6 @@ export default function PipelineSessionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  // Save session to sessionStorage for dashboard
   useEffect(() => {
     if (pipeline.sessionId && pipeline.status !== "idle") {
       try {
@@ -91,11 +92,9 @@ export default function PipelineSessionPage() {
     }
   }, [pipeline.sessionId, pipeline.status, pipeline.startedAt]);
 
-  // ── Loading state ──────────────────────────────────────────────────
-
   if (isLoading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
+      <div className="flex min-h-[420px] items-center justify-center">
         <div className="text-center">
           <Spinner size="lg" label={t("loading")} />
           <p className="mt-4 text-sm text-sg-slate/60">{t("loading")}</p>
@@ -104,27 +103,17 @@ export default function PipelineSessionPage() {
     );
   }
 
-  // ── Not found state ────────────────────────────────────────────────
-
   if (notFound) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <Card variant="default" className="max-w-md text-center">
+      <div className="flex min-h-[420px] items-center justify-center">
+        <Card variant="default" className="max-w-md rounded-2xl text-center shadow-sg-card">
           <div className="flex justify-center">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="h-12 w-12 text-sg-slate/30"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+            <div className="rounded-full bg-sg-mist p-4">
+              <AlertTriangle
+                className="h-10 w-10 text-sg-slate/35"
+                aria-hidden="true"
               />
-            </svg>
+            </div>
           </div>
           <h2 className="mt-4 text-lg font-semibold text-sg-navy">
             {t("sessionExpired")}
@@ -133,7 +122,7 @@ export default function PipelineSessionPage() {
             {t("sessionExpiredMessage")}
           </p>
           <Link href="/new">
-            <Button variant="primary" size="md" className="mt-4">
+            <Button variant="primary" size="md" className="mt-4 bg-sg-teal hover:bg-sg-navy">
               {t("startNewProposal")}
             </Button>
           </Link>
@@ -142,11 +131,8 @@ export default function PipelineSessionPage() {
     );
   }
 
-  // ── Main pipeline view ─────────────────────────────────────────────
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <PipelineHeader
         sessionId={pipeline.sessionId ?? sessionId}
         status={pipeline.status}
@@ -154,56 +140,195 @@ export default function PipelineSessionPage() {
         elapsedMs={pipeline.elapsedMs}
       />
 
-      {/* Error banner */}
       {pipeline.error && pipeline.status === "error" && (
         <PipelineErrorBanner error={pipeline.error} />
       )}
 
-      {/* Two-column layout: stage tracker + content */}
-      <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Left column: Stage tracker */}
-        <div className="w-full lg:w-64 lg:flex-shrink-0">
-          <Card variant="flat">
-            <StageTracker
-              currentStage={pipeline.currentStage}
-              status={pipeline.status}
-              completedGates={pipeline.completedGates}
-              error={pipeline.error}
-            />
-          </Card>
+      <PipelineProgressBar
+        currentStage={pipeline.currentStage}
+        status={pipeline.status}
+        completedGates={pipeline.completedGates}
+        currentGate={pipeline.currentGate}
+      />
+
+      <JourneyLegend />
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_380px]">
+        <div className="min-w-0">
+          <PipelinePrimaryPanel
+            sessionId={pipeline.sessionId ?? sessionId}
+            status={pipeline.status}
+            currentStage={pipeline.currentStage}
+            currentGate={pipeline.currentGate}
+            outputs={pipeline.outputs}
+            error={pipeline.error}
+            llmCalls={pipeline.sessionMetadata.total_llm_calls}
+            totalCostUsd={pipeline.sessionMetadata.total_cost_usd}
+          />
         </div>
 
-        {/* Right column: Status-dependent content */}
-        <div className="flex-1 space-y-4">
-          {/* Running: agent status */}
-          {pipeline.status === "running" && (
-            <AgentStatusCard
-              events={pipeline.events}
-              status={pipeline.status}
-            />
-          )}
-
-          {/* Gate pending: gate approval UI */}
-          {pipeline.status === "gate_pending" && pipeline.currentGate && (
-            <GatePanel gate={pipeline.currentGate} />
-          )}
-
-          {/* Complete: export buttons */}
-          {pipeline.status === "complete" && pipeline.outputs && (
-            <PipelineComplete
-              sessionId={pipeline.sessionId ?? sessionId}
-              outputs={pipeline.outputs}
-            />
-          )}
-
-          {/* Idle (shouldn't normally happen on this page) */}
-          {pipeline.status === "idle" && (
-            <Card variant="flat" className="text-center">
-              <p className="text-sg-slate/60">{t("waitingForPipeline")}</p>
-            </Card>
-          )}
-        </div>
+        <ActivityTimeline
+          events={pipeline.events}
+          startedAt={pipeline.startedAt}
+        />
       </div>
+
+      <AgentStatusGrid
+        agentRuns={pipeline.agentRuns}
+      />
     </div>
   );
+}
+
+interface PipelinePrimaryPanelProps {
+  sessionId: string;
+  status: PipelineStatus | "idle";
+  currentStage: string;
+  currentGate: GateInfo | null;
+  outputs: PipelineOutputs | null;
+  error: { agent: string; message: string } | null;
+  llmCalls: number;
+  totalCostUsd: number;
+}
+
+function PipelinePrimaryPanel({
+  sessionId,
+  status,
+  currentStage,
+  currentGate,
+  outputs,
+  error,
+  llmCalls,
+  totalCostUsd,
+}: PipelinePrimaryPanelProps) {
+  const t = useTranslations("pipeline");
+
+  if (status === "gate_pending" && currentGate) {
+    return <GatePanel gate={currentGate} />;
+  }
+
+  if (status === "complete" && outputs) {
+    return (
+      <PipelineComplete
+        sessionId={sessionId}
+        outputs={outputs}
+      />
+    );
+  }
+
+  if (status === "error" && error) {
+    return (
+      <Card variant="elevated" className="space-y-4 rounded-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-red-100 p-3 text-red-700 dark:bg-red-500/10 dark:text-red-400">
+            <Workflow className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-sg-navy dark:text-slate-100">
+              {t("errorTitle")}
+            </h2>
+            <p className="mt-1 text-sm text-sg-slate/70 dark:text-slate-300">{error.message}</p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  if (status === "idle") {
+    return (
+      <Card variant="elevated" className="rounded-2xl dark:border-slate-800 dark:bg-slate-900">
+        <p className="text-sm text-sg-slate/60 dark:text-slate-400">{t("waitingForPipeline")}</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card variant="elevated" noPadding className="overflow-hidden rounded-2xl dark:border-slate-800 dark:bg-slate-900">
+      <div className="sg-brand-surface border-b border-sg-border px-6 py-5 dark:border-slate-800">
+        <div className="flex items-start gap-4">
+          <div className="rounded-xl bg-sg-teal p-3 text-white shadow-sg-card">
+            <Sparkles className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-sg-navy dark:text-slate-100">
+              {formatStageLabel(currentStage, t)}
+            </h2>
+            <p className="mt-1 text-sm text-sg-slate/70 dark:text-slate-300">
+              {status === "running" ? t("running") : t("gatePending")}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 px-6 py-5 sm:grid-cols-3">
+        <MetricCard
+          icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
+          label={t("metricLlmCalls")}
+          value={String(llmCalls)}
+        />
+        <MetricCard
+          icon={<Workflow className="h-4 w-4" aria-hidden="true" />}
+          label={t("metricStatus")}
+          value={status === "running" ? t("metricLive") : t("metricReview")}
+        />
+        <MetricCard
+          icon={<Sparkles className="h-4 w-4" aria-hidden="true" />}
+          label={t("metricCost")}
+          value={`$${totalCostUsd.toFixed(2)}`}
+        />
+      </div>
+    </Card>
+  );
+}
+
+function MetricCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-sg-border bg-sg-mist/70 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+      <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-sg-slate/55 dark:text-slate-400">
+        <span className="text-sg-blue dark:text-sky-300">{icon}</span>
+        {label}
+      </div>
+      <p className="mt-2 text-base font-semibold text-sg-navy dark:text-slate-100">{value}</p>
+    </div>
+  );
+}
+
+function formatStageLabel(
+  stage: string,
+  t: (key: string) => string,
+): string {
+  switch (stage) {
+    case "intake":
+    case "context_analysis":
+    case "context":
+      return t("stages.context");
+    case "source_research":
+    case "sources":
+      return t("stages.sources");
+    case "report_generation":
+    case "report":
+      return t("stages.report");
+    case "slide_rendering":
+    case "slides":
+    case "rendering":
+      return t("stages.slides");
+    case "quality_assurance":
+    case "qa":
+    case "finalized":
+      return t("stages.qa");
+    default:
+      return stage
+        .split("_")
+        .filter(Boolean)
+        .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+        .join(" ");
+  }
 }

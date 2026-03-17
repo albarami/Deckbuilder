@@ -14,6 +14,7 @@
 import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { FileUploadZone } from "@/components/intake/FileUploadZone";
+import { PipelinePreview } from "@/components/intake/PipelinePreview";
 import { TextPasteArea } from "@/components/intake/TextPasteArea";
 import { ProposalConfig, type ProposalConfigValues } from "@/components/intake/ProposalConfig";
 import { StartPipelineButton } from "@/components/intake/StartPipelineButton";
@@ -48,14 +49,16 @@ export default function NewProposalPage() {
 
   return (
     <div className="space-y-section">
-      {/* Page heading */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="mt-2 text-sg-slate/70">{t("subtitle")}</p>
+        <h1 className="text-3xl font-bold tracking-tight text-sg-navy dark:text-slate-100">
+          {t("title")}
+        </h1>
+        <p className="mt-2 max-w-3xl text-sg-slate/70 dark:text-slate-300">
+          {t("subtitle")}
+        </p>
       </div>
 
-      {/* Upload + Paste section */}
-      <Card variant="default">
+      <Card variant="default" className="rounded-2xl dark:border-slate-800 dark:bg-slate-900">
         <div className="space-y-6">
           <FileUploadZone
             onFilesUploaded={handleFilesUploaded}
@@ -69,7 +72,7 @@ export default function NewProposalPage() {
               <div className="w-full border-t border-sg-border" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-sg-white px-3 text-xs uppercase text-sg-slate/50">
+              <span className="bg-sg-white px-3 text-xs uppercase text-sg-slate/50 dark:bg-slate-900 dark:text-slate-500">
                 {t("or")}
               </span>
             </div>
@@ -83,8 +86,7 @@ export default function NewProposalPage() {
         </div>
       </Card>
 
-      {/* Configuration section */}
-      <Card variant="default">
+      <Card variant="default" className="rounded-2xl dark:border-slate-800 dark:bg-slate-900">
         <ProposalConfig
           values={config}
           onChange={setConfig}
@@ -92,12 +94,13 @@ export default function NewProposalPage() {
         />
       </Card>
 
-      {/* Start button */}
       <StartPipelineButton
         uploadedFiles={uploadedFiles}
         pastedText={pastedText}
         config={config}
       />
+
+      <PipelinePreview />
     </div>
   );
 }

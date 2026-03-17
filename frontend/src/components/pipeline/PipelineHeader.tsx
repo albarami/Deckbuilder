@@ -6,9 +6,9 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import type { PipelineStatus } from "@/lib/types/pipeline";
 
 export interface PipelineHeaderProps {
@@ -18,12 +18,31 @@ export interface PipelineHeaderProps {
   elapsedMs: number;
 }
 
-const STATUS_BADGE: Record<string, { variant: BadgeVariant; labelKey: string }> = {
-  idle: { variant: "default", labelKey: "pipeline.idle" },
-  running: { variant: "info", labelKey: "pipeline.running" },
-  gate_pending: { variant: "warning", labelKey: "pipeline.gatePending" },
-  complete: { variant: "success", labelKey: "pipeline.complete" },
-  error: { variant: "error", labelKey: "pipeline.error" },
+const STATUS_BADGE: Record<
+  string,
+  { labelKey: string; className: string; icon?: ReactNode }
+> = {
+  idle: {
+    labelKey: "pipeline.idle",
+    className: "bg-sg-mist text-sg-slate dark:bg-slate-950 dark:text-slate-300",
+  },
+  running: {
+    labelKey: "pipeline.running",
+    className: "bg-sg-blue/10 text-sg-blue",
+  },
+  gate_pending: {
+    labelKey: "pipeline.gatePending",
+    className: "bg-sg-orange/10 text-sg-orange",
+    icon: <Info className="h-3.5 w-3.5" aria-hidden="true" />,
+  },
+  complete: {
+    labelKey: "pipeline.complete",
+    className: "bg-emerald-50 text-emerald-700",
+  },
+  error: {
+    labelKey: "pipeline.error",
+    className: "bg-red-50 text-red-700",
+  },
 };
 
 export function PipelineHeader({
@@ -56,23 +75,26 @@ export function PipelineHeader({
   }, [status, startedAt, elapsedMs]);
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      {/* Session ID */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-sg-slate/60">
-          {t("pipeline.sessionId")}:
-        </span>
-        <span className="rounded bg-sg-mist px-2 py-0.5 font-mono text-sm text-sg-navy">
+    <div className="flex flex-wrap items-center gap-3 animate-fade-in-down">
+      <div className="inline-flex items-center gap-2 rounded-full bg-sg-navy px-3 py-1.5 text-xs text-white/70 shadow-sg-card dark:bg-slate-900">
+        <span className="font-medium">{t("pipeline.sessionId")}</span>
+        <span className="font-mono font-semibold tracking-wide text-white">
           {shortId}
         </span>
       </div>
 
-      {/* Status badge */}
-      <Badge variant={badge.variant}>{t(badge.labelKey)}</Badge>
+      <span
+        className={[
+          "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold",
+          badge.className,
+        ].join(" ")}
+      >
+        {badge.icon}
+        {t(badge.labelKey)}
+      </span>
 
-      {/* Elapsed time */}
       {startedAt && (
-        <span className="text-sm text-sg-slate/60">
+        <span className="font-mono text-xs text-sg-slate/60 dark:text-slate-400">
           {formatElapsed(liveElapsed)}
         </span>
       )}

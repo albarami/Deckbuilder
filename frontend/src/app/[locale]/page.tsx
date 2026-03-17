@@ -12,18 +12,16 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-section">
-      {/* Page heading */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">
+        <h1 className="text-3xl font-bold tracking-tight text-sg-navy dark:text-slate-100">
           {t("dashboard.title")}
         </h1>
-        <p className="mt-2 text-sg-slate/70">{t("app.tagline")}</p>
+        <p className="mt-2 max-w-3xl text-sg-slate/70 dark:text-slate-300">
+          {t("dashboard.subtitle")}
+        </p>
       </div>
 
-      {/* Quick stats row */}
       <QuickStats />
-
-      {/* Recent proposals */}
       <RecentProposals />
     </div>
   );

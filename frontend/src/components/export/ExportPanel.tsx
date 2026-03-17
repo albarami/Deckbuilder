@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { DownloadButton } from "./DownloadButton";
 import { ExportSummary } from "./ExportSummary";
-import { downloadPptx, downloadDocx } from "@/lib/api/export";
+import { downloadPptx, downloadDocx, downloadSourceIndex, downloadGapReport } from "@/lib/api/export";
 import type {
   PipelineOutputs,
   SessionMetadata,
@@ -58,13 +58,23 @@ export function ExportPanel({
     [sessionId],
   );
 
+  const handleSourceIndexDownload = useCallback(
+    () => downloadSourceIndex(sessionId),
+    [sessionId],
+  );
+
+  const handleGapReportDownload = useCallback(
+    () => downloadGapReport(sessionId),
+    [sessionId],
+  );
+
   const isReady = outputs !== null;
   const slideCount = outputs?.slide_count ?? 0;
 
   return (
     <div className={`space-y-6 ${className}`} data-testid="export-panel">
       {/* Header card with download buttons */}
-      <Card variant="elevated" className="space-y-5">
+      <Card variant="elevated" className="space-y-5 rounded-2xl dark:border-slate-800 dark:bg-slate-900">
         {/* Success indicator and title */}
         <div className="flex items-center gap-3">
           {isReady ? (
@@ -77,9 +87,9 @@ export function ExportPanel({
             </div>
           )}
           <div>
-            <h2 className="text-lg font-bold text-sg-navy">{t("title")}</h2>
+            <h2 className="text-lg font-bold text-sg-navy dark:text-slate-100">{t("title")}</h2>
             {isReady ? (
-              <p className="text-sm text-sg-slate/70">
+              <p className="text-sm text-sg-slate/70 dark:text-slate-300">
                 {t("slideCount", { count: slideCount })}
               </p>
             ) : (
@@ -89,7 +99,7 @@ export function ExportPanel({
         </div>
 
         {/* Download buttons */}
-        <div className="grid gap-3 sm:grid-cols-2" data-testid="download-section">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="download-section">
           <DownloadButton
             label={t("downloadPptx")}
             onDownload={handlePptxDownload}
@@ -104,6 +114,22 @@ export function ExportPanel({
             variant="secondary"
             available={isReady && (outputs?.docx_ready ?? false)}
             unavailableLabel={t("downloadDocx")}
+            errorMessage={t("downloadError")}
+          />
+          <DownloadButton
+            label={t("downloadSourceIndex") ?? "Source Index"}
+            onDownload={handleSourceIndexDownload}
+            variant="secondary"
+            available={isReady && (outputs?.source_index_ready ?? false)}
+            unavailableLabel={t("downloadSourceIndex") ?? "Source Index"}
+            errorMessage={t("downloadError")}
+          />
+          <DownloadButton
+            label={t("downloadGapReport") ?? "Gap Report"}
+            onDownload={handleGapReportDownload}
+            variant="secondary"
+            available={isReady && (outputs?.gap_report_ready ?? false)}
+            unavailableLabel={t("downloadGapReport") ?? "Gap Report"}
             errorMessage={t("downloadError")}
           />
         </div>

@@ -10,9 +10,8 @@ from __future__ import annotations
 import os
 import tempfile
 import uuid
-from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from backend.models.api_models import (
     APIErrorDetail,

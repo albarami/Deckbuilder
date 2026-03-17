@@ -8,8 +8,6 @@ All tests run with PIPELINE_MODE=dry_run. Zero LLM calls.
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 from httpx import AsyncClient
 

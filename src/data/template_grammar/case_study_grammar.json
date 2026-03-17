@@ -1,0 +1,18 @@
+{
+  "pool_size": 31,
+  "layout_name": "Services - Detailed Case",
+  "framing": "Challenge -> Approach -> Impact",
+  "fields": [
+    "client",
+    "project_title",
+    "outcome",
+    "services"
+  ],
+  "sample_text": {
+    "ph_43": "Tadawul",
+    "ph_0": "Project: Understanding Investor Behaviors and Motivations",
+    "ph_44": "Contribution:\nThe research process was conducted in four stages: Internal meetings with relevant stakeholders, qualitative research to explore and understand investment dynamics in the Kingdom of Saud",
+    "ph_45": "Impact:\nSegmenting the target audience into five main groups based on their investment behaviors.",
+    "ph_46": "Challenge:\nStudying investor behaviors in the Kingdom of Saudi Arabia to identify the most effective ways to engage and communicate with them."
+  }
+}

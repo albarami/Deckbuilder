@@ -41,6 +41,7 @@ describe("PipelineStore", () => {
       gate_number: 1,
       summary: "RFP parsed",
       prompt: "Approve?",
+      payload_type: "context_review",
     });
 
     const state = usePipelineStore.getState();
@@ -57,6 +58,7 @@ describe("PipelineStore", () => {
       gate_number: 1,
       summary: "Test",
       prompt: "Approve?",
+      payload_type: "context_review",
     });
     store.recordGateDecision({
       gate_number: 1,
@@ -79,6 +81,7 @@ describe("PipelineStore", () => {
       gate_number: 2,
       summary: "Sources",
       prompt: "Approve?",
+      payload_type: "source_review",
     });
     store.recordGateDecision({
       gate_number: 2,
@@ -100,7 +103,11 @@ describe("PipelineStore", () => {
     store.setComplete({
       pptx_ready: true,
       docx_ready: true,
+      source_index_ready: false,
+      gap_report_ready: false,
       slide_count: 12,
+      preview_ready: true,
+      deliverables: [],
     });
 
     const state = usePipelineStore.getState();
@@ -129,10 +136,12 @@ describe("PipelineStore", () => {
       session_id: "restored-id",
       status: "gate_pending",
       current_stage: "context_review",
+      current_stage_label: "Context Review",
       current_gate: {
         gate_number: 1,
         summary: "Context ready",
         prompt: "Approve?",
+        payload_type: "context_review",
       },
       completed_gates: [],
       started_at: "2024-01-01T00:00:00Z",
@@ -145,6 +154,10 @@ describe("PipelineStore", () => {
         total_output_tokens: 500,
         total_cost_usd: 0.05,
       },
+      agent_runs: [],
+      deliverables: [],
+      rfp_name: "Test RFP",
+      issuing_entity: "Test Entity",
     };
 
     usePipelineStore.getState().restoreFromStatus(response);

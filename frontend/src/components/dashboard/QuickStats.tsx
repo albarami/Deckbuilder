@@ -1,8 +1,7 @@
 /**
  * QuickStats — Row of stat cards showing proposal counts.
  *
- * Reads from sessionStorage to count recent sessions.
- * M11 has no persistent backend state, so this is a local-only display.
+ * Reads from the backend sessions API (with sessionStorage fallback).
  */
 
 "use client";
@@ -10,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/Card";
+import { listSessions } from "@/lib/api/pipeline";
 
 interface Stats {
   active: number;
@@ -18,10 +18,31 @@ interface Stats {
 }
 
 /**
- * Read session counts from sessionStorage.
- * Sessions are stored as deckforge_session_{id} keys.
+ * Fetch session counts from the backend API.
+ * Falls back to sessionStorage if the API is unavailable.
  */
-function getSessionStats(): Stats {
+async function getSessionStats(): Promise<Stats> {
+  try {
+    const response = await listSessions();
+    let active = 0;
+    let completed = 0;
+
+    for (const session of response.sessions) {
+      if (session.status === "complete") {
+        completed++;
+      } else if (session.status === "running" || session.status === "gate_pending") {
+        active++;
+      }
+    }
+
+    return { active, completed, total: active + completed };
+  } catch {
+    // Fallback to sessionStorage if backend unavailable
+    return getSessionStatsFromStorage();
+  }
+}
+
+function getSessionStatsFromStorage(): Stats {
   if (typeof window === "undefined") {
     return { active: 0, completed: 0, total: 0 };
   }
@@ -53,7 +74,7 @@ export function QuickStats() {
   const [stats, setStats] = useState<Stats>({ active: 0, completed: 0, total: 0 });
 
   useEffect(() => {
-    setStats(getSessionStats());
+    getSessionStats().then(setStats);
   }, []);
 
   const cards = [
@@ -65,9 +86,15 @@ export function QuickStats() {
   return (
     <div className="grid grid-cols-1 gap-compact sm:grid-cols-3">
       {cards.map((card) => (
-        <Card key={card.label} variant="default">
-          <p className="text-sm font-medium text-sg-slate/60">{card.label}</p>
-          <p className={`mt-1 text-2xl font-bold ${card.accent}`}>
+        <Card
+          key={card.label}
+          variant="default"
+          className="rounded-2xl dark:border-slate-800 dark:bg-slate-900"
+        >
+          <p className="text-sm font-medium text-sg-slate/60 dark:text-slate-400">
+            {card.label}
+          </p>
+          <p className={`mt-1 text-2xl font-bold ${card.accent} dark:text-slate-100`}>
             {card.value}
           </p>
         </Card>

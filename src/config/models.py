@@ -17,6 +17,7 @@ def _build_model_map() -> dict[str, str]:
         "qa_agent": settings.openai_model_gpt54,
         "conversation_manager": settings.anthropic_model_sonnet,
         "indexing_classifier": settings.openai_model_gpt54,
+        "submission_transform_agent": settings.anthropic_model_opus,
     }
 
 
