@@ -20,6 +20,7 @@ from backend.models.api_models import (
     PipelineStatus,
     SlideInfo,
     SlidesResponse,
+    ThumbnailMode,
 )
 from backend.services.session_manager import SessionManager
 
@@ -92,7 +93,14 @@ async def get_slides(
             sensitivity_tags=slide.get("sensitivity_tags", []),
             content_guidance=slide.get("content_guidance", ""),
             change_history_count=slide.get("change_history_count", 0),
-            thumbnail_url=slide.get("thumbnail_url"),
+            thumbnail_url=(
+                slide.get("thumbnail_url")
+                or (
+                    f"/api/pipeline/{session_id}/slides/{slide.get('slide_number', index + 1)}/thumbnail.png"
+                    if session.thumbnail_mode == ThumbnailMode.RENDERED
+                    else None
+                )
+            ),
             shape_count=slide.get("shape_count", 0),
             fonts=slide.get("fonts", []),
             text_preview=slide.get("text_preview", ""),
@@ -130,6 +138,17 @@ async def get_thumbnail(
                 error=APIErrorDetail(
                     code="SESSION_NOT_FOUND",
                     message=f"Session {session_id} not found.",
+                )
+            ).model_dump(),
+        )
+
+    if session.thumbnail_mode == ThumbnailMode.METADATA_ONLY:
+        raise HTTPException(
+            status_code=404,
+            detail=APIErrorResponse(
+                error=APIErrorDetail(
+                    code="FILE_NOT_FOUND",
+                    message="Thumbnails are not available in metadata_only mode.",
                 )
             ).model_dump(),
         )

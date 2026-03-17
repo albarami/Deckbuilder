@@ -9,7 +9,7 @@ implementation details.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -527,7 +527,7 @@ class SSEEvent(BaseModel):
 
     event_id: str = ""
     type: str
-    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     stage: str | None = None
     stage_key: str | None = None
     stage_label: str | None = None

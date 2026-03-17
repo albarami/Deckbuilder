@@ -8,6 +8,7 @@ All tests run with PIPELINE_MODE=dry_run. Zero LLM calls.
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 import pytest
 from httpx import AsyncClient
@@ -18,7 +19,7 @@ from backend.services.session_manager import SessionManager
 
 @pytest.mark.asyncio
 async def test_full_pipeline_lifecycle(
-    client: AsyncClient, sm: SessionManager
+    client: AsyncClient, sm: SessionManager, tmp_path: Any
 ) -> None:
     """Full lifecycle: start → status → gate → approve → complete → export."""
     # 1. Start pipeline
@@ -84,12 +85,17 @@ async def test_full_pipeline_lifecycle(
     assert session.completed_gates[0].approved is True
 
     # 7. Mark complete and verify export
+    mock_pptx = tmp_path / "mock.pptx"
+    mock_pptx.write_bytes(b"PK\x03\x04mock-pptx-content")
+    mock_docx = tmp_path / "mock.docx"
+    mock_docx.write_bytes(b"PK\x03\x04mock-docx-content")
+
     sm.set_complete(
         session_id,
         slide_count=15,
         deliverables=[
-            DeliverableInfo(key="pptx", label="Deck", ready=True, filename="mock.pptx"),
-            DeliverableInfo(key="docx", label="Report", ready=True, filename="mock.docx"),
+            DeliverableInfo(key="pptx", label="Deck", ready=True, filename="mock.pptx", path=str(mock_pptx)),
+            DeliverableInfo(key="docx", label="Report", ready=True, filename="mock.docx", path=str(mock_docx)),
         ],
     )
 
