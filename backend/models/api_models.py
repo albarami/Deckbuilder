@@ -417,6 +417,7 @@ class SessionHistoryItem(BaseModel):
     session_id: str
     rfp_name: str = ""
     issuing_entity: str = ""
+    language: str = "en"
     status: PipelineStatus
     current_stage: str
     current_gate_number: int | None = None

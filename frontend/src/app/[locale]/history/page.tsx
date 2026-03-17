@@ -41,7 +41,7 @@ export default function HistoryPage() {
             sessionId: s.session_id,
             status: s.status,
             startedAt: s.started_at ?? "",
-            language: "en",
+            language: s.language ?? "en",
           })),
         );
       } catch {

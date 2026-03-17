@@ -148,6 +148,7 @@ class PipelineSession:
             session_id=self.session_id,
             rfp_name=self.rfp_name,
             issuing_entity=self.issuing_entity,
+            language=self.language,
             status=self.status,
             current_stage=self.current_stage_label or self.current_stage,
             current_gate_number=self.current_gate.gate_number if self.current_gate else None,

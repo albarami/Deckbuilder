@@ -134,7 +134,7 @@ def _build_initial_state(
         uploaded_documents=uploaded_documents,
         user_notes=session.user_notes,
         output_language=_to_language(session.language),
-        renderer_mode=RendererMode.TEMPLATE_V2,
+        renderer_mode=RendererMode(session.renderer_mode) if session.renderer_mode else RendererMode.TEMPLATE_V2,
     )
 
 

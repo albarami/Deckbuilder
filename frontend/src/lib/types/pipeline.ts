@@ -301,6 +301,7 @@ export interface SessionHistoryItem {
   session_id: string;
   rfp_name: string;
   issuing_entity: string;
+  language: string;
   status: PipelineStatus;
   current_stage: string;
   current_gate_number?: number | null;
