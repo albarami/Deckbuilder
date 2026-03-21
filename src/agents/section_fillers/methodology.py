@@ -395,6 +395,7 @@ class MethodologyFiller(BaseSectionFiller):
         )
 
         output = llm_response.parsed
+        self._last_raw_output = output  # Store for quality gate
         entries: list[ManifestEntry] = []
 
         # Overview slide

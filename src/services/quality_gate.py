@@ -48,46 +48,54 @@ _INTERNAL_NOTE_PATTERNS = [
 ]
 
 # Required sections (R5) — 10 required sections
+# Required sections from MANDATORY_SECTION_ORDER in section_blueprint.py.
+# ToC lives under "cover" (as toc_table a2_shell), NOT as a separate section.
+# company_profile is the canonical ID — section_07/section_08 do not exist.
 REQUIRED_SECTIONS = frozenset({
-    "cover",           # Introduction (cover + intro_message)
-    "section_01",      # Understanding
+    "cover",           # Proposal cover + intro message + ToC
+    "section_01",      # Understanding / Current State
     "section_02",      # Why Strategic Gears
     "section_03",      # Methodology
     "section_04",      # Timeline & Deliverables
     "section_05",      # Team
     "section_06",      # Governance
-    "section_07",      # Case Studies / Precedent Evidence
-    "section_08",      # Company Profile
-    "toc",             # Table of Contents
+    "company_profile", # Company Profile
+    "closing",         # Know More + Contact
 })
 
-# RENDERABLE_NOW layouts — can be fully populated via current injectors
+# RENDERABLE_NOW layouts — can be fully populated via current injectors.
+# Step 1 added OBJECT injection to inject_multi_body and inject_title_body,
+# so all multi-zone layouts (Understanding, Timeline, Governance) are now
+# renderable.  Updated to match actual placeholder_injectors.py capability.
 RENDERABLE_NOW_LAYOUTS = frozenset({
+    # Multi-body layouts (inject_multi_body with OBJECT support)
     "intro_message",
     "methodology_overview_3", "methodology_overview_4",
     "methodology_focused_3", "methodology_focused_4",
     "methodology_detail",
-    "content_heading_desc",
-    "content_heading_only",
     "content_heading_content",
-    "proposal_cover",
-    "toc_table",
-    "team_two_members",
-    "case_study_detailed", "case_study_cases",
-    "section_divider_01", "section_divider_02", "section_divider_03",
-    "section_divider_04", "section_divider_05", "section_divider_06",
-    "section_divider_07", "section_divider_08", "section_divider_09",
-    "layout_heading_description_and_content_box",
-    "layout_heading_and_subheading",
-})
-
-# Layouts requiring injector extension (OBJECT zones not yet populated)
-REQUIRES_EXTENSION_LAYOUTS = frozenset({
     "layout_heading_and_4_boxes_of_content",
     "layout_heading_and_two_content_with_tiltes",
     "layout_heading_text_box_and_content",
     "layout_heading_description_and_two_rows_of_content_boxes",
+    "layout_heading_and_subheading",
+    "case_study_detailed", "case_study_cases",
+    # Title-body layouts (inject_title_body with object_contents support)
+    "content_heading_desc",
+    "content_heading_only",
+    "layout_heading_description_and_content_box",
+    # Section dividers
+    "section_divider_01", "section_divider_02", "section_divider_03",
+    "section_divider_04", "section_divider_05", "section_divider_06",
+    "section_divider_07", "section_divider_08", "section_divider_09",
+    # Specialized layouts
+    "proposal_cover",
+    "toc_table",
+    "team_two_members",
 })
+
+# No layouts currently require extension — all have OBJECT support.
+REQUIRES_EXTENSION_LAYOUTS: frozenset[str] = frozenset()
 
 
 # ── Result ─────────────────────────────────────────────────────────────
@@ -504,17 +512,17 @@ def _score_s2_section_completeness(
             present_sections.add(section_id)
 
     # Points per section
+    # Points per live section — matches MANDATORY_SECTION_ORDER
     section_points = {
-        "cover": 10,      # Cover + Intro Message
-        "toc": 5,         # Table of Contents
-        "section_01": 12,  # Understanding
-        "section_02": 8,   # Why Strategic Gears
-        "section_03": 18,  # Methodology
-        "section_04": 9,   # Timeline
-        "section_05": 9,   # Team
-        "section_06": 9,   # Governance
-        "section_07": 10,  # Case Studies
-        "section_08": 10,  # Company Profile
+        "cover": 10,            # Cover + Intro + ToC
+        "section_01": 14,       # Understanding
+        "section_02": 8,        # Why Strategic Gears
+        "section_03": 20,       # Methodology
+        "section_04": 10,       # Timeline
+        "section_05": 10,       # Team
+        "section_06": 10,       # Governance
+        "company_profile": 10,  # Company Profile
+        "closing": 8,           # Know More + Contact
     }
 
     total = sum(

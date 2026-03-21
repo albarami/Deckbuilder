@@ -1,6 +1,7 @@
 """DeckForgeState — the master LangGraph state passed between all agents."""
 
 from datetime import UTC, datetime
+from typing import Any as TypingAny
 from typing import Literal
 
 from pydantic import Field
@@ -9,6 +10,7 @@ from .actions import ConversationResponse
 from .claims import ReferenceIndex
 from .common import DeckForgeBaseModel
 from .enums import DeckMode, Language, PipelineStage, PresentationType, RendererMode, UserRole
+from .methodology_blueprint import MethodologyBlueprint
 from .proposal_manifest import ProposalManifest
 from .qa import QAResult
 from .report import ResearchReport
@@ -94,6 +96,9 @@ class DeckForgeState(DeckForgeBaseModel):
     user_notes: str = ""
     output_language: Language = Language.EN
     presentation_type: PresentationType = PresentationType.TECHNICAL_PROPOSAL
+    proposal_mode: str = "standard"
+    sector: str = ""
+    geography: str = ""
 
     # ─── Gate 1: Context ───
     rfp_context: RFPContext | None = None
@@ -138,6 +143,15 @@ class DeckForgeState(DeckForgeBaseModel):
     internal_notes: InternalNotePack | None = None
     unresolved_issues: UnresolvedIssueRegistry | None = None
     submission_qa_result: SubmissionQAResult | None = None
+
+    # ─── Assembly Plan (template-first pipeline) ───
+    assembly_plan: TypingAny = None  # AssemblyPlanResult from assembly_plan agent
+    methodology_blueprint: MethodologyBlueprint | None = None
+    slide_budget: TypingAny = None  # SlideBudget from slide_budgeter
+    selected_service_divider: str = ""  # semantic_id of selected service divider
+
+    # ─── Section filler outputs (G2 typed schemas for quality gate) ───
+    filler_outputs: dict[str, TypingAny] = Field(default_factory=dict)
 
     # ─── Renderer mode (feature flag) ───
     renderer_mode: RendererMode = RendererMode.TEMPLATE_V2

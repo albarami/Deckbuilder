@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
+from typing import Any
 
 from src.models.enums import Language
 from src.models.methodology_blueprint import MethodologyBlueprint
@@ -45,6 +46,7 @@ class OrchestratorResult:
     entries_by_section: dict[str, list[ManifestEntry]] = field(
         default_factory=dict,
     )
+    filler_outputs: dict[str, Any] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -205,6 +207,8 @@ async def run_section_fillers(
             output: SectionFillerOutput = await task
             if output.entries:
                 result.entries_by_section[section_id] = output.entries
+            if output.raw_output is not None:
+                result.filler_outputs[section_id] = output.raw_output
             if output.errors:
                 result.errors.extend(output.errors)
                 logger.warning(

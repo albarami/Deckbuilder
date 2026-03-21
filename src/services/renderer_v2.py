@@ -286,6 +286,9 @@ def render_v2(
     template_manager: TemplateManager,
     catalog_lock_path: Path,
     output_path: Path,
+    *,
+    filler_outputs: dict[str, Any] | None = None,
+    language: str = "en",
 ) -> RenderResult:
     """Manifest-driven, template-anchored render.
 
@@ -299,6 +302,11 @@ def render_v2(
         Path to the catalog lock JSON for the active language.
     output_path : Path
         Destination .pptx path.
+    filler_outputs : dict, optional
+        G2 typed filler outputs keyed by section_id (e.g. section_03 →
+        MethodologyOutput).  Passed to the quality gate for R3/R4/S1.
+    language : str
+        Deck language ("en" or "ar").  Passed to quality gate for R10.
 
     Returns
     -------
@@ -306,6 +314,7 @@ def render_v2(
         Aggregated result with per-slide records and error lists.
     """
     result = RenderResult()
+    result.filler_outputs = filler_outputs or {}
 
     # ── 1. Load supporting data ─────────────────────────────────────
     try:
@@ -387,6 +396,7 @@ def render_v2(
             records=qg_records,
             filler_outputs=result.filler_outputs,
             injection_results=result.injection_results,
+            language=language,
         )
         result.quality_gate = qg
 

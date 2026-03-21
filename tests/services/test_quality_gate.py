@@ -195,14 +195,15 @@ class TestR2ProseDetection:
         record = _make_record(injection_data={"body": text})
         assert _check_r2_prose_detection([record]) == []
 
-    def test_extension_layout_skipped(self):
-        """REQUIRES_EXTENSION layouts are not checked."""
+    def test_multi_zone_layout_now_enforced(self):
+        """Multi-zone layouts are now RENDERABLE_NOW and enforced."""
         long_prose = " ".join(["word"] * 30)
         record = _make_record(
             layout="layout_heading_and_4_boxes_of_content",
             injection_data={"body": long_prose},
         )
-        assert _check_r2_prose_detection([record]) == []
+        failures = _check_r2_prose_detection([record])
+        assert any("R2" in f for f in failures)
 
 
 # ── R3: Methodology phase structure ────────────────────────────────────
@@ -280,13 +281,13 @@ class TestR5SectionPresence:
         failures = _check_r5_section_presence(records)
         assert any("section_06" in f for f in failures)
 
-    def test_missing_case_studies_fails(self):
+    def test_missing_company_profile_fails(self):
         records = [
             r for r in _all_sections_records()
-            if r["section_id"] != "section_07"
+            if r["section_id"] != "company_profile"
         ]
         failures = _check_r5_section_presence(records)
-        assert any("section_07" in f for f in failures)
+        assert any("company_profile" in f for f in failures)
 
 
 # ── R7: Empty renderable slide detection ──────────────────────────────
@@ -452,45 +453,47 @@ class TestR10ArabicPurity:
         )
         assert _check_r10_arabic_purity([record], "ar") == []
 
-    def test_extension_layout_skipped(self):
-        """REQUIRES_EXTENSION layouts are not checked in AR mode."""
+    def test_multi_zone_layout_now_enforced_ar(self):
+        """Multi-zone layouts are now RENDERABLE_NOW and enforced in AR."""
         record = _make_record(
             layout="layout_heading_and_4_boxes_of_content",
             injection_data={"body": "implementation"},
         )
-        assert _check_r10_arabic_purity([record], "ar") == []
+        failures = _check_r10_arabic_purity([record], "ar")
+        assert any("R10" in f for f in failures)
 
 
 # ── Pending-extension findings ─────────────────────────────────────────
 
 
 class TestPendingFindings:
-    def test_understanding_extension_layout_recorded(self):
+    """All multi-zone layouts are now RENDERABLE_NOW (Step 1 added OBJECT
+    injection).  No layouts require extension, so pending findings are empty.
+    """
+
+    def test_understanding_multi_zone_now_renderable(self):
+        """layout_heading_and_two_content_with_tiltes is now renderable."""
         record = _make_record(
             layout="layout_heading_and_two_content_with_tiltes",
             section_id="section_01",
         )
-        findings = _collect_pending_findings([record])
-        assert len(findings) == 1
-        assert "P1" in findings[0]
+        assert _collect_pending_findings([record]) == []
 
-    def test_timeline_extension_layout_recorded(self):
+    def test_timeline_multi_zone_now_renderable(self):
+        """layout_heading_and_4_boxes_of_content is now renderable."""
         record = _make_record(
             layout="layout_heading_and_4_boxes_of_content",
             section_id="section_04",
         )
-        findings = _collect_pending_findings([record])
-        assert len(findings) == 1
-        assert "P2" in findings[0]
+        assert _collect_pending_findings([record]) == []
 
-    def test_governance_extension_layout_recorded(self):
+    def test_governance_multi_zone_now_renderable(self):
+        """layout_heading_and_two_content_with_tiltes is now renderable."""
         record = _make_record(
             layout="layout_heading_and_two_content_with_tiltes",
             section_id="section_06",
         )
-        findings = _collect_pending_findings([record])
-        assert len(findings) == 1
-        assert "P3" in findings[0]
+        assert _collect_pending_findings([record]) == []
 
     def test_renderable_layout_not_recorded(self):
         record = _make_record(
@@ -498,6 +501,55 @@ class TestPendingFindings:
             section_id="section_01",
         )
         assert _collect_pending_findings([record]) == []
+
+
+# ── BLOCKER 4: Multi-zone layouts now enforced ─────────────────────────
+
+
+class TestMultiZoneLayoutsEnforceable:
+    """Proves multi-zone layouts (Understanding/Timeline/Governance) are
+    RENDERABLE_NOW and subject to hard rule enforcement (R2, R8, etc.).
+    """
+
+    def test_understanding_layout_enforces_prose_rule(self):
+        """R2 fires on layout_heading_and_two_content_with_tiltes."""
+        record = _make_record(
+            layout="layout_heading_and_two_content_with_tiltes",
+            section_id="section_01",
+            injection_data={"body": " ".join(["word"] * 30)},
+        )
+        failures = _check_r2_prose_detection([record])
+        assert any("R2" in f for f in failures)
+
+    def test_timeline_layout_enforces_placeholder_rule(self):
+        """R8 fires on layout_heading_and_4_boxes_of_content."""
+        record = _make_record(
+            layout="layout_heading_and_4_boxes_of_content",
+            section_id="section_04",
+            injection_data={"body": "Status [TBD]"},
+        )
+        failures = _check_r8_placeholder_markers([record])
+        assert any("R8" in f for f in failures)
+
+    def test_governance_layout_enforces_internal_notes_rule(self):
+        """R9 fires on layout_heading_text_box_and_content."""
+        record = _make_record(
+            layout="layout_heading_text_box_and_content",
+            section_id="section_06",
+            injection_data={"body": "[INTERNAL] Draft notes"},
+        )
+        failures = _check_r9_internal_notes([record])
+        assert any("R9" in f for f in failures)
+
+    def test_two_rows_layout_enforces_arabic_rule(self):
+        """R10 fires on layout_heading_description_and_two_rows_of_content_boxes."""
+        record = _make_record(
+            layout="layout_heading_description_and_two_rows_of_content_boxes",
+            section_id="section_01",
+            injection_data={"body": "implementation strategy"},
+        )
+        failures = _check_r10_arabic_purity([record], "ar")
+        assert any("R10" in f for f in failures)
 
 
 # ── Scored metrics ─────────────────────────────────────────────────────
@@ -522,10 +574,10 @@ class TestS2SectionCompleteness:
     def test_missing_sections_scores_lower(self):
         records = [
             r for r in _all_sections_records()
-            if r["section_id"] != "section_03"  # -18 points
+            if r["section_id"] != "section_03"  # -20 points
         ]
         score = _score_s2_section_completeness(records)
-        assert score == 82.0
+        assert score == 80.0
 
 
 class TestS3ContentDensity:
@@ -625,13 +677,14 @@ class TestRunQualityGate:
         assert result.methodology_structure_score > 0
         assert result.section_completeness_score > 0
 
-    def test_pending_findings_do_not_block(self):
-        """Extension layout findings are recorded but don't cause failure."""
+    def test_no_pending_findings_all_renderable(self):
+        """All multi-zone layouts are now renderable — no pending findings."""
         records = _all_sections_records()
-        # Add an extension layout slide
+        # Add a multi-zone layout that was formerly pending
         records.append(_make_record(
             layout="layout_heading_and_4_boxes_of_content",
             section_id="section_01",
+            injection_data={"title": "Multi-zone slide"},
         ))
         meth = _make_methodology_output(phase_count=4)
         result = run_quality_gate(
@@ -639,8 +692,48 @@ class TestRunQualityGate:
             filler_outputs={"section_03": meth},
         )
         assert result.passed
-        assert len(result.pending_findings) >= 1
-        assert any("P1" in f for f in result.pending_findings)
+        assert result.pending_findings == []
+
+    def test_methodology_uses_real_filler_output(self):
+        """R3/R4 use the actual MethodologyOutput from filler_outputs."""
+        records = _all_sections_records()
+        meth = _make_methodology_output(phase_count=4)
+        result = run_quality_gate(
+            records=records,
+            filler_outputs={"section_03": meth},
+        )
+        # Methodology score proves the MethodologyOutput was inspected
+        assert result.methodology_structure_score > 0
+        # R3/R4 pass with valid methodology
+        assert not any("R3" in f for f in result.hard_failures)
+        assert not any("R4" in f for f in result.hard_failures)
+
+    def test_arabic_purity_runs_with_language_threading(self):
+        """R10 activates when language='ar' is threaded through."""
+        records = _all_sections_records()
+        # Add unapproved English word in AR mode
+        records[0]["injection_data"]["body"] = "implementation strategy"
+        meth = _make_methodology_output(phase_count=4)
+        result = run_quality_gate(
+            records=records,
+            filler_outputs={"section_03": meth},
+            language="ar",
+        )
+        assert any("R10" in f for f in result.hard_failures)
+        assert result.arabic_integrity_score is not None
+
+    def test_arabic_purity_skipped_in_en_mode(self):
+        """R10 does NOT activate in EN mode even with English text."""
+        records = _all_sections_records()
+        records[0]["injection_data"]["body"] = "implementation strategy"
+        meth = _make_methodology_output(phase_count=4)
+        result = run_quality_gate(
+            records=records,
+            filler_outputs={"section_03": meth},
+            language="en",
+        )
+        assert not any("R10" in f for f in result.hard_failures)
+        assert result.arabic_integrity_score is None
 
 
 # ── Fail-close integration via render_v2 ──────────────────────────────
