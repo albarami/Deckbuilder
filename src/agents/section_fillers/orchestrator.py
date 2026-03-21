@@ -27,7 +27,6 @@ from src.services.source_pack import SourcePack
 
 from .base import SectionFillerInput, SectionFillerOutput
 from .governance import GovernanceFiller
-from .introduction import IntroductionFiller
 from .methodology import MethodologyFiller
 from .timeline import TimelineFiller
 from .understanding import UnderstandingFiller
@@ -65,8 +64,17 @@ class OrchestratorResult:
 
 
 # Section ID → filler class mapping
+# NOTE: IntroductionFiller (section_00) is NOT registered here.
+# The intro slide is architecturally a hard-coded a2_shell in the "cover"
+# section (budgeter allocates it as a fixed house asset, manifest_builder
+# creates it as entry_type="a2_shell" with section_id="cover").
+# section_fill_node only replaces b_variable entries, so registering
+# IntroductionFiller here would be dead code — the filler output would
+# never reach the rendered slide.
+# IntroductionFiller integration requires refactoring the budgeter +
+# manifest_builder + section_fill_node to treat intro as a b_variable.
+# This is deferred to a future step.
 FILLER_REGISTRY: dict[str, type] = {
-    "section_00": IntroductionFiller,
     "section_01": UnderstandingFiller,
     "section_02": WhySGFiller,
     "section_03": MethodologyFiller,
@@ -76,7 +84,6 @@ FILLER_REGISTRY: dict[str, type] = {
 
 # Section ID → budget breakdown key for content slides
 BUDGET_CONTENT_KEY: dict[str, str] = {
-    "section_00": "content",
     "section_01": "content",
     "section_02": "why_sg_variable",
     "section_03": "methodology_total",
@@ -120,7 +127,6 @@ def _get_recommended_layouts(section_id: str) -> list[str]:
     - multi_body fillers → _MULTI_BODY_LAYOUTS only (methodology_*, etc.)
     """
     return {
-        "section_00": ["intro_message"],
         "section_01": ["content_heading_desc"],
         "section_02": ["content_heading_desc"],
         "section_03": [

@@ -328,6 +328,54 @@ class TestInjectContent:
             _inject_content(slide, entry, contract)
             mock_inj.assert_called_once()
 
+    def test_multi_body_forwards_exact_title_value(self):
+        """Phase G: _inject_content forwards the exact title string to inject_multi_body.
+
+        This is the critical contract test: fillers emit {"title": "..."} and
+        the renderer must pass that exact value as the title= kwarg to
+        inject_multi_body(). If the renderer reads a different key (e.g.
+        title_contents), the title is silently lost.
+        """
+        known_title = "Strategic Context Analysis"
+        known_body = {1: "Left content", 2: "Right content"}
+        entry = _make_entry(
+            semantic_layout_id="layout_heading_and_two_content_with_tiltes",
+            injection_data={
+                "title": known_title,
+                "body_contents": known_body,
+                "bold_leads": True,
+            },
+        )
+        slide, contract = self._make_slide_and_contract(
+            "layout_heading_and_two_content_with_tiltes",
+        )
+
+        with patch("src.services.renderer_v2.inject_multi_body") as mock_inj:
+            mock_inj.return_value = MagicMock()
+            _inject_content(slide, entry, contract)
+            mock_inj.assert_called_once()
+            call_kwargs = mock_inj.call_args
+            # Verify the EXACT title value was forwarded
+            assert call_kwargs.kwargs["title"] == known_title
+            # Verify body_contents was also forwarded
+            assert call_kwargs.kwargs["body_contents"] == known_body
+            # Verify bold_leads was forwarded
+            assert call_kwargs.kwargs["bold_leads"] is True
+
+    def test_multi_body_defaults_empty_title_when_missing(self):
+        """When injection_data has no 'title' key, empty string is forwarded."""
+        entry = _make_entry(
+            semantic_layout_id="methodology_overview_4",
+            injection_data={"body_contents": {13: "Text"}},
+        )
+        slide, contract = self._make_slide_and_contract("methodology_overview_4")
+
+        with patch("src.services.renderer_v2.inject_multi_body") as mock_inj:
+            mock_inj.return_value = MagicMock()
+            _inject_content(slide, entry, contract)
+            call_kwargs = mock_inj.call_args
+            assert call_kwargs.kwargs["title"] == ""
+
     def test_team_members_dispatch(self):
         entry = _make_entry(
             semantic_layout_id="team_two_members",

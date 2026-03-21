@@ -7,7 +7,6 @@ from src.agents.section_fillers.base import (
     SectionFillerOutput,
     make_variable_entry,
 )
-from src.agents.section_fillers.introduction import IntroductionFiller
 from src.agents.section_fillers.orchestrator import (
     FILLER_REGISTRY,
     OrchestratorResult,
@@ -18,7 +17,6 @@ from src.services.slide_budgeter import SectionBudget, SlideBudget
 
 
 def _make_budget(
-    introduction: int = 1,
     understanding: int = 3,
     why_sg: int = 1,
     methodology: int = 7,
@@ -28,11 +26,6 @@ def _make_budget(
     return SlideBudget(
         total_slides=50,
         section_budgets={
-            "section_00": SectionBudget(
-                section_id="section_00",
-                slide_count=introduction,
-                breakdown={"content": introduction},
-            ),
             "section_01": SectionBudget(
                 section_id="section_01",
                 slide_count=understanding + 1,
@@ -143,8 +136,8 @@ class TestRunSectionFillers:
         result = await run_section_fillers(budget)
 
         assert result.success
-        assert len(result.entries_by_section) == 6
-        assert len(result.all_entries) == 15  # 1+3+1+7+2+1
+        assert len(result.entries_by_section) == 5
+        assert len(result.all_entries) == 14  # 3+1+7+2+1
 
     @pytest.mark.asyncio
     async def test_skips_zero_budget_sections(self, monkeypatch):
@@ -163,7 +156,7 @@ class TestRunSectionFillers:
 
         assert "section_02" not in dispatched_sections
         assert "section_06" not in dispatched_sections
-        assert len(dispatched_sections) == 4  # section_00, 01, 03, 04
+        assert len(dispatched_sections) == 3
 
     @pytest.mark.asyncio
     async def test_collects_errors_from_failed_fillers(self, monkeypatch):
@@ -192,54 +185,38 @@ class TestRunSectionFillers:
         assert "API timeout" in result.errors[0]
 
 
-# ── Integration: live path wiring ──────────────────────────────────────
+# ── IntroductionFiller deferral ────────────────────────────────────────
+#
+# IntroductionFiller (section_00) is NOT registered in FILLER_REGISTRY.
+# Architectural reason: the intro slide is built as entry_type="a2_shell"
+# with section_id="cover" in both manifest_builder.py and slide_budgeter.py.
+# section_fill_node only replaces b_variable entries, so registering
+# section_00 in the orchestrator would be dead code — the filler output
+# would never reach the rendered slide.
+#
+# Live wiring requires refactoring:
+#   1. slide_budgeter: add section_00 budget, remove intro from cover
+#   2. manifest_builder: create section_00 b_variable placeholder
+#   3. section_fill_node: no change needed (already handles b_variable)
+#
+# This is deferred to a future step.
 
 
-class TestIntroductionFillerRegistration:
-    """Proves IntroductionFiller is wired into the live orchestrator."""
+class TestIntroductionFillerDeferred:
+    """Proves IntroductionFiller is explicitly NOT in the live pipeline."""
 
-    def test_section_00_in_filler_registry(self):
-        """section_00 must be registered in FILLER_REGISTRY."""
-        assert "section_00" in FILLER_REGISTRY
+    def test_section_00_not_in_filler_registry(self):
+        """section_00 must NOT be in FILLER_REGISTRY (deferred)."""
+        assert "section_00" not in FILLER_REGISTRY
 
-    def test_section_00_maps_to_introduction_filler(self):
-        """section_00 must map to IntroductionFiller class."""
-        assert FILLER_REGISTRY["section_00"] is IntroductionFiller
+    def test_only_live_sections_registered(self):
+        """Only sections with b_variable manifest entries are registered."""
+        expected = {"section_01", "section_02", "section_03",
+                    "section_04", "section_06"}
+        assert set(FILLER_REGISTRY.keys()) == expected
 
-    @pytest.mark.asyncio
-    async def test_orchestrator_dispatches_section_00(self, monkeypatch):
-        """Orchestrator must dispatch to IntroductionFiller for section_00."""
-        budget = _make_budget(introduction=1)
-        dispatched_sections: list[str] = []
 
-        async def mock_fill(self, filler_input):
-            dispatched_sections.append(filler_input.section_id)
-            count = filler_input.slide_count
-            return _make_filler_output(filler_input.section_id, count)
-
-        monkeypatch.setattr(BaseSectionFiller, "fill", mock_fill)
-
-        result = await run_section_fillers(budget)
-        assert "section_00" in dispatched_sections
-        assert "section_00" in result.entries_by_section
-
-    @pytest.mark.asyncio
-    async def test_orchestrator_skips_section_00_when_zero_budget(
-        self, monkeypatch,
-    ):
-        """section_00 not dispatched when budget=0."""
-        budget = _make_budget(introduction=0)
-        dispatched_sections: list[str] = []
-
-        async def mock_fill(self, filler_input):
-            dispatched_sections.append(filler_input.section_id)
-            count = filler_input.slide_count
-            return _make_filler_output(filler_input.section_id, count)
-
-        monkeypatch.setattr(BaseSectionFiller, "fill", mock_fill)
-
-        await run_section_fillers(budget)
-        assert "section_00" not in dispatched_sections
+# ── Multi_body title contract ──────────────────────────────────────────
 
 
 class TestMultiBodyTitleContract:
@@ -427,25 +404,4 @@ class TestMultiBodyTitleContract:
         )
         data = build_slide_2_injection(slide)
         assert isinstance(data["title"], str)
-        assert "title_contents" not in data
-
-    def test_introduction_emits_title_string(self):
-        """Introduction injection must have 'title' as string."""
-        from src.agents.section_fillers.g2_schemas import IntroMessageSlide
-        from src.agents.section_fillers.introduction import (
-            build_intro_injection,
-        )
-
-        slide = IntroMessageSlide(
-            title="IT Modernization Program",
-            client_name="Ministry of ICT",
-            scope_line="End-to-end infrastructure overhaul",
-            attr_duration="16 weeks",
-            attr_sector="Government / ICT",
-            attr_geography="KSA - Riyadh",
-            attr_service_line="Digital Advisory",
-        )
-        data = build_intro_injection(slide)
-        assert isinstance(data["title"], str)
-        assert data["title"] == "IT Modernization Program"
         assert "title_contents" not in data
