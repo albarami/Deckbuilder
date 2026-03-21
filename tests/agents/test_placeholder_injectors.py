@@ -195,7 +195,7 @@ class TestGetLayoutFamily:
 
     def test_title_body_layouts(self):
         for lid in ["content_heading_desc", "section_divider_01",
-                     "section_divider_06", "methodology_detail"]:
+                     "section_divider_06"]:
             assert get_layout_family(lid) == "title_body", f"Failed for {lid}"
 
     def test_center_title(self):
@@ -203,8 +203,8 @@ class TestGetLayoutFamily:
 
     def test_multi_body_layouts(self):
         for lid in ["intro_message", "methodology_overview_4",
-                     "methodology_focused_3", "case_study_detailed",
-                     "content_heading_content"]:
+                     "methodology_focused_3", "methodology_detail",
+                     "case_study_detailed", "content_heading_content"]:
             assert get_layout_family(lid) == "multi_body", f"Failed for {lid}"
 
     def test_unknown_layout(self):
@@ -464,6 +464,182 @@ class TestInjectMultiBody:
         )
         assert len(result.injected) == 5  # title + 4 bodies
         assert 20 in result.skipped  # picture skipped
+
+
+# ── inject_multi_body OBJECT extension (Phase G) ──────────────────────
+
+
+class TestInjectMultiBodyObjectExtension:
+    """Phase G: OBJECT placeholders with content in body_contents are injected."""
+
+    def test_object_placeholder_with_content_injected(self):
+        """OBJECT placeholder whose idx is in body_contents gets text injected."""
+        specs = [
+            (0, "TITLE", ""),
+            (1, "OBJECT", ""),   # box 1
+            (2, "OBJECT", ""),   # box 2
+            (13, "OBJECT", ""),  # box 3
+            (14, "OBJECT", ""),  # box 4
+        ]
+        slide = _make_slide_with_placeholders(specs)
+        contract = _contract("layout_heading_and_4_boxes_of_content", {
+            0: "TITLE", 1: "OBJECT", 2: "OBJECT", 13: "OBJECT", 14: "OBJECT",
+        })
+
+        result = inject_multi_body(
+            slide, "layout_heading_and_4_boxes_of_content", contract,
+            title="Governance Structure",
+            body_contents={
+                1: "STEERING COMMITTEE | Monthly\n• Strategic oversight\n• Budget approval",
+                2: "DELIVERY COMMITTEE | Bi-weekly\n• Progress tracking\n• Risk escalation",
+                13: "PMO | Weekly\n• Task coordination\n• Issue resolution",
+                14: "ESCALATION TRIGGERS\n• Budget variance >10%\n• Timeline slip >2 weeks",
+            },
+        )
+        # Title + 4 OBJECT zones = 5 injected
+        assert len(result.injected) == 5
+        object_injections = [ip for ip in result.injected if ip.placeholder_type == "OBJECT"]
+        assert len(object_injections) == 4
+        assert all(ip.content_preview for ip in object_injections)
+
+    def test_object_without_content_still_skipped(self):
+        """OBJECT placeholder NOT in body_contents is skipped (backward compat)."""
+        specs = [
+            (0, "TITLE", ""),
+            (1, "OBJECT", ""),   # has content
+            (2, "OBJECT", ""),   # no content — should be skipped
+        ]
+        slide = _make_slide_with_placeholders(specs)
+        contract = _contract("layout_heading_and_4_boxes_of_content", {
+            0: "TITLE", 1: "OBJECT", 2: "OBJECT",
+        })
+
+        result = inject_multi_body(
+            slide, "layout_heading_and_4_boxes_of_content", contract,
+            title="Test",
+            body_contents={1: "Box 1 content"},
+        )
+        assert len(result.injected) == 2  # TITLE + 1 OBJECT
+        assert 2 in result.skipped
+        # Check skipped type is OBJECT
+        skip_idx = result.skipped.index(2)
+        assert result.skipped_types[skip_idx] == "OBJECT"
+
+    def test_mixed_body_and_object_injection(self):
+        """Layout with BODY and OBJECT placeholders — both are injected."""
+        specs = [
+            (0, "TITLE", ""),
+            (1, "BODY", ""),    # subtitle
+            (2, "OBJECT", ""),  # content column
+            (3, "BODY", ""),    # subtitle
+            (4, "OBJECT", ""),  # content column
+        ]
+        slide = _make_slide_with_placeholders(specs)
+        contract = _contract("layout_heading_and_two_content_with_tiltes", {
+            0: "TITLE", 1: "BODY", 2: "OBJECT", 3: "BODY", 4: "OBJECT",
+        })
+
+        result = inject_multi_body(
+            slide, "layout_heading_and_two_content_with_tiltes", contract,
+            title="Timeline Milestones",
+            body_contents={
+                1: "Phases 1-2",
+                2: "• Setup and discovery\n• Initial deliverables",
+                3: "Phases 3-5",
+                4: "• Implementation\n• Transition and close-out",
+            },
+        )
+        assert len(result.injected) == 5  # TITLE + 2 BODY + 2 OBJECT
+        body_inj = [ip for ip in result.injected if ip.placeholder_type == "BODY"]
+        obj_inj = [ip for ip in result.injected if ip.placeholder_type == "OBJECT"]
+        assert len(body_inj) == 2
+        assert len(obj_inj) == 2
+
+
+# ── inject_title_body OBJECT extension (Phase G) ─────────────────────
+
+
+class TestInjectTitleBodyObjectExtension:
+    """Phase G: OBJECT placeholders on title_body layouts via object_contents."""
+
+    def test_heading_desc_content_box_full_injection(self):
+        """layout_heading_description_and_content_box: TITLE + BODY + OBJECT."""
+        specs = [
+            (0, "TITLE", ""),
+            (13, "BODY", ""),
+            (1, "OBJECT", ""),
+        ]
+        slide = _make_slide_with_placeholders(specs)
+        contract = _contract("layout_heading_description_and_content_box", {
+            0: "TITLE", 13: "BODY", 1: "OBJECT",
+        })
+
+        result = inject_title_body(
+            slide, "layout_heading_description_and_content_box", contract,
+            title="Success Definition",
+            body="A 2-year transformation targeting measurable institutional outcomes.",
+            object_contents={1: "• 25% cost reduction\n• 40% process improvement\n• ISO 27001 certified"},
+        )
+        assert len(result.injected) == 3
+        types = {ip.placeholder_type for ip in result.injected}
+        assert types == {"TITLE", "BODY", "OBJECT"}
+
+    def test_object_contents_empty_skips(self):
+        """OBJECT with empty string in object_contents is skipped."""
+        specs = [
+            (0, "TITLE", ""),
+            (1, "OBJECT", ""),
+        ]
+        slide = _make_slide_with_placeholders(specs)
+        contract = _contract("layout_heading_description_and_content_box", {
+            0: "TITLE", 1: "OBJECT",
+        })
+
+        result = inject_title_body(
+            slide, "layout_heading_description_and_content_box", contract,
+            title="Test",
+            object_contents={1: ""},
+        )
+        assert len(result.injected) == 1  # only TITLE
+        assert 1 in result.skipped
+
+    def test_no_object_contents_backward_compat(self):
+        """Without object_contents, OBJECT placeholders are skipped (backward compat)."""
+        specs = [
+            (0, "TITLE", ""),
+            (13, "BODY", ""),
+            (1, "OBJECT", ""),
+        ]
+        slide = _make_slide_with_placeholders(specs)
+        contract = _contract("layout_heading_description_and_content_box", {
+            0: "TITLE", 13: "BODY", 1: "OBJECT",
+        })
+
+        result = inject_title_body(
+            slide, "layout_heading_description_and_content_box", contract,
+            title="Test",
+            body="Description text",
+        )
+        assert len(result.injected) == 2  # TITLE + BODY only
+        assert 1 in result.skipped  # OBJECT skipped
+
+    def test_string_keys_coerced_to_int(self):
+        """JSON-roundtripped string keys in object_contents are coerced to int."""
+        specs = [
+            (0, "TITLE", ""),
+            (1, "OBJECT", ""),
+        ]
+        slide = _make_slide_with_placeholders(specs)
+        contract = _contract("layout_heading_description_and_content_box", {
+            0: "TITLE", 1: "OBJECT",
+        })
+
+        result = inject_title_body(
+            slide, "layout_heading_description_and_content_box", contract,
+            title="Test",
+            object_contents={"1": "Outcomes list"},  # string key
+        )
+        assert len(result.injected) == 2  # TITLE + OBJECT
 
 
 # ── inject_team_members ─────────────────────────────────────────────────

@@ -19,6 +19,7 @@ renderer.py, formatting.py shape builders, or legacy geometry modules.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -97,6 +98,7 @@ class RenderResult:
     manifest_errors: list[str] = field(default_factory=list)
     render_errors: list[str] = field(default_factory=list)
     template_hash: str = ""
+    placeholder_audit: PlaceholderAuditResult | None = None
 
     @property
     def success(self) -> bool:
@@ -208,6 +210,12 @@ def _inject_content(
         return None
 
     data = entry.injection_data
+
+    # Pool clones with only source_slide_idx have no content to inject —
+    # the slide was already cloned from the template by _render_pool_clone.
+    if set(data.keys()) == {"source_slide_idx"}:
+        return None
+
     family = get_layout_family(entry.semantic_layout_id)
 
     if family == "title_body":
@@ -216,6 +224,7 @@ def _inject_content(
             title=data.get("title", ""),
             body=data.get("body", ""),
             bold_body_lead=data.get("bold_body_lead", False),
+            object_contents=data.get("object_contents"),
         )
     elif family == "center_title":
         return inject_center_title(
@@ -333,6 +342,23 @@ def render_v2(
             result.render_errors.append(
                 f"Slide {idx} ({entry.asset_id}): {record.error}"
             )
+
+    # ── 5b. Zero-placeholder audit (fail-closed) ──────────────────
+    if not result.render_errors:
+        audit = verify_zero_placeholders(result)
+        if not audit.clean:
+            issues: list[str] = []
+            if audit.unfilled_placeholders:
+                issues.extend(audit.unfilled_placeholders)
+            if audit.template_syntax_found:
+                issues.extend(audit.template_syntax_found)
+            result.render_errors.append(
+                f"Zero-placeholder audit failed ({len(issues)} issue(s)): "
+                + "; ".join(issues)
+            )
+            result.placeholder_audit = audit
+            return result
+        result.placeholder_audit = audit
 
     # ── 6. Remove original template slides ────────────────────────
     if not result.render_errors:
@@ -476,3 +502,105 @@ def _get_original_text(
             return injection_data[key]
 
     return fallback
+
+
+# ── Post-render zero-placeholder verification ──────────────────────────
+
+
+_TEMPLATE_SYNTAX_PATTERNS = (
+    re.compile(r"\{\{[^}]+\}\}"),                         # {{placeholder}}
+    re.compile(r"\[PLACEHOLDER[:\s][^\]]*\]", re.IGNORECASE),  # [PLACEHOLDER: ...]
+    re.compile(r"\[TBC\]|\[TBD\]", re.IGNORECASE),       # [TBC], [TBD]
+    re.compile(r"\[INSERT\s[^\]]*\]", re.IGNORECASE),     # [INSERT ...]
+)
+
+
+# Types that carry visible text — skipping these on b_variable is a hard fail
+_REQUIRED_TEXT_TYPES: frozenset[str] = frozenset({
+    "TITLE", "CENTER_TITLE", "SUBTITLE", "BODY",
+})
+
+# Types that are non-text — skipping these is expected and informational
+_NON_TEXT_TYPES: frozenset[str] = frozenset({
+    "OBJECT", "TABLE", "PICTURE",
+})
+
+
+@dataclass
+class PlaceholderAuditResult:
+    """Result of post-render zero-placeholder verification."""
+
+    unfilled_required: list[str] = field(default_factory=list)
+    unfilled_non_text: list[str] = field(default_factory=list)
+    template_syntax_found: list[str] = field(default_factory=list)
+
+    # Keep backward-compatible alias used by existing tests
+    @property
+    def unfilled_placeholders(self) -> list[str]:
+        return self.unfilled_required + self.unfilled_non_text
+
+    @property
+    def clean(self) -> bool:
+        """Audit is clean when no required text placeholders are unfilled
+        and no template syntax leaks into content.
+
+        Non-text skipped placeholders (OBJECT/TABLE/PICTURE) are
+        informational and do NOT cause failure.
+        """
+        return (
+            len(self.unfilled_required) == 0
+            and len(self.template_syntax_found) == 0
+        )
+
+
+def verify_zero_placeholders(render_result: RenderResult) -> PlaceholderAuditResult:
+    """Post-render audit: verify all required placeholders were filled.
+
+    Checks three things:
+    1. For every b_variable slide, required text placeholders (TITLE,
+       BODY, SUBTITLE) must NOT be skipped — fail-closed.
+    2. Non-text placeholders (OBJECT, TABLE, PICTURE) may be skipped —
+       tracked as informational only.
+    3. No template syntax (``{{...}}``, ``[PLACEHOLDER:...]``, etc.)
+       remains in any injected content preview.
+
+    Call this AFTER render_v2() completes and BEFORE declaring success.
+    """
+    audit = PlaceholderAuditResult()
+
+    for record in render_result.records:
+        prefix = f"Slide {record.manifest_index} ({record.asset_id})"
+
+        # Check 1 & 2: classify skipped placeholders on b_variable slides
+        if record.entry_type == "b_variable" and record.injection_result:
+            inj = record.injection_result
+            for i, skip_idx in enumerate(inj.skipped):
+                skip_type = (
+                    inj.skipped_types[i]
+                    if i < len(inj.skipped_types)
+                    else "UNKNOWN"
+                )
+                if skip_type in _REQUIRED_TEXT_TYPES:
+                    audit.unfilled_required.append(
+                        f"{prefix}: required {skip_type} placeholder "
+                        f"idx {skip_idx} unfilled"
+                    )
+                else:
+                    audit.unfilled_non_text.append(
+                        f"{prefix}: non-text {skip_type} placeholder "
+                        f"idx {skip_idx} skipped (informational)"
+                    )
+
+        # Check 3: template syntax in injected content
+        if record.injection_result:
+            for injected in record.injection_result.injected:
+                preview = injected.content_preview
+                for pattern in _TEMPLATE_SYNTAX_PATTERNS:
+                    match = pattern.search(preview)
+                    if match:
+                        audit.template_syntax_found.append(
+                            f"{prefix} ph_{injected.placeholder_idx}: "
+                            f"template syntax '{match.group()}'"
+                        )
+
+    return audit

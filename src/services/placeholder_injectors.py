@@ -66,6 +66,7 @@ class InjectionResult:
     semantic_layout_id: str
     injected: tuple[InjectedPlaceholder, ...] = ()
     skipped: tuple[int, ...] = ()       # placeholder indices with no content
+    skipped_types: tuple[str, ...] = ()  # parallel to skipped — type per index
     errors: list[str] = field(default_factory=list)
 
 
@@ -215,21 +216,35 @@ def inject_title_body(
     title: str = "",
     body: str = "",
     bold_body_lead: bool = False,
+    object_contents: dict[int, str] | None = None,
 ) -> InjectionResult:
     """Inject into TITLE + BODY layouts (content_heading_desc, section dividers, etc.).
 
     Covers: content_heading_desc, section_divider_01..06, methodology_detail,
-    layout_heading_description_and_content_box (TITLE + BODY subset).
+    layout_heading_description_and_content_box (TITLE + BODY + OBJECT).
+
+    Parameters
+    ----------
+    object_contents : dict[int, str] | None
+        Optional mapping of placeholder index -> text for OBJECT placeholders.
+        Phase G extension: enables injection into OBJECT placeholders on
+        layouts like layout_heading_description_and_content_box (idx 1).
     """
     actual = _collect_placeholders(slide)
     _validate_before_inject(contract, actual)
 
+    if object_contents is None:
+        object_contents = {}
+    else:
+        object_contents = {int(k): v for k, v in object_contents.items()}
+
     injected: list[InjectedPlaceholder] = []
     skipped: list[int] = []
+    skipped_types: list[str] = []
 
     for ph in slide.placeholders:
         idx = ph.placeholder_format.idx
-        ph_type = contract.required_placeholders.get(idx, "")
+        ph_type = contract.required_placeholders.get(idx, "UNKNOWN")
 
         if ph_type in ("TITLE", "CENTER_TITLE") and title:
             _set_text_preserving_format(ph.text_frame, title)
@@ -248,13 +263,27 @@ def inject_title_body(
                 placeholder_idx=idx, placeholder_type="BODY",
                 content_preview=body[:80], bold_applied=bold_applied,
             ))
+        elif ph_type == "OBJECT" and idx in object_contents:
+            # Phase G extension: inject text into OBJECT placeholders
+            text = object_contents[idx]
+            if text:
+                _set_text_preserving_format(ph.text_frame, text)
+                injected.append(InjectedPlaceholder(
+                    placeholder_idx=idx, placeholder_type="OBJECT",
+                    content_preview=text[:80],
+                ))
+            else:
+                skipped.append(idx)
+                skipped_types.append("OBJECT")
         else:
             skipped.append(idx)
+            skipped_types.append(ph_type)
 
     return InjectionResult(
         semantic_layout_id=semantic_layout_id,
         injected=tuple(injected),
         skipped=tuple(skipped),
+        skipped_types=tuple(skipped_types),
     )
 
 
@@ -274,10 +303,11 @@ def inject_center_title(
 
     injected: list[InjectedPlaceholder] = []
     skipped: list[int] = []
+    skipped_types: list[str] = []
 
     for ph in slide.placeholders:
         idx = ph.placeholder_format.idx
-        ph_type = contract.required_placeholders.get(idx, "")
+        ph_type = contract.required_placeholders.get(idx, "UNKNOWN")
 
         if ph_type == "CENTER_TITLE" and title:
             _set_text_preserving_format(ph.text_frame, title)
@@ -287,11 +317,13 @@ def inject_center_title(
             ))
         else:
             skipped.append(idx)
+            skipped_types.append(ph_type)
 
     return InjectionResult(
         semantic_layout_id=semantic_layout_id,
         injected=tuple(injected),
         skipped=tuple(skipped),
+        skipped_types=tuple(skipped_types),
     )
 
 
@@ -312,10 +344,11 @@ def inject_proposal_cover(
 
     injected: list[InjectedPlaceholder] = []
     skipped: list[int] = []
+    skipped_types: list[str] = []
 
     for ph in slide.placeholders:
         idx = ph.placeholder_format.idx
-        ph_type = contract.required_placeholders.get(idx, "")
+        ph_type = contract.required_placeholders.get(idx, "UNKNOWN")
 
         if ph_type == "SUBTITLE" and subtitle:
             _set_text_preserving_format(ph.text_frame, subtitle)
@@ -336,14 +369,17 @@ def inject_proposal_cover(
                 content_preview=date_text[:80],
             ))
         elif ph_type == "PICTURE":
-            skipped.append(idx)  # picture placeholders handled elsewhere
+            skipped.append(idx)
+            skipped_types.append("PICTURE")
         else:
             skipped.append(idx)
+            skipped_types.append(ph_type)
 
     return InjectionResult(
         semantic_layout_id="proposal_cover",
         injected=tuple(injected),
         skipped=tuple(skipped),
+        skipped_types=tuple(skipped_types),
     )
 
 
@@ -363,10 +399,11 @@ def inject_toc_table(
 
     injected: list[InjectedPlaceholder] = []
     skipped: list[int] = []
+    skipped_types: list[str] = []
 
     for ph in slide.placeholders:
         idx = ph.placeholder_format.idx
-        ph_type = contract.required_placeholders.get(idx, "")
+        ph_type = contract.required_placeholders.get(idx, "UNKNOWN")
 
         if ph_type == "TITLE" and title:
             _set_text_preserving_format(ph.text_frame, title)
@@ -383,13 +420,16 @@ def inject_toc_table(
                 ))
             else:
                 skipped.append(idx)
+                skipped_types.append("TABLE")
         else:
             skipped.append(idx)
+            skipped_types.append(ph_type)
 
     return InjectionResult(
         semantic_layout_id="toc_table",
         injected=tuple(injected),
         skipped=tuple(skipped),
+        skipped_types=tuple(skipped_types),
     )
 
 
@@ -422,13 +462,20 @@ def inject_multi_body(
 
     if body_contents is None:
         body_contents = {}
+    else:
+        # Coerce keys to int — JSON round-trips (LangGraph state checkpointing,
+        # Pydantic serialization) turn int keys into str keys.  Without this,
+        # `idx in body_contents` silently fails and all BODY placeholders are
+        # treated as BODY_UNUSED, leaving the slide 100% empty.
+        body_contents = {int(k): v for k, v in body_contents.items()}
 
     injected: list[InjectedPlaceholder] = []
     skipped: list[int] = []
+    skipped_types: list[str] = []
 
     for ph in slide.placeholders:
         idx = ph.placeholder_format.idx
-        ph_type = contract.required_placeholders.get(idx, "")
+        ph_type = contract.required_placeholders.get(idx, "UNKNOWN")
 
         if ph_type in ("TITLE", "CENTER_TITLE") and title:
             _set_text_preserving_format(ph.text_frame, title)
@@ -448,17 +495,42 @@ def inject_multi_body(
                 placeholder_idx=idx, placeholder_type="BODY",
                 content_preview=text[:80], bold_applied=bold_applied,
             ))
+        elif ph_type == "BODY":
+            # BODY placeholder not in body_contents — unused capacity
+            # on multi-body layouts (not a required-unfilled error)
+            skipped.append(idx)
+            skipped_types.append("BODY_UNUSED")
         elif ph_type == "PICTURE":
-            skipped.append(idx)  # picture injection handled separately
+            skipped.append(idx)
+            skipped_types.append("PICTURE")
+        elif ph_type == "OBJECT" and idx in body_contents:
+            # OBJECT placeholder with content — inject text (Phase G extension).
+            # OBJECT placeholders on multi-zone layouts (Understanding, Timeline,
+            # Governance) contain text frames that accept structured bullet text.
+            text = body_contents[idx]
+            bold_applied = False
+            if bold_leads and text:
+                bold_break = _find_bold_break(text)
+                bold_applied = _set_text_with_bold_lead(ph.text_frame, text, bold_break)
+            elif text:
+                _set_text_preserving_format(ph.text_frame, text)
+            injected.append(InjectedPlaceholder(
+                placeholder_idx=idx, placeholder_type="OBJECT",
+                content_preview=text[:80], bold_applied=bold_applied,
+            ))
         elif ph_type in ("OBJECT", "TABLE"):
-            skipped.append(idx)  # object/table injection handled separately
+            # OBJECT/TABLE with no content in body_contents — skip as before
+            skipped.append(idx)
+            skipped_types.append(ph_type)
         else:
             skipped.append(idx)
+            skipped_types.append(ph_type)
 
     return InjectionResult(
         semantic_layout_id=semantic_layout_id,
         injected=tuple(injected),
         skipped=tuple(skipped),
+        skipped_types=tuple(skipped_types),
     )
 
 
@@ -498,10 +570,11 @@ def inject_team_members(
 
     injected: list[InjectedPlaceholder] = []
     skipped: list[int] = []
+    skipped_types: list[str] = []
 
     for ph in slide.placeholders:
         idx = ph.placeholder_format.idx
-        ph_type = contract.required_placeholders.get(idx, "")
+        ph_type = contract.required_placeholders.get(idx, "UNKNOWN")
 
         if idx in member_map:
             text, make_bold = member_map[idx]
@@ -516,13 +589,16 @@ def inject_team_members(
                 ))
             else:
                 skipped.append(idx)
+                skipped_types.append(ph_type)
         else:
             skipped.append(idx)
+            skipped_types.append(ph_type)
 
     return InjectionResult(
         semantic_layout_id="team_two_members",
         injected=tuple(injected),
         skipped=tuple(skipped),
+        skipped_types=tuple(skipped_types),
     )
 
 
@@ -535,7 +611,6 @@ _TITLE_BODY_LAYOUTS = frozenset({
     "section_divider_01", "section_divider_02", "section_divider_03",
     "section_divider_04", "section_divider_05", "section_divider_06",
     "section_divider_07", "section_divider_08", "section_divider_09",
-    "methodology_detail",
     "layout_heading_description_and_content_box",
 })
 
@@ -547,6 +622,7 @@ _MULTI_BODY_LAYOUTS = frozenset({
     "intro_message",
     "methodology_overview_3", "methodology_overview_4",
     "methodology_focused_3", "methodology_focused_4",
+    "methodology_detail",
     "case_study_detailed", "case_study_cases",
     "content_heading_content",
     "layout_heading_and_4_boxes_of_content",
