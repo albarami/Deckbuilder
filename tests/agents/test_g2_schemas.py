@@ -861,6 +861,87 @@ class TestTimelineSchema:
             )
 
 
+# ── Timeline injection mapping ───────────────────────────────────────────
+
+
+class TestTimelineInjectionMapping:
+    """Timeline filler injection_data builders produce correct output."""
+
+    def test_slide_1_timeline_overview_injection(self):
+        from src.agents.section_fillers.timeline import (
+            build_slide_1_injection,
+        )
+
+        slide = TimelineOverviewSlide(
+            title="16-Week Delivery Timeline",
+            box_1=_make_timeline_block(1),
+            box_2=_make_timeline_block(2),
+            box_3=_make_timeline_block(3),
+            box_4=_make_timeline_block(4),
+        )
+        data = build_slide_1_injection(slide)
+
+        assert data["title_contents"][0] == "16-Week Delivery Timeline"
+        body = data["body_contents"]
+        # Box 1 at OBJECT idx 1 — formatted as "Phase 1 | Weeks 1-4\n..."
+        assert "Phase 1 | Weeks 1-4" in body[1]
+        assert "Activity 1.1" in body[1]
+        # Box 4 at OBJECT idx 14
+        assert "Phase 4 | Weeks 13-16" in body[14]
+
+    def test_slide_1_no_paragraphs_in_boxes(self):
+        """Timeline boxes contain structured header+bullets, not prose."""
+        from src.agents.section_fillers.timeline import (
+            build_slide_1_injection,
+        )
+
+        slide = TimelineOverviewSlide(
+            title="Timeline",
+            box_1=_make_timeline_block(1),
+            box_2=_make_timeline_block(2),
+            box_3=_make_timeline_block(3),
+            box_4=_make_timeline_block(4),
+        )
+        data = build_slide_1_injection(slide)
+        body = data["body_contents"]
+
+        for idx in (1, 2, 13, 14):
+            lines = body[idx].split("\n")
+            assert len(lines) >= 3, f"idx {idx}: expected >=3 lines, got {len(lines)}"
+
+    def test_slide_2_milestones_injection(self):
+        from src.agents.section_fillers.timeline import (
+            build_slide_2_injection,
+        )
+
+        slide = MilestonesSlide(
+            title="Milestones and Deliverables",
+            left_column=MilestoneColumn(
+                subtitle="Phases 1-2",
+                deliverables=BulletList(items=[
+                    "Current state assessment report",
+                    "Target architecture blueprint",
+                ]),
+            ),
+            right_column=MilestoneColumn(
+                subtitle="Phases 3-5",
+                deliverables=BulletList(items=[
+                    "Migration execution plan",
+                    "Go-live readiness checklist",
+                ]),
+            ),
+        )
+        data = build_slide_2_injection(slide)
+
+        assert data["title_contents"][0] == "Milestones and Deliverables"
+        body = data["body_contents"]
+        assert body[1] == "Phases 1-2"  # left subtitle
+        assert body[3] == "Phases 3-5"  # right subtitle
+        assert "\n" in body[2]  # left deliverables joined
+        assert "Current state assessment report" in body[2]
+        assert "\n" in body[4]  # right deliverables joined
+
+
 # ── Governance schema ────────────────────────────────────────────────────
 
 
