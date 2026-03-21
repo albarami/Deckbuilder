@@ -685,6 +685,111 @@ class TestUnderstandingSchema:
             )
 
 
+# ── Understanding injection mapping ──────────────────────────────────────
+
+
+class TestUnderstandingInjectionMapping:
+    """Understanding filler injection_data builders produce correct output."""
+
+    def test_slide_1_two_column_injection(self):
+        from src.agents.section_fillers.understanding import (
+            build_slide_1_injection,
+        )
+
+        slide = TwoColumnSlide(
+            title="Strategic Context",
+            left_subtitle="Regulatory Drivers",
+            left_evidence=Bullets_3_4(items=[
+                "NTP 2025 mandates digital-first",
+                "MoICT framework requires audit",
+                "Vision 2030 alignment deadline Q4",
+            ]),
+            right_subtitle="Operational Challenges",
+            right_evidence=Bullets_3_4(items=[
+                "Legacy infrastructure at 78% capacity",
+                "3 critical systems past end-of-life",
+                "Annual downtime cost exceeds SAR 4.2M",
+            ]),
+        )
+        data = build_slide_1_injection(slide)
+
+        assert data["title_contents"][0] == "Strategic Context"
+        body = data["body_contents"]
+        assert body[1] == "Regulatory Drivers"
+        assert body[3] == "Operational Challenges"
+        # OBJECT placeholders — newline-joined bullets
+        assert "\n" in body[2]
+        assert "NTP 2025" in body[2]
+        assert "\n" in body[4]
+        assert "Legacy infrastructure" in body[4]
+
+    def test_slide_2_four_box_injection(self):
+        from src.agents.section_fillers.understanding import (
+            build_slide_2_injection,
+        )
+
+        slide = FourBoxSlide(
+            title="Core Challenges",
+            box_1=Bullets_2_3(items=["Fragmented IT landscape", "No unified CMDB"]),
+            box_2=Bullets_2_3(items=["Skills gap in cloud", "23% attrition rate"]),
+            box_3=Bullets_2_3(items=["Budget constraints", "14-month procurement"]),
+            box_4=Bullets_2_3(items=["No EA governance", "35% shadow IT spend"]),
+        )
+        data = build_slide_2_injection(slide)
+
+        assert data["title_contents"][0] == "Core Challenges"
+        body = data["body_contents"]
+        assert body[1] == "Fragmented IT landscape\nNo unified CMDB"
+        assert body[2] == "Skills gap in cloud\n23% attrition rate"
+        assert body[13] == "Budget constraints\n14-month procurement"
+        assert body[14] == "No EA governance\n35% shadow IT spend"
+
+    def test_slide_3_success_definition_injection(self):
+        from src.agents.section_fillers.understanding import (
+            build_slide_3_injection,
+        )
+
+        slide = HeadingDescriptionContentSlide(
+            title="Defining Success",
+            description="Measurable outcomes aligned with NTP targets",
+            outcomes=Bullets_4_6(items=[
+                "Reduce downtime by 60% within 12 months",
+                "Consolidate from 47 to 12 platforms",
+                "Achieve ISO 27001 certification",
+                "Deploy unified portal by Q3 2026",
+            ]),
+        )
+        data = build_slide_3_injection(slide)
+
+        assert data["title"] == "Defining Success"
+        assert data["body"] == "Measurable outcomes aligned with NTP targets"
+        obj = data["object_contents"]
+        assert 1 in obj  # OBJECT at idx 1
+        assert "\n" in obj[1]
+        assert "Reduce downtime" in obj[1]
+
+    def test_slide_3_no_paragraphs_in_outcomes(self):
+        """Outcomes are newline-joined bullets, not paragraphs."""
+        from src.agents.section_fillers.understanding import (
+            build_slide_3_injection,
+        )
+
+        slide = HeadingDescriptionContentSlide(
+            title="Success",
+            description="Measurable outcomes for client",
+            outcomes=Bullets_4_6(items=[
+                "Outcome one here",
+                "Outcome two here",
+                "Outcome three here",
+                "Outcome four here",
+            ]),
+        )
+        data = build_slide_3_injection(slide)
+        text = data["object_contents"][1]
+        lines = text.split("\n")
+        assert len(lines) == 4
+
+
 # ── Timeline schema ──────────────────────────────────────────────────────
 
 
