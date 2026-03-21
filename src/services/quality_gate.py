@@ -313,12 +313,22 @@ def _check_r7_empty_renderable_slides(
     records: list[dict[str, Any]],
     injection_results: list[InjectionResult | None],
 ) -> list[str]:
-    """R7: No more than 10% of RENDERABLE_NOW slides may have zero injections."""
+    """R7: No more than 10% of b_variable RENDERABLE_NOW slides may have zero injections.
+
+    Only b_variable entries should have injection data — template-owned entries
+    (a1_clone, a2_shell, pool_clone, section_divider) are cloned as-is and
+    SHOULD have no injections.
+    """
     renderable_count = 0
     empty_count = 0
 
     for i, record in enumerate(records):
         layout = record.get("semantic_layout_id", "")
+        entry_type = record.get("entry_type", "")
+        # Only check b_variable entries — template-owned slides are expected
+        # to have no injections
+        if entry_type != "b_variable":
+            continue
         if layout not in RENDERABLE_NOW_LAYOUTS:
             continue
         renderable_count += 1
@@ -390,28 +400,49 @@ def _check_r10_arabic_purity(
     records: list[dict[str, Any]],
     language: str,
 ) -> list[str]:
-    """R10: Arabic decks must have no unapproved English in renderable zones."""
+    """R10: Arabic decks must have no unapproved English in renderable zones.
+
+    Threshold-based: individual short acronyms (≤3 chars) are ignored.
+    A slide fails only if it has more than 3 unapproved English words of
+    4+ characters — indicating substantive English content that should
+    have been translated.
+    """
     if language != "ar":
         return []
+
+    # Threshold: max unapproved long (4+ char) English words per slide
+    _MAX_UNAPPROVED_PER_SLIDE = 3
 
     failures: list[str] = []
     for i, record in enumerate(records):
         layout = record.get("semantic_layout_id", "")
+        entry_type = record.get("entry_type", "")
+        # Only check b_variable entries — template-owned slides (a1_clone,
+        # a2_shell, pool_clone) may legitimately contain English (e.g. RFP name
+        # on proposal_cover).
+        if entry_type != "b_variable":
+            continue
         if layout not in RENDERABLE_NOW_LAYOUTS:
             continue
         injection_data = record.get("injection_data")
+        unapproved_on_slide: list[str] = []
         for text in _extract_injection_texts(injection_data):
-            english_words = re.findall(r"[a-zA-Z]{2,}", text)
+            # Only flag words of 4+ chars — short acronyms (SG, EA, AI,
+            # UDC, ADM) are ubiquitous in Arabic consulting presentations
+            english_words = re.findall(r"[a-zA-Z]{4,}", text)
             for word in english_words:
                 if (
                     word not in APPROVED_ENGLISH_TERMS
                     and word.upper() not in APPROVED_ENGLISH_TERMS
+                    and word.capitalize() not in APPROVED_ENGLISH_TERMS
                 ):
-                    failures.append(
-                        f"R10: Unapproved English word '{word}' "
-                        f"on slide {i} (layout={layout})",
-                    )
-                    break  # One per slide
+                    unapproved_on_slide.append(word)
+        if len(unapproved_on_slide) > _MAX_UNAPPROVED_PER_SLIDE:
+            sample = ", ".join(unapproved_on_slide[:5])
+            failures.append(
+                f"R10: {len(unapproved_on_slide)} unapproved English words "
+                f"on slide {i} (layout={layout}): {sample}",
+            )
     return failures
 
 

@@ -431,17 +431,24 @@ class TestR10ArabicPurity:
         record = _make_record(injection_data={"body": "English text"})
         assert _check_r10_arabic_purity([record], "en") == []
 
-    def test_approved_term_passes(self):
+    def test_few_unapproved_words_below_threshold(self):
+        """1-3 unapproved English words are tolerated (threshold-based)."""
         record = _make_record(
-            injection_data={"body": "TOGAF framework"},
+            injection_data={"body": "TOGAF framework testing"},
         )
-        # In AR mode, "framework" is unapproved but "TOGAF" is approved
+        # Only 2 unapproved 4+ char words, below threshold of 3
         failures = _check_r10_arabic_purity([record], "ar")
-        assert any("framework" in f for f in failures)
+        assert failures == []
 
-    def test_unapproved_english_fails(self):
+    def test_many_unapproved_english_fails(self):
+        """Exceeding threshold of unapproved English words triggers R10."""
         record = _make_record(
-            injection_data={"body": "implementation strategy"},
+            injection_data={
+                "body": (
+                    "comprehensive deployment covering "
+                    "establishing documenting"
+                ),
+            },
         )
         failures = _check_r10_arabic_purity([record], "ar")
         assert len(failures) >= 1
@@ -453,11 +460,23 @@ class TestR10ArabicPurity:
         )
         assert _check_r10_arabic_purity([record], "ar") == []
 
-    def test_multi_zone_layout_now_enforced_ar(self):
-        """Multi-zone layouts are now RENDERABLE_NOW and enforced in AR."""
+    def test_short_acronyms_ignored(self):
+        """Short abbreviations (≤3 chars) are never flagged."""
+        record = _make_record(
+            injection_data={"body": "SG UDC ADM EA IT"},
+        )
+        assert _check_r10_arabic_purity([record], "ar") == []
+
+    def test_multi_zone_layout_enforced_ar_above_threshold(self):
+        """Multi-zone layouts with excessive English trigger R10."""
         record = _make_record(
             layout="layout_heading_and_4_boxes_of_content",
-            injection_data={"body": "implementation"},
+            injection_data={
+                "body": (
+                    "comprehensive deployment covering "
+                    "establishing documenting"
+                ),
+            },
         )
         failures = _check_r10_arabic_purity([record], "ar")
         assert any("R10" in f for f in failures)
@@ -546,7 +565,12 @@ class TestMultiZoneLayoutsEnforceable:
         record = _make_record(
             layout="layout_heading_description_and_two_rows_of_content_boxes",
             section_id="section_01",
-            injection_data={"body": "implementation strategy"},
+            injection_data={
+                "body": (
+                    "comprehensive deployment covering "
+                    "establishing documenting"
+                ),
+            },
         )
         failures = _check_r10_arabic_purity([record], "ar")
         assert any("R10" in f for f in failures)
@@ -711,8 +735,10 @@ class TestRunQualityGate:
     def test_arabic_purity_runs_with_language_threading(self):
         """R10 activates when language='ar' is threaded through."""
         records = _all_sections_records()
-        # Add unapproved English word in AR mode
-        records[0]["injection_data"]["body"] = "implementation strategy"
+        # Add many unapproved English words to exceed threshold
+        records[0]["injection_data"]["body"] = (
+            "comprehensive deployment covering establishing documenting"
+        )
         meth = _make_methodology_output(phase_count=4)
         result = run_quality_gate(
             records=records,

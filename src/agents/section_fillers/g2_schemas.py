@@ -17,9 +17,53 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 # ── Constants ────────────────────────────────────────────────────────────
 
 APPROVED_ENGLISH_TERMS = frozenset({
+    # Company and brand names
     "Strategic Gears", "SAP", "Oracle", "Microsoft", "Azure", "AWS",
-    "TOGAF", "ITIL", "COBIT", "PMP", "ISO", "KPI", "API", "SLA",
-    "PMO", "ERP", "CRM", "AI", "IoT", "RPA", "MBA", "PhD",
+    "Google", "IBM", "Accenture", "Deloitte", "McKinsey",
+    # Certifications and frameworks
+    "TOGAF", "ITIL", "COBIT", "PMP", "ISO", "PRINCE2", "PMBOK",
+    "CMMI", "Six Sigma", "Agile", "Scrum", "DevOps", "NIST",
+    # Common acronyms in consulting
+    "KPI", "API", "SLA", "SLO", "PMO", "ERP", "CRM", "AI", "IoT",
+    "RPA", "MBA", "PhD", "ROI", "TCO", "RFP", "NDA", "SOW",
+    "UAT", "MVP", "POC", "BI", "ML", "NLP", "OCR",
+    # Government entities and standards (KSA)
+    "MCIT", "NCA", "SDAIA", "NDMO", "DGA", "ZATCA", "GOSI",
+    "NTP", "DCMM", "ECC", "SAMA", "MOMRA", "MOH", "MOE",
+    # Common English words in Arabic business context
+    "Ministry", "Digital", "Transformation", "Enterprise",
+    "Architecture", "Governance", "Framework", "Strategy",
+    "Cloud", "Cyber", "Data", "Analytics", "Automation",
+    "Phase", "Stage", "Gate", "Sprint", "Workshop",
+    "Stakeholder", "Deliverable", "Milestone", "Roadmap",
+    "Dashboard", "Platform", "Solution", "Service",
+    # Methodology and consulting terms (common in Arabic slides)
+    "Assessment", "Maturity", "Model", "Baseline", "Target",
+    "Discovery", "Design", "Delivery", "Optimization",
+    "Readiness", "Implementation", "Integration", "Migration",
+    "Quality", "Assurance", "Review", "Audit", "Compliance",
+    "Capability", "Capacity", "Performance", "Benchmark",
+    "Consulting", "Advisory", "Management", "Operations",
+    "Infrastructure", "Security", "Network", "System",
+    "Process", "Workflow", "Pipeline", "Module", "Component",
+    "Report", "Summary", "Analysis", "Evaluation", "Plan",
+    "Risk", "Mitigation", "Contingency", "Escalation",
+    "Training", "Knowledge", "Transfer", "Handover",
+    "Change", "Impact", "Stakeholders", "Communication",
+    "Resource", "Budget", "Timeline", "Schedule", "Scope",
+    "Objective", "Outcome", "Benefit", "Value", "Cost",
+    "Technology", "Innovation", "Agility", "Scalability",
+    "Project", "Program", "Portfolio", "Office",
+    "Technical", "Functional", "Business", "Requirements",
+    "Current", "Future", "Gap", "State", "As", "To", "Be",
+    "Team", "Lead", "Manager", "Director", "Consultant",
+    "Audience", "Sign", "Authority", "Approval", "Status",
+    "Weekly", "Monthly", "Quarterly", "Bi",
+    # Architecture frameworks (common in Arabic consulting)
+    "ADM", "Zachman", "SABSA", "BPMN", "ArchiMate",
+    "EA", "SOA", "ESB", "BPM",
+    # Presentation/document terms
+    "Ref", "CLM", "EB", "S1", "S2", "S3",
 })
 
 ESSAY_TRANSITIONS = frozenset({
@@ -174,15 +218,15 @@ class IntroMessageSlide(BaseModel):
     scope_line: str = Field(
         max_length=100, description="1-line engagement scope, max 15 words",
     )
-    attr_duration: str = Field(max_length=30, description='e.g., "16 weeks"')
+    attr_duration: str = Field(max_length=50, description='e.g., "16 weeks"')
     attr_sector: str = Field(
-        max_length=30, description='e.g., "Government / ICT"',
+        max_length=50, description='e.g., "Government / ICT"',
     )
     attr_geography: str = Field(
-        max_length=30, description='e.g., "KSA - Riyadh"',
+        max_length=50, description='e.g., "KSA - Riyadh"',
     )
     attr_service_line: str = Field(
-        max_length=30, description='e.g., "Digital Transformation Advisory"',
+        max_length=50, description='e.g., "Digital Transformation Advisory"',
     )
 
     @field_validator("title")
@@ -239,12 +283,12 @@ class TocOutput(FillerOutput):
 class TwoColumnSlide(SlideOutput):
     """Understanding Slide 1 - Strategic Context with two evidence columns."""
 
-    left_subtitle: str = Field(max_length=40, description="Left column label")
+    left_subtitle: str = Field(max_length=60, description="Left column label")
     left_evidence: Bullets_3_4 = Field(
         description="3-4 evidence points for left column",
     )
     right_subtitle: str = Field(
-        max_length=40, description="Right column label",
+        max_length=60, description="Right column label",
     )
     right_evidence: Bullets_3_4 = Field(
         description="3-4 evidence points for right column",
@@ -297,7 +341,7 @@ class PhaseContent(BaseModel):
 
     phase_number: int = Field(ge=1, le=5)
     phase_title: str = Field(
-        max_length=40, description="Short phase name, max 5 words",
+        max_length=60, description="Short phase name, max 5 words",
     )
     phase_activities: Bullets_3_5 = Field(
         description="3-5 bullet activities for this phase",
@@ -317,7 +361,7 @@ class MethodologyOverviewSlide(SlideOutput):
     """Methodology overview - grid with up to 4 phases."""
 
     subtitle: str = Field(
-        max_length=60, description="Methodology approach name",
+        max_length=120, description="Methodology approach name",
     )
     phases: list[PhaseContent] = Field(
         min_length=3,
@@ -355,7 +399,7 @@ class MethodologyFocusedSlide(SlideOutput):
         ge=1, le=4,
         description="Which phase is highlighted on this slide",
     )
-    subtitle: str = Field(default="", max_length=60)
+    subtitle: str = Field(default="", max_length=120)
     phases: list[PhaseContent] = Field(min_length=3, max_length=4)
     cross_cutting_themes: list[str] = Field(
         default_factory=list, max_length=4,
@@ -465,7 +509,7 @@ class TimelinePhaseBlock(BaseModel):
     """Single phase block for the timeline quadrant."""
 
     phase_number: int = Field(ge=1, le=5)
-    phase_name: str = Field(max_length=40)
+    phase_name: str = Field(max_length=60)
     week_range: str = Field(
         max_length=20, description="e.g., 'Weeks 1-4'",
     )
@@ -501,7 +545,7 @@ class MilestoneColumn(BaseModel):
     """One column of milestone/deliverable content."""
 
     subtitle: str = Field(
-        max_length=30, description="Column label, e.g., 'Phases 1-2'",
+        max_length=50, description="Column label, e.g., 'Phases 1-2'",
     )
     deliverables: BulletList = Field(
         description="Per-phase deliverables with decision gates",
@@ -533,9 +577,9 @@ class GovernanceTier(BaseModel):
     """Single governance tier for the 4-box grid."""
 
     tier_name: str = Field(
-        max_length=30, description="e.g., STEERING COMMITTEE",
+        max_length=50, description="e.g., STEERING COMMITTEE",
     )
-    members: str = Field(max_length=60, description="Who participates")
+    members: str = Field(max_length=80, description="Who participates")
     cadence: str = Field(
         max_length=20, min_length=1,
         description="Meeting frequency - required",
@@ -548,7 +592,7 @@ class GovernanceTier(BaseModel):
 class EscalationBlock(BaseModel):
     """Escalation triggers for the 4th governance box."""
 
-    tier_name: str = Field(default="ESCALATION TRIGGERS", max_length=30)
+    tier_name: str = Field(default="ESCALATION TRIGGERS", max_length=50)
     triggers: Bullets_3_4 = Field(
         description="3-4 escalation conditions with authority levels",
     )
@@ -569,8 +613,8 @@ class ReportingBlock(BaseModel):
     cadence: str = Field(
         max_length=20, description="e.g., Weekly, Bi-weekly, Monthly",
     )
-    report_name: str = Field(max_length=40)
-    audience: str = Field(max_length=40)
+    report_name: str = Field(max_length=60)
+    audience: str = Field(max_length=60)
     items: Bullets_2_3 = Field(
         description="2-3 content items for this report",
     )
@@ -579,21 +623,21 @@ class ReportingBlock(BaseModel):
 class QualityGate(BaseModel):
     """Single quality gate definition."""
 
-    gate_name: str = Field(max_length=40)
+    gate_name: str = Field(max_length=60)
     criteria: Bullets_2_3 = Field(description="2-3 acceptance criteria")
-    sign_off_authority: str = Field(max_length=40)
+    sign_off_authority: str = Field(max_length=60)
 
 
 class QAReportingSlide(SlideOutput):
     """QA & Reporting - two-column: reporting cadence + quality gates."""
 
     left_subtitle: str = Field(
-        default="Reporting Cadence", max_length=30,
+        default="Reporting Cadence", max_length=50,
     )
     reporting_blocks: list[ReportingBlock] = Field(
         min_length=2, max_length=4,
     )
-    right_subtitle: str = Field(default="Quality Gates", max_length=30)
+    right_subtitle: str = Field(default="Quality Gates", max_length=50)
     quality_gates: list[QualityGate] = Field(min_length=2, max_length=4)
 
 

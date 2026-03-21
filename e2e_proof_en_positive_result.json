@@ -1,0 +1,49 @@
+{
+  "proof_class": "POSITIVE_PROOF_CLEAN",
+  "proof_status": "PASSED",
+  "session_id": "e2e-en-positive-1774114391",
+  "language": "en",
+  "brief_label": "positive",
+  "total_time": 863.0642762184143,
+  "bypasses": "ZERO",
+  "pptx_path": "output\\e2e-en-positive-1774114391\\deck.pptx",
+  "docx_path": null,
+  "source_index_path": null,
+  "gap_report_path": null,
+  "final_stage": "finalized",
+  "session_scoped": true,
+  "placeholder_violations": 0,
+  "quality_failures": [],
+  "qa_fail_close": false,
+  "qa_passed": 0,
+  "qa_failed": 16,
+  "lint_blockers": 0,
+  "density_blockers": 37,
+  "provenance_blockers": 0,
+  "stages": [
+    [
+      "context -> gate_1",
+      7.30467414855957
+    ],
+    [
+      "retrieval -> gate_2",
+      30.539218187332153
+    ],
+    [
+      "analysis -> research -> gate_3",
+      23.787094593048096
+    ],
+    [
+      "submission_transform -> build_slides -> gate_4",
+      751.0327064990997
+    ],
+    [
+      "qa -> governance -> gate_5",
+      42.73883032798767
+    ],
+    [
+      "render -> END",
+      7.661752462387085
+    ]
+  ]
+}

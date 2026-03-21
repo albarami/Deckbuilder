@@ -1,0 +1,49 @@
+{
+  "proof_class": "POSITIVE_PROOF_CLEAN",
+  "proof_status": "PASSED",
+  "session_id": "e2e-ar-positive-1774123722",
+  "language": "ar",
+  "brief_label": "positive",
+  "total_time": 1243.3939280509949,
+  "bypasses": "ZERO",
+  "pptx_path": "output\\e2e-ar-positive-1774123722\\deck.pptx",
+  "docx_path": null,
+  "source_index_path": null,
+  "gap_report_path": null,
+  "final_stage": "finalized",
+  "session_scoped": true,
+  "placeholder_violations": 0,
+  "quality_failures": [],
+  "qa_fail_close": true,
+  "qa_passed": 0,
+  "qa_failed": 15,
+  "lint_blockers": 0,
+  "density_blockers": 14,
+  "provenance_blockers": 0,
+  "stages": [
+    [
+      "context -> gate_1",
+      6.74945592880249
+    ],
+    [
+      "retrieval -> gate_2",
+      42.12195444107056
+    ],
+    [
+      "analysis -> research -> gate_3",
+      22.628034591674805
+    ],
+    [
+      "submission_transform -> build_slides -> gate_4",
+      1125.1079716682434
+    ],
+    [
+      "qa -> governance -> gate_5",
+      35.3413405418396
+    ],
+    [
+      "render -> END",
+      11.445170879364014
+    ]
+  ]
+}

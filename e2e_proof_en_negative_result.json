@@ -1,0 +1,49 @@
+{
+  "proof_class": "NEGATIVE_PROOF_QUALITY_GATE_BLOCKED",
+  "proof_status": "PASSED",
+  "session_id": "e2e-en-negative-1774111374",
+  "language": "en",
+  "brief_label": "negative",
+  "total_time": 938.8765788078308,
+  "bypasses": "ZERO",
+  "pptx_path": null,
+  "docx_path": null,
+  "source_index_path": null,
+  "gap_report_path": null,
+  "final_stage": "error",
+  "session_scoped": false,
+  "placeholder_violations": 0,
+  "quality_failures": [],
+  "qa_fail_close": true,
+  "qa_passed": 0,
+  "qa_failed": 6,
+  "lint_blockers": 0,
+  "density_blockers": 64,
+  "provenance_blockers": 0,
+  "stages": [
+    [
+      "context -> gate_1",
+      10.565251588821411
+    ],
+    [
+      "retrieval -> gate_2",
+      7.758036851882935
+    ],
+    [
+      "analysis -> research -> gate_3",
+      17.953031539916992
+    ],
+    [
+      "submission_transform -> build_slides -> gate_4",
+      832.4868097305298
+    ],
+    [
+      "qa -> governance -> gate_5",
+      67.2823474407196
+    ],
+    [
+      "render -> END",
+      2.831101655960083
+    ]
+  ]
+}
