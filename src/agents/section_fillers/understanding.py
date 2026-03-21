@@ -117,10 +117,9 @@ def _join_bullets(bullet_list: object) -> str:
 def build_slide_1_injection(slide: TwoColumnSlide) -> dict[str, object]:
     """Build injection_data for layout_heading_and_two_content_with_tiltes.
 
-    Injector: inject_multi_body — title in title_contents, subtitles in
-    body_contents, evidence lists in body_contents (OBJECT placeholders).
+    Injector: inject_multi_body — title as string (renderer reads
+    data.get("title", "")), subtitles and evidence in body_contents.
     """
-    title_contents: dict[int, str] = {SLIDE_1_MAP["title"]: slide.title}
     body_contents: dict[int, str] = {
         SLIDE_1_MAP["left_subtitle"]: slide.left_subtitle,
         SLIDE_1_MAP["left_evidence"]: _join_bullets(slide.left_evidence),
@@ -128,7 +127,7 @@ def build_slide_1_injection(slide: TwoColumnSlide) -> dict[str, object]:
         SLIDE_1_MAP["right_evidence"]: _join_bullets(slide.right_evidence),
     }
     return {
-        "title_contents": title_contents,
+        "title": slide.title,
         "body_contents": body_contents,
     }
 
@@ -136,10 +135,9 @@ def build_slide_1_injection(slide: TwoColumnSlide) -> dict[str, object]:
 def build_slide_2_injection(slide: FourBoxSlide) -> dict[str, object]:
     """Build injection_data for layout_heading_and_4_boxes_of_content.
 
-    Injector: inject_multi_body — title in title_contents, boxes in
-    body_contents (OBJECT placeholders).
+    Injector: inject_multi_body — title as string (renderer reads
+    data.get("title", "")), boxes in body_contents (OBJECT placeholders).
     """
-    title_contents: dict[int, str] = {SLIDE_2_MAP["title"]: slide.title}
     body_contents: dict[int, str] = {
         SLIDE_2_MAP["box_1"]: _join_bullets(slide.box_1),
         SLIDE_2_MAP["box_2"]: _join_bullets(slide.box_2),
@@ -147,7 +145,7 @@ def build_slide_2_injection(slide: FourBoxSlide) -> dict[str, object]:
         SLIDE_2_MAP["box_4"]: _join_bullets(slide.box_4),
     }
     return {
-        "title_contents": title_contents,
+        "title": slide.title,
         "body_contents": body_contents,
     }
 

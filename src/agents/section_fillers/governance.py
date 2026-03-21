@@ -156,10 +156,9 @@ def build_slide_1_injection(
 ) -> dict[str, object]:
     """Build injection_data for layout_heading_and_4_boxes_of_content.
 
-    Injector: inject_multi_body — title in title_contents,
-    tier blocks in body_contents (OBJECT placeholders).
+    Injector: inject_multi_body — title as string (renderer reads
+    data.get("title", "")), tier blocks in body_contents.
     """
-    title_contents: dict[int, str] = {SLIDE_1_MAP["title"]: slide.title}
     body_contents: dict[int, str] = {
         SLIDE_1_MAP["tier_1"]: _format_tier_block(slide.tier_1),
         SLIDE_1_MAP["tier_2"]: _format_tier_block(slide.tier_2),
@@ -167,7 +166,7 @@ def build_slide_1_injection(
         SLIDE_1_MAP["escalation"]: _format_escalation_block(slide.escalation),
     }
     return {
-        "title_contents": title_contents,
+        "title": slide.title,
         "body_contents": body_contents,
     }
 
@@ -175,10 +174,9 @@ def build_slide_1_injection(
 def build_slide_2_injection(slide: QAReportingSlide) -> dict[str, object]:
     """Build injection_data for layout_heading_and_two_content_with_tiltes.
 
-    Injector: inject_multi_body — title in title_contents,
-    subtitles in body_contents (BODY), formatted blocks in OBJECT slots.
+    Injector: inject_multi_body — title as string (renderer reads
+    data.get("title", "")), subtitles and blocks in body_contents.
     """
-    title_contents: dict[int, str] = {SLIDE_2_MAP["title"]: slide.title}
     body_contents: dict[int, str] = {
         SLIDE_2_MAP["left_subtitle"]: slide.left_subtitle,
         SLIDE_2_MAP["left_content"]: _format_reporting_blocks(
@@ -190,7 +188,7 @@ def build_slide_2_injection(slide: QAReportingSlide) -> dict[str, object]:
         ),
     }
     return {
-        "title_contents": title_contents,
+        "title": slide.title,
         "body_contents": body_contents,
     }
 

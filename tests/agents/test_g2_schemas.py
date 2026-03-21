@@ -711,7 +711,7 @@ class TestUnderstandingInjectionMapping:
         )
         data = build_slide_1_injection(slide)
 
-        assert data["title_contents"][0] == "Strategic Context"
+        assert data["title"] == "Strategic Context"
         body = data["body_contents"]
         assert body[1] == "Regulatory Drivers"
         assert body[3] == "Operational Challenges"
@@ -735,7 +735,7 @@ class TestUnderstandingInjectionMapping:
         )
         data = build_slide_2_injection(slide)
 
-        assert data["title_contents"][0] == "Core Challenges"
+        assert data["title"] == "Core Challenges"
         body = data["body_contents"]
         assert body[1] == "Fragmented IT landscape\nNo unified CMDB"
         assert body[2] == "Skills gap in cloud\n23% attrition rate"
@@ -879,7 +879,7 @@ class TestTimelineInjectionMapping:
         )
         data = build_slide_1_injection(slide)
 
-        assert data["title_contents"][0] == "16-Week Delivery Timeline"
+        assert data["title"] == "16-Week Delivery Timeline"
         body = data["body_contents"]
         # Box 1 at OBJECT idx 1 — formatted as "Phase 1 | Weeks 1-4\n..."
         assert "Phase 1 | Weeks 1-4" in body[1]
@@ -931,7 +931,7 @@ class TestTimelineInjectionMapping:
         )
         data = build_slide_2_injection(slide)
 
-        assert data["title_contents"][0] == "Milestones and Deliverables"
+        assert data["title"] == "Milestones and Deliverables"
         body = data["body_contents"]
         assert body[1] == "Phases 1-2"  # left subtitle
         assert body[3] == "Phases 3-5"  # right subtitle
@@ -1114,7 +1114,7 @@ class TestGovernanceInjectionMapping:
         slide = self._make_structure_slide()
         data = build_slide_1_injection(slide)
 
-        assert data["title_contents"][0] == "Project Governance Framework"
+        assert data["title"] == "Project Governance Framework"
         body = data["body_contents"]
         # Tier 1 at OBJECT idx 1
         assert "STEERING COMMITTEE | Monthly" in body[1]
@@ -1188,7 +1188,7 @@ class TestGovernanceInjectionMapping:
         )
         data = build_slide_2_injection(slide)
 
-        assert data["title_contents"][0] == "QA and Reporting Framework"
+        assert data["title"] == "QA and Reporting Framework"
         body = data["body_contents"]
         assert body[1] == "Reporting Cadence"  # left subtitle
         assert body[3] == "Quality Gates"  # right subtitle
