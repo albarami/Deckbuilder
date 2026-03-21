@@ -343,6 +343,43 @@ class TestInjectContent:
             _inject_content(slide, entry, contract)
             mock_inj.assert_called_once()
 
+    def test_title_body_forwards_object_contents(self):
+        """Phase G: _inject_content passes object_contents to inject_title_body."""
+        obj_data = {1: "• Outcome 1\n• Outcome 2\n• Outcome 3"}
+        entry = _make_entry(
+            semantic_layout_id="layout_heading_description_and_content_box",
+            injection_data={
+                "title": "Success Definition",
+                "body": "Engagement framing text",
+                "object_contents": obj_data,
+            },
+        )
+        slide, contract = self._make_slide_and_contract(
+            "layout_heading_description_and_content_box",
+        )
+
+        with patch("src.services.renderer_v2.inject_title_body") as mock_inj:
+            mock_inj.return_value = MagicMock()
+            _inject_content(slide, entry, contract)
+            mock_inj.assert_called_once()
+            call_kwargs = mock_inj.call_args
+            # Verify object_contents was passed with the exact value
+            assert call_kwargs.kwargs["object_contents"] == obj_data
+
+    def test_title_body_forwards_none_object_contents_when_absent(self):
+        """When injection_data has no object_contents key, None is forwarded."""
+        entry = _make_entry(
+            semantic_layout_id="content_heading_desc",
+            injection_data={"title": "Test", "body": "Body"},
+        )
+        slide, contract = self._make_slide_and_contract("content_heading_desc")
+
+        with patch("src.services.renderer_v2.inject_title_body") as mock_inj:
+            mock_inj.return_value = MagicMock()
+            _inject_content(slide, entry, contract)
+            call_kwargs = mock_inj.call_args
+            assert call_kwargs.kwargs["object_contents"] is None
+
     def test_unknown_family_returns_none(self):
         entry = _make_entry(
             semantic_layout_id="nonexistent_layout",

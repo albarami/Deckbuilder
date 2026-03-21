@@ -525,6 +525,48 @@ class TestInjectMultiBodyObjectExtension:
         skip_idx = result.skipped.index(2)
         assert result.skipped_types[skip_idx] == "OBJECT"
 
+    def test_empty_string_object_skipped(self):
+        """OBJECT in body_contents with empty string is skipped, not injected."""
+        specs = [
+            (0, "TITLE", ""),
+            (1, "OBJECT", ""),
+        ]
+        slide = _make_slide_with_placeholders(specs)
+        contract = _contract("layout_heading_and_4_boxes_of_content", {
+            0: "TITLE", 1: "OBJECT",
+        })
+
+        result = inject_multi_body(
+            slide, "layout_heading_and_4_boxes_of_content", contract,
+            title="Test",
+            body_contents={1: ""},
+        )
+        assert len(result.injected) == 1  # only TITLE
+        assert 1 in result.skipped
+        skip_idx = result.skipped.index(1)
+        assert result.skipped_types[skip_idx] == "OBJECT"
+
+    def test_whitespace_only_object_skipped(self):
+        """OBJECT in body_contents with whitespace-only value is skipped."""
+        specs = [
+            (0, "TITLE", ""),
+            (1, "OBJECT", ""),
+        ]
+        slide = _make_slide_with_placeholders(specs)
+        contract = _contract("layout_heading_and_4_boxes_of_content", {
+            0: "TITLE", 1: "OBJECT",
+        })
+
+        result = inject_multi_body(
+            slide, "layout_heading_and_4_boxes_of_content", contract,
+            title="Test",
+            body_contents={1: "   \n  "},
+        )
+        assert len(result.injected) == 1  # only TITLE
+        assert 1 in result.skipped
+        skip_idx = result.skipped.index(1)
+        assert result.skipped_types[skip_idx] == "OBJECT"
+
     def test_mixed_body_and_object_injection(self):
         """Layout with BODY and OBJECT placeholders — both are injected."""
         specs = [

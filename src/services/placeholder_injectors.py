@@ -508,16 +508,20 @@ def inject_multi_body(
             # OBJECT placeholders on multi-zone layouts (Understanding, Timeline,
             # Governance) contain text frames that accept structured bullet text.
             text = body_contents[idx]
-            bold_applied = False
-            if bold_leads and text:
-                bold_break = _find_bold_break(text)
-                bold_applied = _set_text_with_bold_lead(ph.text_frame, text, bold_break)
-            elif text:
-                _set_text_preserving_format(ph.text_frame, text)
-            injected.append(InjectedPlaceholder(
-                placeholder_idx=idx, placeholder_type="OBJECT",
-                content_preview=text[:80], bold_applied=bold_applied,
-            ))
+            if text and text.strip():
+                bold_applied = False
+                if bold_leads:
+                    bold_break = _find_bold_break(text)
+                    bold_applied = _set_text_with_bold_lead(ph.text_frame, text, bold_break)
+                else:
+                    _set_text_preserving_format(ph.text_frame, text)
+                injected.append(InjectedPlaceholder(
+                    placeholder_idx=idx, placeholder_type="OBJECT",
+                    content_preview=text[:80], bold_applied=bold_applied,
+                ))
+            else:
+                skipped.append(idx)
+                skipped_types.append("OBJECT")
         elif ph_type in ("OBJECT", "TABLE"):
             # OBJECT/TABLE with no content in body_contents — skip as before
             skipped.append(idx)
