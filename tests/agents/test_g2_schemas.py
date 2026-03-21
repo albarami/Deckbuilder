@@ -20,11 +20,10 @@ from src.agents.section_fillers.g2_schemas import (
     Bullets_3_5,
     Bullets_4_6,
     EscalationBlock,
-    FillerOutput,
     FourBoxSlide,
-    GovernanceTier,
     GovernanceOutput,
     GovernanceStructureSlide,
+    GovernanceTier,
     HeadingDescriptionContentSlide,
     IntroMessageOutput,
     IntroMessageSlide,
@@ -49,7 +48,6 @@ from src.agents.section_fillers.g2_schemas import (
     UnderstandingOutput,
     contains_unapproved_english,
 )
-
 
 # ── Bullet list constraint tests ─────────────────────────────────────────
 
@@ -1061,6 +1059,145 @@ class TestGovernanceSchema:
             EscalationBlock(
                 triggers=Bullets_3_4(items=["only one", "only two"]),
             )
+
+
+# ── Governance injection mapping ─────────────────────────────────────────
+
+
+class TestGovernanceInjectionMapping:
+    """Governance filler injection_data builders produce correct output."""
+
+    def _make_structure_slide(self) -> GovernanceStructureSlide:
+        return GovernanceStructureSlide(
+            title="Project Governance Framework",
+            tier_1=GovernanceTier(
+                tier_name="STEERING COMMITTEE",
+                members="CIO, Program Director, SG Partner",
+                cadence="Monthly",
+                responsibilities=Bullets_2_4(items=[
+                    "Strategic direction and priority alignment",
+                    "Budget approval and resource allocation",
+                ]),
+            ),
+            tier_2=GovernanceTier(
+                tier_name="PROJECT BOARD",
+                members="PMO Lead, Tech Lead, Client PM",
+                cadence="Bi-weekly",
+                responsibilities=Bullets_2_4(items=[
+                    "Milestone tracking and risk mitigation",
+                    "Cross-workstream dependency management",
+                ]),
+            ),
+            tier_3=GovernanceTier(
+                tier_name="WORKING TEAMS",
+                members="Stream leads, SMEs",
+                cadence="Weekly",
+                responsibilities=Bullets_2_4(items=[
+                    "Sprint execution and deliverable production",
+                    "Technical issue resolution",
+                ]),
+            ),
+            escalation=EscalationBlock(
+                triggers=Bullets_3_4(items=[
+                    "Schedule variance exceeding 2 weeks",
+                    "Budget overrun above 10% threshold",
+                    "Critical dependency blocker unresolved 5 days",
+                ]),
+            ),
+        )
+
+    def test_slide_1_governance_structure_injection(self):
+        from src.agents.section_fillers.governance import (
+            build_slide_1_injection,
+        )
+
+        slide = self._make_structure_slide()
+        data = build_slide_1_injection(slide)
+
+        assert data["title_contents"][0] == "Project Governance Framework"
+        body = data["body_contents"]
+        # Tier 1 at OBJECT idx 1
+        assert "STEERING COMMITTEE | Monthly" in body[1]
+        assert "CIO, Program Director" in body[1]
+        assert "Strategic direction" in body[1]
+        # Tier 3 at OBJECT idx 13
+        assert "WORKING TEAMS | Weekly" in body[13]
+        # Escalation at OBJECT idx 14
+        assert "ESCALATION TRIGGERS" in body[14]
+        assert "Schedule variance" in body[14]
+
+    def test_slide_1_no_paragraphs_in_tiers(self):
+        """Tier blocks contain structured header+bullets, not prose."""
+        from src.agents.section_fillers.governance import (
+            build_slide_1_injection,
+        )
+
+        slide = self._make_structure_slide()
+        data = build_slide_1_injection(slide)
+        body = data["body_contents"]
+
+        for idx in (1, 2, 13, 14):
+            lines = body[idx].split("\n")
+            assert len(lines) >= 3, f"idx {idx}: expected >=3 lines"
+
+    def test_slide_2_qa_reporting_injection(self):
+        from src.agents.section_fillers.governance import (
+            build_slide_2_injection,
+        )
+
+        slide = QAReportingSlide(
+            title="QA and Reporting Framework",
+            reporting_blocks=[
+                ReportingBlock(
+                    cadence="Weekly",
+                    report_name="Status Report",
+                    audience="Project Board",
+                    items=Bullets_2_3(items=[
+                        "Sprint progress and blockers",
+                        "Risk register updates",
+                    ]),
+                ),
+                ReportingBlock(
+                    cadence="Monthly",
+                    report_name="Steering Dashboard",
+                    audience="Steering Committee",
+                    items=Bullets_2_3(items=[
+                        "KPI dashboard with trend analysis",
+                        "Budget utilization and forecast",
+                    ]),
+                ),
+            ],
+            quality_gates=[
+                QualityGate(
+                    gate_name="Phase Exit Gate",
+                    criteria=Bullets_2_3(items=[
+                        "All deliverables accepted by client PM",
+                        "Zero critical defects outstanding",
+                    ]),
+                    sign_off_authority="Project Board",
+                ),
+                QualityGate(
+                    gate_name="Go-Live Readiness Gate",
+                    criteria=Bullets_2_3(items=[
+                        "UAT completion with 95% pass rate",
+                        "Rollback plan documented and tested",
+                    ]),
+                    sign_off_authority="Steering Committee",
+                ),
+            ],
+        )
+        data = build_slide_2_injection(slide)
+
+        assert data["title_contents"][0] == "QA and Reporting Framework"
+        body = data["body_contents"]
+        assert body[1] == "Reporting Cadence"  # left subtitle
+        assert body[3] == "Quality Gates"  # right subtitle
+        # Left OBJECT — reporting blocks
+        assert "Status Report | Weekly" in body[2]
+        assert "Steering Dashboard | Monthly" in body[2]
+        # Right OBJECT — quality gates
+        assert "Phase Exit Gate" in body[4]
+        assert "Sign-off: Project Board" in body[4]
 
 
 # ── Arabic enforcement ───────────────────────────────────────────────────

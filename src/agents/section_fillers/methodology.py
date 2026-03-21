@@ -36,7 +36,6 @@ from .g2_schemas import (
     MethodologyFocusedSlide,
     MethodologyOutput,
     MethodologyOverviewSlide,
-    PhaseContent,
 )
 
 logger = logging.getLogger(__name__)
