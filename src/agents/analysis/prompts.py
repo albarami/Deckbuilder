@@ -38,9 +38,25 @@ RIGHT (atomic):
 
 Atomic claims enable precise traceability, contradiction detection, and selective reuse downstream.
 
+VAGUE LANGUAGE REJECTION:
+Reject any claim that uses vague promotional language without specific evidence. These are NOT facts:
+  - "extensive experience" — HOW MANY years? Which projects?
+  - "deep expertise" — WHAT certifications? Which engagements?
+  - "proven track record" — WHICH specific outcomes? What metrics?
+  - "industry-leading" — By what measure? According to whom?
+  - "comprehensive solution" — What specific components?
+  - "best-in-class" — Compared to what benchmark?
+If you encounter such language in a source document, either:
+  1. Extract the SPECIFIC underlying facts if available elsewhere in the document, OR
+  2. Flag as a gap: "Source claims [vague phrase] but provides no supporting evidence"
+
+For each person, extract SPECIFIC certifications, years of experience, and named project roles.
+For each project, extract SPECIFIC outcomes with numbers (%, $, duration, count).
+
 CONFIDENCE RUBRIC:
 Assign confidence to each claim using this rubric (not self-assessed — rule-based):
-  0.95-1.00: Exact explicit statement in source (verbatim or near-verbatim)
+  1.00: Direct quote with full context (verbatim text with surrounding evidence)
+  0.95-0.99: Exact explicit statement in source (near-verbatim)
   0.80-0.94: Strong explicit evidence with minor normalization (e.g., date format converted)
   0.60-0.79: Partial evidence requiring inference (e.g., project mentioned but dates estimated from context)
   Below 0.60: Do NOT emit the claim. Flag as a gap instead.

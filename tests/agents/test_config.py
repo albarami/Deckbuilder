@@ -39,8 +39,8 @@ def test_settings_defaults():
         s = Settings()
         assert s.environment == "local"
         assert s.log_level == "DEBUG"
-        assert s.local_docs_path == "./test_docs"
-        assert s.template_path == "./templates/Presentation6.pptx"
+        assert s.local_docs_path == "data test"
+        assert s.template_dir == "PROPOSAL_TEMPLATE"
         assert s.output_path == "./output"
         assert s.state_path == "./state"
         assert s.storage_backend == "local"
@@ -114,7 +114,7 @@ def test_model_map_has_10_entries():
         import src.config.models
 
         importlib.reload(src.config.models)
-        assert len(src.config.models.MODEL_MAP) == 11
+        assert len(src.config.models.MODEL_MAP) == 13
 
 
 def test_model_map_keys_match_agents():
@@ -133,6 +133,7 @@ def test_model_map_keys_match_agents():
             "analysis_agent", "research_agent", "structure_agent",
             "content_agent", "qa_agent", "conversation_manager",
             "indexing_classifier", "submission_transform_agent",
+            "assembly_plan_agent", "external_research_agent",
         }
         assert set(src.config.models.MODEL_MAP.keys()) == expected_keys
 

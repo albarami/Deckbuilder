@@ -2,9 +2,32 @@
 
 import os
 import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
+_TEMPLATE_DIR = Path("PROPOSAL_TEMPLATE")
+_TEMPLATE_EN = _TEMPLATE_DIR / "PROPOSAL_TEMPLATE EN.potx"
+
+
+def _can_open_template() -> bool:
+    """Check if python-pptx can actually open the template file."""
+    if not _TEMPLATE_EN.exists():
+        return False
+    try:
+        from pptx import Presentation
+        Presentation(str(_TEMPLATE_EN))
+        return True
+    except Exception:
+        return False
+
+
+_HAS_TEMPLATES = _can_open_template()
+_skip_no_template = pytest.mark.skipif(
+    not _HAS_TEMPLATES,
+    reason="PROPOSAL_TEMPLATE .potx not available or not openable by python-pptx",
+)
 from langgraph.types import Command
 
 from src.models.claims import ClaimObject, GapObject, ReferenceIndex, SourceManifestEntry
@@ -290,6 +313,7 @@ def _make_input_state() -> DeckForgeState:
 # ──────────────────────────────────────────────────────────────
 
 
+@_skip_no_template
 @pytest.mark.asyncio
 async def test_full_pipeline_happy_path() -> None:
     """Mock all LLM calls, auto-approve all gates, verify state at end."""
@@ -345,7 +369,7 @@ async def test_full_pipeline_happy_path() -> None:
         return_value=_SEARCH_RESULTS,
     )
     load_docs_patch = patch(
-        "src.pipeline.graph.load_documents",
+        "src.services.search.load_full_documents",
         new_callable=AsyncMock,
         return_value=[
             {
@@ -504,16 +528,18 @@ async def test_gate_two_resume_applies_selected_source_ids() -> None:
     graph = build_graph()
     state = _make_input_state()
 
-    async def _analysis_run(state: DeckForgeState, approved_sources: list[dict]) -> DeckForgeState:
-        state.reference_index = _reference_index()
-        state.current_stage = PipelineStage.ANALYSIS
-        return state
-
-    async def _research_run(state: DeckForgeState) -> DeckForgeState:
-        state.research_report = _research_report()
-        state.report_markdown = state.research_report.full_markdown
-        state.current_stage = PipelineStage.REPORT_REVIEW
-        return state
+    async def _assembly_plan_run(state: DeckForgeState) -> dict:
+        """Mock assembly plan agent that returns a minimal result."""
+        return {
+            "current_stage": PipelineStage.ANALYSIS,
+            "assembly_plan": None,
+            "methodology_blueprint": None,
+            "slide_budget": None,
+            "sector": "technology",
+            "geography": "ksa",
+            "proposal_mode": "standard",
+            "session": state.session,
+        }
 
     with (
         patch(
@@ -537,7 +563,7 @@ async def test_gate_two_resume_applies_selected_source_ids() -> None:
             return_value=_SEARCH_RESULTS,
         ),
         patch(
-            "src.pipeline.graph.load_documents",
+            "src.services.search.load_full_documents",
             new_callable=AsyncMock,
             return_value=[
                 {"doc_id": "DOC-001", "title": "SAP Case Study", "content_text": "Case study"},
@@ -545,14 +571,9 @@ async def test_gate_two_resume_applies_selected_source_ids() -> None:
             ],
         ),
         patch(
-            "src.pipeline.graph.analysis_agent.run",
+            "src.pipeline.graph.assembly_plan_agent.run",
             new_callable=AsyncMock,
-            side_effect=_analysis_run,
-        ),
-        patch(
-            "src.pipeline.graph.research_agent.run",
-            new_callable=AsyncMock,
-            side_effect=_research_run,
+            side_effect=_assembly_plan_run,
         ),
     ):
         config = {"configurable": {"thread_id": "test-gate-2-selection"}}
@@ -580,7 +601,7 @@ async def test_gate_two_resume_applies_selected_source_ids() -> None:
 
         assert "__interrupt__" in result
         assert result["approved_source_ids"] == ["DOC-002"]
-        assert result["current_stage"] == PipelineStage.REPORT_REVIEW
+        assert result["current_stage"] == PipelineStage.ANALYSIS
 
 
 @pytest.mark.asyncio
@@ -609,6 +630,7 @@ async def test_state_persistence() -> None:
         )
 
 
+@_skip_no_template
 @pytest.mark.asyncio
 async def test_full_pipeline_with_render() -> None:
     """Full pipeline through all gates → render produces .pptx and .docx."""

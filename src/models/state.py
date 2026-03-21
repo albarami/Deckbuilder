@@ -10,6 +10,7 @@ from .actions import ConversationResponse
 from .claims import ReferenceIndex
 from .common import DeckForgeBaseModel
 from .enums import DeckMode, Language, PipelineStage, PresentationType, RendererMode, UserRole
+from .external_evidence import ExternalEvidencePack
 from .methodology_blueprint import MethodologyBlueprint
 from .proposal_manifest import ProposalManifest
 from .qa import QAResult
@@ -109,8 +110,9 @@ class DeckForgeState(DeckForgeBaseModel):
     approved_source_ids: list[str] = Field(default_factory=list)  # DOC-NNN ids user approved
     gate_2: GateDecision | None = None
 
-    # ─── Analysis ───
+    # ─── Analysis / Evidence Curation ───
     reference_index: ReferenceIndex | None = None
+    external_evidence_pack: ExternalEvidencePack | None = None
 
     # ─── Gate 3: Research Report ───
     research_report: ResearchReport | None = None

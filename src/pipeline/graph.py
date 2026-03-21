@@ -1,13 +1,13 @@
 """LangGraph StateGraph — wires the DeckForge pipeline.
 
-Pipeline flow (template-first assembly):
-  START → context → gate_1 → retrieval → gate_2 → assembly_plan
-  → gate_3 → submission_transform → section_fill → build_slides
-  → gate_4 → qa → governance → gate_5 → render → END
+Pipeline flow (template-first assembly with evidence curation):
+  START → context → gate_1 → retrieval → gate_2 → evidence_curation
+  → assembly_plan → gate_3 → submission_transform → section_fill
+  → build_slides → gate_4 → qa → governance → gate_5 → render → END
 
-assembly_plan replaces the old analysis → research chain.  It produces
-a template-first assembly plan (inclusion policy, methodology blueprint,
-case study & team selection, slide budget) from the RFP context.
+evidence_curation runs the Internal Evidence Curator (analysis agent)
+and External Research Agent concurrently to populate reference_index
+and external_evidence_pack before assembly_plan runs.
 
 Gate nodes use LangGraph's interrupt() for human-in-the-loop approval.
 The CLI runner resumes with Command(resume={"approved": True/False, ...}).
@@ -41,7 +41,7 @@ from src.services.renderer import (
     render_pptx,
 )
 from src.services.scorer_profiles import ScorerProfile
-from src.services.search import load_documents, semantic_search
+from src.services.search import semantic_search
 
 logger = logging.getLogger(__name__)
 
@@ -335,17 +335,21 @@ async def assembly_plan_node(state: DeckForgeState) -> dict[str, Any]:
 
 
 async def analysis_node(state: DeckForgeState) -> dict[str, Any]:
-    """Analysis Agent — load approved docs and extract claims.
+    """Internal Evidence Curator — load approved docs (full text) and extract claims.
 
-    Gate 2 sets approved_source_ids.  For local dev, we auto-approve
-    all retrieved sources if no explicit IDs were set.
+    Uses load_full_documents() to load ALL approved documents at up to
+    50k chars each (no 3-doc limit, no 5k truncation). Gate 2 sets
+    approved_source_ids.  For local dev, we auto-approve all retrieved
+    sources if no explicit IDs were set.
     """
+    from src.services.search import load_full_documents
+
     approved_ids = state.approved_source_ids
     if not approved_ids:
         # Auto-approve all retrieved sources for local dev
         approved_ids = [s.doc_id for s in state.retrieved_sources]
 
-    documents = await load_documents(approved_ids)
+    documents = await load_full_documents(approved_ids)
     result = state
     merged_index = None
 
@@ -398,6 +402,46 @@ async def research_node(state: DeckForgeState) -> dict[str, Any]:
         "errors": result.errors,
         "last_error": result.last_error,
     }
+
+
+async def evidence_curation_node(state: DeckForgeState) -> dict[str, Any]:
+    """Evidence Curation — runs Internal Evidence Curator + External Research concurrently.
+
+    Phase 1 of the Proposal Source Book pipeline. Populates:
+    - state.reference_index (from analysis agent)
+    - state.external_evidence_pack (from external research agent)
+    """
+    import asyncio
+
+    from src.agents.external_research import agent as external_research_agent
+
+    # Run both agents concurrently
+    analysis_task = asyncio.create_task(analysis_node(state))
+    external_task = asyncio.create_task(external_research_agent.run(state))
+
+    analysis_result, external_result = await asyncio.gather(
+        analysis_task, external_task, return_exceptions=True,
+    )
+
+    # Merge results
+    updates: dict[str, Any] = {}
+
+    if isinstance(analysis_result, Exception):
+        logger.error("Analysis agent failed: %s", analysis_result)
+        updates["reference_index"] = None
+    else:
+        updates.update(analysis_result)
+
+    if isinstance(external_result, Exception):
+        logger.error("External research agent failed: %s", external_result)
+        from src.models.external_evidence import ExternalEvidencePack
+        updates["external_evidence_pack"] = ExternalEvidencePack(
+            coverage_assessment=f"External research failed: {external_result}",
+        )
+    else:
+        updates.update(external_result)
+
+    return updates
 
 
 async def submission_transform_node(state: DeckForgeState) -> dict[str, Any]:
@@ -570,11 +614,18 @@ async def section_fill_node(state: DeckForgeState) -> dict[str, Any]:
     return result
 
 
-def _build_source_pack_from_state(state: DeckForgeState) -> Any:
+def _build_source_pack_from_state(
+    state: DeckForgeState,
+    full_text_docs: list[dict] | None = None,
+) -> Any:
     """Build a SourcePack from pipeline state data.
 
     Uses retrieved_sources for document evidence and reference_index
     for people/project data when available.
+
+    If `full_text_docs` is provided (from load_full_documents), uses
+    full document text instead of short ranker summaries. This is the
+    primary evidence path for the Proposal Source Book pipeline.
     """
     from src.services.source_pack import (
         DocumentEvidence,
@@ -587,14 +638,28 @@ def _build_source_pack_from_state(state: DeckForgeState) -> Any:
     people: list[PersonSummary] = []
     projects: list[ProjectSummary] = []
 
-    # Documents from retrieved_sources
+    # Build a lookup of full-text content by doc_id
+    full_text_lookup: dict[str, dict] = {}
+    if full_text_docs:
+        for doc in full_text_docs:
+            full_text_lookup[doc["doc_id"]] = doc
+
+    # Documents from retrieved_sources — use full text when available
     for source in state.retrieved_sources:
         if source.recommendation == "include":
+            if source.doc_id in full_text_lookup:
+                # Full-text path (Proposal Source Book pipeline)
+                ftd = full_text_lookup[source.doc_id]
+                content = ftd["content_text"]
+            else:
+                # Fallback to ranker summary (legacy path)
+                content = source.summary or ""
+
             documents.append(DocumentEvidence(
                 doc_id=source.doc_id,
                 title=source.title,
-                content_text=source.summary or "",
-                char_count=len(source.summary or ""),
+                content_text=content,
+                char_count=len(content),
             ))
 
     # People and projects from reference_index
@@ -961,7 +1026,7 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
         v2_result = render_v2(
             manifest, tm, catalog_lock_path, pptx_path,
             filler_outputs=state.filler_outputs,
-            language=state.output_language.value,
+            language=lang_val,
         )
 
         result: dict[str, Any] = {
@@ -1036,7 +1101,7 @@ def route_after_gate_1(state: DeckForgeState) -> str:
 
 
 def route_after_gate_2(state: DeckForgeState) -> str:
-    return _route_after_gate(state, "gate_2", "assembly_plan", retry_node="retrieval")
+    return _route_after_gate(state, "gate_2", "evidence_curation", retry_node="retrieval")
 
 
 def route_after_gate_3(state: DeckForgeState) -> str:
@@ -1069,6 +1134,7 @@ def build_graph() -> CompiledStateGraph:
     graph.add_node("gate_1", gate_1_node)
     graph.add_node("retrieval", retrieval_node)
     graph.add_node("gate_2", gate_2_node)
+    graph.add_node("evidence_curation", evidence_curation_node)
     graph.add_node("assembly_plan", assembly_plan_node)
     graph.add_node("gate_3", gate_3_node)
     graph.add_node("submission_transform", submission_transform_node)
@@ -1090,8 +1156,9 @@ def build_graph() -> CompiledStateGraph:
     )
     graph.add_edge("retrieval", "gate_2")
     graph.add_conditional_edges(
-        "gate_2", route_after_gate_2, ["assembly_plan", "retrieval"]
+        "gate_2", route_after_gate_2, ["evidence_curation", "retrieval"]
     )
+    graph.add_edge("evidence_curation", "assembly_plan")
     graph.add_edge("assembly_plan", "gate_3")
     graph.add_conditional_edges(
         "gate_3", route_after_gate_3, ["submission_transform", "assembly_plan"]

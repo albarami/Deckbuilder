@@ -658,3 +658,44 @@ async def load_documents(
         })
 
     return documents
+
+
+async def load_full_documents(
+    approved_ids: list[str],
+    docs_path: str = DEFAULT_DOCS_PATH,
+    max_chars_per_document: int = 50_000,
+) -> list[dict]:
+    """Load full document content for approved source IDs.
+
+    Unlike `load_documents()`, this function:
+    - Loads ALL approved documents (no 3-doc limit)
+    - Uses a generous per-doc truncation (50k chars, matching analysis agent's cap)
+    - Designed for the evidence curation pipeline (Proposal Source Book)
+    """
+    all_results = _list_supported_documents(docs_path)
+    approved = [r for r in all_results if r["doc_id"] in approved_ids]
+
+    from src.utils.extractors import extract_document
+
+    documents: list[dict] = []
+    for result in approved:
+        filepath = Path(result["metadata"]["path"])
+        try:
+            extracted = extract_document(str(filepath))
+            content = (
+                extracted.full_text[:max_chars_per_document]
+                if extracted.full_text
+                else ""
+            )
+        except Exception:
+            content = result.get("excerpt", "")
+
+        documents.append({
+            "doc_id": result["doc_id"],
+            "title": result["title"],
+            "content_text": content,
+            "char_count": len(content),
+            "metadata": result["metadata"],
+        })
+
+    return documents
