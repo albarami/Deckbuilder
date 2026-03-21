@@ -48,6 +48,10 @@ from src.services.placeholder_injectors import (
     inject_title_body,
     inject_toc_table,
 )
+from src.services.quality_gate import (
+    QualityGateResult,
+    run_quality_gate,
+)
 from src.services.shell_sanitizer import (
     SanitizationReport,
     get_allowlist,
@@ -99,6 +103,11 @@ class RenderResult:
     render_errors: list[str] = field(default_factory=list)
     template_hash: str = ""
     placeholder_audit: PlaceholderAuditResult | None = None
+    filler_outputs: dict[str, Any] = field(default_factory=dict)
+    injection_results: list[InjectionResult | None] = field(
+        default_factory=list,
+    )
+    quality_gate: QualityGateResult | None = None
 
     @property
     def success(self) -> bool:
@@ -338,6 +347,7 @@ def render_v2(
             idx, entry, template_manager, contracts, allowlists,
         )
         result.records.append(record)
+        result.injection_results.append(record.injection_result)
         if record.error:
             result.render_errors.append(
                 f"Slide {idx} ({entry.asset_id}): {record.error}"
@@ -359,6 +369,42 @@ def render_v2(
             result.placeholder_audit = audit
             return result
         result.placeholder_audit = audit
+
+    # ── 5c. Presentation quality gate (fail-closed) ────────────────
+    if not result.render_errors:
+        # Build slide records for quality gate inspection
+        qg_records = [
+            {
+                "semantic_layout_id": r.semantic_layout_id,
+                "section_id": r.section_id,
+                "injection_data": manifest.entries[r.manifest_index].injection_data
+                if r.manifest_index < len(manifest.entries) else None,
+                "entry_type": r.entry_type,
+            }
+            for r in result.records
+        ]
+        qg = run_quality_gate(
+            records=qg_records,
+            filler_outputs=result.filler_outputs,
+            injection_results=result.injection_results,
+        )
+        result.quality_gate = qg
+
+        if not qg.passed:
+            failure_summary = "; ".join(qg.hard_failures[:5])
+            result.render_errors.append(
+                f"Quality gate REJECTED "
+                f"({len(qg.hard_failures)} hard failure(s)): "
+                + failure_summary,
+            )
+            return result
+
+        if qg.pending_findings:
+            logger.info(
+                "Quality gate PASSED with %d pending findings "
+                "(awaiting injector extension)",
+                len(qg.pending_findings),
+            )
 
     # ── 6. Remove original template slides ────────────────────────
     if not result.render_errors:

@@ -482,13 +482,18 @@ class TestRenderV2:
     @patch("src.services.renderer_v2.build_contracts_from_catalog_lock")
     @patch("src.services.renderer_v2.load_a2_allowlists")
     @patch("src.services.renderer_v2.validate_manifest")
+    @patch("src.services.renderer_v2.run_quality_gate")
     def test_successful_a1_render(
-        self, mock_validate, mock_allowlists, mock_contracts, mock_registry,
+        self, mock_qg, mock_validate, mock_allowlists, mock_contracts,
+        mock_registry,
     ):
+        from src.services.quality_gate import QualityGateResult
+
         mock_registry.return_value = _make_registry("hash_A")
         mock_contracts.return_value = {}
         mock_allowlists.return_value = {}
         mock_validate.return_value = []  # no errors
+        mock_qg.return_value = QualityGateResult(passed=True)
 
         tm = _make_template_manager("hash_A")
         entry = _make_entry(entry_type="a1_clone", asset_id="overview")
