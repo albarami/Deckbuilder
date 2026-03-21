@@ -488,6 +488,112 @@ class TestMethodologySchema:
             )
 
 
+# ── Methodology injection mapping ────────────────────────────────────────
+
+
+class TestMethodologyInjectionMapping:
+    """Methodology filler injection_data builders produce correct output."""
+
+    def test_overview_injection_maps_phase_titles(self):
+        from src.agents.section_fillers.methodology import (
+            build_overview_injection,
+        )
+
+        phases = [_make_phase(i) for i in range(1, 5)]
+        overview = MethodologyOverviewSlide(
+            title="Our Approach",
+            subtitle="Agile Delivery",
+            phases=phases,
+            cross_cutting_themes=["Change Management", "Data Governance"],
+        )
+        data = build_overview_injection(overview, 4)
+        body = data["body_contents"]
+
+        # Phase titles at correct indices
+        assert body[41] == "Phase 1 Title"  # phase_1_title
+        assert body[33] == "Phase 2 Title"  # phase_2_title
+        assert body[37] == "Phase 3 Title"  # phase_3_title
+        assert body[42] == "Phase 4 Title"  # phase_4_title
+        # Subtitle
+        assert body[13] == "Agile Delivery"
+        # Cross-cutting themes
+        assert body[44] == "Change Management"
+        assert body[45] == "Data Governance"
+
+    def test_overview_injection_activities_are_joined_bullets(self):
+        """Activities are newline-joined from typed Bullets_3_5, not prose."""
+        from src.agents.section_fillers.methodology import (
+            build_overview_injection,
+        )
+
+        phases = [_make_phase(i) for i in range(1, 5)]
+        overview = MethodologyOverviewSlide(
+            title="Approach",
+            subtitle="Method",
+            phases=phases,
+        )
+        data = build_overview_injection(overview, 4)
+        body = data["body_contents"]
+
+        # phase_1_content at idx 23 should be newline-joined
+        content = body[23]
+        assert "\n" in content
+        assert "Activity 1.1" in content
+
+    def test_detail_injection_maps_3_zones(self):
+        from src.agents.section_fillers.methodology import (
+            build_detail_injection,
+        )
+
+        detail = _make_detail(2)
+        data = build_detail_injection(detail)
+
+        assert data["title"] == "Phase 2 Deep Dive"
+        body = data["body_contents"]
+        assert 42 in body  # activities
+        assert 43 in body  # deliverables
+        assert 44 in body  # frameworks
+        # All are newline-joined bullet strings
+        assert "\n" in body[42]
+        assert "Work item 2.1" in body[42]
+        assert "Deliverable 2.1" in body[43]
+        assert "TOGAF 10" in body[44]
+
+    def test_detail_injection_no_paragraphs(self):
+        """Detail zones contain newline-joined bullets, not paragraphs."""
+        from src.agents.section_fillers.methodology import (
+            build_detail_injection,
+        )
+
+        detail = _make_detail(1)
+        data = build_detail_injection(detail)
+        body = data["body_contents"]
+
+        # No zone should contain ". " followed by a capital letter (prose)
+        for idx, text in body.items():
+            # Should be newline-separated bullets
+            lines = text.split("\n")
+            assert len(lines) >= 2, f"idx {idx} has <2 lines: {text!r}"
+
+    def test_focused_injection_has_title_and_body(self):
+        from src.agents.section_fillers.methodology import (
+            build_focused_injection,
+        )
+
+        phases = [_make_phase(i) for i in range(1, 5)]
+        focused = MethodologyFocusedSlide(
+            title="Phase 2 Focus",
+            focused_phase_number=2,
+            phases=phases,
+        )
+        data = build_focused_injection(focused, 4)
+
+        assert data["title"] == "Phase 2 Focus"
+        body = data["body_contents"]
+        assert 41 in body  # phase_1_title
+        assert 23 in body  # phase_1_content
+
+
 # ── Understanding schema ─────────────────────────────────────────────────
 
 
