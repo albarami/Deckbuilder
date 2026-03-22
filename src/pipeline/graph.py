@@ -424,10 +424,37 @@ async def analysis_node(state: DeckForgeState) -> dict[str, Any]:
     if merged_index is not None:
         result.reference_index = merged_index
 
+    # Load knowledge graph if available (try known cache paths)
+    knowledge_graph = None
+    try:
+        from pathlib import Path as P
+
+        from src.agents.indexing.entity_extractor import load_knowledge_graph
+        from src.services.search import DEFAULT_CACHE_PATH
+
+        # Try the active cache path first, then default
+        for candidate in [DEFAULT_CACHE_PATH, "./state/index/"]:
+            kg_file = P(candidate) / "knowledge_graph.json"
+            if kg_file.exists():
+                knowledge_graph = load_knowledge_graph(str(kg_file))
+                if knowledge_graph and knowledge_graph.people:
+                    logger.info(
+                        "Knowledge graph loaded from %s: "
+                        "%d people, %d projects, %d clients",
+                        candidate,
+                        len(knowledge_graph.people),
+                        len(knowledge_graph.projects),
+                        len(knowledge_graph.clients),
+                    )
+                    break
+    except Exception as e:
+        logger.debug("Knowledge graph not loaded: %s", e)
+
     return {
         "reference_index": result.reference_index,
         "approved_source_ids": approved_ids,
         "full_text_documents": documents,
+        "knowledge_graph": knowledge_graph,
         "current_stage": result.current_stage,
         "session": result.session,
         "errors": result.errors,
@@ -770,10 +797,19 @@ async def section_fill_node(state: DeckForgeState) -> dict[str, Any]:
         mismatch_msg = (
             f"Blueprint/manifest count mismatch: blueprint has "
             f"{blueprint_count} entries, manifest has "
-            f"{manifest_b_variable_count} b_variable entries. "
-            f"Proceeding with available blueprint entries."
+            f"{manifest_b_variable_count} b_variable entries"
         )
-        logger.warning(mismatch_msg)
+        logger.error(mismatch_msg)
+        err = ErrorInfo(
+            agent="section_fill",
+            error_type="BlueprintManifestMismatch",
+            message=mismatch_msg,
+        )
+        return {
+            "current_stage": PipelineStage.ERROR,
+            "errors": state.errors + [err],
+            "last_error": err,
+        }
 
     # Run all section fillers concurrently
     orch_result = await run_section_fillers(
@@ -810,50 +846,14 @@ async def section_fill_node(state: DeckForgeState) -> dict[str, Any]:
                 new_entries.append(filler_list[idx])
                 section_filler_idx[section_id] = idx + 1
             else:
-                # More manifest entries than filler produced — add minimal
-                # fallback injection so the slide isn't completely empty
-                # (avoids R7 zero-injection failure)
-                fallback_injection = {
-                    "title": entry.asset_id,
-                    "body": "",
-                }
-                fallback_entry = ManifestEntry(
-                    entry_type=entry.entry_type,
-                    asset_id=entry.asset_id,
-                    semantic_layout_id=entry.semantic_layout_id,
-                    content_source_policy=entry.content_source_policy,
-                    section_id=entry.section_id,
-                    methodology_phase=entry.methodology_phase,
-                    injection_data=fallback_injection,
-                )
-                new_entries.append(fallback_entry)
+                # More manifest entries than filler produced — keep AS-IS
+                # so the failure is visible (no fallback masking)
+                new_entries.append(entry)
                 logger.warning(
-                    "Fallback injection for %s/%s (filler produced fewer entries)",
+                    "Unfilled b_variable %s/%s (filler produced fewer entries)",
                     entry.section_id,
                     entry.asset_id,
                 )
-        elif entry.entry_type == "b_variable" and not entry.injection_data:
-            # b_variable entry whose section filler crashed or returned 0
-            # entries — add fallback injection to avoid R7 zero-injection
-            fallback_injection = {
-                "title": entry.asset_id,
-                "body": "",
-            }
-            fallback_entry = ManifestEntry(
-                entry_type=entry.entry_type,
-                asset_id=entry.asset_id,
-                semantic_layout_id=entry.semantic_layout_id,
-                content_source_policy=entry.content_source_policy,
-                section_id=entry.section_id,
-                methodology_phase=entry.methodology_phase,
-                injection_data=fallback_injection,
-            )
-            new_entries.append(fallback_entry)
-            logger.warning(
-                "Fallback injection for %s/%s (no filler output for section)",
-                entry.section_id,
-                entry.asset_id,
-            )
         else:
             new_entries.append(entry)
 

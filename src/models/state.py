@@ -11,6 +11,7 @@ from .claims import ReferenceIndex
 from .common import DeckForgeBaseModel
 from .enums import DeckMode, Language, PipelineStage, PresentationType, RendererMode, UserRole
 from .external_evidence import ExternalEvidencePack
+from .knowledge import KnowledgeGraph
 from .methodology_blueprint import MethodologyBlueprint
 from .proposal_manifest import ProposalManifest
 from .proposal_strategy import ProposalStrategy
@@ -117,6 +118,7 @@ class DeckForgeState(DeckForgeBaseModel):
     reference_index: ReferenceIndex | None = None
     external_evidence_pack: ExternalEvidencePack | None = None
     full_text_documents: list[dict] = Field(default_factory=list)  # from load_full_documents()
+    knowledge_graph: KnowledgeGraph | None = None
     proposal_strategy: ProposalStrategy | None = None
     source_book: SourceBook | None = None
     source_book_review: SourceBookReview | None = None

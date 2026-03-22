@@ -38,12 +38,19 @@ SECTION 3: WHY STRATEGIC GEARS
 
 Map SG capabilities to RFP requirements with EVIDENCE:
 - capability_mapping: Table mapping each RFP requirement to SG capability + evidence IDs + strength
-- named_consultants: Named people with specific roles, certifications, years of experience
-- project_experience: Named projects with clients, outcomes, evidence IDs
-- certifications_and_compliance: ISO certifications, partnerships, compliance credentials
+- named_consultants: Named people with specific roles, certifications, years of experience.
+  CRITICAL: If knowledge_graph.people is provided, use REAL names from there
+  (e.g., Ahmad Al-Rashidi, Salim Al-Harbi). Do NOT invent placeholder names.
+- project_experience: Named projects with clients, outcomes, evidence IDs.
+  CRITICAL: If knowledge_graph.projects is provided, use REAL project names
+  and clients from there. Do NOT invent placeholder projects.
+- certifications_and_compliance: ISO certifications, partnerships, compliance credentials.
+  Use real certifications from knowledge_graph.people if available.
 
 CRITICAL: Every capability claim MUST reference CLM-xxxx evidence IDs.
 REJECT vague claims like "extensive experience" or "deep expertise."
+USE knowledge_graph data when available — it contains verified SG people,
+projects, and clients extracted from internal documents.
 
 ═══════════════════════════════════════════════════
 SECTION 4: EXTERNAL EVIDENCE
@@ -80,7 +87,11 @@ For each slide in the proposal deck, provide:
 - forbidden_content: What to avoid (vague claims, generic statements)
 
 Include blueprints for ALL standard proposal sections:
-Cover, Executive Summary, Understanding, Why SG, Team, Methodology, Timeline, Case Studies, Closing.
+Cover, Executive Summary, Understanding, Why SG, Team, Methodology,
+Timeline, Case Studies, Closing.
+
+CRITICAL: Section 6 MUST NOT be empty. Produce at least 8 slide blueprints.
+An empty slide_blueprints list is a hard failure.
 
 ═══════════════════════════════════════════════════
 SECTION 7: EVIDENCE LEDGER
@@ -93,6 +104,10 @@ Complete ledger of ALL evidence used in the Source Book:
 - verifiability_status: verified, partially_verified, unverified, gap
 
 Every CLM-xxxx and EXT-xxx referenced in sections 1-6 MUST appear here.
+
+CRITICAL: Section 7 MUST NOT be empty. Include at least one entry for
+every CLM-xxxx ID found in the reference_index. An empty evidence ledger
+is a hard failure.
 
 ═══════════════════════════════════════════════════
 QUALITY RULES

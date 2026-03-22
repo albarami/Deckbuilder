@@ -573,10 +573,8 @@ _TEMPLATE_SYNTAX_PATTERNS = (
 
 # Types that carry visible text — skipping these on b_variable is a hard fail
 _REQUIRED_TEXT_TYPES: frozenset[str] = frozenset({
-    "TITLE", "CENTER_TITLE", "BODY",
+    "TITLE", "CENTER_TITLE", "SUBTITLE", "BODY",
 })
-# SUBTITLE is informational — not all fillers produce subtitle data
-# and an empty subtitle doesn't prevent the slide from being useful.
 
 # Types that are non-text — skipping these is expected and informational
 _NON_TEXT_TYPES: frozenset[str] = frozenset({

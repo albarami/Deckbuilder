@@ -179,15 +179,18 @@ class Bullets_4_6(BaseModel):
 
 
 class SlideOutput(BaseModel):
-    """Single slide output from any filler.  Title max 10 words."""
+    """Single slide output from any filler.  Title max 15 words."""
 
-    title: str = Field(max_length=80, description="Slide title - max 10 words")
+    title: str = Field(max_length=120, description="Slide title - max 15 words")
 
     @field_validator("title")
     @classmethod
     def validate_title_length(cls, v: str) -> str:
-        if len(v.split()) > 10:
-            raise ValueError(f"Title exceeds 10 words: {len(v.split())}")
+        words = v.split()
+        if len(words) > 15:
+            # Truncate to 15 words rather than crash — long titles
+            # are tolerable, missing slides are not
+            v = " ".join(words[:15])
         return v
 
 

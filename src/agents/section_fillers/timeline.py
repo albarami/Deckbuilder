@@ -77,8 +77,8 @@ SLIDE 1 — Timeline Overview (TimelineOverviewSlide):
 - title: short headline, max 10 words
 - box_1 through box_4: each a TimelinePhaseBlock with:
   - phase_number (1-5), phase_name (max 40 chars), week_range (max 20 chars)
-  - key_activities: an OBJECT with "items" list of 2-3 strings,
-    each max 25 words. Format: {"items": ["Activity 1", "Activity 2"]}
+  - key_activities: an OBJECT with an "items" field containing a
+    list of 2-3 strings, each max 25 words
 - All 4 boxes must have DISTINCT phase numbers
 
 SLIDE 2 — Milestones & Deliverables (MilestonesSlide):

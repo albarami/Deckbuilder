@@ -194,18 +194,6 @@ def _check_r3_methodology_structure(
     failures: list[str] = []
     meth_output = filler_outputs.get("section_03")
     if meth_output is None:
-        # If methodology slides have fallback injection (filler crashed
-        # but content exists from the stub/fallback path), skip R3
-        # rather than hard-blocking. The content is present, just not
-        # from the standard filler.
-        has_meth_slides = any(
-            r.get("section_id") == "section_03"
-            and r.get("entry_type") == "b_variable"
-            and r.get("injection_data")
-            for r in records
-        )
-        if has_meth_slides:
-            return []  # Fallback content exists — skip structural check
         failures.append("R3: No MethodologyOutput found in filler_outputs")
         return failures
 

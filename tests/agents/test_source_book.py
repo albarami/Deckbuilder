@@ -1790,14 +1790,11 @@ class TestBlueprintManifestAlignment:
         )
 
     @pytest.mark.asyncio
-    async def test_mismatch_blueprint_fewer_than_manifest(self, caplog):
-        """Blueprint has 1 entry, manifest has 3 b_variable — warns, continues.
+    async def test_mismatch_blueprint_fewer_than_manifest(self):
+        """Blueprint has 1 entry, manifest has 3 b_variable — must error.
 
-        Mismatch is now a warning (not a hard error) so the pipeline can
-        proceed with fallback injections for unfilled slides.
+        Calls the real section_fill_node (live pipeline path).
         """
-        import logging
-
         from src.pipeline.graph import section_fill_node
 
         state = DeckForgeState(
@@ -1806,33 +1803,29 @@ class TestBlueprintManifestAlignment:
             slide_blueprint=self._make_blueprint(entry_count=1),
         )
 
-        # We only test that the mismatch is a warning (not error).
-        # Capture logs and verify the warning was emitted.
-        with caplog.at_level(logging.WARNING, logger="src.pipeline.graph"):
-            # The mismatch warning happens BEFORE run_section_fillers,
-            # so even if downstream code fails (wrong budget type in test),
-            # the warning should be logged. We call the node and accept
-            # any downstream exception since we're testing the alignment
-            # gate behavior, not filler execution.
-            try:
-                await section_fill_node(state)
-            except (AttributeError, TypeError):
-                pass  # Expected — test uses raw dict as budget
+        result = await section_fill_node(state)
 
-        # Should log a warning about the mismatch
+        # Must surface the error structurally
+        assert result["last_error"] is not None
+        assert result["last_error"].error_type == "BlueprintManifestMismatch"
+        assert "Blueprint/manifest count mismatch" in result["last_error"].message
+        assert "blueprint has 1 entries" in result["last_error"].message
+        assert "manifest has 3 b_variable entries" in result["last_error"].message
+        # Must set pipeline to ERROR
+        from src.models.enums import PipelineStage
+        assert result["current_stage"] == PipelineStage.ERROR
+        # Must be in the errors list too
         assert any(
-            "Blueprint/manifest count mismatch" in rec.message
-            for rec in caplog.records
+            e.error_type == "BlueprintManifestMismatch"
+            for e in result["errors"]
         )
 
     @pytest.mark.asyncio
-    async def test_mismatch_blueprint_more_than_manifest(self, caplog):
-        """Blueprint has 5 entries, manifest has 2 b_variable — warns, continues.
+    async def test_mismatch_blueprint_more_than_manifest(self):
+        """Blueprint has 5 entries, manifest has 2 b_variable — must error.
 
-        Mismatch in either direction is a warning.
+        Proves direction of mismatch doesn't matter.
         """
-        import logging
-
         from src.pipeline.graph import section_fill_node
 
         state = DeckForgeState(
@@ -1841,16 +1834,11 @@ class TestBlueprintManifestAlignment:
             slide_blueprint=self._make_blueprint(entry_count=5),
         )
 
-        with caplog.at_level(logging.WARNING, logger="src.pipeline.graph"):
-            try:
-                await section_fill_node(state)
-            except (AttributeError, TypeError):
-                pass  # Expected — test uses raw dict as budget
+        result = await section_fill_node(state)
 
-        assert any(
-            "Blueprint/manifest count mismatch" in rec.message
-            for rec in caplog.records
-        )
+        assert result["last_error"].error_type == "BlueprintManifestMismatch"
+        assert "blueprint has 5 entries" in result["last_error"].message
+        assert "manifest has 2 b_variable entries" in result["last_error"].message
 
     @pytest.mark.asyncio
     async def test_aligned_counts_proceed_normally(self):

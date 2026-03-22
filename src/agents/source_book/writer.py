@@ -83,9 +83,52 @@ def _build_user_message(
     if state.source_book:
         previous_book_dump = state.source_book.model_dump(mode="json")
 
+    # Knowledge graph — named people, projects, clients
+    kg_dump = None
+    if state.knowledge_graph:
+        kg = state.knowledge_graph
+        kg_dump = {
+            "people": [
+                {
+                    "person_id": p.person_id,
+                    "name": p.name,
+                    "current_role": p.current_role,
+                    "company": p.company,
+                    "years_experience": p.years_experience,
+                    "certifications": p.certifications,
+                    "domain_expertise": p.domain_expertise,
+                    "projects": p.projects,
+                }
+                for p in kg.people
+                if p.person_type == "internal_team"
+            ],
+            "projects": [
+                {
+                    "project_id": pr.project_id,
+                    "project_name": pr.project_name,
+                    "client": pr.client,
+                    "sector": pr.sector,
+                    "domain_tags": pr.domain_tags,
+                    "outcomes": pr.outcomes,
+                    "methodologies": pr.methodologies,
+                }
+                for pr in kg.projects[:30]
+            ],
+            "clients": [
+                {
+                    "client_id": c.client_id,
+                    "name": c.name,
+                    "client_type": c.client_type,
+                    "sector": c.sector,
+                }
+                for c in kg.clients[:20]
+            ],
+        }
+
     payload = {
         "rfp_context": rfp_dump,
         "reference_index": ref_index_dump,
+        "knowledge_graph": kg_dump,
         "external_evidence_pack": ext_evidence_dump,
         "proposal_strategy": strategy_dump,
         "previous_source_book": previous_book_dump,
