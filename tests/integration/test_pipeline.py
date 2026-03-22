@@ -522,22 +522,48 @@ async def test_retrieval_chain() -> None:
 
 @pytest.mark.asyncio
 async def test_gate_two_resume_applies_selected_source_ids() -> None:
-    """Gate 2 resume should persist reviewer-selected source IDs into graph state."""
+    """Gate 2 resume should persist reviewer-selected source IDs into graph state.
+
+    After gate_2 approval, the pipeline flows:
+      evidence_curation → proposal_strategy → source_book → gate_3
+
+    All intermediate agent call_llm calls are mocked so the test reaches
+    gate_3's interrupt without real LLM calls.
+
+    New mocks for Phase 4 pipeline reorder:
+    - analysis.agent.call_llm — evidence_curation calls analysis_node internally
+    - external_research.agent.call_llm — evidence_curation runs external research
+    - proposal_strategy.agent.call_llm — proposal_strategy_node
+    - source_book.writer.call_llm — source_book_node writer passes
+    - source_book.reviewer.call_llm — source_book_node reviewer passes
+    - source_book_export — prevent DOCX I/O during test
+    """
+    import src.pipeline.graph as graph_module
     from src.pipeline.graph import build_graph
 
-    graph = build_graph()
     state = _make_input_state()
 
-    async def _assembly_plan_run(state: DeckForgeState) -> dict:
-        """Mock assembly plan agent that returns a minimal result."""
+    # --- Phase 4 upstream node mocks ---
+    # After gate_2 the pipeline runs: evidence_curation → proposal_strategy
+    # → source_book → gate_3.  We replace these node functions before
+    # build_graph() so the compiled graph captures the mock references.
+
+    async def _mock_evidence_curation(state: DeckForgeState) -> dict:
+        return {
+            "reference_index": _reference_index(),
+            "session": state.session,
+        }
+
+    async def _mock_proposal_strategy(state: DeckForgeState) -> dict:
         return {
             "current_stage": PipelineStage.ANALYSIS,
-            "assembly_plan": None,
-            "methodology_blueprint": None,
-            "slide_budget": None,
-            "sector": "technology",
-            "geography": "ksa",
-            "proposal_mode": "standard",
+            "session": state.session,
+        }
+
+    async def _mock_source_book(state: DeckForgeState) -> dict:
+        return {
+            "report_markdown": "# Mock Source Book\n\nContent for integration test.",
+            "report_docx_path": None,
             "session": state.session,
         }
 
@@ -570,23 +596,36 @@ async def test_gate_two_resume_applies_selected_source_ids() -> None:
                 {"doc_id": "DOC-002", "title": "SAP Delivery Framework", "content_text": "Framework"},
             ],
         ),
-        patch(
-            "src.pipeline.graph.assembly_plan_agent.run",
-            new_callable=AsyncMock,
-            side_effect=_assembly_plan_run,
+        # Phase 4: patch node functions on the module before build_graph()
+        # captures them.  evidence_curation, proposal_strategy, source_book
+        # are replaced with lightweight stubs that skip all LLM / external calls.
+        patch.object(
+            graph_module, "evidence_curation_node", _mock_evidence_curation,
+        ),
+        patch.object(
+            graph_module, "proposal_strategy_node", _mock_proposal_strategy,
+        ),
+        patch.object(
+            graph_module, "source_book_node", _mock_source_book,
         ),
     ):
+        # Build graph INSIDE the patch context so compiled graph captures mocks
+        graph = build_graph()
         config = {"configurable": {"thread_id": "test-gate-2-selection"}}
 
+        # context → gate_1 interrupt
         result = await graph.ainvoke(state, config)
         assert "__interrupt__" in result
 
+        # Resume gate_1 → retrieval → gate_2 interrupt
         result = await graph.ainvoke(
             Command(resume={"approved": True}),
             config,
         )
         assert "__interrupt__" in result
 
+        # Resume gate_2 with source selection →
+        # evidence_curation → proposal_strategy → source_book → gate_3 interrupt
         result = await graph.ainvoke(
             Command(
                 resume={
