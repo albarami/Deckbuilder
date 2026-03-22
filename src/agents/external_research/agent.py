@@ -23,56 +23,82 @@ from .prompts import SYSTEM_PROMPT
 logger = logging.getLogger(__name__)
 
 
+def _extract_bilingual_en(bt) -> str:
+    """Extract English text from a BilingualText object safely."""
+    if bt is None:
+        return ""
+    if hasattr(bt, "en") and bt.en:
+        return bt.en
+    if isinstance(bt, str):
+        return bt
+    return ""
+
+
 def _generate_search_queries(state: DeckForgeState) -> list[str]:
-    """Generate search queries from RFP context."""
+    """Generate search queries from RFP context and state fields.
+
+    Uses real RFPContext fields: rfp_name, mandate, scope_items, deliverables.
+    Uses state-level fields: sector, geography.
+    Produces clean, human-readable search strings (no raw object repr).
+    """
     queries: list[str] = []
 
-    if not state.rfp_context:
-        return queries
-
     rfp = state.rfp_context
+    sector = state.sector or ""
+    geography = state.geography or ""
 
-    # Query 1: Sector + scope
-    sector = ""
-    if hasattr(rfp, "sector") and rfp.sector:
-        sector = rfp.sector
-    elif hasattr(rfp, "client_sector") and rfp.client_sector:
-        sector = rfp.client_sector
+    # Extract RFP name and mandate (English text only)
+    rfp_name = ""
+    mandate = ""
+    if rfp:
+        rfp_name = _extract_bilingual_en(rfp.rfp_name)
+        mandate = _extract_bilingual_en(rfp.mandate)
 
-    scope_title = ""
-    if hasattr(rfp, "project_title") and rfp.project_title:
-        scope_title = rfp.project_title
-    elif hasattr(rfp, "title") and rfp.title:
-        scope_title = rfp.title
+    # Query 1: Sector + RFP name
+    if sector and rfp_name:
+        queries.append(f"{sector} {rfp_name} best practices")
+    elif rfp_name:
+        queries.append(f"{rfp_name} consulting methodology")
 
-    if sector and scope_title:
-        queries.append(f"{sector} {scope_title} best practices")
-    elif scope_title:
-        queries.append(f"{scope_title} consulting methodology")
-
-    # Query 2: Geography + transformation type
-    geography = ""
-    if hasattr(rfp, "geography") and rfp.geography:
-        geography = rfp.geography
+    # Query 2: Geography + sector
     if geography and sector:
         queries.append(f"{geography} {sector} digital transformation")
 
-    # Query 3: Key deliverables
-    deliverables = []
-    if hasattr(rfp, "deliverables") and rfp.deliverables:
-        deliverables = rfp.deliverables[:3]
-    elif hasattr(rfp, "scope_items") and rfp.scope_items:
-        deliverables = rfp.scope_items[:3]
+    # Query 3: Mandate-based (first 100 chars of mandate text)
+    if mandate and len(mandate) > 10:
+        mandate_short = mandate[:100].strip()
+        queries.append(f"{mandate_short} methodology framework")
 
-    if deliverables:
-        keywords = " ".join(str(d) for d in deliverables[:2])
-        queries.append(f"{keywords} methodology framework")
+    # Query 4: From deliverables (extract .description.en text)
+    if rfp and rfp.deliverables:
+        del_texts = [
+            _extract_bilingual_en(d.description)
+            for d in rfp.deliverables[:3]
+            if _extract_bilingual_en(d.description)
+        ]
+        if del_texts:
+            keywords = " ".join(del_texts[:2])[:120]
+            queries.append(f"{keywords} consulting best practices")
+
+    # Query 5: From scope_items (extract .description.en text)
+    if rfp and rfp.scope_items and len(queries) < 5:
+        scope_texts = [
+            _extract_bilingual_en(s.description)
+            for s in rfp.scope_items[:3]
+            if _extract_bilingual_en(s.description)
+        ]
+        if scope_texts:
+            keywords = " ".join(scope_texts[:2])[:120]
+            queries.append(f"{keywords} framework")
 
     # Fallback: at least one query
-    if not queries and scope_title:
-        queries.append(scope_title)
-    elif not queries:
-        queries.append("management consulting methodology best practices")
+    if not queries:
+        if rfp_name:
+            queries.append(rfp_name)
+        elif mandate:
+            queries.append(mandate[:100])
+        else:
+            queries.append("management consulting methodology best practices")
 
     return queries[:5]  # Cap at 5 queries
 
@@ -182,13 +208,22 @@ async def run(state: DeckForgeState) -> dict:
     # Use LLM to rank, filter, and structure the evidence
     rfp_summary = ""
     if state.rfp_context:
-        if hasattr(state.rfp_context, "project_title"):
-            rfp_summary += f"Project: {state.rfp_context.project_title}\n"
-        if hasattr(state.rfp_context, "sector"):
-            rfp_summary += f"Sector: {state.rfp_context.sector}\n"
-        if hasattr(state.rfp_context, "scope_items") and state.rfp_context.scope_items:
-            items = state.rfp_context.scope_items[:5]
-            rfp_summary += f"Scope: {', '.join(str(i) for i in items)}\n"
+        rfp_name = _extract_bilingual_en(state.rfp_context.rfp_name)
+        if rfp_name:
+            rfp_summary += f"RFP: {rfp_name}\n"
+        mandate = _extract_bilingual_en(state.rfp_context.mandate)
+        if mandate:
+            rfp_summary += f"Mandate: {mandate[:200]}\n"
+        if state.sector:
+            rfp_summary += f"Sector: {state.sector}\n"
+        if state.rfp_context.scope_items:
+            scope_texts = [
+                _extract_bilingual_en(s.description)
+                for s in state.rfp_context.scope_items[:5]
+                if _extract_bilingual_en(s.description)
+            ]
+            if scope_texts:
+                rfp_summary += f"Scope: {', '.join(scope_texts)}\n"
 
     user_message = json.dumps({
         "rfp_summary": rfp_summary,

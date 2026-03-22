@@ -384,6 +384,7 @@ async def analysis_node(state: DeckForgeState) -> dict[str, Any]:
     return {
         "reference_index": result.reference_index,
         "approved_source_ids": approved_ids,
+        "full_text_documents": documents,
         "current_stage": result.current_stage,
         "session": result.session,
         "errors": result.errors,
@@ -410,6 +411,9 @@ async def evidence_curation_node(state: DeckForgeState) -> dict[str, Any]:
     Phase 1 of the Proposal Source Book pipeline. Populates:
     - state.reference_index (from analysis agent)
     - state.external_evidence_pack (from external research agent)
+    - state.full_text_documents (from analysis agent's loader)
+
+    Session accounting is accumulated (summed), not clobbered.
     """
     import asyncio
 
@@ -423,7 +427,7 @@ async def evidence_curation_node(state: DeckForgeState) -> dict[str, Any]:
         analysis_task, external_task, return_exceptions=True,
     )
 
-    # Merge results
+    # Merge results — session accounting must be accumulated, not clobbered
     updates: dict[str, Any] = {}
 
     if isinstance(analysis_result, Exception):
@@ -439,7 +443,39 @@ async def evidence_curation_node(state: DeckForgeState) -> dict[str, Any]:
             coverage_assessment=f"External research failed: {external_result}",
         )
     else:
-        updates.update(external_result)
+        # Merge non-session fields from external result
+        for key, value in external_result.items():
+            if key != "session":
+                updates[key] = value
+
+        # Accumulate session accounting from both branches
+        if "session" in updates and "session" in external_result:
+            analysis_session = updates["session"]
+            external_session = external_result["session"]
+            merged_session = analysis_session.model_copy(deep=True)
+            merged_session.total_llm_calls = (
+                analysis_session.total_llm_calls
+                + external_session.total_llm_calls
+                - state.session.total_llm_calls  # subtract base (counted twice)
+            )
+            merged_session.total_input_tokens = (
+                analysis_session.total_input_tokens
+                + external_session.total_input_tokens
+                - state.session.total_input_tokens
+            )
+            merged_session.total_output_tokens = (
+                analysis_session.total_output_tokens
+                + external_session.total_output_tokens
+                - state.session.total_output_tokens
+            )
+            merged_session.total_cost_usd = (
+                analysis_session.total_cost_usd
+                + external_session.total_cost_usd
+                - state.session.total_cost_usd
+            )
+            updates["session"] = merged_session
+        elif "session" in external_result:
+            updates["session"] = external_result["session"]
 
     return updates
 
@@ -489,8 +525,9 @@ async def section_fill_node(state: DeckForgeState) -> dict[str, Any]:
             ),
         }
 
-    # Build SourcePack from available state data
-    source_pack = _build_source_pack_from_state(state)
+    # Build SourcePack from available state data — use full-text docs when available
+    full_text_docs = state.full_text_documents if state.full_text_documents else None
+    source_pack = _build_source_pack_from_state(state, full_text_docs=full_text_docs)
 
     # Extract win_themes from assembly plan
     win_themes: list[str] = []

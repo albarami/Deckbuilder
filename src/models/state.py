@@ -113,6 +113,7 @@ class DeckForgeState(DeckForgeBaseModel):
     # ─── Analysis / Evidence Curation ───
     reference_index: ReferenceIndex | None = None
     external_evidence_pack: ExternalEvidencePack | None = None
+    full_text_documents: list[dict] = Field(default_factory=list)  # from load_full_documents()
 
     # ─── Gate 3: Research Report ───
     research_report: ResearchReport | None = None
