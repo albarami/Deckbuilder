@@ -368,10 +368,16 @@ async def run_e2e(
     }))
 
     # ==========================================================
-    # PHASE 3: Approve gate_2 -> analysis -> research -> gate_3 (interrupt)
+    # PHASE 3: Approve gate_2 -> evidence_curation -> proposal_strategy
+    #           -> source_book -> gate_3 (interrupt)
+    # Source Book pipeline: full-text evidence + external research,
+    # then proposal strategy (win themes, evaluator priorities),
+    # then Source Book Writer/Reviewer loop (up to 5 passes),
+    # then Gate 3 reviews the Source Book.
     # ==========================================================
     print(f"\n{'-'*80}")
-    print("  PHASE 3: gate_2 approve -> analysis -> research -> gate_3 (interrupt)")
+    print("  PHASE 3: gate_2 approve -> evidence_curation -> proposal_strategy")
+    print("           -> source_book -> gate_3 (interrupt)")
     print(f"{'-'*80}")
     t0 = time.time()
     result = await graph.ainvoke(Command(resume={"approved": True}), config)
@@ -379,30 +385,109 @@ async def run_e2e(
     print(f"  Time: {t1-t0:.1f}s")
     print(f"  Stage: {result.get('current_stage')}")
 
-    rr = result.get("research_report")
+    # --- Evidence Curation proof ---
+    ref_idx = result.get("reference_index")
+    ext_evidence = result.get("external_evidence_pack")
+    print("\n  --- Evidence Curation Proof ---")
+    if ref_idx:
+        claims = getattr(ref_idx, "claims", [])
+        case_studies = getattr(ref_idx, "case_studies", [])
+        team_profiles = getattr(ref_idx, "team_profiles", [])
+        print(f"  reference_index.claims: {len(claims)}")
+        print(f"  reference_index.case_studies: {len(case_studies)}")
+        print(f"  reference_index.team_profiles: {len(team_profiles)}")
+    else:
+        print("  WARNING: reference_index is EMPTY")
+    print(f"  external_evidence_pack populated: {ext_evidence is not None}")
+    if ext_evidence:
+        ext_entries = getattr(ext_evidence, "entries", [])
+        print(f"  external_evidence entries: {len(ext_entries)}")
+
+    # --- Proposal Strategy proof ---
+    prop_strategy = result.get("proposal_strategy")
+    print("\n  --- Proposal Strategy Proof ---")
+    print(f"  proposal_strategy populated: {prop_strategy is not None}")
+    if prop_strategy:
+        win_themes = getattr(prop_strategy, "win_themes", [])
+        rec_method = getattr(prop_strategy, "recommended_methodology_approach", "")
+        print(f"  win_themes: {win_themes}")
+        print(f"  recommended_methodology: {rec_method}")
+
+    # --- Source Book proof ---
+    source_book = result.get("source_book")
+    source_book_review = result.get("source_book_review")
     rm = result.get("report_markdown", "")
-    sections = []
-    gaps = []
-    si = []
-    if rr:
-        sections = getattr(rr, "sections", [])
-        gaps = getattr(rr, "all_gaps", [])
-        si = getattr(rr, "source_index", [])
-        print(f"  research_report.sections: {len(sections)}")
-        print(f"  research_report.all_gaps: {len(gaps)}")
-        print(f"  research_report.source_index: {len(si)}")
+    print("\n  --- Source Book Proof ---")
+    sb_word_count = 0
+    sb_evidence_count = 0
+    sb_blueprint_count = 0
+    sb_pass_number = 0
+    sb_review_score = 0
+    if source_book:
+        # Word count across prose sections
+        prose_parts = [
+            source_book.rfp_interpretation.objective_and_scope,
+            source_book.rfp_interpretation.constraints_and_compliance,
+            source_book.rfp_interpretation.unstated_evaluator_priorities,
+            source_book.rfp_interpretation.probable_scoring_logic,
+            source_book.client_problem_framing.current_state_challenge,
+            source_book.client_problem_framing.why_it_matters_now,
+            source_book.client_problem_framing.transformation_logic,
+            source_book.client_problem_framing.risk_if_unchanged,
+            source_book.proposed_solution.methodology_overview,
+            source_book.proposed_solution.governance_framework,
+            source_book.proposed_solution.timeline_logic,
+            source_book.proposed_solution.value_case_and_differentiation,
+            source_book.why_strategic_gears.certifications_and_compliance,
+        ]
+        sb_word_count = sum(len(p.split()) for p in prose_parts if p)
+        sb_evidence_count = len(source_book.evidence_ledger.entries)
+        sb_blueprint_count = len(source_book.slide_blueprints)
+        sb_pass_number = source_book.pass_number
+        cap_count = len(source_book.why_strategic_gears.capability_mapping)
+        print("  source_book populated: True")
+        print(f"  word count: ~{sb_word_count}")
+        print(f"  evidence ledger entries: {sb_evidence_count}")
+        print(f"  slide blueprints: {sb_blueprint_count}")
+        print(f"  capability mappings: {cap_count}")
+        print(f"  pass_number: {sb_pass_number}")
+        print(f"  client_name: {source_book.client_name}")
+    else:
+        print("  WARNING: source_book is EMPTY")
+
+    if source_book_review:
+        sb_review_score = source_book_review.overall_score
+        print(f"  review score: {sb_review_score}/5")
+        print(f"  competitive viability: {source_book_review.competitive_viability}")
+        print(f"  pass_threshold_met: {source_book_review.pass_threshold_met}")
+    else:
+        print("  source_book_review: not available")
+
+    # Source Book DOCX path
+    docx_sb_path = result.get("report_docx_path")
+    print(f"  Source Book DOCX: {docx_sb_path}")
     print(f"  report_markdown length: {len(rm) if rm else 0}")
-    stages.append(("analysis -> research -> gate_3", t1 - t0, {
-        "report_sections": len(sections),
-        "report_gaps": len(gaps),
+
+    stages.append(("evidence_curation -> proposal_strategy -> source_book -> gate_3", t1 - t0, {
+        "sb_word_count": sb_word_count,
+        "sb_evidence_count": sb_evidence_count,
+        "sb_blueprint_count": sb_blueprint_count,
+        "sb_pass_number": sb_pass_number,
+        "sb_review_score": sb_review_score,
         "report_markdown_len": len(rm) if rm else 0,
     }))
 
     # ==========================================================
-    # PHASE 4: Approve gate_3 -> submission_transform -> build_slides -> gate_4
+    # PHASE 4: Approve gate_3 -> assembly_plan -> blueprint_extraction
+    #           -> section_fill -> build_slides -> gate_4
+    # Source Book pipeline: assembly plan produces manifest + budget,
+    # Slide Architect converts Source Book into SlideBlueprint,
+    # section fillers use blueprint guidance, iterative builder
+    # produces final slide content.
     # ==========================================================
     print(f"\n{'-'*80}")
-    print("  PHASE 4: gate_3 approve -> submission_transform -> build_slides -> gate_4")
+    print("  PHASE 4: gate_3 approve -> assembly_plan -> blueprint_extraction")
+    print("           -> section_fill -> build_slides -> gate_4")
     print(f"{'-'*80}")
     t0 = time.time()
     result = await graph.ainvoke(Command(resume={"approved": True}), config)
@@ -410,33 +495,67 @@ async def run_e2e(
     print(f"  Time: {t1-t0:.1f}s")
     print(f"  Stage: {result.get('current_stage')}")
     if result.get("last_error"):
-        print(f"  last_error: {result.get('last_error')}")
+        err = result.get("last_error")
+        print(f"  last_error.agent: {getattr(err, 'agent', 'N/A')}")
+        print(f"  last_error.error_type: {getattr(err, 'error_type', 'N/A')}")
+        print(f"  last_error.message: {getattr(err, 'message', str(err))[:200]}")
 
-    # === SUBMISSION TRANSFORM PROOF ===
-    ssp = result.get("submission_source_pack")
-    cu = []
-    eb = []
-    sb = []
-    print("\n  --- Submission Transform Proof ---")
-    print(f"  submission_source_pack populated: {ssp is not None}")
-    if ssp:
-        cu = getattr(ssp, "content_units", [])
-        eb = getattr(ssp, "evidence_bundles", [])
-        sb = getattr(ssp, "slide_briefs", [])
-        sa = getattr(ssp, "slide_allocation", None)
-        print(f"  content_units: {len(cu)}")
-        print(f"  evidence_bundles: {len(eb)}")
-        print(f"  slide_briefs: {len(sb)}")
-        print(f"  slide_allocation: {sa is not None}")
+    # === ASSEMBLY PLAN PROOF ===
+    manifest = result.get("proposal_manifest")
+    budget = result.get("slide_budget")
+    print("\n  --- Assembly Plan Proof ---")
+    print(f"  proposal_manifest populated: {manifest is not None}")
+    b_variable_count = 0
+    if manifest:
+        b_variable_count = sum(
+            1 for e in manifest.entries if e.entry_type == "b_variable"
+        )
+        total_entries = len(manifest.entries)
+        print(f"  manifest entries total: {total_entries}")
+        print(f"  manifest b_variable entries: {b_variable_count}")
+        # Show entry type breakdown
+        entry_types = {}
+        for e in manifest.entries:
+            entry_types[e.entry_type] = entry_types.get(e.entry_type, 0) + 1
+        print(f"  entry type breakdown: {entry_types}")
+    print(f"  slide_budget populated: {budget is not None}")
+
+    # === SLIDE BLUEPRINT PROOF ===
+    slide_bp = result.get("slide_blueprint")
+    bp_entry_count = 0
+    bp_evidence_coverage = 0.0
+    print("\n  --- Slide Blueprint Proof (Slide Architect output) ---")
+    print(f"  slide_blueprint populated: {slide_bp is not None}")
+    if slide_bp:
+        bp_entry_count = len(slide_bp.entries)
+        bp_evidence_coverage = slide_bp.evidence_coverage
+        print(f"  blueprint entries: {bp_entry_count}")
+        print(f"  evidence coverage: {bp_evidence_coverage:.1%}")
+        print(f"  blueprint_version: {slide_bp.blueprint_version}")
+        print(f"  total_variable_slides: {slide_bp.total_variable_slides}")
+        # Blueprint ↔ manifest alignment check
+        if b_variable_count > 0:
+            aligned = bp_entry_count == b_variable_count
+            print(f"  blueprint/manifest alignment: {'ALIGNED' if aligned else 'MISMATCH'}")
+            if not aligned:
+                print(f"    WARNING: blueprint={bp_entry_count}, manifest b_variable={b_variable_count}")
+        # Show first few entries
+        for entry in slide_bp.entries[:5]:
+            print(f"    Slide {entry.slide_number}: [{entry.section}] {entry.title[:50]}")
+        if bp_entry_count > 5:
+            print(f"    ... and {bp_entry_count - 5} more")
     else:
-        print("  WARNING: submission_source_pack is EMPTY -- transform failed")
+        print("  WARNING: slide_blueprint is EMPTY -- Slide Architect failed")
 
-    internal_notes = result.get("internal_notes")
-    unresolved = result.get("unresolved_issues")
-    print(f"  internal_notes populated: {internal_notes is not None}")
-    print(f"  unresolved_issues populated: {unresolved is not None}")
-    if unresolved and hasattr(unresolved, "issues"):
-        print(f"  unresolved_issues count: {len(unresolved.issues)}")
+    # === SECTION FILL PROOF ===
+    filler_outputs = result.get("filler_outputs")
+    print("\n  --- Section Fill Proof ---")
+    print(f"  filler_outputs populated: {filler_outputs is not None}")
+    if filler_outputs:
+        for section_id, output in filler_outputs.items():
+            entry_count = len(output.entries) if hasattr(output, "entries") else 0
+            errors = output.errors if hasattr(output, "errors") else []
+            print(f"    {section_id}: {entry_count} entries, {len(errors)} errors")
 
     # === BUILD SLIDES PROOF ===
     ws = result.get("written_slides")
@@ -458,10 +577,11 @@ async def run_e2e(
     print(f"  deck_drafts (iterative turns): {len(drafts)}")
     print(f"  deck_reviews (iterative turns): {len(reviews)}")
 
-    stages.append(("submission_transform -> build_slides -> gate_4", t1 - t0, {
-        "submission_source_pack": ssp is not None,
-        "content_units": len(cu),
-        "evidence_bundles": len(eb),
+    stages.append(("assembly_plan -> blueprint -> section_fill -> build_slides -> gate_4", t1 - t0, {
+        "manifest_total": len(manifest.entries) if manifest else 0,
+        "manifest_b_variable": b_variable_count,
+        "blueprint_entries": bp_entry_count,
+        "blueprint_evidence_coverage": bp_evidence_coverage,
         "llm_slides": len(slides),
         "drafts": len(drafts),
         "reviews": len(reviews),
@@ -561,7 +681,7 @@ async def run_e2e(
     # ── Emit runtime QA provenance artifact ──────────────────────
     provenance_path = emit_qa_provenance_artifact(session_id, result)
     if provenance_path:
-        print(f"\n  --- Runtime QA Provenance Artifact ---")
+        print("\n  --- Runtime QA Provenance Artifact ---")
         print(f"  Written to: {provenance_path}")
         prov_data = json.loads(Path(provenance_path).read_text(encoding="utf-8"))
         print(f"  Total slides in artifact: {len(prov_data)}")
@@ -930,6 +1050,7 @@ async def run_e2e(
         "brief_label": brief_label,
         "total_time": total_time,
         "bypasses": "ZERO",
+        "pipeline": "source_book",
         "pptx_path": str(pptx_path) if pptx_path else None,
         "docx_path": str(docx_path) if docx_path else None,
         "source_index_path": str(source_idx) if source_idx else None,
