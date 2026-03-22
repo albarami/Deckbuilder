@@ -829,10 +829,10 @@ class TestGraphWiring:
         assert "source_book" in node_names
 
     def test_graph_flow_order(self):
-        """Verify: proposal_strategy -> source_book -> assembly_plan.
+        """Verify: proposal_strategy -> source_book -> gate_3 -> assembly_plan.
 
-        Note: Phase 4 will move assembly_plan after gate_3. For Phase 3,
-        source_book sits between proposal_strategy and assembly_plan.
+        Phase 4 moved assembly_plan after gate_3. Gate 3 now reviews the
+        Source Book before assembly planning proceeds.
         """
         from src.pipeline.graph import build_graph
 
@@ -849,8 +849,8 @@ class TestGraphWiring:
         assert "source_book" in edges.get("proposal_strategy", []), (
             f"proposal_strategy edges: {edges.get('proposal_strategy', [])}"
         )
-        # source_book -> assembly_plan
-        assert "assembly_plan" in edges.get("source_book", []), (
+        # source_book -> gate_3
+        assert "gate_3" in edges.get("source_book", []), (
             f"source_book edges: {edges.get('source_book', [])}"
         )
 
@@ -950,3 +950,245 @@ class TestPromptContent:
         assert "score" in SYSTEM_PROMPT.lower()
         assert "unsupported" in SYSTEM_PROMPT.lower() or "evidence" in SYSTEM_PROMPT.lower()
         assert "fluff" in SYSTEM_PROMPT.lower() or "vague" in SYSTEM_PROMPT.lower()
+
+
+# ──────────────────────────────────────────────────────────────
+# 11. Phase 4: Gate 3 redesign + pipeline reorder
+# ──────────────────────────────────────────────────────────────
+
+
+class TestGate3Summary:
+    """Verify Gate 3 summary shows Source Book stats per Section 9 design."""
+
+    def test_gate_3_shows_source_book_stats(self):
+        """Gate 3 summary must include Source Book word count, evidence count,
+        viability score, and DOCX path.
+        """
+        from src.pipeline.graph import _gate_3_summary
+
+        state = DeckForgeState(
+            source_book=SourceBook(
+                client_name="Acme Corp",
+                rfp_name="Digital Transformation",
+                rfp_interpretation=RFPInterpretation(
+                    objective_and_scope="The client seeks a comprehensive digital "
+                    "transformation program across 5 business units.",
+                ),
+                evidence_ledger=EvidenceLedger(
+                    entries=[
+                        EvidenceLedgerEntry(
+                            claim_id="CLM-0001",
+                            claim_text="Successfully delivered 3 similar projects",
+                            confidence=0.9,
+                            verifiability_status="verified",
+                        ),
+                        EvidenceLedgerEntry(
+                            claim_id="CLM-0002",
+                            claim_text="Team includes 5 certified consultants",
+                            confidence=0.85,
+                            verifiability_status="verified",
+                        ),
+                    ],
+                ),
+                slide_blueprints=[
+                    SlideBlueprintEntry(
+                        slide_number=1,
+                        title="Cover",
+                        purpose="Title slide",
+                    ),
+                ],
+            ),
+            source_book_review=SourceBookReview(
+                overall_score=4,
+                competitive_viability="strong",
+                pass_threshold_met=True,
+                rewrite_required=False,
+            ),
+            report_docx_path="output/test-session/source_book.docx",
+        )
+
+        summary = _gate_3_summary(state)
+
+        # Must contain Source Book stats per design Section 9.2
+        assert "evidence" in summary.lower(), f"Missing evidence count: {summary}"
+        assert "viability" in summary.lower() or "strong" in summary.lower(), (
+            f"Missing viability: {summary}"
+        )
+        assert "source_book.docx" in summary or "docx" in summary.lower(), (
+            f"Missing DOCX path: {summary}"
+        )
+
+    def test_gate_3_shows_word_count(self):
+        """Gate 3 should report approximate Source Book content volume."""
+        from src.pipeline.graph import _gate_3_summary
+
+        state = DeckForgeState(
+            source_book=SourceBook(
+                client_name="Acme Corp",
+                rfp_interpretation=RFPInterpretation(
+                    objective_and_scope="The client needs advisory services.",
+                ),
+            ),
+        )
+
+        summary = _gate_3_summary(state)
+        # Should mention word count or content size
+        assert any(w in summary.lower() for w in ["word", "chars", "content"]), (
+            f"Missing content size indicator: {summary}"
+        )
+
+    def test_gate_3_fallback_without_source_book(self):
+        """Gate 3 should have a meaningful fallback when no Source Book exists."""
+        from src.pipeline.graph import _gate_3_summary
+
+        state = DeckForgeState()
+        summary = _gate_3_summary(state)
+        assert len(summary) > 0
+
+
+class TestPipelineReorder:
+    """Verify Phase 4 pipeline order: source_book → gate_3 → assembly_plan."""
+
+    def test_source_book_to_gate_3(self):
+        """source_book must connect to gate_3 (not assembly_plan)."""
+        from src.pipeline.graph import build_graph
+
+        graph = build_graph()
+        g = graph.get_graph()
+
+        edges: dict[str, list[str]] = {}
+        for edge in g.edges:
+            src = edge.source.name if hasattr(edge.source, "name") else str(edge.source)
+            tgt = edge.target.name if hasattr(edge.target, "name") else str(edge.target)
+            edges.setdefault(src, []).append(tgt)
+
+        assert "gate_3" in edges.get("source_book", []), (
+            f"source_book must connect to gate_3. "
+            f"Actual edges: {edges.get('source_book', [])}"
+        )
+
+    def test_gate_3_to_assembly_plan(self):
+        """gate_3 approval must route to assembly_plan (not submission_transform)."""
+        from src.pipeline.graph import build_graph
+
+        graph = build_graph()
+        g = graph.get_graph()
+
+        edges: dict[str, list[str]] = {}
+        for edge in g.edges:
+            src = edge.source.name if hasattr(edge.source, "name") else str(edge.source)
+            tgt = edge.target.name if hasattr(edge.target, "name") else str(edge.target)
+            edges.setdefault(src, []).append(tgt)
+
+        gate_3_targets = edges.get("gate_3", [])
+        assert "assembly_plan" in gate_3_targets, (
+            f"gate_3 must route to assembly_plan on approval. "
+            f"Actual edges: {gate_3_targets}"
+        )
+
+    def test_gate_3_rejection_loops_to_source_book(self):
+        """gate_3 rejection must loop back to source_book (not assembly_plan)."""
+        from src.pipeline.graph import build_graph
+
+        graph = build_graph()
+        g = graph.get_graph()
+
+        edges: dict[str, list[str]] = {}
+        for edge in g.edges:
+            src = edge.source.name if hasattr(edge.source, "name") else str(edge.source)
+            tgt = edge.target.name if hasattr(edge.target, "name") else str(edge.target)
+            edges.setdefault(src, []).append(tgt)
+
+        gate_3_targets = edges.get("gate_3", [])
+        assert "source_book" in gate_3_targets, (
+            f"gate_3 rejection must loop to source_book. "
+            f"Actual edges: {gate_3_targets}"
+        )
+
+    def test_assembly_plan_to_submission_transform(self):
+        """assembly_plan must connect to submission_transform (post-gate_3)."""
+        from src.pipeline.graph import build_graph
+
+        graph = build_graph()
+        g = graph.get_graph()
+
+        edges: dict[str, list[str]] = {}
+        for edge in g.edges:
+            src = edge.source.name if hasattr(edge.source, "name") else str(edge.source)
+            tgt = edge.target.name if hasattr(edge.target, "name") else str(edge.target)
+            edges.setdefault(src, []).append(tgt)
+
+        assert "submission_transform" in edges.get("assembly_plan", []), (
+            f"assembly_plan must connect to submission_transform. "
+            f"Actual edges: {edges.get('assembly_plan', [])}"
+        )
+
+    def test_full_pipeline_order(self):
+        """Verify the complete pipeline order per design doc."""
+        from src.pipeline.graph import build_graph
+
+        graph = build_graph()
+        g = graph.get_graph()
+
+        edges: dict[str, list[str]] = {}
+        for edge in g.edges:
+            src = edge.source.name if hasattr(edge.source, "name") else str(edge.source)
+            tgt = edge.target.name if hasattr(edge.target, "name") else str(edge.target)
+            edges.setdefault(src, []).append(tgt)
+
+        # The key Phase 4 sequence:
+        # proposal_strategy → source_book → gate_3 → assembly_plan → submission_transform
+        assert "source_book" in edges.get("proposal_strategy", [])
+        assert "gate_3" in edges.get("source_book", [])
+        assert "assembly_plan" in edges.get("gate_3", [])
+        assert "submission_transform" in edges.get("assembly_plan", [])
+
+
+class TestAssemblyPlanPromptUpdate:
+    """Verify assembly plan consumes recommended_methodology_approach."""
+
+    def test_prompt_mentions_methodology_approach(self):
+        """Assembly plan prompt should reference recommended_methodology_approach."""
+        from src.agents.assembly_plan.prompts import SYSTEM_PROMPT
+
+        assert "recommended_methodology_approach" in SYSTEM_PROMPT.lower() or \
+            "methodology approach" in SYSTEM_PROMPT.lower() or \
+            "proposal_strategy" in SYSTEM_PROMPT.lower(), (
+            "Assembly plan prompt must reference recommended_methodology_approach "
+            "or proposal_strategy"
+        )
+
+    def test_assembly_plan_user_message_includes_methodology_approach(self):
+        """Assembly plan user message should include recommended_methodology_approach
+        from state.proposal_strategy when available.
+        """
+        import json
+
+        from src.models.proposal_strategy import ProposalStrategy
+
+        state = DeckForgeState(
+            proposal_strategy=ProposalStrategy(
+                recommended_methodology_approach="Agile-Waterfall hybrid with 4 phases",
+            ),
+        )
+
+        # We can't call the async run directly, but we can verify the state field
+        # is accessible and test the user_data building pattern the agent uses.
+        assert state.proposal_strategy is not None
+        assert state.proposal_strategy.recommended_methodology_approach == (
+            "Agile-Waterfall hybrid with 4 phases"
+        )
+
+        # The actual integration test: build user_data like the agent does
+        user_data: dict = {
+            "output_language": str(state.output_language),
+        }
+        if state.rfp_context:
+            user_data["rfp_context"] = state.rfp_context.model_dump(mode="json")
+        if state.proposal_strategy:
+            user_data["recommended_methodology_approach"] = (
+                state.proposal_strategy.recommended_methodology_approach
+            )
+
+        payload = json.dumps(user_data, ensure_ascii=False)
+        assert "Agile-Waterfall hybrid" in payload

@@ -2,7 +2,7 @@
 
 Pipeline flow (template-first assembly with Source Book pipeline):
   START → context → gate_1 → retrieval → gate_2 → evidence_curation
-  → proposal_strategy → source_book → assembly_plan → gate_3
+  → proposal_strategy → source_book → gate_3 → assembly_plan
   → submission_transform → section_fill → build_slides → gate_4
   → qa → governance → gate_5 → render → END
 
@@ -153,38 +153,77 @@ def _gate_2_summary(state: DeckForgeState) -> str:
 
 
 def _gate_3_summary(state: DeckForgeState) -> str:
+    """Gate 3 summary — reviews Source Book content before assembly planning.
+
+    Per design Section 9.2, shows:
+    1. Source Book content stats (word count, evidence count, blueprints)
+    2. Competitive viability score (from Red Team review)
+    3. Path to Source Book DOCX for download/review
+    """
     parts: list[str] = []
 
-    # Assembly plan info (template-first pipeline)
-    if state.assembly_plan:
-        ap = state.assembly_plan
-        llm = ap.llm_output
-        parts.append(
-            f"Assembly Plan: {llm.proposal_mode} mode, "
-            f"{llm.geography} geography, sector={llm.sector}"
-        )
-        parts.append(f"Methodology: {len(llm.methodology_phases)} phases")
-        parts.append(
-            f"Case studies: {len(ap.case_study_result.selected)} selected, "
-            f"{len(ap.case_study_result.excluded)} excluded"
-        )
-        parts.append(
-            f"Team: {len(ap.team_result.selected)} selected, "
-            f"{len(ap.team_result.excluded)} excluded"
-        )
-        parts.append(f"Total slides: {ap.slide_budget.total_slides}")
-        parts.append(f"Win themes: {', '.join(llm.win_themes[:3])}")
+    # Source Book info (Phase 4: Gate 3 now reviews Source Book)
+    if state.source_book:
+        sb = state.source_book
+
+        # Content volume — word count across all prose sections
+        prose_parts = [
+            sb.rfp_interpretation.objective_and_scope,
+            sb.rfp_interpretation.constraints_and_compliance,
+            sb.rfp_interpretation.unstated_evaluator_priorities,
+            sb.rfp_interpretation.probable_scoring_logic,
+            sb.client_problem_framing.current_state_challenge,
+            sb.client_problem_framing.why_it_matters_now,
+            sb.client_problem_framing.transformation_logic,
+            sb.client_problem_framing.risk_if_unchanged,
+            sb.proposed_solution.methodology_overview,
+            sb.proposed_solution.governance_framework,
+            sb.proposed_solution.timeline_logic,
+            sb.proposed_solution.value_case_and_differentiation,
+            sb.why_strategic_gears.certifications_and_compliance,
+        ]
+        word_count = sum(len(p.split()) for p in prose_parts if p)
+        parts.append(f"Source Book: ~{word_count} words content")
+
+        # Evidence stats
+        evidence_count = len(sb.evidence_ledger.entries)
+        parts.append(f"Evidence: {evidence_count} ledger entries")
+
+        # Slide blueprints
+        blueprint_count = len(sb.slide_blueprints)
+        parts.append(f"Blueprints: {blueprint_count} slides")
+
+        # Capabilities mapped
+        cap_count = len(sb.why_strategic_gears.capability_mapping)
+        if cap_count:
+            parts.append(f"Capabilities: {cap_count} mapped")
+
+        # Review results (if available)
+        if state.source_book_review:
+            review = state.source_book_review
+            parts.append(
+                f"Review: score={review.overall_score}/5, "
+                f"viability={review.competitive_viability}"
+            )
+            parts.append(f"Pass {sb.pass_number}")
+
+        # DOCX path
+        if state.report_docx_path:
+            parts.append(f"DOCX: {state.report_docx_path}")
+
     elif state.report_markdown:
         # Legacy fallback — research report path
         length = len(state.report_markdown)
         parts.append(f"Research report ready ({length} chars).")
     elif state.research_report and state.research_report.sections:
-        parts.append(f"Research report ready ({len(state.research_report.sections)} sections).")
+        parts.append(
+            f"Research report ready ({len(state.research_report.sections)} sections)."
+        )
     else:
-        parts.append("No assembly plan or research report generated.")
+        parts.append("No Source Book or research report generated.")
 
     parts.append(f"Mode: {state.deck_mode}")
-    return " ".join(parts)
+    return " | ".join(parts)
 
 
 def _gate_4_summary(state: DeckForgeState) -> str:
@@ -499,9 +538,9 @@ async def proposal_strategy_node(state: DeckForgeState) -> dict[str, Any]:
 async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     """Source Book — iterative Writer/Reviewer loop producing Source Book DOCX.
 
-    Runs the Source Book Writer, then Reviewer, iterating up to 3 passes
-    until the review threshold is met. Exports DOCX and populates
-    report_markdown from the approved Source Book content.
+    Runs the Source Book Writer, then Reviewer, iterating up to 5 passes
+    until the review threshold is met (overall >= 4, no section < 3).
+    Exports DOCX and populates report_markdown from the approved Source Book.
     """
     from src.agents.source_book import orchestrator, reviewer, writer
     from src.services.source_book_export import export_source_book_docx
@@ -1264,7 +1303,7 @@ def route_after_gate_2(state: DeckForgeState) -> str:
 
 
 def route_after_gate_3(state: DeckForgeState) -> str:
-    return _route_after_gate(state, "gate_3", "submission_transform", retry_node="assembly_plan")
+    return _route_after_gate(state, "gate_3", "assembly_plan", retry_node="source_book")
 
 
 def route_after_gate_4(state: DeckForgeState) -> str:
@@ -1321,11 +1360,11 @@ def build_graph() -> CompiledStateGraph:
     )
     graph.add_edge("evidence_curation", "proposal_strategy")
     graph.add_edge("proposal_strategy", "source_book")
-    graph.add_edge("source_book", "assembly_plan")
-    graph.add_edge("assembly_plan", "gate_3")
+    graph.add_edge("source_book", "gate_3")
     graph.add_conditional_edges(
-        "gate_3", route_after_gate_3, ["submission_transform", "assembly_plan"]
+        "gate_3", route_after_gate_3, ["assembly_plan", "source_book"]
     )
+    graph.add_edge("assembly_plan", "submission_transform")
     graph.add_edge("submission_transform", "section_fill")
     graph.add_edge("section_fill", "build_slides")
     graph.add_edge("build_slides", "gate_4")
