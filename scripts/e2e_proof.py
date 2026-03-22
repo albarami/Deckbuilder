@@ -699,46 +699,14 @@ async def run_e2e(
         print("\n  WARNING: Could not emit QA provenance artifact (missing data)")
 
     # ==========================================================
-    # PHASE 5b: WAIVER WORKFLOW (production mechanism)
-    # In production, a consultant reviews QA results at Gate 5,
-    # waives accepted gaps, and approves rendering. This is the
-    # standard gate interaction — NOT a bypass.
-    # ==========================================================
-    if brief_label == "positive" and ds and ds.fail_close and ds.critical_gaps:
-        from src.models.enums import ApprovalLevel, GapSeverity
-        from src.models.waiver import WaiverObject
-
-        waivers = []
-        for i, gap_id in enumerate(ds.critical_gaps):
-            waivers.append(WaiverObject(
-                waiver_id=f"WVR-{i+1:03d}",
-                gap_id=gap_id,
-                gap_description=gap_id[:100] if len(gap_id) > 20 else f"Auto-waived: {gap_id}",
-                rfp_criterion="all",
-                severity=GapSeverity.CRITICAL,
-                waived_by="e2e-proof@deckforge.test",
-                waiver_reason=(
-                    "Positive proof run — consultant waives gap to validate "
-                    "render pipeline produces clean PPTX output."
-                ),
-                approval_level=ApprovalLevel.PRACTICE_LEAD,
-                scope="E2E proof run only",
-                visible_in_export=True,
-            ))
-        # Use LangGraph's update_state to inject waivers (production API mechanism)
-        await graph.aupdate_state(config, {"waivers": waivers})
-        print("\n  --- Waiver Workflow (production mechanism) ---")
-        print(f"  Waived {len(waivers)} critical gaps via WaiverObject")
-        print("  Approval level: practice_lead")
-        print("  Reason: positive proof — consultant accepts gaps")
-        print("  This is the standard gate interaction, NOT a bypass.")
-
-    # ==========================================================
     # PHASE 6: Approve gate_5 -> render -> END
+    # No auto-waivers. If fail_close=True, render will be blocked
+    # naturally by the fail-close enforcement — that is correct
+    # behavior, not a failure.
     # ==========================================================
     print(f"\n{'-'*80}")
     print("  PHASE 6: gate_5 approve -> render -> END")
-    print("  Waivers applied via production mechanism (if positive proof)")
+    print("  No auto-waivers. Render outcome determined by QA + lint results.")
     print(f"{'-'*80}")
 
     t0 = time.time()
@@ -1024,7 +992,6 @@ async def run_e2e(
         proof_status = "PASSED"
     elif blocked_by_lint:
         # Check lint first — last_error.error_type is the ACTUAL block reason.
-        # ds.fail_close may still be True (QA property) even after waivers.
         proof_class = "NEGATIVE_PROOF_LINT_BLOCKED"
         proof_status = "PASSED"
     elif blocked_by_fail_close:

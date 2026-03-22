@@ -43,11 +43,10 @@ def _build_user_message(state: DeckForgeState) -> str:
     if state.slide_budget:
         payload["slide_budget"] = state.slide_budget
 
-    # Methodology blueprint
+    # Methodology blueprint (frozen dataclass — use dataclasses.asdict)
     if state.methodology_blueprint:
-        payload["methodology_blueprint"] = state.methodology_blueprint.model_dump(
-            mode="json"
-        )
+        from dataclasses import asdict
+        payload["methodology_blueprint"] = asdict(state.methodology_blueprint)
 
     # Sector and geography
     if state.sector:
