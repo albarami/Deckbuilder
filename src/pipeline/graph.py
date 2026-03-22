@@ -506,7 +506,7 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     from src.agents.source_book import orchestrator, reviewer, writer
     from src.services.source_book_export import export_source_book_docx
 
-    max_passes = 3
+    max_passes = 5
     current_state = state
 
     for pass_num in range(1, max_passes + 1):
@@ -565,24 +565,41 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
         ):
             break
 
-    # Export DOCX
+    # Export DOCX — persist path in state and surface failures
     session_id = current_state.session.session_id or "default"
     docx_path = f"output/{session_id}/source_book.docx"
+    exported_docx_path: str | None = None
+    export_error: ErrorInfo | None = None
+
     try:
         await export_source_book_docx(current_state.source_book, docx_path)
+        exported_docx_path = docx_path
         logger.info("Source Book DOCX exported: %s", docx_path)
     except Exception as e:
         logger.error("Source Book DOCX export failed: %s", e)
+        export_error = ErrorInfo(
+            agent="source_book",
+            error_type="DocxExportError",
+            message=f"Source Book DOCX export failed: {e}",
+        )
 
     # Populate report_markdown from Source Book
     report_md = orchestrator.source_book_to_markdown(current_state.source_book)
 
-    return {
+    result: dict[str, Any] = {
         "source_book": current_state.source_book,
         "source_book_review": current_state.source_book_review,
         "report_markdown": report_md,
+        "report_docx_path": exported_docx_path,
         "session": current_state.session,
     }
+
+    # Surface export failure structurally
+    if export_error:
+        result["errors"] = state.errors + [export_error]
+        result["last_error"] = export_error
+
+    return result
 
 
 async def submission_transform_node(state: DeckForgeState) -> dict[str, Any]:

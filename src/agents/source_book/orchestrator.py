@@ -2,7 +2,7 @@
 
 Manages the Writer → Reviewer → Writer loop. Stops when:
 1. Review passes threshold (overall >= 4, no section < 3), OR
-2. Maximum passes reached (default 3).
+2. Maximum passes reached (default 5, per approved design).
 
 Also provides helper to convert Source Book to markdown for
 populating state.report_markdown.
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def should_continue_iteration(
     review: SourceBookReview,
     current_pass: int,
-    max_passes: int = 3,
+    max_passes: int = 5,
 ) -> bool:
     """Decide whether to continue the write/review loop.
 

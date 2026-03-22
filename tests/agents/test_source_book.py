@@ -198,6 +198,7 @@ class TestSourceBookSchema:
             CapabilityMapping(
                 rfp_requirement="Test",
                 sg_capability="Test",
+                evidence_ids=["CLM-0001"],
                 strength="invalid",
             )
 
@@ -229,6 +230,47 @@ class TestSourceBookSchema:
         assert restored.client_name == "Test Client"
         assert len(restored.slide_blueprints) == 1
         assert restored.slide_blueprints[0].proof_points == ["CLM-0001"]
+
+    def test_capability_mapping_requires_evidence_ids(self):
+        """CapabilityMapping must have at least 1 evidence_id."""
+        with pytest.raises(Exception):
+            CapabilityMapping(
+                rfp_requirement="SAP migration",
+                sg_capability="10+ deployments",
+                evidence_ids=[],  # empty — should fail
+                strength="strong",
+            )
+
+    def test_project_experience_requires_evidence_ids(self):
+        """ProjectExperience must have at least 1 evidence_id."""
+        with pytest.raises(Exception):
+            ProjectExperience(
+                project_name="SIDF SAP Migration",
+                client="SIDF",
+                outcomes="Migrated 200+ users",
+                evidence_ids=[],  # empty — should fail
+            )
+
+    def test_slide_blueprint_proof_points_required_with_must_have(self):
+        """proof_points must be non-empty when must_have_evidence is set."""
+        with pytest.raises(Exception):
+            SlideBlueprintEntry(
+                slide_number=5,
+                title="Why SG",
+                must_have_evidence=["CLM-0001"],
+                proof_points=[],  # empty but must_have set — should fail
+            )
+
+    def test_slide_blueprint_proof_points_optional_without_must_have(self):
+        """proof_points can be empty when must_have_evidence is empty (e.g., Cover slide)."""
+        bp = SlideBlueprintEntry(
+            slide_number=1,
+            section="Cover",
+            title="Cover Slide",
+            proof_points=[],
+            must_have_evidence=[],
+        )
+        assert bp.proof_points == []
 
     def test_all_seven_sections_are_distinct_fields(self):
         """Verify the 7 sections map to 7 distinct model fields."""
@@ -419,7 +461,7 @@ class TestOrchestratorLogic:
             pass_threshold_met=True,
             rewrite_required=False,
         )
-        assert should_continue_iteration(review, current_pass=1, max_passes=3) is False
+        assert should_continue_iteration(review, current_pass=1, max_passes=5) is False
 
     def test_continues_on_low_score(self):
         """If overall_score < 4, should continue."""
@@ -430,10 +472,10 @@ class TestOrchestratorLogic:
             pass_threshold_met=False,
             rewrite_required=True,
         )
-        assert should_continue_iteration(review, current_pass=1, max_passes=3) is True
+        assert should_continue_iteration(review, current_pass=1, max_passes=5) is True
 
     def test_stops_at_max_passes(self):
-        """Even if review fails, should stop at max passes."""
+        """Even if review fails, should stop at max passes (5)."""
         from src.agents.source_book.orchestrator import should_continue_iteration
 
         review = SourceBookReview(
@@ -441,7 +483,20 @@ class TestOrchestratorLogic:
             pass_threshold_met=False,
             rewrite_required=True,
         )
-        assert should_continue_iteration(review, current_pass=3, max_passes=3) is False
+        # Pass 4 should continue (under max)
+        assert should_continue_iteration(review, current_pass=4, max_passes=5) is True
+        # Pass 5 should stop (at max)
+        assert should_continue_iteration(review, current_pass=5, max_passes=5) is False
+
+    def test_default_max_passes_is_5(self):
+        """Design contract: default max_passes must be 5."""
+        import inspect
+
+        from src.agents.source_book.orchestrator import should_continue_iteration
+
+        sig = inspect.signature(should_continue_iteration)
+        default = sig.parameters["max_passes"].default
+        assert default == 5, f"Default max_passes is {default}, expected 5"
 
     def test_build_reviewer_feedback_string(self):
         """Feedback string should summarize critique for rewrite."""
@@ -598,6 +653,158 @@ class TestDocxExport:
             doc = Document(path)
             # Should have at least 2 tables (capability mapping + evidence ledger)
             assert len(doc.tables) >= 2
+
+
+# ──────────────────────────────────────────────────────────────
+# 6b. DOCX path persistence + export failure surfacing
+# ──────────────────────────────────────────────────────────────
+
+
+class TestDocxPathPersistence:
+    """Verify DOCX path is persisted in state and export failures are surfaced."""
+
+    @pytest.mark.asyncio
+    async def test_successful_export_populates_report_docx_path(self):
+        """source_book_node should set report_docx_path on successful export."""
+        from unittest.mock import AsyncMock, patch
+
+        from src.models.source_book import SourceBookReview
+        from src.services.llm import LLMResponse
+
+        mock_book = SourceBook(
+            client_name="Test",
+            rfp_name="Test RFP",
+            rfp_interpretation=RFPInterpretation(
+                objective_and_scope="Test scope",
+            ),
+        )
+        mock_review = SourceBookReview(
+            overall_score=4,
+            pass_threshold_met=True,
+            rewrite_required=False,
+        )
+
+        writer_response = LLMResponse(
+            parsed=mock_book,
+            input_tokens=5000,
+            output_tokens=3000,
+            model="claude-opus-4-20250514",
+            latency_ms=8000,
+        )
+        reviewer_response = LLMResponse(
+            parsed=mock_review,
+            input_tokens=4000,
+            output_tokens=1500,
+            model="gpt-5.4",
+            latency_ms=3000,
+        )
+
+        call_count = 0
+
+        async def mock_call_llm(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return writer_response
+            return reviewer_response
+
+        with (
+            patch(
+                "src.agents.source_book.writer.call_llm",
+                new_callable=AsyncMock,
+                side_effect=mock_call_llm,
+            ),
+            patch(
+                "src.agents.source_book.reviewer.call_llm",
+                new_callable=AsyncMock,
+                side_effect=mock_call_llm,
+            ),
+        ):
+            from src.pipeline.graph import source_book_node
+
+            state = DeckForgeState()
+            result = await source_book_node(state)
+
+        assert "report_docx_path" in result
+        assert result["report_docx_path"] is not None
+        assert result["report_docx_path"].endswith("source_book.docx")
+        # No errors from export
+        assert "errors" not in result or not any(
+            e.error_type == "DocxExportError"
+            for e in result.get("errors", [])
+        )
+
+    @pytest.mark.asyncio
+    async def test_export_failure_surfaces_error(self):
+        """If DOCX export fails, error must be in state.errors."""
+        from unittest.mock import AsyncMock, patch
+
+        from src.models.source_book import SourceBookReview
+        from src.services.llm import LLMResponse
+
+        mock_book = SourceBook(client_name="Test")
+        mock_review = SourceBookReview(
+            overall_score=4,
+            pass_threshold_met=True,
+            rewrite_required=False,
+        )
+
+        writer_response = LLMResponse(
+            parsed=mock_book,
+            input_tokens=5000,
+            output_tokens=3000,
+            model="claude-opus-4-20250514",
+            latency_ms=8000,
+        )
+        reviewer_response = LLMResponse(
+            parsed=mock_review,
+            input_tokens=4000,
+            output_tokens=1500,
+            model="gpt-5.4",
+            latency_ms=3000,
+        )
+
+        call_count = 0
+
+        async def mock_call_llm(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return writer_response
+            return reviewer_response
+
+        with (
+            patch(
+                "src.agents.source_book.writer.call_llm",
+                new_callable=AsyncMock,
+                side_effect=mock_call_llm,
+            ),
+            patch(
+                "src.agents.source_book.reviewer.call_llm",
+                new_callable=AsyncMock,
+                side_effect=mock_call_llm,
+            ),
+            patch(
+                "src.services.source_book_export.export_source_book_docx",
+                new_callable=AsyncMock,
+                side_effect=PermissionError("Disk full"),
+            ),
+        ):
+            from src.pipeline.graph import source_book_node
+
+            state = DeckForgeState()
+            result = await source_book_node(state)
+
+        # DOCX path should be None on failure
+        assert result["report_docx_path"] is None
+        # Error must be surfaced structurally
+        assert "errors" in result
+        assert len(result["errors"]) > 0
+        assert any(
+            e.error_type == "DocxExportError" for e in result["errors"]
+        )
+        assert "last_error" in result
+        assert result["last_error"].error_type == "DocxExportError"
 
 
 # ──────────────────────────────────────────────────────────────

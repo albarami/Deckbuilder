@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .common import DeckForgeBaseModel
 
@@ -41,11 +41,15 @@ class ClientProblemFraming(DeckForgeBaseModel):
 
 
 class CapabilityMapping(DeckForgeBaseModel):
-    """Row in Section 3.1: Capability-to-RFP Mapping table."""
+    """Row in Section 3.1: Capability-to-RFP Mapping table.
+
+    evidence_ids is structurally required (min 1) — every capability
+    claim must reference at least one CLM-xxxx evidence ID.
+    """
 
     rfp_requirement: str = ""
     sg_capability: str = ""
-    evidence_ids: list[str] = Field(default_factory=list)  # CLM-xxxx refs
+    evidence_ids: list[str] = Field(min_length=1)  # CLM-xxxx refs, min 1 required
     strength: Literal["strong", "moderate", "weak", "gap"] = "moderate"
 
 
@@ -59,12 +63,16 @@ class ConsultantProfile(DeckForgeBaseModel):
 
 
 class ProjectExperience(DeckForgeBaseModel):
-    """Row in Section 3.3: Relevant Project Experience."""
+    """Row in Section 3.3: Relevant Project Experience.
+
+    evidence_ids is structurally required (min 1) — every project
+    claim must reference at least one CLM-xxxx evidence ID.
+    """
 
     project_name: str = ""
     client: str = ""
     outcomes: str = ""
-    evidence_ids: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(min_length=1)  # CLM-xxxx refs, min 1 required
 
 
 class WhyStrategicGears(DeckForgeBaseModel):
@@ -117,7 +125,11 @@ class ProposedSolution(DeckForgeBaseModel):
 
 
 class SlideBlueprintEntry(DeckForgeBaseModel):
-    """One slide blueprint in Section 6."""
+    """One slide blueprint in Section 6.
+
+    When must_have_evidence is non-empty, proof_points must also be
+    non-empty — slides with required evidence must declare their proof points.
+    """
 
     slide_number: int = 0
     section: str = ""
@@ -130,6 +142,17 @@ class SlideBlueprintEntry(DeckForgeBaseModel):
     visual_guidance: str = ""
     must_have_evidence: list[str] = Field(default_factory=list)
     forbidden_content: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def proof_points_required_when_must_have(self) -> SlideBlueprintEntry:
+        """Enforce: if must_have_evidence is set, proof_points must be non-empty."""
+        if self.must_have_evidence and not self.proof_points:
+            msg = (
+                "proof_points cannot be empty when must_have_evidence is set: "
+                f"{self.must_have_evidence}"
+            )
+            raise ValueError(msg)
+        return self
 
 
 class EvidenceLedgerEntry(DeckForgeBaseModel):
