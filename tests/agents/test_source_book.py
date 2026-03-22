@@ -1737,3 +1737,204 @@ class TestGraphBlueprintExtractionWiring:
         assert len(SYSTEM_PROMPT) > 100
         assert "SlideBlueprint" in SYSTEM_PROMPT
         assert "SlideBlueprintEntry" in SYSTEM_PROMPT
+
+
+class TestBlueprintManifestAlignment:
+    """Blueprint ↔ manifest b_variable alignment contract.
+
+    The section_fill_node must compare blueprint entry count against
+    manifest b_variable count and fail visibly on mismatch. These tests
+    call the real section_fill_node function (the live pipeline path).
+    """
+
+    @staticmethod
+    def _make_manifest(b_variable_count: int):
+        """Create a ProposalManifest with exactly b_variable_count b_variable entries."""
+        from src.models.proposal_manifest import (
+            ContentSourcePolicy,
+            ManifestEntry,
+            ProposalManifest,
+        )
+
+        entries = [
+            ManifestEntry(
+                entry_type="b_variable",
+                asset_id=f"var_{i}",
+                semantic_layout_id="content_heading_desc",
+                content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+                section_id="section_01",
+            )
+            for i in range(b_variable_count)
+        ]
+        return ProposalManifest(entries=entries)
+
+    @staticmethod
+    def _make_blueprint(entry_count: int):
+        """Create a SlideBlueprint with exactly entry_count entries."""
+        from src.models.slide_blueprint import SlideBlueprint
+
+        entries = [
+            SlideBlueprintEntry(
+                slide_number=i + 1,
+                section="section_01",
+                layout="content_heading_desc",
+                purpose=f"Purpose {i}",
+                title=f"Title {i}",
+                key_message=f"Msg {i}",
+            )
+            for i in range(entry_count)
+        ]
+        return SlideBlueprint(
+            total_variable_slides=entry_count,
+            entries=entries,
+        )
+
+    @pytest.mark.asyncio
+    async def test_mismatch_blueprint_fewer_than_manifest(self):
+        """Blueprint has 1 entry, manifest has 3 b_variable — must error.
+
+        Calls the real section_fill_node (live pipeline path).
+        """
+        from src.pipeline.graph import section_fill_node
+
+        state = DeckForgeState(
+            proposal_manifest=self._make_manifest(b_variable_count=3),
+            slide_budget={"section_01": 3},  # budget is Any
+            slide_blueprint=self._make_blueprint(entry_count=1),
+        )
+
+        result = await section_fill_node(state)
+
+        # Must surface the error structurally
+        assert result["last_error"] is not None
+        assert result["last_error"].error_type == "BlueprintManifestMismatch"
+        assert "Blueprint/manifest count mismatch" in result["last_error"].message
+        assert "blueprint has 1 entries" in result["last_error"].message
+        assert "manifest has 3 b_variable entries" in result["last_error"].message
+        # Must set pipeline to ERROR
+        from src.models.enums import PipelineStage
+        assert result["current_stage"] == PipelineStage.ERROR
+        # Must be in the errors list too
+        assert any(
+            e.error_type == "BlueprintManifestMismatch"
+            for e in result["errors"]
+        )
+
+    @pytest.mark.asyncio
+    async def test_mismatch_blueprint_more_than_manifest(self):
+        """Blueprint has 5 entries, manifest has 2 b_variable — must error.
+
+        Proves direction of mismatch doesn't matter.
+        """
+        from src.pipeline.graph import section_fill_node
+
+        state = DeckForgeState(
+            proposal_manifest=self._make_manifest(b_variable_count=2),
+            slide_budget={"section_01": 2},
+            slide_blueprint=self._make_blueprint(entry_count=5),
+        )
+
+        result = await section_fill_node(state)
+
+        assert result["last_error"].error_type == "BlueprintManifestMismatch"
+        assert "blueprint has 5 entries" in result["last_error"].message
+        assert "manifest has 2 b_variable entries" in result["last_error"].message
+
+    @pytest.mark.asyncio
+    async def test_aligned_counts_proceed_normally(self):
+        """Blueprint and manifest both have 3 b_variable entries — no error.
+
+        Calls real section_fill_node (live pipeline path). The orchestrator
+        and downstream validation are mocked because we're testing the
+        alignment gate, not filler execution.
+        """
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from src.pipeline.graph import section_fill_node
+
+        state = DeckForgeState(
+            proposal_manifest=self._make_manifest(b_variable_count=3),
+            slide_budget=MagicMock(total_slides=3),
+            slide_blueprint=self._make_blueprint(entry_count=3),
+        )
+
+        # Mock orchestrator — alignment check runs BEFORE this call
+        mock_result = MagicMock()
+        mock_result.entries_by_section = {}
+        mock_result.filler_outputs = {}
+
+        with (
+            patch(
+                "src.agents.section_fillers.orchestrator.run_section_fillers",
+                new_callable=AsyncMock,
+                return_value=mock_result,
+            ) as mock_orch,
+            patch(
+                "src.models.proposal_manifest.validate_manifest",
+                return_value=[],  # no validation errors
+            ),
+        ):
+            result = await section_fill_node(state)
+
+        # Should NOT have a BlueprintManifestMismatch error
+        last_err = result.get("last_error")
+        assert last_err is None or last_err.error_type != "BlueprintManifestMismatch", (
+            f"Unexpected mismatch error: {last_err}"
+        )
+        # Orchestrator must have been called (alignment gate passed)
+        mock_orch.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_no_blueprint_zero_b_variable_passes(self):
+        """No blueprint and no b_variable entries — counts match (0 == 0).
+
+        Edge case: manifest exists but has only non-variable entries.
+        """
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from src.models.proposal_manifest import (
+            ContentSourcePolicy,
+            ManifestEntry,
+            ProposalManifest,
+        )
+        from src.pipeline.graph import section_fill_node
+
+        state = DeckForgeState(
+            proposal_manifest=ProposalManifest(
+                entries=[
+                    ManifestEntry(
+                        entry_type="a1_clone",
+                        asset_id="cover",
+                        semantic_layout_id="cover_slide",
+                        content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
+                        section_id="section_01",
+                    ),
+                ],
+            ),
+            slide_budget=MagicMock(total_slides=1),
+            slide_blueprint=None,  # No blueprint
+        )
+
+        mock_result = MagicMock()
+        mock_result.entries_by_section = {}
+        mock_result.filler_outputs = {}
+
+        with (
+            patch(
+                "src.agents.section_fillers.orchestrator.run_section_fillers",
+                new_callable=AsyncMock,
+                return_value=mock_result,
+            ) as mock_orch,
+            patch(
+                "src.models.proposal_manifest.validate_manifest",
+                return_value=[],
+            ),
+        ):
+            result = await section_fill_node(state)
+
+        # 0 blueprint entries == 0 b_variable entries → no mismatch error
+        last_err = result.get("last_error")
+        assert last_err is None or last_err.error_type != "BlueprintManifestMismatch", (
+            f"Unexpected mismatch error: {last_err}"
+        )
+        mock_orch.assert_called_once()

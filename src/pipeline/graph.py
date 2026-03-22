@@ -739,6 +739,34 @@ async def section_fill_node(state: DeckForgeState) -> dict[str, Any]:
     if state.slide_blueprint and state.slide_blueprint.entries:
         blueprint_entries = state.slide_blueprint.entries
 
+    # ── Blueprint ↔ manifest b_variable alignment check ─────────────
+    # The Slide Architect must produce exactly one entry per b_variable
+    # slide in the manifest. A mismatch means the blueprint is stale or
+    # the assembly plan changed — fail visibly rather than silently
+    # producing wrong content.
+    manifest_b_variable_count = sum(
+        1 for e in manifest.entries if e.entry_type == "b_variable"
+    )
+    blueprint_count = len(blueprint_entries) if blueprint_entries else 0
+
+    if blueprint_count != manifest_b_variable_count:
+        mismatch_msg = (
+            f"Blueprint/manifest count mismatch: blueprint has "
+            f"{blueprint_count} entries, manifest has "
+            f"{manifest_b_variable_count} b_variable entries"
+        )
+        logger.error(mismatch_msg)
+        err = ErrorInfo(
+            agent="section_fill",
+            error_type="BlueprintManifestMismatch",
+            message=mismatch_msg,
+        )
+        return {
+            "current_stage": PipelineStage.ERROR,
+            "errors": state.errors + [err],
+            "last_error": err,
+        }
+
     # Run all section fillers concurrently
     orch_result = await run_section_fillers(
         budget,
