@@ -1,13 +1,15 @@
 """LangGraph StateGraph — wires the DeckForge pipeline.
 
-Pipeline flow (template-first assembly with evidence curation):
+Pipeline flow (template-first assembly with evidence curation + strategy):
   START → context → gate_1 → retrieval → gate_2 → evidence_curation
-  → assembly_plan → gate_3 → submission_transform → section_fill
-  → build_slides → gate_4 → qa → governance → gate_5 → render → END
+  → proposal_strategy → assembly_plan → gate_3 → submission_transform
+  → section_fill → build_slides → gate_4 → qa → governance → gate_5
+  → render → END
 
 evidence_curation runs the Internal Evidence Curator (analysis agent)
 and External Research Agent concurrently to populate reference_index
-and external_evidence_pack before assembly_plan runs.
+and external_evidence_pack.  proposal_strategy produces win themes,
+evaluator priorities, and methodology recommendation before assembly_plan.
 
 Gate nodes use LangGraph's interrupt() for human-in-the-loop approval.
 The CLI runner resumes with Command(resume={"approved": True/False, ...}).
@@ -478,6 +480,18 @@ async def evidence_curation_node(state: DeckForgeState) -> dict[str, Any]:
             updates["session"] = external_result["session"]
 
     return updates
+
+
+async def proposal_strategy_node(state: DeckForgeState) -> dict[str, Any]:
+    """Proposal Strategist — strategic reasoning between evidence and content.
+
+    Reads reference_index, external_evidence_pack, and rfp_context.
+    Produces ProposalStrategy with win themes, evaluator priorities,
+    and methodology recommendation.
+    """
+    from src.agents.proposal_strategy import agent as proposal_strategy_agent
+
+    return await proposal_strategy_agent.run(state)
 
 
 async def submission_transform_node(state: DeckForgeState) -> dict[str, Any]:
@@ -1172,6 +1186,7 @@ def build_graph() -> CompiledStateGraph:
     graph.add_node("retrieval", retrieval_node)
     graph.add_node("gate_2", gate_2_node)
     graph.add_node("evidence_curation", evidence_curation_node)
+    graph.add_node("proposal_strategy", proposal_strategy_node)
     graph.add_node("assembly_plan", assembly_plan_node)
     graph.add_node("gate_3", gate_3_node)
     graph.add_node("submission_transform", submission_transform_node)
@@ -1195,7 +1210,8 @@ def build_graph() -> CompiledStateGraph:
     graph.add_conditional_edges(
         "gate_2", route_after_gate_2, ["evidence_curation", "retrieval"]
     )
-    graph.add_edge("evidence_curation", "assembly_plan")
+    graph.add_edge("evidence_curation", "proposal_strategy")
+    graph.add_edge("proposal_strategy", "assembly_plan")
     graph.add_edge("assembly_plan", "gate_3")
     graph.add_conditional_edges(
         "gate_3", route_after_gate_3, ["submission_transform", "assembly_plan"]

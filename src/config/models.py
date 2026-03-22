@@ -20,6 +20,7 @@ def _build_model_map() -> dict[str, str]:
         "submission_transform_agent": settings.anthropic_model_opus,
         "assembly_plan_agent": settings.anthropic_model_opus,
         "external_research_agent": settings.anthropic_model_sonnet,
+        "proposal_strategist": settings.anthropic_model_opus,
     }
 
 

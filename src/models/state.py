@@ -13,6 +13,7 @@ from .enums import DeckMode, Language, PipelineStage, PresentationType, Renderer
 from .external_evidence import ExternalEvidencePack
 from .methodology_blueprint import MethodologyBlueprint
 from .proposal_manifest import ProposalManifest
+from .proposal_strategy import ProposalStrategy
 from .qa import QAResult
 from .report import ResearchReport
 from .rfp import RFPContext
@@ -114,6 +115,7 @@ class DeckForgeState(DeckForgeBaseModel):
     reference_index: ReferenceIndex | None = None
     external_evidence_pack: ExternalEvidencePack | None = None
     full_text_documents: list[dict] = Field(default_factory=list)  # from load_full_documents()
+    proposal_strategy: ProposalStrategy | None = None
 
     # ─── Gate 3: Research Report ───
     research_report: ResearchReport | None = None
