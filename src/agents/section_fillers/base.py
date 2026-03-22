@@ -16,11 +16,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
+from pydantic import Field as PydanticField
+
 from src.models.common import DeckForgeBaseModel
 from src.models.enums import Language
 from src.models.methodology_blueprint import MethodologyBlueprint
 from src.models.proposal_manifest import ContentSourcePolicy, ManifestEntry
 from src.models.rfp import RFPContext
+from src.models.source_book import SlideBlueprintEntry
 from src.services.source_pack import SourcePack
 
 logger = logging.getLogger(__name__)
@@ -46,6 +49,9 @@ class SectionFillerInput(DeckForgeBaseModel):
 
     # Methodology context (populated for section_03, section_04)
     methodology_blueprint: MethodologyBlueprint | None = None
+
+    # Blueprint guidance from Slide Architect (Phase 5)
+    blueprint_entries: list[SlideBlueprintEntry] = PydanticField(default_factory=list)
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -118,6 +124,47 @@ class BaseSectionFiller(ABC):
         schema object so the quality gate can inspect it.
         """
         ...
+
+    @staticmethod
+    def _format_blueprint_guidance(
+        filler_input: SectionFillerInput,
+    ) -> str:
+        """Format blueprint entries into a prompt-ready guidance block.
+
+        Returns an empty string if no blueprint entries are available.
+        Fillers append this to their LLM user message for content guidance.
+        """
+        if not filler_input.blueprint_entries:
+            return ""
+
+        lines = ["## Slide Blueprint Guidance"]
+        lines.append(
+            "The Slide Architect has specified the following content for "
+            "each slide. Follow this guidance closely."
+        )
+        lines.append("")
+
+        for entry in filler_input.blueprint_entries:
+            lines.append(f"### Slide {entry.slide_number}: {entry.title}")
+            lines.append(f"- Purpose: {entry.purpose}")
+            lines.append(f"- Key message: {entry.key_message}")
+            if entry.bullet_logic:
+                lines.append("- Bullet points:")
+                for bullet in entry.bullet_logic:
+                    lines.append(f"  * {bullet}")
+            if entry.proof_points:
+                lines.append(
+                    f"- Evidence references: {', '.join(entry.proof_points)}"
+                )
+            if entry.visual_guidance:
+                lines.append(f"- Visual guidance: {entry.visual_guidance}")
+            if entry.forbidden_content:
+                lines.append(
+                    f"- Forbidden: {', '.join(entry.forbidden_content)}"
+                )
+            lines.append("")
+
+        return "\n".join(lines)
 
     async def fill(self, filler_input: SectionFillerInput) -> SectionFillerOutput:
         """Run the filler with error handling."""

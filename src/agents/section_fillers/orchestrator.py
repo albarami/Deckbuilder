@@ -23,6 +23,7 @@ from src.models.enums import Language
 from src.models.methodology_blueprint import MethodologyBlueprint
 from src.models.proposal_manifest import ManifestEntry
 from src.models.rfp import RFPContext
+from src.models.source_book import SlideBlueprintEntry
 from src.services.slide_budgeter import SlideBudget
 from src.services.source_pack import SourcePack
 
@@ -149,6 +150,7 @@ async def run_section_fillers(
     win_themes: list[str] | None = None,
     output_language: Language = Language.EN,
     methodology_blueprint: MethodologyBlueprint | None = None,
+    blueprint_entries: list[SlideBlueprintEntry] | None = None,
 ) -> OrchestratorResult:
     """Run all section fillers and collect results.
 
@@ -183,6 +185,12 @@ async def run_section_fillers(
             )
             continue
 
+        # Filter blueprint entries for this section
+        section_blueprint = [
+            e for e in (blueprint_entries or [])
+            if e.section == section_id
+        ]
+
         filler_input = SectionFillerInput(
             section_id=section_id,
             slide_count=slide_count,
@@ -192,6 +200,7 @@ async def run_section_fillers(
             win_themes=win_themes or [],
             output_language=output_language,
             methodology_blueprint=methodology_blueprint,
+            blueprint_entries=section_blueprint,
         )
 
         filler = filler_cls()

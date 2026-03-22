@@ -141,6 +141,11 @@ class IntroductionFiller(BaseSectionFiller):
             "output_language": str(filler_input.output_language),
         })
 
+        # Append blueprint guidance from Slide Architect when available
+        blueprint_guidance = self._format_blueprint_guidance(filler_input)
+        if blueprint_guidance:
+            user_msg += "\n\n" + blueprint_guidance
+
         llm_response = await call_llm(
             model=self.model_name,
             system_prompt=system,

@@ -17,6 +17,7 @@ from .proposal_strategy import ProposalStrategy
 from .qa import QAResult
 from .report import ResearchReport
 from .rfp import RFPContext
+from .slide_blueprint import SlideBlueprint
 from .slides import SlideObject, SlideOutline, WrittenSlides
 from .source_book import SourceBook, SourceBookReview
 from .submission import InternalNotePack, SubmissionQAResult, SubmissionSourcePack, UnresolvedIssueRegistry
@@ -124,6 +125,9 @@ class DeckForgeState(DeckForgeBaseModel):
     research_report: ResearchReport | None = None
     report_markdown: str = ""  # The full approved report as markdown
     gate_3: GateDecision | None = None
+
+    # ─── Blueprint Extraction (post gate_3, pre section_fill) ───
+    slide_blueprint: SlideBlueprint | None = None
 
     # ─── Gate 4: Slide Outline / Built Slides ───
     slide_outline: SlideOutline | None = None

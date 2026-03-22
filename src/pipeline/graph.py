@@ -3,7 +3,7 @@
 Pipeline flow (template-first assembly with Source Book pipeline):
   START → context → gate_1 → retrieval → gate_2 → evidence_curation
   → proposal_strategy → source_book → gate_3 → assembly_plan
-  → submission_transform → section_fill → build_slides → gate_4
+  → blueprint_extraction → section_fill → build_slides → gate_4
   → qa → governance → gate_5 → render → END
 
 evidence_curation runs the Internal Evidence Curator (analysis agent)
@@ -34,8 +34,8 @@ from src.agents.qa import agent as qa_agent
 from src.agents.research import agent as research_agent
 from src.agents.retrieval import planner as retrieval_planner
 from src.agents.retrieval import ranker as retrieval_ranker
+from src.agents.slide_architect import agent as slide_architect_agent
 from src.agents.submission_qa import agent as submission_qa_agent
-from src.agents.submission_transform import agent as submission_transform_agent
 from src.models.enums import PipelineStage, RendererMode
 from src.models.state import DeckForgeState, ErrorInfo, GateDecision
 from src.services.renderer import (
@@ -684,23 +684,17 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     return result
 
 
-async def submission_transform_node(state: DeckForgeState) -> dict[str, Any]:
-    """Submission Transform — converts Research Report to SubmissionSourcePack.
+async def blueprint_extraction_node(state: DeckForgeState) -> dict[str, Any]:
+    """Blueprint Extraction — converts Source Book into per-slide blueprint.
 
-    Runs between gate_3 and build_slides (CLIENT_SUBMISSION mode only).
-    Produces content_units, evidence_bundles, slide_allocation, and briefs
-    that feed into evidence_provenance checks in the governance node.
+    Replaces submission_transform_node (Phase 5). Reads the approved Source
+    Book and assembly plan, produces a SlideBlueprint with one entry per
+    variable slide. The blueprint feeds section fillers with explicit content
+    guidance (title, bullet_logic, proof_points).
+
+    Wired between assembly_plan and section_fill in the pipeline.
     """
-    result = await submission_transform_agent.run(state)
-    return {
-        "submission_source_pack": result.submission_source_pack,
-        "internal_notes": result.internal_notes,
-        "unresolved_issues": result.unresolved_issues,
-        "current_stage": result.current_stage,
-        "session": result.session,
-        "errors": result.errors,
-        "last_error": result.last_error,
-    }
+    return await slide_architect_agent.run(state)
 
 
 async def section_fill_node(state: DeckForgeState) -> dict[str, Any]:
@@ -710,7 +704,7 @@ async def section_fill_node(state: DeckForgeState) -> dict[str, Any]:
     fillers to generate content for b_variable entries, and merges
     injection_data back into the manifest.
 
-    Wired between submission_transform and build_slides.
+    Wired between blueprint_extraction and build_slides.
     """
     from src.agents.section_fillers.orchestrator import run_section_fillers
 
@@ -740,6 +734,11 @@ async def section_fill_node(state: DeckForgeState) -> dict[str, Any]:
         if hasattr(llm_out, "win_themes"):
             win_themes = llm_out.win_themes or []
 
+    # Extract blueprint entries from Slide Architect output
+    blueprint_entries = None
+    if state.slide_blueprint and state.slide_blueprint.entries:
+        blueprint_entries = state.slide_blueprint.entries
+
     # Run all section fillers concurrently
     orch_result = await run_section_fillers(
         budget,
@@ -748,6 +747,7 @@ async def section_fill_node(state: DeckForgeState) -> dict[str, Any]:
         win_themes=win_themes,
         output_language=state.output_language,
         methodology_blueprint=state.methodology_blueprint,
+        blueprint_entries=blueprint_entries,
     )
 
     # Merge filler injection_data into existing manifest entries.
@@ -1380,7 +1380,7 @@ def build_graph() -> CompiledStateGraph:
     graph.add_node("source_book", source_book_node)
     graph.add_node("assembly_plan", assembly_plan_node)
     graph.add_node("gate_3", gate_3_node)
-    graph.add_node("submission_transform", submission_transform_node)
+    graph.add_node("blueprint_extraction", blueprint_extraction_node)
     graph.add_node("section_fill", section_fill_node)
     graph.add_node("build_slides", build_slides_node)
     graph.add_node("gate_4", gate_4_node)
@@ -1407,8 +1407,8 @@ def build_graph() -> CompiledStateGraph:
     graph.add_conditional_edges(
         "gate_3", route_after_gate_3, ["assembly_plan", "source_book"]
     )
-    graph.add_edge("assembly_plan", "submission_transform")
-    graph.add_edge("submission_transform", "section_fill")
+    graph.add_edge("assembly_plan", "blueprint_extraction")
+    graph.add_edge("blueprint_extraction", "section_fill")
     graph.add_edge("section_fill", "build_slides")
     graph.add_edge("build_slides", "gate_4")
     graph.add_conditional_edges(

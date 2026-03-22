@@ -23,6 +23,7 @@ def _build_model_map() -> dict[str, str]:
         "proposal_strategist": settings.anthropic_model_opus,
         "source_book_writer": settings.anthropic_model_opus,
         "source_book_reviewer": settings.openai_model_gpt54,
+        "slide_architect": settings.anthropic_model_opus,
     }
 
 

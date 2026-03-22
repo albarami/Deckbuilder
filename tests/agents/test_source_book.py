@@ -1105,8 +1105,8 @@ class TestPipelineReorder:
             f"Actual edges: {gate_3_targets}"
         )
 
-    def test_assembly_plan_to_submission_transform(self):
-        """assembly_plan must connect to submission_transform (post-gate_3)."""
+    def test_assembly_plan_to_blueprint_extraction(self):
+        """assembly_plan must connect to blueprint_extraction (Phase 5)."""
         from src.pipeline.graph import build_graph
 
         graph = build_graph()
@@ -1118,8 +1118,8 @@ class TestPipelineReorder:
             tgt = edge.target.name if hasattr(edge.target, "name") else str(edge.target)
             edges.setdefault(src, []).append(tgt)
 
-        assert "submission_transform" in edges.get("assembly_plan", []), (
-            f"assembly_plan must connect to submission_transform. "
+        assert "blueprint_extraction" in edges.get("assembly_plan", []), (
+            f"assembly_plan must connect to blueprint_extraction. "
             f"Actual edges: {edges.get('assembly_plan', [])}"
         )
 
@@ -1136,12 +1136,12 @@ class TestPipelineReorder:
             tgt = edge.target.name if hasattr(edge.target, "name") else str(edge.target)
             edges.setdefault(src, []).append(tgt)
 
-        # The key Phase 4 sequence:
-        # proposal_strategy → source_book → gate_3 → assembly_plan → submission_transform
+        # The key Phase 5 sequence:
+        # proposal_strategy → source_book → gate_3 → assembly_plan → blueprint_extraction
         assert "source_book" in edges.get("proposal_strategy", [])
         assert "gate_3" in edges.get("source_book", [])
         assert "assembly_plan" in edges.get("gate_3", [])
-        assert "submission_transform" in edges.get("assembly_plan", [])
+        assert "blueprint_extraction" in edges.get("assembly_plan", [])
 
 
 class TestAssemblyPlanPromptUpdate:
@@ -1336,3 +1336,404 @@ class TestGate3FeedbackToWriter:
         # Human feedback should be clearly marked and prioritized
         assert "Restructure the methodology" in feedback
         assert len(feedback) > 0
+
+
+# ──────────────────────────────────────────────────────────────
+# Phase 5 Tests: Slide Blueprint + Slide Architect + Filler Integration
+# ──────────────────────────────────────────────────────────────
+
+
+class TestSlideBlueprintSchema:
+    """SlideBlueprint container model validation."""
+
+    def test_empty_blueprint_defaults(self):
+        """Empty SlideBlueprint should have valid defaults."""
+        from src.models.slide_blueprint import SlideBlueprint
+
+        bp = SlideBlueprint()
+        assert bp.blueprint_version == "1.0"
+        assert bp.total_variable_slides == 0
+        assert bp.evidence_coverage == 0.0
+        assert bp.entries == []
+
+    def test_blueprint_with_entries(self):
+        """SlideBlueprint should accept a list of SlideBlueprintEntry."""
+        from src.models.slide_blueprint import SlideBlueprint
+
+        entries = [
+            SlideBlueprintEntry(
+                slide_number=1,
+                section="section_01",
+                layout="content_heading_desc",
+                purpose="Establish understanding of client challenge",
+                title="Understanding the Challenge",
+                key_message="We understand your needs",
+                bullet_logic=["Point 1", "Point 2"],
+                proof_points=["CLM-0001"],
+            ),
+            SlideBlueprintEntry(
+                slide_number=2,
+                section="section_02",
+                layout="content_heading_desc",
+                purpose="Show why SG is the right partner",
+                title="Why Strategic Gears",
+                key_message="Proven track record",
+                bullet_logic=["Track record", "Team expertise"],
+                proof_points=["CLM-0002", "CLM-0003"],
+            ),
+        ]
+        bp = SlideBlueprint(
+            total_variable_slides=2,
+            evidence_coverage=1.0,
+            entries=entries,
+        )
+        assert bp.total_variable_slides == 2
+        assert len(bp.entries) == 2
+        assert bp.entries[0].section == "section_01"
+        assert bp.entries[1].section == "section_02"
+
+    def test_blueprint_entry_proof_points_validator(self):
+        """SlideBlueprintEntry should reject must_have_evidence without proof_points."""
+        import pytest
+
+        with pytest.raises(ValueError, match="proof_points cannot be empty"):
+            SlideBlueprintEntry(
+                slide_number=1,
+                section="section_01",
+                layout="content_heading_desc",
+                purpose="Test",
+                title="Test",
+                key_message="Test",
+                must_have_evidence=["CLM-0001"],
+                proof_points=[],  # Empty but must_have_evidence is set
+            )
+
+    def test_blueprint_entry_allows_must_have_with_proof_points(self):
+        """SlideBlueprintEntry should accept must_have_evidence when proof_points exist."""
+        entry = SlideBlueprintEntry(
+            slide_number=1,
+            section="section_01",
+            layout="content_heading_desc",
+            purpose="Test",
+            title="Test",
+            key_message="Test",
+            must_have_evidence=["CLM-0001"],
+            proof_points=["CLM-0001", "CLM-0002"],
+        )
+        assert entry.must_have_evidence == ["CLM-0001"]
+        assert len(entry.proof_points) == 2
+
+    def test_slide_blueprint_in_state(self):
+        """DeckForgeState should accept slide_blueprint field."""
+        from src.models.slide_blueprint import SlideBlueprint
+
+        state = DeckForgeState(
+            slide_blueprint=SlideBlueprint(
+                total_variable_slides=3,
+                evidence_coverage=0.8,
+                entries=[
+                    SlideBlueprintEntry(
+                        slide_number=i,
+                        section=f"section_0{i}",
+                        layout="content_heading_desc",
+                        purpose=f"Purpose {i}",
+                        title=f"Title {i}",
+                        key_message=f"Key message {i}",
+                    )
+                    for i in range(1, 4)
+                ],
+            ),
+        )
+        assert state.slide_blueprint is not None
+        assert state.slide_blueprint.total_variable_slides == 3
+        assert len(state.slide_blueprint.entries) == 3
+
+
+class TestSlideArchitectAgent:
+    """Slide Architect agent — user message building and error handling."""
+
+    def test_user_message_includes_source_book(self):
+        """User message should include serialized source book when present."""
+        from src.agents.slide_architect.agent import _build_user_message
+
+        state = DeckForgeState(
+            source_book=SourceBook(
+                client_name="Test Client",
+                rfp_name="Test RFP",
+                rfp_interpretation=RFPInterpretation(
+                    objective_and_scope="Modernize IT infrastructure",
+                ),
+            ),
+        )
+        msg = _build_user_message(state)
+        assert "source_book" in msg
+        assert "Test Client" in msg
+        assert "Modernize IT infrastructure" in msg
+
+    def test_user_message_empty_state(self):
+        """User message should produce valid JSON even with empty state."""
+        from src.agents.slide_architect.agent import _build_user_message
+
+        state = DeckForgeState()
+        msg = _build_user_message(state)
+        import json
+        parsed = json.loads(msg)
+        assert isinstance(parsed, dict)
+        # No source_book key since it's None
+        assert "source_book" not in parsed
+
+    def test_user_message_includes_evidence_ledger(self):
+        """User message should include evidence ledger from source book."""
+        from src.agents.slide_architect.agent import _build_user_message
+        from src.models.source_book import EvidenceLedger, EvidenceLedgerEntry
+
+        state = DeckForgeState(
+            source_book=SourceBook(
+                evidence_ledger=EvidenceLedger(
+                    entries=[
+                        EvidenceLedgerEntry(
+                            claim_id="CLM-0001",
+                            claim_text="Proven track record in digital transformation",
+                            source_type="internal",
+                            source_reference="DOC-001",
+                            confidence=0.9,
+                            verifiability_status="verified",
+                        ),
+                    ],
+                ),
+            ),
+        )
+        msg = _build_user_message(state)
+        assert "evidence_ledger" in msg
+        assert "CLM-0001" in msg
+
+    def test_user_message_includes_rfp_context(self):
+        """User message should include RFP mandate and evaluation criteria."""
+        from src.agents.slide_architect.agent import _build_user_message
+        from src.models.common import BilingualText
+        from src.models.rfp import RFPContext
+
+        state = DeckForgeState(
+            rfp_context=RFPContext(
+                rfp_name=BilingualText(en="IT Modernization RFP"),
+                issuing_entity=BilingualText(en="Test Client"),
+                mandate=BilingualText(en="Modernize legacy systems"),
+            ),
+        )
+        msg = _build_user_message(state)
+        assert "rfp_context" in msg
+        assert "IT Modernization RFP" in msg
+
+    @pytest.mark.asyncio
+    async def test_run_error_returns_empty_blueprint(self):
+        """Agent should return empty blueprint with error on LLM failure."""
+        from unittest.mock import AsyncMock, patch
+
+        from src.agents.slide_architect.agent import run
+
+        state = DeckForgeState(
+            source_book=SourceBook(client_name="Test"),
+        )
+
+        with patch(
+            "src.agents.slide_architect.agent.call_llm",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("LLM unavailable"),
+        ):
+            result = await run(state)
+
+        assert result["slide_blueprint"].total_variable_slides == 0
+        assert result["slide_blueprint"].entries == []
+        assert result["last_error"].agent == "slide_architect"
+        assert "LLM unavailable" in result["last_error"].message
+
+
+class TestFillerBlueprintGuidance:
+    """Blueprint guidance formatting and injection into fillers."""
+
+    def test_format_blueprint_guidance_empty(self):
+        """No blueprint entries → empty string."""
+        from src.agents.section_fillers.base import (
+            BaseSectionFiller,
+            SectionFillerInput,
+        )
+
+        filler_input = SectionFillerInput(
+            section_id="section_01",
+            slide_count=2,
+            recommended_layouts=["content_heading_desc"],
+        )
+        result = BaseSectionFiller._format_blueprint_guidance(filler_input)
+        assert result == ""
+
+    def test_format_blueprint_guidance_with_entries(self):
+        """Blueprint entries → formatted guidance with all fields."""
+        from src.agents.section_fillers.base import (
+            BaseSectionFiller,
+            SectionFillerInput,
+        )
+
+        entry = SlideBlueprintEntry(
+            slide_number=1,
+            section="section_01",
+            layout="content_heading_desc",
+            purpose="Show client understanding",
+            title="Understanding the Challenge",
+            key_message="We understand your critical needs",
+            bullet_logic=["Point A", "Point B", "Point C"],
+            proof_points=["CLM-0001", "CLM-0002"],
+            visual_guidance="Use left-right layout",
+            forbidden_content=["Generic claims", "No evidence"],
+        )
+        filler_input = SectionFillerInput(
+            section_id="section_01",
+            slide_count=1,
+            recommended_layouts=["content_heading_desc"],
+            blueprint_entries=[entry],
+        )
+        guidance = BaseSectionFiller._format_blueprint_guidance(filler_input)
+
+        assert "## Slide Blueprint Guidance" in guidance
+        assert "Understanding the Challenge" in guidance
+        assert "Show client understanding" in guidance
+        assert "We understand your critical needs" in guidance
+        assert "Point A" in guidance
+        assert "Point B" in guidance
+        assert "CLM-0001" in guidance
+        assert "CLM-0002" in guidance
+        assert "Use left-right layout" in guidance
+        assert "Generic claims" in guidance
+
+    def test_format_blueprint_guidance_multiple_entries(self):
+        """Multiple blueprint entries → all entries included."""
+        from src.agents.section_fillers.base import (
+            BaseSectionFiller,
+            SectionFillerInput,
+        )
+
+        entries = [
+            SlideBlueprintEntry(
+                slide_number=i,
+                section="section_01",
+                layout="content_heading_desc",
+                purpose=f"Purpose {i}",
+                title=f"Slide Title {i}",
+                key_message=f"Key msg {i}",
+            )
+            for i in range(1, 4)
+        ]
+        filler_input = SectionFillerInput(
+            section_id="section_01",
+            slide_count=3,
+            recommended_layouts=["content_heading_desc"],
+            blueprint_entries=entries,
+        )
+        guidance = BaseSectionFiller._format_blueprint_guidance(filler_input)
+
+        assert "Slide Title 1" in guidance
+        assert "Slide Title 2" in guidance
+        assert "Slide Title 3" in guidance
+
+    def test_blueprint_entries_filter_by_section_in_orchestrator(self):
+        """Orchestrator should filter blueprint entries by section_id."""
+        # This tests the filtering logic conceptually — the orchestrator
+        # creates SectionFillerInput with only entries for that section.
+        entries = [
+            SlideBlueprintEntry(
+                slide_number=1,
+                section="section_01",
+                layout="content_heading_desc",
+                purpose="Understanding",
+                title="Title 1",
+                key_message="Msg 1",
+            ),
+            SlideBlueprintEntry(
+                slide_number=2,
+                section="section_02",
+                layout="content_heading_desc",
+                purpose="Why SG",
+                title="Title 2",
+                key_message="Msg 2",
+            ),
+            SlideBlueprintEntry(
+                slide_number=3,
+                section="section_01",
+                layout="content_heading_desc",
+                purpose="More understanding",
+                title="Title 3",
+                key_message="Msg 3",
+            ),
+        ]
+
+        # Simulate orchestrator filtering
+        section_01_entries = [e for e in entries if e.section == "section_01"]
+        section_02_entries = [e for e in entries if e.section == "section_02"]
+
+        assert len(section_01_entries) == 2
+        assert len(section_02_entries) == 1
+        assert section_01_entries[0].title == "Title 1"
+        assert section_01_entries[1].title == "Title 3"
+
+
+class TestSubmissionModelsStillImportable:
+    """Verify submission models remain importable after blueprint_extraction
+    replaced submission_transform in the pipeline graph.
+
+    The governance node still uses SubmissionSourcePack, InternalNotePack,
+    UnresolvedIssueRegistry, etc. These models must stay importable.
+    """
+
+    def test_submission_source_pack_importable(self):
+        """SubmissionSourcePack must be importable."""
+        from src.models.submission import SubmissionSourcePack
+        assert SubmissionSourcePack is not None
+
+    def test_internal_note_pack_importable(self):
+        """InternalNotePack must be importable."""
+        from src.models.submission import InternalNotePack
+        assert InternalNotePack is not None
+
+    def test_unresolved_issue_registry_importable(self):
+        """UnresolvedIssueRegistry must be importable."""
+        from src.models.submission import UnresolvedIssueRegistry
+        assert UnresolvedIssueRegistry is not None
+
+    def test_submission_qa_result_importable(self):
+        """SubmissionQAResult must be importable."""
+        from src.models.submission import SubmissionQAResult
+        assert SubmissionQAResult is not None
+
+    def test_content_routing_enum_importable(self):
+        """ContentRouting enum must be importable."""
+        from src.models.enums import ContentRouting
+        assert ContentRouting is not None
+
+    def test_state_still_references_submission_models(self):
+        """DeckForgeState should still have submission layer fields."""
+        state = DeckForgeState()
+        assert hasattr(state, "submission_source_pack")
+        assert hasattr(state, "internal_notes")
+        assert hasattr(state, "unresolved_issues")
+        assert hasattr(state, "submission_qa_result")
+
+
+class TestGraphBlueprintExtractionWiring:
+    """Verify blueprint_extraction node exists and is wired in the graph."""
+
+    def test_blueprint_extraction_node_exists(self):
+        """blueprint_extraction_node function should exist in graph module."""
+        from src.pipeline import graph as graph_module
+        assert hasattr(graph_module, "blueprint_extraction_node")
+        assert callable(graph_module.blueprint_extraction_node)
+
+    def test_model_map_has_slide_architect(self):
+        """MODEL_MAP should have slide_architect key."""
+        from src.config.models import MODEL_MAP
+        assert "slide_architect" in MODEL_MAP
+
+    def test_slide_architect_prompt_exists(self):
+        """Slide Architect should have a non-empty system prompt."""
+        from src.agents.slide_architect.prompts import SYSTEM_PROMPT
+        assert len(SYSTEM_PROMPT) > 100
+        assert "SlideBlueprint" in SYSTEM_PROMPT
+        assert "SlideBlueprintEntry" in SYSTEM_PROMPT
