@@ -21,6 +21,8 @@ def _build_model_map() -> dict[str, str]:
         "assembly_plan_agent": settings.anthropic_model_opus,
         "external_research_agent": settings.anthropic_model_sonnet,
         "proposal_strategist": settings.anthropic_model_opus,
+        "source_book_writer": settings.anthropic_model_opus,
+        "source_book_reviewer": settings.openai_model_gpt54,
     }
 
 

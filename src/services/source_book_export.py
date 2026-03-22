@@ -1,0 +1,335 @@
+"""DOCX exporter for the Proposal Source Book.
+
+Uses python-docx to generate a structured Word document with:
+- Cover page with client name, RFP name, date
+- 7 sections with appropriate formatting (prose, tables)
+- Table of Contents placeholder
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+
+from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Inches, Pt
+
+from src.models.source_book import SourceBook
+
+logger = logging.getLogger(__name__)
+
+
+def _add_cover_page(doc: Document, source_book: SourceBook) -> None:
+    """Add cover page with client name, RFP name, and date."""
+    # Title
+    title = doc.add_heading("PROPOSAL SOURCE BOOK", level=0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # Client and RFP
+    subtitle = doc.add_paragraph()
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = subtitle.add_run(
+        f"{source_book.client_name} — {source_book.rfp_name}"
+    )
+    run.font.size = Pt(16)
+    run.bold = True
+
+    # Metadata
+    meta = doc.add_paragraph()
+    meta.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    meta_run = meta.add_run(
+        f"Generated: {source_book.generation_date or 'N/A'} | "
+        f"Language: {source_book.language} | "
+        f"Pass: {source_book.pass_number}"
+    )
+    meta_run.font.size = Pt(10)
+
+    doc.add_page_break()
+
+
+def _add_section_1(doc: Document, source_book: SourceBook) -> None:
+    """Section 1: RFP Interpretation."""
+    doc.add_heading("1. RFP Interpretation", level=1)
+    rfp = source_book.rfp_interpretation
+
+    if rfp.objective_and_scope:
+        doc.add_heading("1.1 Objective & Scope", level=2)
+        doc.add_paragraph(rfp.objective_and_scope)
+
+    if rfp.constraints_and_compliance:
+        doc.add_heading("1.2 Constraints & Compliance Requirements", level=2)
+        doc.add_paragraph(rfp.constraints_and_compliance)
+
+    if rfp.unstated_evaluator_priorities:
+        doc.add_heading("1.3 Unstated Evaluator Priorities", level=2)
+        doc.add_paragraph(rfp.unstated_evaluator_priorities)
+
+    if rfp.probable_scoring_logic:
+        doc.add_heading("1.4 Probable Scoring Logic", level=2)
+        doc.add_paragraph(rfp.probable_scoring_logic)
+
+    if rfp.key_compliance_requirements:
+        doc.add_heading("1.5 Key Compliance Requirements", level=2)
+        for req in rfp.key_compliance_requirements:
+            doc.add_paragraph(req, style="List Bullet")
+
+
+def _add_section_2(doc: Document, source_book: SourceBook) -> None:
+    """Section 2: Client Problem Framing."""
+    doc.add_heading("2. Client Problem Framing", level=1)
+    cpf = source_book.client_problem_framing
+
+    if cpf.current_state_challenge:
+        doc.add_heading("2.1 Current-State Challenge", level=2)
+        doc.add_paragraph(cpf.current_state_challenge)
+
+    if cpf.why_it_matters_now:
+        doc.add_heading("2.2 Why It Matters Now", level=2)
+        doc.add_paragraph(cpf.why_it_matters_now)
+
+    if cpf.transformation_logic:
+        doc.add_heading("2.3 Transformation Logic", level=2)
+        doc.add_paragraph(cpf.transformation_logic)
+
+    if cpf.risk_if_unchanged:
+        doc.add_heading("2.4 Risk If Unchanged", level=2)
+        doc.add_paragraph(cpf.risk_if_unchanged)
+
+
+def _add_section_3(doc: Document, source_book: SourceBook) -> None:
+    """Section 3: Why Strategic Gears."""
+    doc.add_heading("3. Why Strategic Gears", level=1)
+    wsg = source_book.why_strategic_gears
+
+    # 3.1 Capability Mapping table
+    if wsg.capability_mapping:
+        doc.add_heading("3.1 Capability-to-RFP Mapping", level=2)
+        table = doc.add_table(rows=1, cols=4)
+        table.style = "Table Grid"
+        hdr = table.rows[0].cells
+        hdr[0].text = "RFP Requirement"
+        hdr[1].text = "SG Capability"
+        hdr[2].text = "Evidence"
+        hdr[3].text = "Strength"
+        for cm in wsg.capability_mapping:
+            row = table.add_row().cells
+            row[0].text = cm.rfp_requirement
+            row[1].text = cm.sg_capability
+            row[2].text = ", ".join(cm.evidence_ids) if cm.evidence_ids else "—"
+            row[3].text = cm.strength
+
+    # 3.2 Named Consultants table
+    if wsg.named_consultants:
+        doc.add_heading("3.2 Named Consultants & Role Relevance", level=2)
+        table = doc.add_table(rows=1, cols=4)
+        table.style = "Table Grid"
+        hdr = table.rows[0].cells
+        hdr[0].text = "Name"
+        hdr[1].text = "Role"
+        hdr[2].text = "Relevance"
+        hdr[3].text = "Evidence"
+        for nc in wsg.named_consultants:
+            row = table.add_row().cells
+            row[0].text = nc.name
+            row[1].text = nc.role
+            row[2].text = nc.relevance
+            row[3].text = ", ".join(nc.evidence_ids) if nc.evidence_ids else "—"
+
+    # 3.3 Project Experience table
+    if wsg.project_experience:
+        doc.add_heading("3.3 Relevant Project Experience", level=2)
+        table = doc.add_table(rows=1, cols=4)
+        table.style = "Table Grid"
+        hdr = table.rows[0].cells
+        hdr[0].text = "Project"
+        hdr[1].text = "Client"
+        hdr[2].text = "Outcomes"
+        hdr[3].text = "Evidence"
+        for pe in wsg.project_experience:
+            row = table.add_row().cells
+            row[0].text = pe.project_name
+            row[1].text = pe.client
+            row[2].text = pe.outcomes
+            row[3].text = ", ".join(pe.evidence_ids) if pe.evidence_ids else "—"
+
+    # 3.4 Certifications
+    if wsg.certifications_and_compliance:
+        doc.add_heading("3.4 Certifications & Compliance", level=2)
+        doc.add_paragraph(wsg.certifications_and_compliance)
+
+
+def _add_section_4(doc: Document, source_book: SourceBook) -> None:
+    """Section 4: External Evidence."""
+    doc.add_heading("4. External Evidence", level=1)
+    ext = source_book.external_evidence
+
+    if ext.entries:
+        table = doc.add_table(rows=1, cols=5)
+        table.style = "Table Grid"
+        hdr = table.rows[0].cells
+        hdr[0].text = "Source ID"
+        hdr[1].text = "Title"
+        hdr[2].text = "Year"
+        hdr[3].text = "Relevance"
+        hdr[4].text = "Key Finding"
+        for entry in ext.entries:
+            row = table.add_row().cells
+            row[0].text = entry.source_id
+            row[1].text = entry.title
+            row[2].text = str(entry.year)
+            row[3].text = entry.relevance
+            row[4].text = entry.key_finding
+
+    if ext.coverage_assessment:
+        doc.add_paragraph()
+        p = doc.add_paragraph()
+        run = p.add_run("Coverage Assessment: ")
+        run.bold = True
+        p.add_run(ext.coverage_assessment)
+
+
+def _add_section_5(doc: Document, source_book: SourceBook) -> None:
+    """Section 5: Proposed Solution."""
+    doc.add_heading("5. Proposed Solution", level=1)
+    ps = source_book.proposed_solution
+
+    if ps.methodology_overview:
+        doc.add_heading("5.1 Methodology Overview", level=2)
+        doc.add_paragraph(ps.methodology_overview)
+
+    if ps.phase_details:
+        doc.add_heading("5.2 Phase Details", level=2)
+        for phase in ps.phase_details:
+            doc.add_heading(phase.phase_name, level=3)
+            if phase.activities:
+                p = doc.add_paragraph()
+                run = p.add_run("Activities:")
+                run.bold = True
+                for act in phase.activities:
+                    doc.add_paragraph(act, style="List Bullet")
+            if phase.deliverables:
+                p = doc.add_paragraph()
+                run = p.add_run("Deliverables:")
+                run.bold = True
+                for d in phase.deliverables:
+                    doc.add_paragraph(d, style="List Bullet")
+            if phase.governance:
+                p = doc.add_paragraph()
+                run = p.add_run("Governance: ")
+                run.bold = True
+                p.add_run(phase.governance)
+
+    if ps.governance_framework:
+        doc.add_heading("5.3 Governance Framework", level=2)
+        doc.add_paragraph(ps.governance_framework)
+
+    if ps.timeline_logic:
+        doc.add_heading("5.4 Timeline Logic", level=2)
+        doc.add_paragraph(ps.timeline_logic)
+
+    if ps.value_case_and_differentiation:
+        doc.add_heading("5.5 Value Case & Differentiation", level=2)
+        doc.add_paragraph(ps.value_case_and_differentiation)
+
+
+def _add_section_6(doc: Document, source_book: SourceBook) -> None:
+    """Section 6: Slide-by-Slide Blueprint."""
+    doc.add_heading("6. Slide-by-Slide Blueprint", level=1)
+
+    if not source_book.slide_blueprints:
+        doc.add_paragraph("No slide blueprints generated.")
+        return
+
+    for bp in source_book.slide_blueprints:
+        doc.add_heading(
+            f"Slide {bp.slide_number}: {bp.title}",
+            level=2,
+        )
+
+        # Blueprint as a compact table
+        table = doc.add_table(rows=0, cols=2)
+        table.style = "Table Grid"
+        table.columns[0].width = Inches(1.5)
+        table.columns[1].width = Inches(5.0)
+
+        fields = [
+            ("Section", bp.section),
+            ("Layout", bp.layout),
+            ("Purpose", bp.purpose),
+            ("Key Message", bp.key_message),
+            ("Bullet Logic", "\n".join(bp.bullet_logic) if bp.bullet_logic else "—"),
+            ("Proof Points", ", ".join(bp.proof_points) if bp.proof_points else "—"),
+            ("Visual", bp.visual_guidance),
+            ("Must-Have Evidence", ", ".join(bp.must_have_evidence) if bp.must_have_evidence else "—"),
+            ("Forbidden", ", ".join(bp.forbidden_content) if bp.forbidden_content else "—"),
+        ]
+
+        for label, value in fields:
+            if value:
+                row = table.add_row().cells
+                row[0].text = label
+                row[1].text = value
+
+        doc.add_paragraph()  # spacing
+
+
+def _add_section_7(doc: Document, source_book: SourceBook) -> None:
+    """Section 7: Evidence Ledger."""
+    doc.add_heading("7. Evidence Ledger", level=1)
+
+    if not source_book.evidence_ledger.entries:
+        doc.add_paragraph("No evidence entries.")
+        return
+
+    table = doc.add_table(rows=1, cols=6)
+    table.style = "Table Grid"
+    hdr = table.rows[0].cells
+    hdr[0].text = "Claim ID"
+    hdr[1].text = "Claim Text"
+    hdr[2].text = "Source Type"
+    hdr[3].text = "Source Reference"
+    hdr[4].text = "Confidence"
+    hdr[5].text = "Status"
+
+    for entry in source_book.evidence_ledger.entries:
+        row = table.add_row().cells
+        row[0].text = entry.claim_id
+        row[1].text = entry.claim_text
+        row[2].text = entry.source_type
+        row[3].text = entry.source_reference
+        row[4].text = f"{entry.confidence:.2f}"
+        row[5].text = entry.verifiability_status
+
+
+async def export_source_book_docx(
+    source_book: SourceBook,
+    output_path: str,
+) -> str:
+    """Export a SourceBook as a .docx file.
+
+    Produces a structured Word document with cover page, 7 sections,
+    and appropriate tables/prose formatting.
+
+    Returns the output path.
+    """
+    doc = Document()
+
+    # Cover page
+    _add_cover_page(doc, source_book)
+
+    # 7 sections
+    _add_section_1(doc, source_book)
+    _add_section_2(doc, source_book)
+    _add_section_3(doc, source_book)
+    _add_section_4(doc, source_book)
+    _add_section_5(doc, source_book)
+    _add_section_6(doc, source_book)
+    _add_section_7(doc, source_book)
+
+    # Save
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    doc.save(output_path)
+
+    logger.info("Source Book DOCX exported to %s", output_path)
+    return output_path

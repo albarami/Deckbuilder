@@ -1,15 +1,17 @@
 """LangGraph StateGraph — wires the DeckForge pipeline.
 
-Pipeline flow (template-first assembly with evidence curation + strategy):
+Pipeline flow (template-first assembly with Source Book pipeline):
   START → context → gate_1 → retrieval → gate_2 → evidence_curation
-  → proposal_strategy → assembly_plan → gate_3 → submission_transform
-  → section_fill → build_slides → gate_4 → qa → governance → gate_5
-  → render → END
+  → proposal_strategy → source_book → assembly_plan → gate_3
+  → submission_transform → section_fill → build_slides → gate_4
+  → qa → governance → gate_5 → render → END
 
 evidence_curation runs the Internal Evidence Curator (analysis agent)
 and External Research Agent concurrently to populate reference_index
 and external_evidence_pack.  proposal_strategy produces win themes,
-evaluator priorities, and methodology recommendation before assembly_plan.
+evaluator priorities, and methodology recommendation.  source_book
+runs the Writer → Reviewer iteration loop to produce the Proposal
+Source Book (DOCX) and populates report_markdown for downstream agents.
 
 Gate nodes use LangGraph's interrupt() for human-in-the-loop approval.
 The CLI runner resumes with Command(resume={"approved": True/False, ...}).
@@ -492,6 +494,95 @@ async def proposal_strategy_node(state: DeckForgeState) -> dict[str, Any]:
     from src.agents.proposal_strategy import agent as proposal_strategy_agent
 
     return await proposal_strategy_agent.run(state)
+
+
+async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
+    """Source Book — iterative Writer/Reviewer loop producing Source Book DOCX.
+
+    Runs the Source Book Writer, then Reviewer, iterating up to 3 passes
+    until the review threshold is met. Exports DOCX and populates
+    report_markdown from the approved Source Book content.
+    """
+    from src.agents.source_book import orchestrator, reviewer, writer
+    from src.services.source_book_export import export_source_book_docx
+
+    max_passes = 3
+    current_state = state
+
+    for pass_num in range(1, max_passes + 1):
+        # Writer pass
+        reviewer_feedback = ""
+        if pass_num > 1 and current_state.source_book_review:
+            reviewer_feedback = orchestrator.build_reviewer_feedback(
+                current_state.source_book_review
+            )
+
+        writer_result = await writer.run(current_state, reviewer_feedback=reviewer_feedback)
+
+        # Update state with writer result
+        updates = dict(writer_result)
+        source_book = updates.get("source_book")
+
+        if not source_book or "errors" in updates:
+            logger.error("Source Book Writer failed on pass %d", pass_num)
+            return updates
+
+        # Temporarily update state for reviewer
+        current_state = state.model_copy(
+            update={
+                "source_book": source_book,
+                "session": updates.get("session", state.session),
+            },
+        )
+
+        # Reviewer pass
+        review_result = await reviewer.run(current_state)
+        review = review_result.get("source_book_review")
+
+        if not review:
+            logger.warning("Source Book Reviewer returned no review on pass %d", pass_num)
+            break
+
+        # Update state for next iteration
+        current_state = current_state.model_copy(
+            update={
+                "source_book_review": review,
+                "session": review_result.get("session", current_state.session),
+            },
+        )
+
+        logger.info(
+            "Source Book pass %d: score=%d, threshold=%s, viability=%s",
+            pass_num,
+            review.overall_score,
+            review.pass_threshold_met,
+            review.competitive_viability,
+        )
+
+        # Check if we should stop
+        if not orchestrator.should_continue_iteration(
+            review, current_pass=pass_num, max_passes=max_passes
+        ):
+            break
+
+    # Export DOCX
+    session_id = current_state.session.session_id or "default"
+    docx_path = f"output/{session_id}/source_book.docx"
+    try:
+        await export_source_book_docx(current_state.source_book, docx_path)
+        logger.info("Source Book DOCX exported: %s", docx_path)
+    except Exception as e:
+        logger.error("Source Book DOCX export failed: %s", e)
+
+    # Populate report_markdown from Source Book
+    report_md = orchestrator.source_book_to_markdown(current_state.source_book)
+
+    return {
+        "source_book": current_state.source_book,
+        "source_book_review": current_state.source_book_review,
+        "report_markdown": report_md,
+        "session": current_state.session,
+    }
 
 
 async def submission_transform_node(state: DeckForgeState) -> dict[str, Any]:
@@ -1187,6 +1278,7 @@ def build_graph() -> CompiledStateGraph:
     graph.add_node("gate_2", gate_2_node)
     graph.add_node("evidence_curation", evidence_curation_node)
     graph.add_node("proposal_strategy", proposal_strategy_node)
+    graph.add_node("source_book", source_book_node)
     graph.add_node("assembly_plan", assembly_plan_node)
     graph.add_node("gate_3", gate_3_node)
     graph.add_node("submission_transform", submission_transform_node)
@@ -1211,7 +1303,8 @@ def build_graph() -> CompiledStateGraph:
         "gate_2", route_after_gate_2, ["evidence_curation", "retrieval"]
     )
     graph.add_edge("evidence_curation", "proposal_strategy")
-    graph.add_edge("proposal_strategy", "assembly_plan")
+    graph.add_edge("proposal_strategy", "source_book")
+    graph.add_edge("source_book", "assembly_plan")
     graph.add_edge("assembly_plan", "gate_3")
     graph.add_conditional_edges(
         "gate_3", route_after_gate_3, ["submission_transform", "assembly_plan"]

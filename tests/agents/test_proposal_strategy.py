@@ -250,7 +250,7 @@ class TestGraphWiring:
         assert "proposal_strategy" in node_names
 
     def test_graph_flow_order(self):
-        """Verify edge ordering: evidence_curation -> proposal_strategy -> assembly_plan."""
+        """Verify edge ordering: evidence_curation -> proposal_strategy -> source_book."""
         from src.pipeline.graph import build_graph
         graph = build_graph()
         g = graph.get_graph()
@@ -266,8 +266,8 @@ class TestGraphWiring:
         assert "proposal_strategy" in edges.get("evidence_curation", []), (
             f"evidence_curation edges: {edges.get('evidence_curation', [])}"
         )
-        # proposal_strategy -> assembly_plan
-        assert "assembly_plan" in edges.get("proposal_strategy", []), (
+        # proposal_strategy -> source_book (Phase 3 added source_book between strategy and assembly_plan)
+        assert "source_book" in edges.get("proposal_strategy", []), (
             f"proposal_strategy edges: {edges.get('proposal_strategy', [])}"
         )
 

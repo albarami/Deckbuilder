@@ -18,6 +18,7 @@ from .qa import QAResult
 from .report import ResearchReport
 from .rfp import RFPContext
 from .slides import SlideObject, SlideOutline, WrittenSlides
+from .source_book import SourceBook, SourceBookReview
 from .submission import InternalNotePack, SubmissionQAResult, SubmissionSourcePack, UnresolvedIssueRegistry
 from .waiver import WaiverObject
 
@@ -116,6 +117,8 @@ class DeckForgeState(DeckForgeBaseModel):
     external_evidence_pack: ExternalEvidencePack | None = None
     full_text_documents: list[dict] = Field(default_factory=list)  # from load_full_documents()
     proposal_strategy: ProposalStrategy | None = None
+    source_book: SourceBook | None = None
+    source_book_review: SourceBookReview | None = None
 
     # ─── Gate 3: Research Report ───
     research_report: ResearchReport | None = None
