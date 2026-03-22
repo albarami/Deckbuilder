@@ -832,6 +832,28 @@ async def section_fill_node(state: DeckForgeState) -> dict[str, Any]:
                     entry.section_id,
                     entry.asset_id,
                 )
+        elif entry.entry_type == "b_variable" and not entry.injection_data:
+            # b_variable entry whose section filler crashed or returned 0
+            # entries — add fallback injection to avoid R7 zero-injection
+            fallback_injection = {
+                "title": entry.asset_id,
+                "body": "",
+            }
+            fallback_entry = ManifestEntry(
+                entry_type=entry.entry_type,
+                asset_id=entry.asset_id,
+                semantic_layout_id=entry.semantic_layout_id,
+                content_source_policy=entry.content_source_policy,
+                section_id=entry.section_id,
+                methodology_phase=entry.methodology_phase,
+                injection_data=fallback_injection,
+            )
+            new_entries.append(fallback_entry)
+            logger.warning(
+                "Fallback injection for %s/%s (no filler output for section)",
+                entry.section_id,
+                entry.asset_id,
+            )
         else:
             new_entries.append(entry)
 

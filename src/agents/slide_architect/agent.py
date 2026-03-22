@@ -112,7 +112,7 @@ async def run(state: DeckForgeState) -> dict:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=SlideBlueprint,
-            max_tokens=12000,
+            max_tokens=16000,
         )
 
         blueprint = llm_result.parsed

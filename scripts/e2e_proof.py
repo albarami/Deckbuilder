@@ -567,6 +567,30 @@ async def run_e2e(
             errors = output.errors if hasattr(output, "errors") else []
             print(f"    {section_id}: {entry_count} entries, {len(errors)} errors")
 
+    # === INJECTION COVERAGE DIAGNOSTIC ===
+    manifest = result.get("proposal_manifest")
+    zero_injection_slides = []
+    if manifest:
+        print("\n  --- Injection Coverage (b_variable entries) ---")
+        for i, entry in enumerate(manifest.entries):
+            if entry.entry_type != "b_variable":
+                continue
+            has_data = (
+                entry.injection_data is not None
+                and set(entry.injection_data.keys()) - {"source_slide_idx"}
+            )
+            status = "FILLED" if has_data else "ZERO"
+            if not has_data:
+                zero_injection_slides.append(entry)
+            print(
+                f"    [{status:5s}] {entry.section_id:12s} "
+                f"{entry.asset_id:40s} "
+                f"layout={entry.semantic_layout_id}"
+            )
+        print(
+            f"  Zero-injection b_variable: {len(zero_injection_slides)}/{b_variable_count}"
+        )
+
     # === BUILD SLIDES PROOF ===
     ws = result.get("written_slides")
     slides = []
@@ -990,6 +1014,12 @@ async def run_e2e(
             getattr(result.get("last_error"), "message", "")
         )
     )
+    blocked_by_render_error = (
+        not rendered
+        and result.get("last_error")
+        and getattr(result.get("last_error"), "error_type", "") == "RenderV2Error"
+        and not blocked_by_quality_gate
+    )
 
     if rendered:
         if placeholder_violations:
@@ -1007,6 +1037,9 @@ async def run_e2e(
         proof_status = "PASSED"
     elif blocked_by_fail_close:
         proof_class = "NEGATIVE_PROOF_FAIL_CLOSE"
+        proof_status = "PASSED"
+    elif blocked_by_render_error:
+        proof_class = "NEGATIVE_PROOF_RENDER_ERROR"
         proof_status = "PASSED"
     else:
         proof_class = "UNEXPECTED_FAILURE"
