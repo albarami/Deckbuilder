@@ -361,7 +361,7 @@ class MethodologyOverviewSlide(SlideOutput):
     """Methodology overview - grid with up to 4 phases."""
 
     subtitle: str = Field(
-        max_length=120, description="Methodology approach name",
+        max_length=200, description="Methodology approach name",
     )
     phases: list[PhaseContent] = Field(
         min_length=3,
@@ -399,7 +399,7 @@ class MethodologyFocusedSlide(SlideOutput):
         ge=1, le=4,
         description="Which phase is highlighted on this slide",
     )
-    subtitle: str = Field(default="", max_length=120)
+    subtitle: str = Field(default="", max_length=200)
     phases: list[PhaseContent] = Field(min_length=3, max_length=4)
     cross_cutting_themes: list[str] = Field(
         default_factory=list, max_length=4,

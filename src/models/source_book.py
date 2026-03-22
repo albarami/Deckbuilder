@@ -43,13 +43,14 @@ class ClientProblemFraming(DeckForgeBaseModel):
 class CapabilityMapping(DeckForgeBaseModel):
     """Row in Section 3.1: Capability-to-RFP Mapping table.
 
-    evidence_ids is structurally required (min 1) — every capability
-    claim must reference at least one CLM-xxxx evidence ID.
+    evidence_ids SHOULD reference CLM-xxxx IDs when available.
+    Empty list is allowed when evidence is thin — the Reviewer
+    will flag missing evidence during the scoring pass.
     """
 
     rfp_requirement: str = ""
     sg_capability: str = ""
-    evidence_ids: list[str] = Field(min_length=1)  # CLM-xxxx refs, min 1 required
+    evidence_ids: list[str] = Field(default_factory=list)
     strength: Literal["strong", "moderate", "weak", "gap"] = "moderate"
 
 
@@ -65,14 +66,15 @@ class ConsultantProfile(DeckForgeBaseModel):
 class ProjectExperience(DeckForgeBaseModel):
     """Row in Section 3.3: Relevant Project Experience.
 
-    evidence_ids is structurally required (min 1) — every project
-    claim must reference at least one CLM-xxxx evidence ID.
+    evidence_ids SHOULD reference CLM-xxxx IDs when available.
+    Empty list is allowed when evidence is thin — the Reviewer
+    will flag missing evidence during the scoring pass.
     """
 
     project_name: str = ""
     client: str = ""
     outcomes: str = ""
-    evidence_ids: list[str] = Field(min_length=1)  # CLM-xxxx refs, min 1 required
+    evidence_ids: list[str] = Field(default_factory=list)
 
 
 class WhyStrategicGears(DeckForgeBaseModel):

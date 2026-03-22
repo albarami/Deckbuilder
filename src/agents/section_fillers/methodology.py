@@ -134,6 +134,7 @@ Phase structure (from the assembly plan):
 
 CRITICAL FORMAT RULES — structured data, NOT paragraphs:
 - phase_title: max 5 words, e.g., "Discovery & Assessment"
+- subtitle: max 120 characters (short methodology approach name, e.g., "Phased Digital Transformation Approach")
 - phase_activities: 3-5 bullet items, each max 25 words
 - deliverables: 3-5 bullet items, each max 25 words
 - frameworks: 2-4 bullet items, each max 25 words

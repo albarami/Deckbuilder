@@ -1,50 +1,51 @@
 {
   "proof_class": "NEGATIVE_PROOF_QUALITY_GATE_BLOCKED",
   "proof_status": "PASSED",
-  "session_id": "e2e-en-positive-1774183469",
+  "session_id": "e2e-en-positive-1774198935",
   "language": "en",
   "brief_label": "positive",
-  "total_time": 3036.869504928589,
+  "total_time": 2983.849341392517,
   "bypasses": "ZERO",
   "pipeline": "source_book",
   "pptx_path": null,
-  "docx_path": "output/e2e-en-positive-1774183469/source_book.docx",
+  "docx_path": "output/e2e-en-positive-1774198935/source_book.docx",
   "source_index_path": null,
   "gap_report_path": null,
+  "blueprint_json_path": "output\\e2e-en-positive-1774198935\\slide_blueprint.json",
   "final_stage": "error",
   "session_scoped": false,
   "placeholder_violations": 0,
   "quality_failures": [],
   "qa_fail_close": false,
-  "qa_passed": 3,
-  "qa_failed": 3,
+  "qa_passed": 4,
+  "qa_failed": 11,
   "lint_blockers": 0,
-  "density_blockers": 17,
+  "density_blockers": 59,
   "provenance_blockers": 0,
   "stages": [
     [
       "context -> gate_1",
-      5.8048319816589355
+      7.664369821548462
     ],
     [
       "retrieval -> gate_2",
-      30.6134831905365
+      30.08744478225708
     ],
     [
       "evidence_curation -> proposal_strategy -> source_book -> gate_3",
-      2000.4839344024658
+      1944.7584986686707
     ],
     [
       "assembly_plan -> blueprint -> section_fill -> build_slides -> gate_4",
-      980.0945379734039
+      944.9749681949615
     ],
     [
       "qa -> governance -> gate_5",
-      16.73894691467285
+      53.60976982116699
     ],
     [
       "render -> END",
-      3.13377046585083
+      2.7542901039123535
     ]
   ]
 }

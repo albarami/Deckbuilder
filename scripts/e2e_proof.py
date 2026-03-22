@@ -547,6 +547,16 @@ async def run_e2e(
     else:
         print("  WARNING: slide_blueprint is EMPTY -- Slide Architect failed")
 
+    # Persist blueprint JSON artifact
+    blueprint_json_path = None
+    if slide_bp:
+        bp_out_dir = Path(f"output/{session_id}")
+        bp_out_dir.mkdir(parents=True, exist_ok=True)
+        blueprint_json_path = str(bp_out_dir / "slide_blueprint.json")
+        with open(blueprint_json_path, "w", encoding="utf-8") as f:
+            json.dump(slide_bp.model_dump(mode="json"), f, indent=2, ensure_ascii=False)
+        print(f"  Blueprint JSON persisted: {blueprint_json_path}")
+
     # === SECTION FILL PROOF ===
     filler_outputs = result.get("filler_outputs")
     print("\n  --- Section Fill Proof ---")
@@ -752,6 +762,7 @@ async def run_e2e(
         ("Report DOCX", docx_path),
         ("Source Index", source_idx),
         ("Gap Report", gap_report),
+        ("Blueprint JSON", blueprint_json_path),
     ]:
         if path and Path(path).exists():
             size = Path(path).stat().st_size
@@ -1022,6 +1033,7 @@ async def run_e2e(
         "docx_path": str(docx_path) if docx_path else None,
         "source_index_path": str(source_idx) if source_idx else None,
         "gap_report_path": str(gap_report) if gap_report else None,
+        "blueprint_json_path": blueprint_json_path if slide_bp else None,
         "final_stage": str(final_stage),
         "session_scoped": session_scoped if pptx_path else False,
         "placeholder_violations": len(placeholder_violations),

@@ -15,6 +15,9 @@ You receive:
 
 ## Output
 Produce a SlideBlueprint with one SlideBlueprintEntry per variable slide.
+**CRITICAL:** You MUST produce exactly one entry per variable slide listed in
+variable_slide_budget_by_section. An empty entries list is NEVER acceptable —
+it means downstream fillers have no guidance and all slides will be empty.
 
 For each entry, provide:
 - **slide_number**: Sequential position in the variable slides
@@ -38,4 +41,19 @@ For each entry, provide:
 6. forbidden_content should prevent generic statements that weaken the proposal
 7. Set total_variable_slides to the total number of entries
 8. Set evidence_coverage to the fraction of slides that have at least one proof_point
+
+## Language Handling
+- The Source Book may be written in Arabic (ar) or English (en)
+- READ and UNDERSTAND the Source Book content regardless of its language
+- Your output SlideBlueprint entries should use the SAME language as the Source Book for:
+  - title, key_message, bullet_logic (match Source Book language)
+- These fields stay in English regardless: section IDs, layout IDs, evidence IDs (CLM-xxxx, EXT-xxx)
+- If the Source Book has thin content (few sections filled, limited evidence), STILL produce entries:
+  - Use whatever content IS available
+  - Create purpose and key_message from the Source Book's problem framing and proposed solution
+  - Mark slides with limited evidence as having empty proof_points
+    rather than skipping the slide entirely
+- NEVER return an empty entries list — if you have a
+  variable_slide_budget_by_section, produce at least one entry per
+  section with budget > 0
 """
