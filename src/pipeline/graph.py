@@ -535,12 +535,49 @@ async def proposal_strategy_node(state: DeckForgeState) -> dict[str, Any]:
     return await proposal_strategy_agent.run(state)
 
 
+def _build_gate3_feedback_for_writer(state: DeckForgeState) -> str:
+    """Build feedback string combining Gate 3 human feedback and Red Team review.
+
+    Merge behavior:
+    - Gate 3 human feedback (priority) is labeled and placed first
+    - Red Team reviewer feedback is labeled and placed second
+    - If only one source exists, only that source is included
+    - If neither exists, returns empty string
+
+    This is called on the first pass of a Gate 3 rejection rewrite
+    so the writer addresses human feedback immediately.
+    """
+    from src.agents.source_book import orchestrator
+
+    parts: list[str] = []
+
+    # Gate 3 human feedback — takes priority
+    if state.gate_3 and not state.gate_3.approved and state.gate_3.feedback:
+        parts.append("=== GATE 3 HUMAN FEEDBACK (priority) ===")
+        parts.append(state.gate_3.feedback)
+        parts.append("")
+
+    # Red Team reviewer feedback
+    if state.source_book_review:
+        reviewer_fb = orchestrator.build_reviewer_feedback(state.source_book_review)
+        if reviewer_fb.strip():
+            parts.append("=== RED TEAM REVIEWER FEEDBACK ===")
+            parts.append(reviewer_fb)
+            parts.append("")
+
+    return "\n".join(parts)
+
+
 async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     """Source Book — iterative Writer/Reviewer loop producing Source Book DOCX.
 
     Runs the Source Book Writer, then Reviewer, iterating up to 5 passes
     until the review threshold is met (overall >= 4, no section < 3).
     Exports DOCX and populates report_markdown from the approved Source Book.
+
+    On Gate 3 rejection rewrite: the first pass includes Gate 3 human
+    feedback merged with Red Team review feedback. Human feedback has
+    priority labeling so the writer addresses it first.
     """
     from src.agents.source_book import orchestrator, reviewer, writer
     from src.services.source_book_export import export_source_book_docx
@@ -548,10 +585,16 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     max_passes = 5
     current_state = state
 
+    # Gate 3 rejection feedback — inject into first pass if present
+    gate3_feedback = _build_gate3_feedback_for_writer(state)
+
     for pass_num in range(1, max_passes + 1):
         # Writer pass
         reviewer_feedback = ""
-        if pass_num > 1 and current_state.source_book_review:
+        if pass_num == 1 and gate3_feedback:
+            # First pass after Gate 3 rejection: use merged feedback
+            reviewer_feedback = gate3_feedback
+        elif pass_num > 1 and current_state.source_book_review:
             reviewer_feedback = orchestrator.build_reviewer_feedback(
                 current_state.source_book_review
             )

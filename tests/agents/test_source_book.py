@@ -1192,3 +1192,147 @@ class TestAssemblyPlanPromptUpdate:
 
         payload = json.dumps(user_data, ensure_ascii=False)
         assert "Agile-Waterfall hybrid" in payload
+
+
+# ──────────────────────────────────────────────────────────────
+# 12. Phase 4 BLOCKER 1: Gate 3 feedback reaches Source Book writer
+# ──────────────────────────────────────────────────────────────
+
+
+class TestGate3FeedbackToWriter:
+    """Gate 3 rejection feedback must reach the Source Book writer on rewrite."""
+
+    def test_gate_3_rejection_populates_feedback_on_state(self):
+        """GateDecision stores rejection feedback."""
+        from src.models.state import GateDecision
+
+        gd = GateDecision(
+            gate_number=3,
+            approved=False,
+            feedback="The evidence for capability mapping is too weak. "
+            "Need stronger CLM references for Phase 2 activities.",
+        )
+        assert not gd.approved
+        assert "capability mapping" in gd.feedback
+        assert len(gd.feedback) > 0
+
+    def test_source_book_node_builds_gate3_feedback_for_writer(self):
+        """On Gate 3 rejection rewrite, source_book_node must feed Gate 3
+        feedback into the writer's first pass.
+
+        When state.gate_3 has rejection feedback and state.source_book
+        already exists (rewrite scenario), the feedback string passed to
+        writer.run() must include Gate 3 human feedback.
+        """
+        from src.models.state import GateDecision
+        from src.pipeline.graph import _build_gate3_feedback_for_writer
+
+        # Scenario: Gate 3 rejected with feedback, existing Source Book
+        state = DeckForgeState(
+            source_book=SourceBook(
+                client_name="Acme Corp",
+                pass_number=2,
+            ),
+            source_book_review=SourceBookReview(
+                overall_score=3,
+                competitive_viability="adequate",
+                section_critiques=[
+                    SectionCritique(
+                        section_id="why_strategic_gears",
+                        score=2,
+                        issues=["Weak evidence for cloud migration capability"],
+                        rewrite_instructions=["Add CLM-0045 reference"],
+                    ),
+                ],
+            ),
+            gate_3=GateDecision(
+                gate_number=3,
+                approved=False,
+                feedback="The proposed solution section needs stronger "
+                "differentiation. Add specific Saudi market experience.",
+            ),
+        )
+
+        feedback = _build_gate3_feedback_for_writer(state)
+
+        # Must include Gate 3 human feedback
+        assert "Saudi market experience" in feedback, (
+            f"Gate 3 feedback missing from writer input: {feedback}"
+        )
+        assert "differentiation" in feedback, (
+            f"Gate 3 feedback content missing: {feedback}"
+        )
+
+    def test_feedback_merge_includes_both_reviewer_and_gate3(self):
+        """When both Red Team review and Gate 3 feedback exist,
+        the merged feedback must include BOTH with clear labels.
+        """
+        from src.models.state import GateDecision
+        from src.pipeline.graph import _build_gate3_feedback_for_writer
+
+        state = DeckForgeState(
+            source_book=SourceBook(pass_number=2),
+            source_book_review=SourceBookReview(
+                overall_score=3,
+                competitive_viability="adequate",
+                section_critiques=[
+                    SectionCritique(
+                        section_id="rfp_interpretation",
+                        score=3,
+                        issues=["Missing compliance analysis"],
+                    ),
+                ],
+            ),
+            gate_3=GateDecision(
+                gate_number=3,
+                approved=False,
+                feedback="Focus more on Vision 2030 alignment.",
+            ),
+        )
+
+        feedback = _build_gate3_feedback_for_writer(state)
+
+        # Both sources present
+        assert "Vision 2030" in feedback, (
+            f"Gate 3 feedback missing: {feedback}"
+        )
+        assert "compliance" in feedback.lower(), (
+            f"Reviewer feedback missing: {feedback}"
+        )
+        # Clear labeling
+        assert "gate 3" in feedback.lower() or "human" in feedback.lower(), (
+            f"Gate 3 feedback not labeled: {feedback}"
+        )
+
+    def test_feedback_empty_when_no_gate3_rejection(self):
+        """When Gate 3 is not rejected (or absent), no Gate 3 feedback
+        should be injected.
+        """
+        from src.pipeline.graph import _build_gate3_feedback_for_writer
+
+        # No gate_3 at all
+        state = DeckForgeState()
+        feedback = _build_gate3_feedback_for_writer(state)
+        # Should return empty or reviewer-only feedback (no gate 3 content)
+        assert "gate 3" not in feedback.lower() or feedback == ""
+
+    def test_gate3_feedback_has_priority_label(self):
+        """Human (Gate 3) feedback should have a priority label so the writer
+        knows to address it first.
+        """
+        from src.models.state import GateDecision
+        from src.pipeline.graph import _build_gate3_feedback_for_writer
+
+        state = DeckForgeState(
+            source_book=SourceBook(pass_number=1),
+            gate_3=GateDecision(
+                gate_number=3,
+                approved=False,
+                feedback="Restructure the methodology section entirely.",
+            ),
+        )
+
+        feedback = _build_gate3_feedback_for_writer(state)
+        # Human feedback should be clearly marked and prioritized
+        assert "Restructure the methodology" in feedback
+        assert len(feedback) > 0
