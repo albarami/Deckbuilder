@@ -1,0 +1,43 @@
+{
+  "status": "SUCCESS",
+  "session_id": "sb-en-1774258863",
+  "failures": [],
+  "word_count": 2447,
+  "evidence_ledger_entries": 29,
+  "slide_blueprint_entries": 14,
+  "external_sources": 5,
+  "s2_status": "WORKING (3 results)",
+  "pplx_status": "WORKING (1 results)",
+  "capability_mappings": 8,
+  "consultant_count": 5,
+  "real_consultant_names": [
+    "Ahmad Al-Rashidi",
+    "Salim Al-Harbi",
+    "Laura Rojo",
+    "Noura Al-Mutairi",
+    "Mohammed Al-Dosari"
+  ],
+  "project_count": 8,
+  "project_names": [
+    "National AI Strategy",
+    "Digital Transformation Roadmap",
+    "Enterprise Automation Program",
+    "Workforce Intelligence Platform",
+    "Process Automation",
+    "Enterprise AI Platform Architecture",
+    "Anomaly Detection System",
+    "Digital Transformation Roadmap"
+  ],
+  "pass_number": 5,
+  "review_score": 3,
+  "total_time": 2718.10022521019,
+  "docx_path": "output/sb-en-1774258863/source_book.docx",
+  "artifacts": {
+    "Source Book DOCX": "output/sb-en-1774258863/source_book.docx",
+    "Evidence Ledger JSON": "output\\sb-en-1774258863\\evidence_ledger.json",
+    "Slide Blueprint JSON": "output\\sb-en-1774258863\\slide_blueprint_from_source_book.json",
+    "External Evidence Pack": "output\\sb-en-1774258863\\external_evidence_pack.json",
+    "Research Query Log": "output\\sb-en-1774258863\\research_query_log.json",
+    "Research Results Raw": "output\\sb-en-1774258863\\research_results_raw.json"
+  }
+}

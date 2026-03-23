@@ -92,13 +92,19 @@ def search_papers(
     if api_key:
         headers["x-api-key"] = api_key
 
+    url = f"{SEMANTIC_SCHOLAR_BASE_URL}/paper/search/bulk"
     try:
         with httpx.Client(timeout=timeout) as client:
-            response = client.get(
-                f"{SEMANTIC_SCHOLAR_BASE_URL}/paper/search/bulk",
-                params=params,
-                headers=headers,
-            )
+            response = client.get(url, params=params, headers=headers)
+
+            # If API key causes 403, retry WITHOUT the key (public rate)
+            if response.status_code == 403 and api_key:
+                logger.warning(
+                    "S2 API key returned 403 — retrying without key "
+                    "(public rate limit)",
+                )
+                response = client.get(url, params=params)
+
             response.raise_for_status()
             data = response.json()
             logger.info(

@@ -1,0 +1,216 @@
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+src.agents.analysis.agent WARNING: Analysis payload size: chars=30857 docs=1
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=technology%20Digital%20Transformation%20Consulting%20Services%20RFP%20best%20practices&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 403 Forbidden"
+src.services.semantic_scholar WARNING: S2 API key returned 403 — retrying without key (public rate limit)
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=technology%20Digital%20Transformation%20Consulting%20Services%20RFP%20best%20practices&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: Semantic Scholar API 200: query='technology Digital Transformation Consulting Services RFP be', total=0
+src.services.semantic_scholar INFO: Semantic Scholar: query='technology Digital Transformation Consulting Services RFP be' returned 0 results
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=ksa%20technology%20digital%20transformation&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 403 Forbidden"
+src.services.semantic_scholar WARNING: S2 API key returned 403 — retrying without key (public rate limit)
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=ksa%20technology%20digital%20transformation&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: Semantic Scholar API 200: query='ksa technology digital transformation', total=23
+src.services.semantic_scholar INFO: Semantic Scholar: query='ksa technology digital transformation' returned 3 results
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=Provide%20digital%20transformation%20advisory%2C%20enterprise%20architecture%20assessment%2C%20and%20automation%20strategy%20methodology%20framework&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 403 Forbidden"
+src.services.semantic_scholar WARNING: S2 API key returned 403 — retrying without key (public rate limit)
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=Provide%20digital%20transformation%20advisory%2C%20enterprise%20architecture%20assessment%2C%20and%20automation%20strategy%20methodology%20framework&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: Semantic Scholar API 200: query='Provide digital transformation advisory, enterprise architec', total=0
+src.services.semantic_scholar INFO: Semantic Scholar: query='Provide digital transformation advisory, enterprise architec' returned 0 results
+httpx INFO: HTTP Request: POST https://api.perplexity.ai/chat/completions "HTTP/1.1 200 OK"
+src.services.perplexity INFO: Perplexity API 200: model=sonar, query='technology Digital Transformation Consulting Services RFP be'
+src.services.perplexity INFO: Perplexity: query='technology Digital Transformation Consulting Services RFP be' returned 2669 chars, 7 citations
+httpx INFO: HTTP Request: POST https://api.perplexity.ai/chat/completions "HTTP/1.1 200 OK"
+src.services.perplexity INFO: Perplexity API 200: model=sonar, query='ksa technology digital transformation'
+src.services.perplexity INFO: Perplexity: query='ksa technology digital transformation' returned 2347 chars, 7 citations
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.external_research.agent INFO: External research complete: 5 sources from 4 queries
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.analysis.agent WARNING: Analysis payload size: chars=14549 docs=1
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.analysis.agent WARNING: Analysis payload size: chars=8503 docs=1
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.pipeline.graph INFO: Knowledge graph loaded from state/index_positive/: 5 people, 20 projects, 17 clients
+src.agents.proposal_strategy.agent INFO: Proposal Strategist payload: chars=21475, has_ref_index=True, has_ext_evidence=True
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.proposal_strategy.agent INFO: Proposal strategy complete: 5 win themes, 6 evaluator priorities, 10 evidence gaps
+src.agents.source_book.writer INFO: Source Book Writer payload: chars=51857, has_ref_index=True, has_strategy=True, rewrite=False
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer INFO: Source Book written: pass=1, blueprints=14, evidence_entries=38, capabilities=8
+src.agents.source_book.reviewer INFO: Source Book Reviewer payload: chars=94291, pass=1
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+src.agents.source_book.reviewer INFO: Source Book review: overall=3, viability=weak, threshold_met=False, sections_critiqued=6
+src.pipeline.graph INFO: Source Book pass 1: score=3, threshold=False, viability=weak
+src.agents.source_book.orchestrator INFO: Continuing iteration: score=3, threshold_met=False, pass=1/5
+src.agents.source_book.writer INFO: Source Book Writer payload: chars=158508, has_ref_index=True, has_strategy=True, rewrite=True
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer WARNING: Source Book Writer produced empty evidence ledger — attempting to build from citations
+src.agents.source_book.writer INFO: Built evidence ledger from citations: 6 CLM + 0 EXT = 6 entries
+src.agents.source_book.writer INFO: Evidence ledger populated from citations: 6 entries
+src.agents.source_book.writer INFO: Source Book written: pass=2, blueprints=14, evidence_entries=6, capabilities=6
+src.agents.source_book.reviewer INFO: Source Book Reviewer payload: chars=78542, pass=2
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+src.agents.source_book.reviewer INFO: Source Book review: overall=3, viability=adequate, threshold_met=False, sections_critiqued=7
+src.pipeline.graph INFO: Source Book pass 2: score=3, threshold=False, viability=adequate
+src.agents.source_book.orchestrator INFO: Continuing iteration: score=3, threshold_met=False, pass=2/5
+src.agents.source_book.writer INFO: Source Book Writer payload: chars=141114, has_ref_index=True, has_strategy=True, rewrite=True
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer INFO: Source Book written: pass=3, blueprints=14, evidence_entries=23, capabilities=6
+src.agents.source_book.reviewer INFO: Source Book Reviewer payload: chars=86125, pass=3
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+src.agents.source_book.reviewer INFO: Source Book review: overall=3, viability=adequate, threshold_met=False, sections_critiqued=7
+src.pipeline.graph INFO: Source Book pass 3: score=3, threshold=False, viability=adequate
+src.agents.source_book.orchestrator INFO: Continuing iteration: score=3, threshold_met=False, pass=3/5
+src.agents.source_book.writer INFO: Source Book Writer payload: chars=146062, has_ref_index=True, has_strategy=True, rewrite=True
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer WARNING: Source Book Writer produced empty evidence ledger — attempting to build from citations
+src.agents.source_book.writer INFO: Built evidence ledger from citations: 11 CLM + 0 EXT = 11 entries
+src.agents.source_book.writer INFO: Evidence ledger populated from citations: 11 entries
+src.agents.source_book.writer INFO: Source Book written: pass=4, blueprints=14, evidence_entries=11, capabilities=8
+src.agents.source_book.reviewer INFO: Source Book Reviewer payload: chars=80898, pass=4
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+src.agents.source_book.reviewer INFO: Source Book review: overall=3, viability=adequate, threshold_met=False, sections_critiqued=7
+src.pipeline.graph INFO: Source Book pass 4: score=3, threshold=False, viability=adequate
+src.agents.source_book.orchestrator INFO: Continuing iteration: score=3, threshold_met=False, pass=4/5
+src.agents.source_book.writer INFO: Source Book Writer payload: chars=142440, has_ref_index=True, has_strategy=True, rewrite=True
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer INFO: Source Book written: pass=5, blueprints=14, evidence_entries=29, capabilities=8
+src.agents.source_book.reviewer INFO: Source Book Reviewer payload: chars=88936, pass=5
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+src.agents.source_book.reviewer INFO: Source Book review: overall=3, viability=weak, threshold_met=False, sections_critiqued=7
+src.pipeline.graph INFO: Source Book pass 5: score=3, threshold=False, viability=weak
+src.agents.source_book.orchestrator INFO: Stopping iteration: reached max passes (5/5)
+src.services.source_book_export INFO: Source Book DOCX exported to output/sb-en-1774258863/source_book.docx
+src.pipeline.graph INFO: Source Book DOCX exported: output/sb-en-1774258863/source_book.docx
+
+================================================================================
+  SOURCE BOOK ONLY: language=en
+  Stops at: source_book (before assembly_plan)
+  NO PPTX. NO DECK. NO RENDER.
+================================================================================
+
+[INDEX] Overriding search defaults: docs=data_positive_proof
+[INDEX] Using cached index at state\index_positive
+[INDEX] Search backend ready (docs=data_positive_proof)
+
+[BUILD] Building production pipeline graph...
+[BUILD] Graph ready
+[SESSION] ID: sb-en-1774258863
+
+--------------------------------------------------------------------------------
+  PHASE 1: START → context → gate_1 (interrupt)
+--------------------------------------------------------------------------------
+  Time: 10.5s | Stage: context_review
+  rfp_name: en='Digital Transformation Consulting Services RFP' ar=None
+
+--------------------------------------------------------------------------------
+  PHASE 2: gate_1 approve → retrieval → gate_2 (interrupt)
+--------------------------------------------------------------------------------
+  Time: 34.4s | Sources: 3
+
+--------------------------------------------------------------------------------
+  PHASE 3: gate_2 approve → evidence_curation →
+           proposal_strategy → source_book → gate_3
+--------------------------------------------------------------------------------
+  Time: 2673.3s | Stage: analysis
+
+  Source Book DOCX: output/sb-en-1774258863/source_book.docx
+  Evidence ledger: output\sb-en-1774258863\evidence_ledger.json (29 entries)
+  Slide blueprints: output\sb-en-1774258863\slide_blueprint_from_source_book.json (14 entries)
+  External evidence: output\sb-en-1774258863\external_evidence_pack.json (5 sources)
+  Research query log: output\sb-en-1774258863\research_query_log.json
+  Research results raw: output\sb-en-1774258863\research_results_raw.json
+
+================================================================================
+  SOURCE BOOK SUMMARY — Session: sb-en-1774258863
+================================================================================
+
+  Status: SUCCESS
+
+  --- Content Metrics ---
+  Word count (prose sections):     2447
+  Evidence ledger entries:         29
+  Slide blueprint entries:         14
+  External evidence sources:       5
+    Semantic Scholar:              3
+    Perplexity:                    1
+  Capability mappings:             8
+  Named consultants:               5
+    Real names:                    5
+    Placeholder names:             0
+  Prior projects:                  8
+
+  --- Writer/Reviewer ---
+  Writer pass count:               5
+  Final review score:              3/5
+  Competitive viability:           weak
+  Pass threshold met:              False
+
+  --- External Research Status ---
+  Semantic Scholar:                WORKING (3 results)
+  Perplexity:                      WORKING (1 results)
+
+  --- Knowledge Graph ---
+  KG internal team members:        5
+  KG projects:                     20
+
+  --- Named Consultants ---
+    ✓  Ahmad Al-Rashidi
+    ✓  Salim Al-Harbi
+    ✓  Laura Rojo
+    ✓  Noura Al-Mutairi
+    ✓  Mohammed Al-Dosari
+
+  --- Prior Projects ---
+    • National AI Strategy
+    • Digital Transformation Roadmap
+    • Enterprise Automation Program
+    • Workforce Intelligence Platform
+    • Process Automation
+    • Enterprise AI Platform Architecture
+    • Anomaly Detection System
+    • Digital Transformation Roadmap
+
+  --- Artifacts ---
+    Source Book DOCX: output/sb-en-1774258863/source_book.docx (60,829 bytes)
+    Evidence Ledger JSON: output\sb-en-1774258863\evidence_ledger.json (14,163 bytes)
+    Slide Blueprint JSON: output\sb-en-1774258863\slide_blueprint_from_source_book.json (18,665 bytes)
+    External Evidence Pack: output\sb-en-1774258863\external_evidence_pack.json (11,190 bytes)
+    Research Query Log: output\sb-en-1774258863\research_query_log.json (1,983 bytes)
+    Research Results Raw: output\sb-en-1774258863\research_results_raw.json (3,113 bytes)
+
+  --- Timing ---
+       10.5s  context → gate_1
+       34.4s  retrieval → gate_2
+     2673.3s  evidence → strategy → source_book → gate_3
+     2718.1s  TOTAL
+
+================================================================================
+  FINAL STATUS: SUCCESS
+================================================================================
+
+Results written to: source_book_only_en_result.json

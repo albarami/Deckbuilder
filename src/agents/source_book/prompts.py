@@ -16,11 +16,21 @@ SECTION 1: RFP INTERPRETATION
 
 Analyze the RFP through the lens of a senior bid manager:
 - objective_and_scope: What does the client actually want? (2-3 paragraphs)
-- constraints_and_compliance: Budget, timeline, regulatory, technical constraints
-- unstated_evaluator_priorities: What evaluators care about but didn't write
-  (e.g., Saudization, local content, past performance)
-- probable_scoring_logic: How will they likely score? (technical/financial split, weighting)
-- key_compliance_requirements: List of compliance items (COMP-001, COMP-002, etc.)
+  Reference specific RFP clauses, scope items, and deliverables.
+- constraints_and_compliance: Budget, timeline, regulatory, technical
+  constraints. Reference national regulations (Vision 2030, DGA, NDMO)
+  if applicable.
+- unstated_evaluator_priorities: What evaluators care about but didn't
+  write (e.g., Saudization, local content, past performance, national
+  framework alignment, change management capability)
+- probable_scoring_logic: How will they likely score? (technical/financial
+  split, weighting). Reference evaluation criteria from the RFP.
+- key_compliance_requirements: Produce a DETAILED compliance table with
+  at least 8 items. Each item: COMP-xxx ID, requirement description,
+  how SG addresses it, evidence reference. This is the compliance-to-RFP
+  mapping that evaluators check first. Example:
+  COMP-001: "Minimum 5 years consulting experience" → "SG founded 2015,
+  10+ years, 270+ projects [CLM-0001]"
 
 ═══════════════════════════════════════════════════
 SECTION 2: CLIENT PROBLEM FRAMING
@@ -37,20 +47,49 @@ SECTION 3: WHY STRATEGIC GEARS
 ═══════════════════════════════════════════════════
 
 Map SG capabilities to RFP requirements with EVIDENCE:
-- capability_mapping: Table mapping each RFP requirement to SG capability + evidence IDs + strength
-- named_consultants: Named people with specific roles, certifications, years of experience.
-  CRITICAL: If knowledge_graph.people is provided, use REAL names from there
-  (e.g., Ahmad Al-Rashidi, Salim Al-Harbi). Do NOT invent placeholder names.
-- project_experience: Named projects with clients, outcomes, evidence IDs.
-  CRITICAL: If knowledge_graph.projects is provided, use REAL project names
-  and clients from there. Do NOT invent placeholder projects.
-- certifications_and_compliance: ISO certifications, partnerships, compliance credentials.
-  Use real certifications from knowledge_graph.people if available.
+
+- capability_mapping: Table mapping EACH RFP requirement to SG capability.
+  Produce at least 5 rows. Each row needs: rfp_requirement, sg_capability,
+  evidence_ids (CLM-xxxx), and strength rating.
+
+- named_consultants: Produce 5-8 consultant profiles from knowledge_graph.
+  CRITICAL: Use REAL names from knowledge_graph.people — do NOT invent.
+  For EACH consultant, populate ALL fields:
+  * name: Real name from KG
+  * role: Proposed role on THIS project
+  * relevance: 2-3 sentences on why this person is right for this role
+  * certifications: List from KG (e.g., PMP, TOGAF, CDMP, SAFe, ITIL)
+  * years_experience: Integer from KG
+  * education: Degrees from KG (e.g., "MBA, King Saud University")
+  * domain_expertise: Areas from KG
+  * prior_employers: If available in KG (e.g., "McKinsey", "Deloitte")
+  Real proposals show: "Nagaraj Padmanabhan, Senior Partner, 21+ years,
+  MBA MIS, BSc EE, led SAP EA for oil/gas sector [CLM-0005]"
+
+- project_experience: Produce 8-12 prior projects from knowledge_graph.
+  CRITICAL: Use REAL project names and clients from KG.
+  For EACH project, populate ALL fields:
+  * project_name, client, sector, duration, methodologies
+  * outcomes: Specific, measurable (e.g., "Documented 340+ processes
+    with KPIs", "15x increase in value chain output", "25 agencies
+    unified in violation lifecycle")
+  * evidence_ids: CLM-xxxx references
+  Structure as: challenge the client faced → SG contribution → impact.
+
+- certifications_and_compliance: List ALL relevant certifications,
+  partnerships, and compliance credentials. Include:
+  * ISO certifications (ISO 9001, ISO 27001, etc.)
+  * Academic partnerships (Stanford, George Washington University)
+  * Technology partnerships
+  * Industry rankings (e.g., "Platinum among top 100 consulting firms")
+  * Scale metrics (270+ projects, 140+ clients, 21 sectors)
 
 CRITICAL: Every capability claim MUST reference CLM-xxxx evidence IDs.
 REJECT vague claims like "extensive experience" or "deep expertise."
 USE knowledge_graph data when available — it contains verified SG people,
 projects, and clients extracted from internal documents.
+Write with AUTHORITY — no hedging ("to be confirmed", "validation needed").
+State capabilities as facts, backed by evidence.
 
 ═══════════════════════════════════════════════════
 SECTION 4: EXTERNAL EVIDENCE
@@ -61,15 +100,53 @@ Curate external evidence that supports the proposal:
 - coverage_assessment: What areas have strong external backing vs gaps?
 
 ═══════════════════════════════════════════════════
-SECTION 5: PROPOSED SOLUTION
+SECTION 5: PROPOSED SOLUTION (BENCHMARK-GRADE DEPTH REQUIRED)
 ═══════════════════════════════════════════════════
 
-Detail the proposed methodology:
-- methodology_overview: High-level approach (1-2 paragraphs)
-- phase_details: Per-phase breakdown with activities, deliverables, governance
-- governance_framework: How the project will be governed
-- timeline_logic: Why the proposed timeline is realistic
-- value_case_and_differentiation: What makes SG's approach unique?
+This is the MOST IMPORTANT section — it determines the evaluator's
+confidence in SG's ability to deliver. Real winning proposals dedicate
+40-50 slides to methodology alone. Match that depth here.
+
+- methodology_overview: 2-3 paragraphs describing the overall approach,
+  referencing recognized frameworks (TOGAF, ITIL, PMBOK, COBIT, Agile,
+  Lean Six Sigma, ISO standards) where relevant to the engagement.
+  Mention national methodology alignment if applicable (DGA, NORA, NDMO).
+
+- phase_details: You MUST produce 4-5 distinct phases. For EACH phase:
+  * phase_name: Specific to this engagement (not generic "Phase 1")
+  * activities: 6-10 specific activities per phase, each a concrete
+    action (e.g., "Conduct stakeholder interviews with 15+ department
+    heads to map current-state processes" not "Analyze current state")
+  * deliverables: 4-8 named deliverables per phase (e.g., "Current-State
+    Architecture Report", "Gap Analysis Matrix", "RACI Matrix for Phase 2
+    Governance", "Training Package with 6 Workshop Modules")
+  * governance: Per-phase governance touchpoint describing who reviews,
+    approval gates, escalation path, and reporting cadence for that phase
+    (e.g., "Bi-weekly steering committee review; phase gate approval by
+    Project Sponsor before Phase 3 begins; weekly status dashboard")
+
+- governance_framework: A DETAILED governance section covering:
+  * Steering committee structure (membership, cadence, authority)
+  * RACI matrix approach (who is Responsible, Accountable, Consulted,
+    Informed for each deliverable category)
+  * Escalation framework with 3-4 named levels (Project Manager →
+    Project Sponsor → Steering Committee → Executive Sponsor)
+  * Reporting mechanism (weekly status, monthly executive dashboard,
+    quarterly strategic review)
+  * Risk management approach (risk register, severity classification,
+    mitigation plans, review cadence)
+  * Quality assurance mechanism for deliverables
+  * Change request process
+  * Document management and confidentiality protocols
+
+- timeline_logic: Specific timeline with month-level granularity per phase.
+  State total duration (e.g., "18 months"), phase overlaps if any, and
+  dependencies. Reference holidays/constraints if relevant.
+
+- value_case_and_differentiation: What makes SG's approach unique vs
+  competitors? Reference specific capabilities, partnerships (Stanford,
+  George Washington University), methodologies, or scale (270+ projects,
+  140+ clients, 21 sectors).
 
 ═══════════════════════════════════════════════════
 SECTION 6: SLIDE-BY-SLIDE BLUEPRINT
@@ -177,14 +254,32 @@ RED FLAGS (automatic score reduction):
 - Empty or missing subsections → score 1
 - Slide blueprints without proof_points → -1
 - Evidence ledger missing referenced IDs → -2
+- Hedging language ("to be confirmed", "validation required") → -1
+- Fewer than 4 phases in methodology → score 2 max for Section 5
+- Fewer than 5 named consultants with full profiles → score 2 for Section 3
+- Fewer than 8 prior projects with outcomes → score 2 for Section 3
+- Governance described in < 3 sentences → score 2 for governance portion
+- No compliance-to-RFP mapping in Section 1 → score 2 for Section 1
 
-SCORING CALIBRATION:
-- Score sections on CONTENT QUALITY, not just evidence density
-- A section with 2-3 real CLM-xxxx citations and specific content = score 3-4
-- A section with no citations but specific, actionable content = score 3
-- A section with generic fluff regardless of citations = score 1-2
-- Empty evidence_ledger with claims referencing CLM-xxxx = score 2 (ledger mismatch)
-- Populated evidence_ledger matching all cited CLM-xxxx = bonus +1
+BENCHMARK-GRADE SCORING (what earns score 4-5):
+Section 1 (RFP Interpretation):
+- Score 5: 8+ compliance items with COMP-xxx IDs, specific regulatory refs
+- Score 4: 5+ compliance items, clear scoring logic analysis
+- Score 3: General compliance list without specific mapping
+
+Section 3 (Why SG):
+- Score 5: 5+ real named consultants with certs/years/education,
+  8+ real projects with outcomes, 5+ capability mappings with evidence
+- Score 4: 4+ consultants, 6+ projects, 4+ mappings
+- Score 3: Some real names but thin profiles, few projects
+
+Section 5 (Proposed Solution):
+- Score 5: 4-5 phases, 6+ activities per phase, 4+ deliverables per
+  phase, per-phase governance, framework refs (TOGAF/ITIL/PMBOK),
+  RACI approach, escalation levels, reporting cadence, risk management
+- Score 4: 4+ phases, 4+ activities each, named deliverables, governance
+- Score 3: Generic phases without depth
+- Score 2: Fewer than 4 phases or generic "analyze/design/implement"
 
 CONVERGENCE GUIDANCE:
 - On rewrite passes (pass 2+), recognize IMPROVEMENT even if not perfect
