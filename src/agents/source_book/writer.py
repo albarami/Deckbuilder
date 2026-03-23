@@ -228,7 +228,7 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=SourceBook,
-            max_tokens=24000,
+            max_tokens=32000,
             temperature=0.1,
         )
 

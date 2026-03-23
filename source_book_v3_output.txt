@@ -1,0 +1,211 @@
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+src.agents.analysis.agent WARNING: Analysis payload size: chars=31086 docs=1
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=technology%20Digital%20Transformation%20Consulting%20Services%20RFP%20best%20practices&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 403 Forbidden"
+src.services.semantic_scholar WARNING: S2 API key returned 403 — retrying without key (public rate limit)
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=technology%20Digital%20Transformation%20Consulting%20Services%20RFP%20best%20practices&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: Semantic Scholar API 200: query='technology Digital Transformation Consulting Services RFP be', total=0
+src.services.semantic_scholar INFO: Semantic Scholar: query='technology Digital Transformation Consulting Services RFP be' returned 0 results
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=ksa%20technology%20digital%20transformation&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 403 Forbidden"
+src.services.semantic_scholar WARNING: S2 API key returned 403 — retrying without key (public rate limit)
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=ksa%20technology%20digital%20transformation&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: Semantic Scholar API 200: query='ksa technology digital transformation', total=23
+src.services.semantic_scholar INFO: Semantic Scholar: query='ksa technology digital transformation' returned 3 results
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=Provide%20digital%20transformation%20advisory%2C%20enterprise%20architecture%20assessment%2C%20and%20automation%20strategy%20methodology%20framework&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 403 Forbidden"
+src.services.semantic_scholar WARNING: S2 API key returned 403 — retrying without key (public rate limit)
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=Provide%20digital%20transformation%20advisory%2C%20enterprise%20architecture%20assessment%2C%20and%20automation%20strategy%20methodology%20framework&fields=title%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: Semantic Scholar API 200: query='Provide digital transformation advisory, enterprise architec', total=0
+src.services.semantic_scholar INFO: Semantic Scholar: query='Provide digital transformation advisory, enterprise architec' returned 0 results
+httpx INFO: HTTP Request: POST https://api.perplexity.ai/chat/completions "HTTP/1.1 200 OK"
+src.services.perplexity INFO: Perplexity API 200: model=sonar, query='technology Digital Transformation Consulting Services RFP be'
+src.services.perplexity INFO: Perplexity: query='technology Digital Transformation Consulting Services RFP be' returned 2966 chars, 7 citations
+httpx INFO: HTTP Request: POST https://api.perplexity.ai/chat/completions "HTTP/1.1 200 OK"
+src.services.perplexity INFO: Perplexity API 200: model=sonar, query='ksa technology digital transformation'
+src.services.perplexity INFO: Perplexity: query='ksa technology digital transformation' returned 2348 chars, 7 citations
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.external_research.agent INFO: External research complete: 5 sources from 4 queries
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.analysis.agent WARNING: Analysis payload size: chars=14778 docs=1
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.analysis.agent WARNING: Analysis payload size: chars=8732 docs=1
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.pipeline.graph INFO: Knowledge graph loaded from state/index_positive/: 5 people, 20 projects, 17 clients
+src.agents.proposal_strategy.agent INFO: Proposal Strategist payload: chars=25531, has_ref_index=True, has_ext_evidence=True
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.proposal_strategy.agent ERROR: Proposal Strategist failed: LLM call failed after 1 attempts: LLM call failed after 1 attempts: Structured output validation failed: 5 validation errors for ProposalStrategy
+win_themes.0.strategy_note
+  Extra inputs are not permitted [type=extra_forbidden, input_value="Position SG as a Saudi-h...mpany profile evidence.", input_type=str]
+    For further information visit https://errors.pydantic.dev/2.8/v/extra_forbidden
+win_themes.1.strategy_note
+  Extra inputs are not permitted [type=extra_forbidden, input_value="SG's involvement in conc...heme must be abandoned.", input_type=str]
+    For further information visit https://errors.pydantic.dev/2.8/v/extra_forbidden
+win_themes.2.strategy_note
+  Extra inputs are not permitted [type=extra_forbidden, input_value="The fragmentation diagno...ion and certifications.", input_type=str]
+    For further information visit https://errors.pydantic.dev/2.8/v/extra_forbidden
+win_themes.3.strategy_note
+  Extra inputs are not permitted [type=extra_forbidden, input_value="Evidence of designing AI...-first national agenda.", input_type=str]
+    For further information visit https://errors.pydantic.dev/2.8/v/extra_forbidden
+win_themes.4.strategy_note
+  Extra inputs are not permitted [type=extra_forbidden, input_value="CLM-0011 shows awareness...compliance credentials.", input_type=str]
+    For further information visit https://errors.pydantic.dev/2.8/v/extra_forbidden
+src.agents.source_book.writer INFO: Source Book Writer payload: chars=40705, has_ref_index=True, has_strategy=True, rewrite=False
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer WARNING: Source Book Writer produced empty evidence ledger — attempting to build from citations
+src.agents.source_book.writer INFO: Built evidence ledger from citations: 0 CLM + 5 EXT = 5 entries
+src.agents.source_book.writer INFO: Evidence ledger populated from citations: 5 entries
+src.agents.source_book.writer INFO: Source Book written: pass=1, blueprints=30, evidence_entries=5, capabilities=7
+src.agents.source_book.reviewer INFO: Source Book Reviewer payload: chars=113672, pass=1
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+src.agents.source_book.reviewer INFO: Source Book review: overall=3, viability=weak, threshold_met=False, sections_critiqued=6
+src.pipeline.graph INFO: Source Book pass 1: score=3, threshold=False, viability=weak
+src.agents.source_book.orchestrator INFO: Continuing iteration: score=3, threshold_met=False, pass=1/5
+src.agents.source_book.writer INFO: Source Book Writer payload: chars=163700, has_ref_index=True, has_strategy=True, rewrite=True
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer WARNING: Source Book Writer produced empty evidence ledger — attempting to build from citations
+src.agents.source_book.writer INFO: Built evidence ledger from citations: 1 CLM + 5 EXT = 6 entries
+src.agents.source_book.writer INFO: Evidence ledger populated from citations: 6 entries
+src.agents.source_book.writer INFO: Source Book written: pass=2, blueprints=30, evidence_entries=6, capabilities=7
+src.agents.source_book.reviewer INFO: Source Book Reviewer payload: chars=120341, pass=2
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+src.agents.source_book.reviewer INFO: Source Book review: overall=4, viability=adequate, threshold_met=True, sections_critiqued=5
+src.pipeline.graph INFO: Source Book pass 2: score=4, threshold=True, viability=adequate
+src.agents.source_book.orchestrator INFO: Stopping iteration: threshold met (score=4, pass=2)
+src.services.source_book_export INFO: Source Book DOCX exported to output/sb-en-1774268378/source_book.docx
+src.pipeline.graph INFO: Source Book DOCX exported: output/sb-en-1774268378/source_book.docx
+
+================================================================================
+  SOURCE BOOK ONLY: language=en
+  Stops at: source_book (before assembly_plan)
+  NO PPTX. NO DECK. NO RENDER.
+================================================================================
+
+[INDEX] Overriding search defaults: docs=data_positive_proof
+[INDEX] Using cached index at state\index_positive
+[INDEX] Search backend ready (docs=data_positive_proof)
+
+[BUILD] Building production pipeline graph...
+[BUILD] Graph ready
+[SESSION] ID: sb-en-1774268378
+
+--------------------------------------------------------------------------------
+  PHASE 1: START → context → gate_1 (interrupt)
+--------------------------------------------------------------------------------
+  Time: 9.8s | Stage: context_review
+  rfp_name: en='Digital Transformation Consulting Services RFP' ar=None
+
+--------------------------------------------------------------------------------
+  PHASE 2: gate_1 approve → retrieval → gate_2 (interrupt)
+--------------------------------------------------------------------------------
+  Time: 39.4s | Sources: 5
+
+--------------------------------------------------------------------------------
+  PHASE 3: gate_2 approve → evidence_curation →
+           proposal_strategy → source_book → gate_3
+--------------------------------------------------------------------------------
+  Time: 1519.4s | Stage: analysis
+
+  Source Book DOCX: output/sb-en-1774268378/source_book.docx
+  Evidence ledger: output\sb-en-1774268378\evidence_ledger.json (6 entries)
+  Slide blueprints: output\sb-en-1774268378\slide_blueprint_from_source_book.json (30 entries)
+  External evidence: output\sb-en-1774268378\external_evidence_pack.json (5 sources)
+  Research query log: output\sb-en-1774268378\research_query_log.json
+  Research results raw: output\sb-en-1774268378\research_results_raw.json
+
+================================================================================
+  SOURCE BOOK SUMMARY — Session: sb-en-1774268378
+================================================================================
+
+  Status: SUCCESS
+
+  --- Content Metrics ---
+  Word count (prose sections):     3109
+  Evidence ledger entries:         6
+  Slide blueprint entries:         30
+  External evidence sources:       5
+    Semantic Scholar:              3
+    Perplexity:                    1
+  Capability mappings:             7
+  Named consultants:               5
+    Real names:                    5
+    Placeholder names:             0
+  Prior projects:                  12
+
+  --- Writer/Reviewer ---
+  Writer pass count:               2
+  Final review score:              4/5
+  Competitive viability:           adequate
+  Pass threshold met:              True
+
+  --- External Research Status ---
+  Semantic Scholar:                WORKING (3 results)
+  Perplexity:                      WORKING (1 results)
+
+  --- Knowledge Graph ---
+  KG internal team members:        5
+  KG projects:                     20
+
+  --- Named Consultants ---
+    ✓  Ahmad Al-Rashidi
+    ✓  Salim Al-Harbi
+    ✓  Laura Rojo
+    ✓  Noura Al-Mutairi
+    ✓  Mohammed Al-Dosari
+
+  --- Prior Projects ---
+    • National AI Strategy
+    • Digital Transformation Roadmap
+    • Workforce Intelligence Platform
+    • Enterprise Automation Program
+    • Process Automation Program
+    • Digital Transformation Roadmap
+    • Enterprise AI Platform Architecture
+    • CEREBRUM AI Platform
+    • Multi-Vendor AI Implementation
+    • NLP Pipeline for Arabic Document Understanding
+
+  --- Artifacts ---
+    Source Book DOCX: output/sb-en-1774268378/source_book.docx (70,819 bytes)
+    Evidence Ledger JSON: output\sb-en-1774268378\evidence_ledger.json (1,485 bytes)
+    Slide Blueprint JSON: output\sb-en-1774268378\slide_blueprint_from_source_book.json (43,969 bytes)
+    External Evidence Pack: output\sb-en-1774268378\external_evidence_pack.json (11,877 bytes)
+    Research Query Log: output\sb-en-1774268378\research_query_log.json (2,143 bytes)
+    Research Results Raw: output\sb-en-1774268378\research_results_raw.json (3,433 bytes)
+
+  --- Timing ---
+        9.8s  context → gate_1
+       39.4s  retrieval → gate_2
+     1519.4s  evidence → strategy → source_book → gate_3
+     1568.6s  TOTAL
+
+================================================================================
+  FINAL STATUS: SUCCESS
+================================================================================
+
+Results written to: source_book_only_en_result.json

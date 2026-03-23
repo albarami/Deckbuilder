@@ -1,14 +1,14 @@
 {
   "status": "SUCCESS",
-  "session_id": "sb-en-1774258863",
+  "session_id": "sb-en-1774268378",
   "failures": [],
-  "word_count": 2447,
-  "evidence_ledger_entries": 29,
-  "slide_blueprint_entries": 14,
+  "word_count": 3109,
+  "evidence_ledger_entries": 6,
+  "slide_blueprint_entries": 30,
   "external_sources": 5,
   "s2_status": "WORKING (3 results)",
   "pplx_status": "WORKING (1 results)",
-  "capability_mappings": 8,
+  "capability_mappings": 7,
   "consultant_count": 5,
   "real_consultant_names": [
     "Ahmad Al-Rashidi",
@@ -17,27 +17,31 @@
     "Noura Al-Mutairi",
     "Mohammed Al-Dosari"
   ],
-  "project_count": 8,
+  "project_count": 12,
   "project_names": [
     "National AI Strategy",
     "Digital Transformation Roadmap",
-    "Enterprise Automation Program",
     "Workforce Intelligence Platform",
-    "Process Automation",
+    "Enterprise Automation Program",
+    "Process Automation Program",
+    "Digital Transformation Roadmap",
     "Enterprise AI Platform Architecture",
+    "CEREBRUM AI Platform",
+    "Multi-Vendor AI Implementation",
+    "NLP Pipeline for Arabic Document Understanding",
     "Anomaly Detection System",
-    "Digital Transformation Roadmap"
+    "Data Classification Framework"
   ],
-  "pass_number": 5,
-  "review_score": 3,
-  "total_time": 2718.10022521019,
-  "docx_path": "output/sb-en-1774258863/source_book.docx",
+  "pass_number": 2,
+  "review_score": 4,
+  "total_time": 1568.618805885315,
+  "docx_path": "output/sb-en-1774268378/source_book.docx",
   "artifacts": {
-    "Source Book DOCX": "output/sb-en-1774258863/source_book.docx",
-    "Evidence Ledger JSON": "output\\sb-en-1774258863\\evidence_ledger.json",
-    "Slide Blueprint JSON": "output\\sb-en-1774258863\\slide_blueprint_from_source_book.json",
-    "External Evidence Pack": "output\\sb-en-1774258863\\external_evidence_pack.json",
-    "Research Query Log": "output\\sb-en-1774258863\\research_query_log.json",
-    "Research Results Raw": "output\\sb-en-1774258863\\research_results_raw.json"
+    "Source Book DOCX": "output/sb-en-1774268378/source_book.docx",
+    "Evidence Ledger JSON": "output\\sb-en-1774268378\\evidence_ledger.json",
+    "Slide Blueprint JSON": "output\\sb-en-1774268378\\slide_blueprint_from_source_book.json",
+    "External Evidence Pack": "output\\sb-en-1774268378\\external_evidence_pack.json",
+    "Research Query Log": "output\\sb-en-1774268378\\research_query_log.json",
+    "Research Results Raw": "output\\sb-en-1774268378\\research_results_raw.json"
   }
 }

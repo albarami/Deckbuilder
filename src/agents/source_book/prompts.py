@@ -66,15 +66,25 @@ Map SG capabilities to RFP requirements with EVIDENCE:
   Real proposals show: "Nagaraj Padmanabhan, Senior Partner, 21+ years,
   MBA MIS, BSc EE, led SAP EA for oil/gas sector [CLM-0005]"
 
-- project_experience: Produce 8-12 prior projects from knowledge_graph.
-  CRITICAL: Use REAL project names and clients from KG.
+- project_experience: Produce 10-12 prior projects from knowledge_graph.
+  CRITICAL: Use REAL project names and clients from KG. Use ALL
+  available projects — the KG has 20 projects; select the 10-12 most
+  relevant to THIS RFP.
   For EACH project, populate ALL fields:
   * project_name, client, sector, duration, methodologies
-  * outcomes: Specific, measurable (e.g., "Documented 340+ processes
-    with KPIs", "15x increase in value chain output", "25 agencies
-    unified in violation lifecycle")
+  * outcomes: MUST be specific and measurable. Use numbers from KG:
+    "Documented 340+ operational processes with KPIs"
+    "Managed transformation portfolio exceeding $100M"
+    "15x increase in value chain output for natural products"
+    "25 government agencies unified in violation lifecycle"
+    "120+ SOPs and 50+ policies developed"
+    Do NOT write generic outcomes like "improved efficiency"
   * evidence_ids: CLM-xxxx references
-  Structure as: challenge the client faced → SG contribution → impact.
+  Structure EACH project as: Challenge → SG Contribution → Impact.
+  GOOD: "ADNOC faced fragmented reporting across business units.
+  SG deployed AI-driven automation across 15 processes, achieving
+  10M AED annual savings and 40% faster financial reporting [CLM-0012]"
+  BAD: "SG helped a client with digital transformation"
 
 - certifications_and_compliance: List ALL relevant certifications,
   partnerships, and compliance credentials. Include:
@@ -114,30 +124,82 @@ confidence in SG's ability to deliver. Real winning proposals dedicate
 
 - phase_details: You MUST produce 4-5 distinct phases. For EACH phase:
   * phase_name: Specific to this engagement (not generic "Phase 1")
-  * activities: 6-10 specific activities per phase, each a concrete
-    action (e.g., "Conduct stakeholder interviews with 15+ department
-    heads to map current-state processes" not "Analyze current state")
-  * deliverables: 4-8 named deliverables per phase (e.g., "Current-State
-    Architecture Report", "Gap Analysis Matrix", "RACI Matrix for Phase 2
-    Governance", "Training Package with 6 Workshop Modules")
-  * governance: Per-phase governance touchpoint describing who reviews,
-    approval gates, escalation path, and reporting cadence for that phase
-    (e.g., "Bi-weekly steering committee review; phase gate approval by
-    Project Sponsor before Phase 3 begins; weekly status dashboard")
+  * activities: 8-12 specific activities per phase. Each activity must be
+    a concrete, verifiable action — NOT generic consulting steps.
+    GOOD: "Conduct 15+ stakeholder interviews with department heads to
+    map current-state processes and identify pain points"
+    GOOD: "Develop RACI matrix assigning accountability for each of the
+    12 workstreams across client and SG team members"
+    BAD: "Analyze current state" or "Conduct assessment"
+    Each phase should have SUB-STAGES: break the phase into 3-5 named
+    sub-steps (e.g., Phase 1 has "1.1 Document Review & Baseline",
+    "1.2 Stakeholder Mapping", "1.3 Current-State Assessment",
+    "1.4 Gap Analysis", "1.5 Phase 1 Report & Gate Review").
+    Reference specific frameworks tied to activities where applicable:
+    "Apply TOGAF ADM Phase B for business architecture assessment",
+    "Use ITIL v4 service value chain for IT process mapping",
+    "Apply PMBOK risk management framework for risk register development"
+  * deliverables: 5-8 named deliverables per phase. Each deliverable
+    must be a concrete document or artifact, not a vague outcome.
+    GOOD: "Current-State Architecture Report (Business, Application,
+    Data, Technology layers)", "Gap Analysis Matrix with 50+ items
+    prioritized by impact and feasibility", "RACI Matrix for Phase 2
+    Governance with 15+ role assignments"
+    BAD: "Assessment report" or "Analysis document"
+  * governance: Per-phase governance with ALL of these:
+    - Who reviews deliverables (named role, not "stakeholders")
+    - Approval gate criteria (what must be true before next phase)
+    - Escalation path for this phase
+    - Reporting cadence (weekly status, bi-weekly steering committee)
+    - Phase completion sign-off process
+    Reference prior SG experience where KG data supports it:
+    "SG applied this same phased approach for [client] achieving
+    [outcome] [CLM-xxxx]"
 
-- governance_framework: A DETAILED governance section covering:
-  * Steering committee structure (membership, cadence, authority)
-  * RACI matrix approach (who is Responsible, Accountable, Consulted,
-    Informed for each deliverable category)
-  * Escalation framework with 3-4 named levels (Project Manager →
-    Project Sponsor → Steering Committee → Executive Sponsor)
-  * Reporting mechanism (weekly status, monthly executive dashboard,
-    quarterly strategic review)
-  * Risk management approach (risk register, severity classification,
-    mitigation plans, review cadence)
-  * Quality assurance mechanism for deliverables
-  * Change request process
-  * Document management and confidentiality protocols
+- governance_framework: A COMPREHENSIVE governance section. Real
+  winning proposals dedicate 9-11 slides to governance alone. Produce
+  ALL of the following subsections with operational-level specificity:
+
+  * STEERING COMMITTEE: Membership (Project Sponsor, SG Partner,
+    PMO Lead, 2-3 client stakeholder leads), meeting cadence (monthly
+    for strategic, bi-weekly for operational), decision authority
+    (budget changes, scope changes, resource allocation), quorum rules
+
+  * RACI MATRIX: Define Responsible/Accountable/Consulted/Informed
+    roles for at least 8 deliverable categories. Name the role types:
+    SG Project Director, SG Engagement Manager, Client PMO, Client
+    Subject Matter Experts, Steering Committee. Example:
+    "Deliverable: Phase 1 Assessment Report → R: SG Engagement Manager,
+    A: SG Project Director, C: Client SMEs, I: Steering Committee"
+
+  * ESCALATION FRAMEWORK: 4 levels with specific triggers:
+    Level 1: Project Manager (team-level issues, < 1 week delay)
+    Level 2: Project Sponsor (cross-team issues, 1-2 week delay)
+    Level 3: Steering Committee (scope/budget changes, > 2 week delay)
+    Level 4: Executive Sponsor (contract-level disputes, project risk)
+    Include escalation response SLAs (L1: 24h, L2: 48h, L3: 1 week)
+
+  * REPORTING: Weekly project status report (task completion,
+    risks/issues, upcoming milestones). Monthly executive dashboard
+    (budget utilization, milestone status, KPI tracking, risk heat map).
+    Quarterly strategic review (alignment with RFP objectives,
+    lessons learned, course corrections)
+
+  * RISK MANAGEMENT: Risk register with severity classification
+    (High/Medium/Low probability × High/Medium/Low impact matrix).
+    Weekly risk review, mitigation plans for top 5 risks identified
+    at project inception, contingency budget allocation approach
+
+  * QUALITY ASSURANCE: Deliverable review cycle (draft → internal QA →
+    client review → revision → sign-off). Acceptance criteria per
+    deliverable type. Peer review process for technical artifacts.
+
+  * CHANGE REQUEST PROCESS: Formal CR submission, impact assessment
+    (scope, timeline, budget), approval workflow, CR log maintenance
+
+  * PMO STRUCTURE: Project Management Office reporting line, tools
+    (project plan, issue tracker, document repository), cadence of
+    internal SG team syncs (daily standup or weekly internal review)
 
 - timeline_logic: Specific timeline with month-level granularity per phase.
   State total duration (e.g., "18 months"), phase overlaps if any, and
@@ -164,11 +226,15 @@ For each slide in the proposal deck, provide:
 - forbidden_content: What to avoid (vague claims, generic statements)
 
 Include blueprints for ALL standard proposal sections:
-Cover, Executive Summary, Understanding, Why SG, Team, Methodology,
-Timeline, Case Studies, Closing.
+Cover, Executive Summary, Understanding (2-3 slides), Why SG (3-4
+slides), Team (2-3 slides), Methodology (8-12 slides covering each
+phase + overview + governance), Timeline (1-2 slides), Case Studies
+(3-4 slides), Governance (2-3 slides), Closing.
 
-CRITICAL: Section 6 MUST NOT be empty. Produce at least 8 slide blueprints.
-An empty slide_blueprints list is a hard failure.
+CRITICAL: Section 6 MUST produce at least 20 slide blueprints.
+Real proposals have 30-50+ slides. Map each methodology phase to
+2-3 slides, each case study to 1 slide, each governance component
+to 1 slide. An empty or thin slide_blueprints list is a hard failure.
 
 ═══════════════════════════════════════════════════
 SECTION 7: EVIDENCE LEDGER
@@ -191,11 +257,30 @@ QUALITY RULES
 ═══════════════════════════════════════════════════
 
 1. EVIDENCE FIRST: No claim without a CLM-xxxx or EXT-xxx reference.
-2. NO FLUFF: Reject "extensive experience", "deep expertise", "proven track record."
-3. SPECIFIC OVER GENERAL: "Migrated 200+ users in 6 months [CLM-0001]" not "Large-scale migration experience."
-4. BILINGUAL AWARENESS: If output_language is "ar", all prose sections in Arabic. Evidence IDs stay in English.
-5. If reviewer_feedback is provided, this is a REWRITE pass. Address ALL feedback points.
-6. If previous_source_book is provided, improve it — don't start from scratch.
+2. NO FLUFF: Reject "extensive experience", "deep expertise",
+   "proven track record", "comprehensive approach", "holistic view."
+3. SPECIFIC OVER GENERAL: "Migrated 200+ users in 6 months [CLM-0001]"
+   not "Large-scale migration experience."
+4. BILINGUAL AWARENESS: If output_language is "ar", all prose in Arabic.
+   Evidence IDs stay in English.
+5. If reviewer_feedback is provided, this is a REWRITE pass. Address ALL.
+6. If previous_source_book is provided, improve it — don't start over.
+7. EXECUTIVE TONE — MANDATORY: Write as if this IS the final submission
+   to the client's evaluation committee. ZERO hedging allowed:
+   * BANNED phrases: "to be confirmed", "validation required",
+     "illustrative pending baseline", "subject to review",
+     "placeholder", "TBD", "may be adjusted", "could potentially"
+   * Write with authority: "SG will deploy a 7-member team led by
+     Nagaraj Padmanabhan" NOT "SG proposes to potentially assign
+     a team subject to availability"
+   * State timelines as commitments: "Phase 1 completed within
+     8 weeks" NOT "Phase 1 is estimated at approximately 8 weeks"
+   * State outcomes as facts backed by evidence, not possibilities
+8. DEPTH OVER BREVITY: The Source Book should be COMPREHENSIVE.
+   Methodology alone should fill 2000+ words across all phases.
+   Governance should fill 800+ words. Each consultant profile
+   should be 100+ words. Each project case study should be 80+ words.
+   Total Source Book should be 8000+ words of substantive content.
 
 ═══════════════════════════════════════════════════
 EVIDENCE PRAGMATISM
@@ -257,9 +342,15 @@ RED FLAGS (automatic score reduction):
 - Hedging language ("to be confirmed", "validation required") → -1
 - Fewer than 4 phases in methodology → score 2 max for Section 5
 - Fewer than 5 named consultants with full profiles → score 2 for Section 3
-- Fewer than 8 prior projects with outcomes → score 2 for Section 3
-- Governance described in < 3 sentences → score 2 for governance portion
+- Fewer than 10 prior projects with outcomes → score 2 for Section 3
+- Governance without RACI + escalation + reporting cadence → score 2
 - No compliance-to-RFP mapping in Section 1 → score 2 for Section 1
+- Methodology without sub-stages per phase → score 3 max for Section 5
+- Methodology without framework refs tied to activities → -1
+- Any "to be confirmed" / "TBD" / "illustrative" → -1 per occurrence
+- Fewer than 20 slide blueprints → score 3 max for Section 6
+- Projects without challenge/contribution/impact structure → -1
+- Consultant profiles without certifications or years → score 3 max
 
 BENCHMARK-GRADE SCORING (what earns score 4-5):
 Section 1 (RFP Interpretation):
@@ -273,13 +364,34 @@ Section 3 (Why SG):
 - Score 4: 4+ consultants, 6+ projects, 4+ mappings
 - Score 3: Some real names but thin profiles, few projects
 
-Section 5 (Proposed Solution):
-- Score 5: 4-5 phases, 6+ activities per phase, 4+ deliverables per
-  phase, per-phase governance, framework refs (TOGAF/ITIL/PMBOK),
-  RACI approach, escalation levels, reporting cadence, risk management
-- Score 4: 4+ phases, 4+ activities each, named deliverables, governance
-- Score 3: Generic phases without depth
-- Score 2: Fewer than 4 phases or generic "analyze/design/implement"
+Section 5 (Proposed Solution — HIGHEST WEIGHT):
+- Score 5: 4-5 phases with 3-5 sub-stages each, 8+ activities per
+  phase each as concrete verifiable actions, 5+ named deliverables
+  per phase, per-phase governance with approval gates, framework refs
+  tied to specific activities (TOGAF/ITIL/PMBOK/COBIT), RACI with 8+
+  deliverable categories, 4-level escalation with SLAs, weekly/monthly
+  /quarterly reporting cadence, risk register approach, QA process,
+  change request process, PMO structure. Total methodology 2000+ words.
+- Score 4: 4+ phases, 6+ activities each, named deliverables,
+  governance with escalation and RACI, 1500+ methodology words
+- Score 3: 4 phases with some activities but generic, no sub-stages,
+  governance mentioned but not detailed
+- Score 2: Fewer than 4 phases, generic "analyze/design/implement",
+  no per-phase governance, no framework references
+
+Section 6 (Slide Blueprint):
+- Score 5: 20+ slide blueprints covering all sections, per-phase
+  methodology slides, evidence-mapped proof_points on each
+- Score 4: 15+ slide blueprints with evidence mapping
+- Score 3: 8-14 blueprints, some without evidence mapping
+- Score 2: Fewer than 8 blueprints
+
+Executive Tone:
+- Score 5: Zero hedging, zero caveats, zero "to be confirmed" or
+  "illustrative". Reads like a final submission to evaluators.
+- Score 4: 1-2 minor hedging instances, otherwise authoritative
+- Score 3: Multiple hedging instances, reads like internal draft
+- Score 2: Pervasive hedging, "TBD", "placeholder" language
 
 CONVERGENCE GUIDANCE:
 - On rewrite passes (pass 2+), recognize IMPROVEMENT even if not perfect
