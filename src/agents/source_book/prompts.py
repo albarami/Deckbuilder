@@ -56,35 +56,50 @@ Map SG capabilities to RFP requirements with EVIDENCE:
   CRITICAL: Use REAL names from knowledge_graph.people — do NOT invent.
   For EACH consultant, populate ALL fields:
   * name: Real name from KG
-  * role: Proposed role on THIS project
-  * relevance: 2-3 sentences on why this person is right for this role
-  * certifications: List from KG (e.g., PMP, TOGAF, CDMP, SAFe, ITIL)
+  * role: Proposed role on THIS project AND which RFP workstream they own
+  * relevance: 3-4 sentences explaining:
+    (a) why this person is right for this role based on their background
+    (b) which specific RFP deliverable or workstream they will lead
+    (c) a concrete prior achievement relevant to this engagement
+  * certifications: List ALL from KG (e.g., PMP, TOGAF, CDMP, SAFe, ITIL)
   * years_experience: Integer from KG
-  * education: Degrees from KG (e.g., "MBA, King Saud University")
+  * education: ALL degrees from KG (e.g., "MBA, King Saud University;
+    BSc Electrical Engineering, University of Jordan")
   * domain_expertise: Areas from KG
-  * prior_employers: If available in KG (e.g., "McKinsey", "Deloitte")
+  * prior_employers: ALL from KG (e.g., "McKinsey", "Deloitte", "PwC")
   Real proposals show: "Nagaraj Padmanabhan, Senior Partner, 21+ years,
   MBA MIS, BSc EE, led SAP EA for oil/gas sector [CLM-0005]"
 
-- project_experience: Produce 10-12 prior projects from knowledge_graph.
-  CRITICAL: Use REAL project names and clients from KG. Use ALL
-  available projects — the KG has 20 projects; select the 10-12 most
-  relevant to THIS RFP.
+  TEAM STRUCTURE: The first consultant must be the Project Director.
+  Then include 2-3 Workstream Leads and 2-3 Subject Matter Experts.
+  In each consultant's relevance field, state their reporting line:
+  "Reports to Project Director. Leads Workstream 2: EA Development."
+
+- project_experience: Produce 12-15 UNIQUE prior projects from
+  knowledge_graph. Do NOT repeat the same project under different names.
+  CRITICAL: Use REAL project names and clients from KG. The KG has
+  20 projects — select the 12-15 most relevant to THIS RFP.
   For EACH project, populate ALL fields:
-  * project_name, client, sector, duration, methodologies
-  * outcomes: MUST be specific and measurable. Use numbers from KG:
+  * project_name: Exact name from KG (no renaming or paraphrasing)
+  * client: Exact client name from KG
+  * sector: From KG project record
+  * duration: From KG if available, or estimate (e.g., "12 months")
+  * methodologies: Specific frameworks used (TOGAF, ITIL, Agile, etc.)
+  * outcomes: MUST follow Challenge → SG Contribution → Impact:
+    Challenge: 2-3 sentences describing the client's problem.
+    SG Contribution: 2-3 sentences describing what SG specifically did.
+    Impact: Quantified results. Use numbers from KG:
     "Documented 340+ operational processes with KPIs"
     "Managed transformation portfolio exceeding $100M"
-    "15x increase in value chain output for natural products"
+    "15x increase in value chain output"
     "25 government agencies unified in violation lifecycle"
     "120+ SOPs and 50+ policies developed"
     Do NOT write generic outcomes like "improved efficiency"
   * evidence_ids: CLM-xxxx references
-  Structure EACH project as: Challenge → SG Contribution → Impact.
-  GOOD: "ADNOC faced fragmented reporting across business units.
-  SG deployed AI-driven automation across 15 processes, achieving
-  10M AED annual savings and 40% faster financial reporting [CLM-0012]"
-  BAD: "SG helped a client with digital transformation"
+  * Relevance to THIS RFP: 1 sentence linking project to current scope
+
+  VALIDATION: Before finalizing, check that no two projects share the
+  same client AND the same project_name. Each entry must be unique.
 
 - certifications_and_compliance: List ALL relevant certifications,
   partnerships, and compliance credentials. Include:
@@ -358,11 +373,27 @@ Section 1 (RFP Interpretation):
 - Score 4: 5+ compliance items, clear scoring logic analysis
 - Score 3: General compliance list without specific mapping
 
-Section 3 (Why SG):
-- Score 5: 5+ real named consultants with certs/years/education,
-  8+ real projects with outcomes, 5+ capability mappings with evidence
-- Score 4: 4+ consultants, 6+ projects, 4+ mappings
-- Score 3: Some real names but thin profiles, few projects
+Section 3 (Why SG — CONSULTANT PROFILING D4):
+- Score 5: 5+ real named consultants EACH with: certifications (2+),
+  years_experience, education, prior_employers, domain_expertise,
+  specific RFP workstream assignment, and team hierarchy shown
+  (Director → Workstream Leads → SMEs). 100+ words per profile.
+- Score 4: 5+ consultants with most fields populated, some hierarchy
+- Score 3: Named consultants but thin profiles (missing certs/years)
+- Score 2: Fewer than 4 consultants or placeholder names
+
+Section 3 (Why SG — PRIOR PROJECTS D5):
+- Score 5: 12+ UNIQUE projects, each with Challenge/Contribution/Impact,
+  quantified outcomes with numbers, sector and relevance to THIS RFP.
+  Zero duplicates. 80+ words per project.
+- Score 4: 8+ unique projects with outcomes, some quantified
+- Score 3: 5-7 projects, some with generic outcomes
+- Score 2: Fewer than 5 projects or generic "improved X" outcomes
+
+Section 3 Capability Mapping:
+- Score 5: 5+ rows mapping RFP requirements to SG capabilities
+- Score 4: 4+ mappings with evidence
+- Score 3: General capability claims without mapping
 
 Section 5 (Proposed Solution — HIGHEST WEIGHT):
 - Score 5: 4-5 phases with 3-5 sub-stages each, 8+ activities per

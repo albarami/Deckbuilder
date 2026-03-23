@@ -29,6 +29,26 @@ logger = logging.getLogger(__name__)
 _CLM_PATTERN = re.compile(r"CLM-\d{4}")
 _EXT_PATTERN = re.compile(r"EXT-\d{3}")
 
+# Banned hedge words/phrases for executive tone enforcement
+_HEDGE_PATTERNS = [
+    "illustrative",
+    "pending",
+    "preliminary",
+    "indicative",
+    "subject to",
+    "may require",
+    "could be",
+    "would need",
+    "to be determined",
+    "further analysis",
+    "TBD",
+    "placeholder",
+    "to be confirmed",
+    "validation required",
+    "could potentially",
+    "may be adjusted",
+]
+
 
 def _build_evidence_ledger_from_citations(source_book: SourceBook) -> EvidenceLedger:
     """Scan sections 1-6 for CLM-xxxx / EXT-xxx citations and build a ledger.
@@ -81,6 +101,70 @@ def _build_evidence_ledger_from_citations(source_book: SourceBook) -> EvidenceLe
         len(entries),
     )
     return EvidenceLedger(entries=entries)
+
+
+def _scan_for_hedges(source_book: SourceBook) -> list[str]:
+    """Scan all text fields for banned hedge phrases. Returns matches."""
+    text_blob = json.dumps(
+        source_book.model_dump(mode="json"),
+        ensure_ascii=False,
+        default=str,
+    )
+    matches: list[str] = []
+    text_lower = text_blob.lower()
+    for phrase in _HEDGE_PATTERNS:
+        if phrase.lower() in text_lower:
+            matches.append(phrase)
+    return matches
+
+
+async def _rewrite_hedges(
+    source_book: SourceBook,
+    hedges_found: list[str],
+) -> SourceBook:
+    """Make one LLM call to rewrite sentences containing banned hedges."""
+    hedge_list = ", ".join(f'"{h}"' for h in hedges_found)
+
+    system = (
+        "You are an executive writing editor. The Source Book below "
+        "contains hedging language that must be removed. Rewrite ONLY "
+        "the sentences that contain these banned phrases: "
+        f"{hedge_list}. "
+        "Replace hedges with direct, authoritative commitments. "
+        "Do NOT change any other content. "
+        "Output the full corrected SourceBook JSON."
+    )
+
+    user_msg = json.dumps(
+        source_book.model_dump(mode="json"),
+        ensure_ascii=False,
+        default=str,
+    )
+
+    model = MODEL_MAP.get(
+        "source_book_writer",
+        MODEL_MAP.get("analysis_agent"),
+    )
+
+    try:
+        result = await call_llm(
+            model=model,
+            system_prompt=system,
+            user_message=user_msg,
+            response_model=SourceBook,
+            max_tokens=32000,
+            temperature=0.0,
+        )
+        cleaned = result.parsed
+        cleaned.pass_number = source_book.pass_number
+        logger.info(
+            "Hedge rewrite complete — removed %d hedge patterns",
+            len(hedges_found),
+        )
+        return cleaned
+    except Exception as e:
+        logger.warning("Hedge rewrite failed: %s — keeping original", e)
+        return source_book
 
 
 def _build_user_message(
@@ -269,6 +353,28 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
                     "no citations found in sections 1-6",
                     current_pass,
                 )
+
+        # ── D9: Hedge scanner ──────────────────────────────────
+        hedges = _scan_for_hedges(source_book)
+        if hedges:
+            logger.warning(
+                "Hedge scanner found %d banned phrases: %s",
+                len(hedges),
+                ", ".join(hedges),
+            )
+            source_book = await _rewrite_hedges(source_book, hedges)
+            # Re-scan to verify
+            remaining = _scan_for_hedges(source_book)
+            if remaining:
+                logger.warning(
+                    "Hedge rewrite: %d phrases still remain: %s",
+                    len(remaining),
+                    ", ".join(remaining),
+                )
+            else:
+                logger.info("Hedge rewrite: all banned phrases removed")
+        else:
+            logger.info("Hedge scanner: zero banned phrases found")
 
         logger.info(
             "Source Book written: pass=%d, blueprints=%d, "
