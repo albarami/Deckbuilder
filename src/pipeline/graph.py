@@ -674,6 +674,42 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
         ):
             break
 
+    # ── Dedicated evidence ledger extraction ─────────────────────
+    # After all Writer/Reviewer passes, run a dedicated LLM call to
+    # audit every claim in Sections 1-6 and produce rich ledger entries.
+    # This replaces the generic "Auto-extracted citation" fallback.
+    from src.agents.source_book.evidence_extractor import (
+        extract_evidence_ledger,
+    )
+
+    final_sb = current_state.source_book
+    if final_sb:
+        try:
+            ledger_entries = await extract_evidence_ledger(final_sb)
+            if ledger_entries:
+                from src.models.source_book import EvidenceLedger
+
+                final_sb.evidence_ledger = EvidenceLedger(
+                    entries=ledger_entries,
+                )
+                logger.info(
+                    "Evidence extractor produced %d entries",
+                    len(ledger_entries),
+                )
+            else:
+                logger.warning(
+                    "Evidence extractor returned 0 entries — "
+                    "keeping Writer's ledger (%d entries)",
+                    len(final_sb.evidence_ledger.entries),
+                )
+        except Exception as e:
+            logger.error("Evidence extractor failed: %s", e)
+
+        # Update state with enriched source book
+        current_state = current_state.model_copy(
+            update={"source_book": final_sb},
+        )
+
     # Export DOCX — persist path in state and surface failures
     session_id = current_state.session.session_id or "default"
     docx_path = f"output/{session_id}/source_book.docx"
