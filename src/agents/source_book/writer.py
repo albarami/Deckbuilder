@@ -324,12 +324,23 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
             current_pass = state.source_book.pass_number + 1
         source_book.pass_number = current_pass
 
-        # Validate: warn if no slide blueprints
+        # Validate: if no slide blueprints, preserve from previous pass
         if not source_book.slide_blueprints:
-            logger.warning(
-                "Source Book Writer produced 0 slide blueprints — "
-                "downstream Blueprint extraction will fail"
-            )
+            if state.source_book and state.source_book.slide_blueprints:
+                source_book.slide_blueprints = (
+                    state.source_book.slide_blueprints
+                )
+                logger.info(
+                    "Source Book Writer produced 0 blueprints on pass %d "
+                    "— preserved %d from previous pass",
+                    current_pass,
+                    len(source_book.slide_blueprints),
+                )
+            else:
+                logger.warning(
+                    "Source Book Writer produced 0 slide blueprints — "
+                    "downstream Blueprint extraction will fail"
+                )
 
         # Validate: if evidence ledger is empty, try to populate from citations
         if not source_book.evidence_ledger.entries:

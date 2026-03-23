@@ -16,12 +16,10 @@ import json
 import logging
 from typing import Any
 
-from src.config.models import MODEL_MAP
 from src.models.source_book import (
     EvidenceLedgerEntry,
     SourceBook,
 )
-from src.services.llm import call_llm
 
 logger = logging.getLogger(__name__)
 
@@ -212,21 +210,26 @@ async def extract_evidence_ledger(
         len(sb_text),
     )
 
-    model = MODEL_MAP.get(
-        "source_book_writer",
-        MODEL_MAP.get("analysis_agent"),
-    )
-
     try:
-        llm_result = await call_llm(
-            model=model,
-            system_prompt=EVIDENCE_EXTRACTOR_PROMPT,
-            user_message=sb_text,
-            max_tokens=8000,
-            temperature=0.1,
+        import anthropic
+
+        from src.config.settings import get_settings
+
+        settings = get_settings()
+        client = anthropic.AsyncAnthropic(
+            api_key=settings.anthropic_api_key.get_secret_value(),
+            timeout=600.0,
         )
 
-        raw_text = llm_result.text
+        response = await client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=8000,
+            temperature=0.1,
+            system=EVIDENCE_EXTRACTOR_PROMPT,
+            messages=[{"role": "user", "content": sb_text}],
+        )
+
+        raw_text = response.content[0].text
         # Parse the JSON array from the response
         # Strip markdown fences if present
         text = raw_text.strip()
