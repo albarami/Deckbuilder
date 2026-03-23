@@ -105,7 +105,7 @@ class TestSourceBookSchema:
                         evidence_ids=["CLM-0001"],
                     ),
                 ],
-                certifications_and_compliance="ISO 27001, SAP Gold Partner",
+                certifications_and_compliance=["ISO 27001", "SAP Gold Partner"],
             ),
             external_evidence=ExternalEvidenceSection(
                 entries=[

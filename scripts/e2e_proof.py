@@ -438,7 +438,7 @@ async def run_e2e(
             source_book.proposed_solution.governance_framework,
             source_book.proposed_solution.timeline_logic,
             source_book.proposed_solution.value_case_and_differentiation,
-            source_book.why_strategic_gears.certifications_and_compliance,
+            " ".join(source_book.why_strategic_gears.certifications_and_compliance),
         ]
         sb_word_count = sum(len(p.split()) for p in prose_parts if p)
         sb_evidence_count = len(source_book.evidence_ledger.entries)

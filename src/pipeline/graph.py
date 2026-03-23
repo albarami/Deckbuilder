@@ -180,7 +180,7 @@ def _gate_3_summary(state: DeckForgeState) -> str:
             sb.proposed_solution.governance_framework,
             sb.proposed_solution.timeline_logic,
             sb.proposed_solution.value_case_and_differentiation,
-            sb.why_strategic_gears.certifications_and_compliance,
+            " ".join(sb.why_strategic_gears.certifications_and_compliance),
         ]
         word_count = sum(len(p.split()) for p in prose_parts if p)
         parts.append(f"Source Book: ~{word_count} words content")

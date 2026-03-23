@@ -353,10 +353,9 @@ class PhaseContent(BaseModel):
     @field_validator("phase_title")
     @classmethod
     def validate_phase_title_words(cls, v: str) -> str:
-        if len(v.split()) > 5:
-            raise ValueError(
-                f"Phase title exceeds 5 words: {len(v.split())}",
-            )
+        words = v.split()
+        if len(words) > 5:
+            v = " ".join(words[:5])
         return v
 
 

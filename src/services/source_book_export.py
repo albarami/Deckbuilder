@@ -156,7 +156,8 @@ def _add_section_3(doc: Document, source_book: SourceBook) -> None:
     # 3.4 Certifications
     if wsg.certifications_and_compliance:
         doc.add_heading("3.4 Certifications & Compliance", level=2)
-        doc.add_paragraph(wsg.certifications_and_compliance)
+        for cert in wsg.certifications_and_compliance:
+            doc.add_paragraph(cert, style="List Bullet")
 
 
 def _add_section_4(doc: Document, source_book: SourceBook) -> None:

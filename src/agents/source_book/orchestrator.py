@@ -186,7 +186,8 @@ def source_book_to_markdown(source_book: SourceBook) -> str:
         lines.append("")
     if wsg.certifications_and_compliance:
         lines.append("### Certifications & Compliance")
-        lines.append(wsg.certifications_and_compliance)
+        for cert in wsg.certifications_and_compliance:
+            lines.append(f"- {cert}")
         lines.append("")
 
     # Section 4: External Evidence

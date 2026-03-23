@@ -61,6 +61,11 @@ class ConsultantProfile(DeckForgeBaseModel):
     role: str = ""
     relevance: str = ""
     evidence_ids: list[str] = Field(default_factory=list)
+    certifications: list[str] = Field(default_factory=list)
+    years_experience: int | None = None
+    education: list[str] = Field(default_factory=list)
+    domain_expertise: list[str] = Field(default_factory=list)
+    prior_employers: list[str] = Field(default_factory=list)
 
 
 class ProjectExperience(DeckForgeBaseModel):
@@ -75,6 +80,9 @@ class ProjectExperience(DeckForgeBaseModel):
     client: str = ""
     outcomes: str = ""
     evidence_ids: list[str] = Field(default_factory=list)
+    sector: str = ""
+    duration: str = ""
+    methodologies: list[str] = Field(default_factory=list)
 
 
 class WhyStrategicGears(DeckForgeBaseModel):
@@ -83,7 +91,7 @@ class WhyStrategicGears(DeckForgeBaseModel):
     capability_mapping: list[CapabilityMapping] = Field(default_factory=list)
     named_consultants: list[ConsultantProfile] = Field(default_factory=list)
     project_experience: list[ProjectExperience] = Field(default_factory=list)
-    certifications_and_compliance: str = ""
+    certifications_and_compliance: list[str] = Field(default_factory=list)
 
 
 class ExternalEvidenceEntry(DeckForgeBaseModel):

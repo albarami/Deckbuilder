@@ -139,9 +139,13 @@ class TestTitleConstraints:
         s = SlideOutput(title="One Two Three Four Five Six Seven Eight Nine Ten")
         assert len(s.title.split()) == 10
 
-    def test_title_11_words_rejected(self):
-        with pytest.raises(ValidationError, match="exceeds 10 words"):
-            SlideOutput(title="One Two Three Four Five Six Seven Eight Nine Ten Eleven")
+    def test_title_over_15_words_truncated(self):
+        """SlideOutput truncates titles over 15 words instead of crashing."""
+        s = SlideOutput(
+            title="One Two Three Four Five Six Seven Eight Nine Ten "
+                  "Eleven Twelve Thirteen Fourteen Fifteen Sixteen",
+        )
+        assert len(s.title.split()) == 15
 
     def test_intro_title_12_words_accepted(self):
         """IntroMessageSlide allows up to 12 words."""
@@ -449,13 +453,14 @@ class TestMethodologySchema:
                 detail_slides=[_make_detail(i) for i in range(1, 5)],
             )
 
-    def test_phase_title_over_5_words_rejected(self):
-        with pytest.raises(ValidationError, match="exceeds 5 words"):
-            PhaseContent(
-                phase_number=1,
-                phase_title="This Phase Title Is Way Too Long",
-                phase_activities=Bullets_3_5(items=["a", "b", "c"]),
-            )
+    def test_phase_title_over_5_words_truncated(self):
+        """PhaseContent truncates phase_title to 5 words instead of crashing."""
+        pc = PhaseContent(
+            phase_number=1,
+            phase_title="This Phase Title Is Way Too Long",
+            phase_activities=Bullets_3_5(items=["a", "b", "c"]),
+        )
+        assert len(pc.phase_title.split()) == 5
 
     def test_paragraph_in_activity_rejected(self):
         """Anti-paragraph: activity bullet >25 words is rejected."""

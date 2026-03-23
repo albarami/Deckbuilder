@@ -9,15 +9,78 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from src.config.models import MODEL_MAP
-from src.models.source_book import RFPInterpretation, SourceBook
+from src.models.source_book import (
+    EvidenceLedger,
+    EvidenceLedgerEntry,
+    RFPInterpretation,
+    SourceBook,
+)
 from src.models.state import DeckForgeState
 from src.services.llm import call_llm
 
 from .prompts import WRITER_SYSTEM_PROMPT as SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
+
+# Patterns for citation references in source book text
+_CLM_PATTERN = re.compile(r"CLM-\d{4}")
+_EXT_PATTERN = re.compile(r"EXT-\d{3}")
+
+
+def _build_evidence_ledger_from_citations(source_book: SourceBook) -> EvidenceLedger:
+    """Scan sections 1-6 for CLM-xxxx / EXT-xxx citations and build a ledger.
+
+    Fallback when the LLM omits or truncates Section 7.
+    """
+    # Collect all text from sections 1-6 by serializing to JSON
+    sections_data = {
+        "rfp_interpretation": source_book.rfp_interpretation.model_dump(mode="json"),
+        "client_problem_framing": source_book.client_problem_framing.model_dump(mode="json"),
+        "why_strategic_gears": source_book.why_strategic_gears.model_dump(mode="json"),
+        "external_evidence": source_book.external_evidence.model_dump(mode="json"),
+        "proposed_solution": source_book.proposed_solution.model_dump(mode="json"),
+        "slide_blueprints": [bp.model_dump(mode="json") for bp in source_book.slide_blueprints],
+    }
+    text_blob = json.dumps(sections_data, ensure_ascii=False, default=str)
+
+    # Find unique citation IDs
+    clm_ids = sorted(set(_CLM_PATTERN.findall(text_blob)))
+    ext_ids = sorted(set(_EXT_PATTERN.findall(text_blob)))
+
+    entries: list[EvidenceLedgerEntry] = []
+    for cid in clm_ids:
+        entries.append(
+            EvidenceLedgerEntry(
+                claim_id=cid,
+                claim_text=f"Auto-extracted citation {cid}",
+                source_type="internal",
+                source_reference=cid,
+                confidence=0.5,
+                verifiability_status="unverified",
+            )
+        )
+    for eid in ext_ids:
+        entries.append(
+            EvidenceLedgerEntry(
+                claim_id=eid,
+                claim_text=f"Auto-extracted citation {eid}",
+                source_type="external",
+                source_reference=eid,
+                confidence=0.5,
+                verifiability_status="unverified",
+            )
+        )
+
+    logger.info(
+        "Built evidence ledger from citations: %d CLM + %d EXT = %d entries",
+        len(clm_ids),
+        len(ext_ids),
+        len(entries),
+    )
+    return EvidenceLedger(entries=entries)
 
 
 def _build_user_message(
@@ -165,7 +228,7 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=SourceBook,
-            max_tokens=16000,
+            max_tokens=24000,
             temperature=0.1,
         )
 
@@ -184,12 +247,28 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
                 "downstream Blueprint extraction will fail"
             )
 
-        # Validate: warn if evidence ledger is empty
+        # Validate: if evidence ledger is empty, try to populate from citations
         if not source_book.evidence_ledger.entries:
             logger.warning(
                 "Source Book Writer produced empty evidence ledger — "
-                "no evidence traceability"
+                "attempting to build from citations"
             )
+            source_book.evidence_ledger = _build_evidence_ledger_from_citations(
+                source_book,
+            )
+            # Determine max_passes from pipeline config (default 5)
+            max_passes = 5
+            if source_book.evidence_ledger.entries:
+                logger.info(
+                    "Evidence ledger populated from citations: %d entries",
+                    len(source_book.evidence_ledger.entries),
+                )
+            elif current_pass >= max_passes - 1:
+                logger.error(
+                    "Evidence ledger is STILL empty on pass %d (last pass) — "
+                    "no citations found in sections 1-6",
+                    current_pass,
+                )
 
         logger.info(
             "Source Book written: pass=%d, blueprints=%d, "
