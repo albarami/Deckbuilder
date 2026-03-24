@@ -258,6 +258,24 @@ async def extract_evidence_ledger(
                     i,
                 )
                 continue
+            # Map confidence to verifiability_status (Literal field)
+            # High confidence = verified, medium = partially_verified,
+            # low = unverified. Append description to source_reference.
+            verif_map = {
+                "high": "verified",
+                "medium": "partially_verified",
+                "low": "unverified",
+            }
+            verif_status = verif_map.get(
+                parsed.confidence_label, "unverified",
+            )
+            # Append verification instructions to source_reference
+            source_ref = parsed.source_reference
+            if parsed.verifiability:
+                source_ref = (
+                    f"{source_ref} | "
+                    f"Verify: {parsed.verifiability[:150]}"
+                )
             entries.append(
                 EvidenceLedgerEntry(
                     claim_id=parsed.claim_id or f"CLAIM-{i + 1:03d}",
@@ -266,13 +284,11 @@ async def extract_evidence_ledger(
                         "internal" if parsed.source_type == "internal"
                         else "external"
                     ),
-                    source_reference=parsed.source_reference,
+                    source_reference=source_ref,
                     confidence=_confidence_to_float(
                         parsed.confidence_label,
                     ),
-                    verifiability_status=parsed.verifiability[:200]
-                    if parsed.verifiability
-                    else "unverified",
+                    verifiability_status=verif_status,
                 )
             )
 

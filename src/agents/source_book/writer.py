@@ -157,6 +157,23 @@ async def _rewrite_hedges(
         )
         cleaned = result.parsed
         cleaned.pass_number = source_book.pass_number
+        # Preserve blueprints and evidence ledger — hedge rewrite LLM
+        # often truncates these complex fields
+        if not cleaned.slide_blueprints and source_book.slide_blueprints:
+            cleaned.slide_blueprints = source_book.slide_blueprints
+            logger.info(
+                "Hedge rewrite: preserved %d slide blueprints",
+                len(cleaned.slide_blueprints),
+            )
+        if (
+            not cleaned.evidence_ledger.entries
+            and source_book.evidence_ledger.entries
+        ):
+            cleaned.evidence_ledger = source_book.evidence_ledger
+            logger.info(
+                "Hedge rewrite: preserved %d evidence entries",
+                len(cleaned.evidence_ledger.entries),
+            )
         logger.info(
             "Hedge rewrite complete — removed %d hedge patterns",
             len(hedges_found),
