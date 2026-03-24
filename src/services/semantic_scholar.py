@@ -1,8 +1,11 @@
 """Semantic Scholar (S2) Graph API — external academic evidence for retrieval.
 
-Uses ``x-api-key`` authentication (not Bearer). Bulk paper search plus
-recommendations for richer recall. There is no anonymous/keyless fallback
-after a failed authenticated request.
+Authenticated requests use the ``x-api-key`` header (not ``Authorization: Bearer``).
+
+If ``SEMANTIC_SCHOLAR_API_KEY`` is set but Semantic Scholar responds with **403**, the
+official FAQ states the key is incorrect; we then use the **public** API (no header) so
+bulk search and recommendations still return 200. A valid key is probed once per process
+and cached.
 """
 
 from __future__ import annotations
@@ -15,12 +18,22 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-S2_BULK_SEARCH_URL = "https://api.semanticscholar.org/graph/v1/paper/search/bulk"
-S2_RECOMMENDATIONS_URL = "https://api.semanticscholar.org/recommendations/v1/papers"
+S2_GRAPH_BASE = "https://api.semanticscholar.org"
+S2_BULK_SEARCH_URL = f"{S2_GRAPH_BASE}/graph/v1/paper/search/bulk"
+S2_SEARCH_URL = f"{S2_GRAPH_BASE}/graph/v1/paper/search"
+S2_RECOMMENDATIONS_URL = f"{S2_GRAPH_BASE}/recommendations/v1/papers"
 
 DEFAULT_TIMEOUT = 60.0
 MAX_KEYWORD_PHRASES = 12
 MAX_WORDS_PER_QUERY = 5
+
+# Cached: normalized key -> True if S2 accepts x-api-key, False if 403 (use public tier)
+_s2_auth_header_ok: dict[str, bool] = {}
+
+
+def reset_semantic_scholar_key_probe_cache() -> None:
+    """Clear probe cache (tests only)."""
+    _s2_auth_header_ok.clear()
 
 
 def normalize_semantic_scholar_api_key(raw: str) -> str:
@@ -38,6 +51,50 @@ class SemanticScholarAPIError(RuntimeError):
         super().__init__(message)
         self.status_code = status_code
         self.body = body
+
+
+async def resolve_use_x_api_key_header(api_key: str) -> bool:
+    """Return whether to send ``x-api-key`` on S2 requests.
+
+    Probes once per distinct key: 200 → use header; 403 → key not recognized (FAQ);
+    use public tier without header. 429 → assume key is valid (rate limit).
+    """
+    normalized = normalize_semantic_scholar_api_key(api_key)
+    if not normalized:
+        return False
+    if normalized in _s2_auth_header_ok:
+        return _s2_auth_header_ok[normalized]
+
+    params = {"query": "test", "limit": 1, "fields": "paperId"}
+    headers = {"x-api-key": normalized}
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.get(S2_SEARCH_URL, params=params, headers=headers)
+
+    if response.status_code == 200:
+        _s2_auth_header_ok[normalized] = True
+        return True
+    if response.status_code == 403:
+        logger.warning(
+            "Semantic Scholar returned 403 for x-api-key (incorrect key per S2 FAQ: "
+            "https://github.com/allenai/s2-folks/blob/main/FAQ.md ). "
+            "Using public API without x-api-key for S2 calls."
+        )
+        _s2_auth_header_ok[normalized] = False
+        return False
+    if response.status_code == 429:
+        _s2_auth_header_ok[normalized] = True
+        return True
+
+    logger.error(
+        "Semantic Scholar key probe failed: status=%s body=%s",
+        response.status_code,
+        response.text[:2000],
+    )
+    raise SemanticScholarAPIError(
+        f"Semantic Scholar key probe returned {response.status_code}",
+        status_code=response.status_code,
+        body=response.text,
+    )
 
 
 def keyword_phrases_from_queries(queries: list[str], *, max_phrases: int = MAX_KEYWORD_PHRASES) -> list[str]:
@@ -92,18 +149,26 @@ def _normalize_paper(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 class SemanticScholarClient:
-    """Async Semantic Scholar API client (authenticated requests only)."""
+    """Async Semantic Scholar API client."""
 
-    def __init__(self, api_key: str, *, timeout: float = DEFAULT_TIMEOUT) -> None:
-        key = normalize_semantic_scholar_api_key(api_key)
-        if not key:
-            msg = "Semantic Scholar API key is required for authenticated requests"
+    def __init__(
+        self,
+        api_key: str = "",
+        *,
+        use_auth_header: bool = False,
+        timeout: float = DEFAULT_TIMEOUT,
+    ) -> None:
+        self._use_auth_header = use_auth_header
+        self._api_key = normalize_semantic_scholar_api_key(api_key) if use_auth_header else ""
+        if use_auth_header and not self._api_key:
+            msg = "Semantic Scholar API key is required when use_auth_header is True"
             raise ValueError(msg)
-        self._api_key = key
         self._timeout = timeout
 
     def _headers(self) -> dict[str, str]:
-        return {"x-api-key": self._api_key}
+        if self._use_auth_header and self._api_key:
+            return {"x-api-key": self._api_key}
+        return {}
 
     async def search_papers(
         self,
@@ -246,7 +311,15 @@ async def gather_external_evidence(
     if not phrases:
         return [], {}
 
-    client = SemanticScholarClient(api_key)
+    normalized = normalize_semantic_scholar_api_key(api_key)
+    if not normalized:
+        return [], {}
+
+    use_header = await resolve_use_x_api_key_header(api_key)
+    client = SemanticScholarClient(
+        api_key=normalized,
+        use_auth_header=use_header,
+    )
     merged: dict[str, dict[str, Any]] = {}
 
     for phrase in phrases:

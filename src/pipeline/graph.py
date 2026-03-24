@@ -235,7 +235,7 @@ async def retrieval_node(state: DeckForgeState) -> dict[str, Any]:
     """Retrieval chain: Planner → Search → Ranker (single node).
 
     1. Call planner — get transient search queries
-    2. Pass queries to local search + optional Semantic Scholar (authenticated only)
+    2. Pass queries to local search + optional Semantic Scholar (key probed; public tier if key rejected)
     3. Pass search results to ranker — populates retrieved_sources
     """
     # Step 1: Plan
@@ -248,7 +248,7 @@ async def retrieval_node(state: DeckForgeState) -> dict[str, Any]:
             "last_error": state.last_error,
         }
 
-    # Step 2: Search — local index + optional S2 external evidence (x-api-key).
+    # Step 2: Search — local index + optional S2 (x-api-key when accepted, else public API).
     query_strings = [q.query for q in queries.search_queries if q.query.strip()]
     if not query_strings:
         search_results = []
