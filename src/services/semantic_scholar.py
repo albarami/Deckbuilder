@@ -1,11 +1,27 @@
-"""Semantic Scholar (S2) Graph API — external academic evidence for retrieval.
+"""Semantic Scholar — Academic Graph + Recommendations (DeckForge retrieval).
 
-Authenticated requests use the ``x-api-key`` header (not ``Authorization: Bearer``).
+Official product APIs (same host, different paths):
 
-If ``SEMANTIC_SCHOLAR_API_KEY`` is set but Semantic Scholar responds with **403**, the
-official FAQ states the key is incorrect; we then use the **public** API (no header) so
-bulk search and recommendations still return 200. A valid key is probed once per process
-and cached.
+- **Academic Graph** — ``https://api.semanticscholar.org/graph/v1`` (paper search/bulk,
+  paper details, etc.). Spec: use ``x-api-key`` when using a key (header name is
+  case-sensitive in the published OpenAPI text).
+- **Recommendations** — ``https://api.semanticscholar.org/recommendations/v1`` (POST
+  ``/papers`` with ``positivePaperIds`` / ``negativePaperIds``).
+- **Datasets** — ``https://api.semanticscholar.org/datasets/v1`` (bulk downloads; also
+  uses ``x-api-key`` where required).
+
+We never send ``Authorization: Bearer`` for S2.
+
+If ``SEMANTIC_SCHOLAR_API_KEY`` is present but the server returns **403** on the probe
+request, that matches the community FAQ: the key is not accepted
+(`403` — *the API key you've sent is incorrect*
+[allenai/s2-folks FAQ](https://github.com/allenai/s2-folks/blob/main/FAQ.md); the
+[s2-folks](https://github.com/allenai/s2-folks) repo is archived but the FAQ text still
+describes this behavior). A 403 on **paper details**, **search**, and **datasets** with
+the same header means the credential is not valid for ``api.semanticscholar.org``, not
+that DeckForge used the wrong path or header shape. In that case we use the **public**
+tier (no ``x-api-key``) so Graph + Recommendations keep returning 200. The probe runs
+once per distinct key and is cached.
 """
 
 from __future__ import annotations
@@ -20,8 +36,10 @@ logger = logging.getLogger(__name__)
 
 S2_GRAPH_BASE = "https://api.semanticscholar.org"
 S2_BULK_SEARCH_URL = f"{S2_GRAPH_BASE}/graph/v1/paper/search/bulk"
-S2_SEARCH_URL = f"{S2_GRAPH_BASE}/graph/v1/paper/search"
 S2_RECOMMENDATIONS_URL = f"{S2_GRAPH_BASE}/recommendations/v1/papers"
+# Paper ID from the official “request paper details” tutorial (Academic Graph API).
+S2_TUTORIAL_PAPER_ID = "649def34f8be52c8b66281af98ae884c09aef38b"
+S2_KEY_PROBE_URL = f"{S2_GRAPH_BASE}/graph/v1/paper/{S2_TUTORIAL_PAPER_ID}"
 
 DEFAULT_TIMEOUT = 60.0
 MAX_KEYWORD_PHRASES = 12
@@ -56,8 +74,9 @@ class SemanticScholarAPIError(RuntimeError):
 async def resolve_use_x_api_key_header(api_key: str) -> bool:
     """Return whether to send ``x-api-key`` on S2 requests.
 
-    Probes once per distinct key: 200 → use header; 403 → key not recognized (FAQ);
-    use public tier without header. 429 → assume key is valid (rate limit).
+    Probes with the same pattern as the official tutorial (GET paper by id + ``fields``).
+    200 → use header; 403 → key not recognized; use public tier without header.
+    429 → assume key is valid (rate limit).
     """
     normalized = normalize_semantic_scholar_api_key(api_key)
     if not normalized:
@@ -65,10 +84,10 @@ async def resolve_use_x_api_key_header(api_key: str) -> bool:
     if normalized in _s2_auth_header_ok:
         return _s2_auth_header_ok[normalized]
 
-    params = {"query": "test", "limit": 1, "fields": "paperId"}
+    params = {"fields": "paperId,title"}
     headers = {"x-api-key": normalized}
     async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.get(S2_SEARCH_URL, params=params, headers=headers)
+        response = await client.get(S2_KEY_PROBE_URL, params=params, headers=headers)
 
     if response.status_code == 200:
         _s2_auth_header_ok[normalized] = True
