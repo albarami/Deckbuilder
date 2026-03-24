@@ -291,10 +291,35 @@ async def extract_evidence_ledger(
                 )
             )
 
+        # Filter out leaked prompt-example residue
+        _LEAKED_PATTERNS = [
+            "not explicitly referenced",
+            "appears to be example",
+            "appears to be instruction",
+            "example text",
+            "not found in source",
+        ]
+        filtered = [
+            e for e in entries
+            if not any(
+                p in (e.source_reference or "").lower()
+                for p in _LEAKED_PATTERNS
+            )
+        ]
+        removed = len(entries) - len(filtered)
+        if removed:
+            logger.info(
+                "Evidence extractor: removed %d leaked prompt-example "
+                "entries, keeping %d",
+                removed,
+                len(filtered),
+            )
+
         logger.info(
-            "Evidence extractor: produced %d valid entries", len(entries),
+            "Evidence extractor: produced %d valid entries",
+            len(filtered),
         )
-        return entries
+        return filtered
 
     except json.JSONDecodeError as e:
         logger.error("Evidence extractor: JSON parse failed: %s", e)

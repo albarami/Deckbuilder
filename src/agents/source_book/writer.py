@@ -104,16 +104,20 @@ def _build_evidence_ledger_from_citations(source_book: SourceBook) -> EvidenceLe
 
 
 def _scan_for_hedges(source_book: SourceBook) -> list[str]:
-    """Scan all text fields for banned hedge phrases. Returns matches."""
+    """Scan all text fields for banned hedge phrases. Returns matches.
+
+    Uses word-boundary regex to avoid false positives from substrings
+    (e.g., "pending" inside "spending" or "impending").
+    """
     text_blob = json.dumps(
         source_book.model_dump(mode="json"),
         ensure_ascii=False,
         default=str,
     )
     matches: list[str] = []
-    text_lower = text_blob.lower()
     for phrase in _HEDGE_PATTERNS:
-        if phrase.lower() in text_lower:
+        pattern = r"\b" + re.escape(phrase) + r"\b"
+        if re.search(pattern, text_blob, re.IGNORECASE):
             matches.append(phrase)
     return matches
 
