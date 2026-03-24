@@ -12,6 +12,9 @@ Official product APIs (same host, different paths):
 
 We never send ``Authorization: Bearer`` for S2.
 
+When a key is accepted, we enforce **at least one second between** authenticated
+requests, matching the approval email (1 req/s cumulative across endpoints).
+
 If ``SEMANTIC_SCHOLAR_API_KEY`` is present but the server returns **403** on the probe
 request, that matches the community FAQ: the key is not accepted
 (`403` — *the API key you've sent is incorrect*
@@ -26,8 +29,10 @@ once per distinct key and is cached.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
+import time
 from typing import Any
 
 import httpx
@@ -44,14 +49,30 @@ S2_KEY_PROBE_URL = f"{S2_GRAPH_BASE}/graph/v1/paper/{S2_TUTORIAL_PAPER_ID}"
 DEFAULT_TIMEOUT = 60.0
 MAX_KEYWORD_PHRASES = 12
 MAX_WORDS_PER_QUERY = 5
+# Email from S2: 1 request per second cumulative across all endpoints when using x-api-key.
+S2_AUTH_MIN_INTERVAL_SEC = 1.0
 
 # Cached: normalized key -> True if S2 accepts x-api-key, False if 403 (use public tier)
 _s2_auth_header_ok: dict[str, bool] = {}
+# Single clock for probe + client: S2 allows ~1 req/s with x-api-key (cumulative across endpoints).
+_s2_auth_clock_lock = asyncio.Lock()
+_s2_next_auth_monotonic = 0.0
 
 
 def reset_semantic_scholar_key_probe_cache() -> None:
     """Clear probe cache (tests only)."""
     _s2_auth_header_ok.clear()
+
+
+async def _enforce_s2_auth_rate_limit() -> None:
+    """Wait if needed so consecutive x-api-key calls stay at or below 1 per second."""
+    global _s2_next_auth_monotonic
+    async with _s2_auth_clock_lock:
+        now = time.monotonic()
+        wait = max(0.0, _s2_next_auth_monotonic - now)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        _s2_next_auth_monotonic = time.monotonic() + S2_AUTH_MIN_INTERVAL_SEC
 
 
 def normalize_semantic_scholar_api_key(raw: str) -> str:
@@ -86,6 +107,7 @@ async def resolve_use_x_api_key_header(api_key: str) -> bool:
 
     params = {"fields": "paperId,title"}
     headers = {"x-api-key": normalized}
+    await _enforce_s2_auth_rate_limit()
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(S2_KEY_PROBE_URL, params=params, headers=headers)
 
@@ -189,6 +211,12 @@ class SemanticScholarClient:
             return {"x-api-key": self._api_key}
         return {}
 
+    async def _pace_authenticated_requests(self) -> None:
+        """Enforce at least 1s between requests when using x-api-key (S2 rate limit)."""
+        if not self._use_auth_header:
+            return
+        await _enforce_s2_auth_rate_limit()
+
     async def search_papers(
         self,
         query: str,
@@ -202,6 +230,7 @@ class SemanticScholarClient:
             "fields": "title,year,abstract,citationCount,url,paperId",
             "year": f"{year_from}-",
         }
+        await self._pace_authenticated_requests()
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.get(
                 S2_BULK_SEARCH_URL,
@@ -246,6 +275,7 @@ class SemanticScholarClient:
             "positivePaperIds": seed_paper_ids,
             "negativePaperIds": [],
         }
+        await self._pace_authenticated_requests()
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.post(
                 S2_RECOMMENDATIONS_URL,
