@@ -103,7 +103,34 @@ def _generate_search_queries(state: DeckForgeState) -> list[str]:
     return queries[:5]  # Cap at 5 queries
 
 
-def _gather_raw_evidence(queries: list[str]) -> dict:
+async def _search_semantic_scholar(queries: list[str], api_key: str) -> list[dict]:
+    """Run S2 two-step search + recommendations."""
+    from src.services.semantic_scholar import (
+        SemanticScholarAPIError,
+        SemanticScholarClient,
+        shorten_query,
+    )
+
+    short_queries: list[str] = []
+    for q in queries:
+        short_queries.extend(shorten_query(q))
+    short_queries = list(dict.fromkeys(short_queries))
+    logger.info(
+        "S2: %d short queries from %d raw queries",
+        len(short_queries),
+        len(queries),
+    )
+
+    client = SemanticScholarClient(api_key)
+    try:
+        papers = await client.search_and_recommend(short_queries)
+        return papers
+    except SemanticScholarAPIError as e:
+        logger.error("S2 pipeline failed: %s", e)
+        return []
+
+
+async def _gather_raw_evidence(queries: list[str]) -> dict:
     """Run search queries against Semantic Scholar and Perplexity.
 
     Returns raw results for LLM ranking. Gracefully degrades on failures.
@@ -112,28 +139,21 @@ def _gather_raw_evidence(queries: list[str]) -> dict:
     scholar_results: list[dict] = []
     perplexity_results: list[dict] = []
 
-    # Semantic Scholar searches (3 queries max)
-    try:
-        from src.services.semantic_scholar import search_papers
-
-        api_key = settings.semantic_scholar_api_key
-        for query in queries[:3]:
-            try:
-                papers = search_papers(query, api_key=api_key, max_results=3)
-                for paper in papers:
-                    scholar_results.append({
-                        "title": paper.title,
-                        "year": paper.year or 0,
-                        "abstract": paper.abstract or "",
-                        "citation_count": paper.citation_count,
-                        "url": paper.url,
-                        "source": "semantic_scholar",
-                        "query": query,
-                    })
-            except Exception as e:
-                logger.warning("Semantic Scholar query failed: %s — %s", query, e)
-    except Exception as e:
-        logger.warning("Semantic Scholar service unavailable: %s", e)
+    api_key = settings.semantic_scholar_api_key
+    if api_key.strip():
+        papers = await _search_semantic_scholar(queries[:3], api_key)
+        for paper in papers:
+            scholar_results.append({
+                "title": paper.get("title", ""),
+                "year": paper.get("year", 0) or 0,
+                "abstract": paper.get("abstract", "") or "",
+                "citation_count": paper.get("citationCount", 0) or 0,
+                "url": paper.get("url", "") or "",
+                "source": "semantic_scholar",
+                "query": "",
+            })
+    else:
+        logger.warning("Semantic Scholar API key missing — skipping S2 external research")
 
     # Perplexity searches (2 queries max)
     try:
@@ -186,7 +206,7 @@ async def run(state: DeckForgeState) -> dict:
             ),
         }
 
-    raw_evidence = _gather_raw_evidence(queries)
+    raw_evidence = await _gather_raw_evidence(queries)
 
     # If both services returned nothing, return empty pack
     total_results = (
