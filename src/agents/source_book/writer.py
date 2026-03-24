@@ -127,12 +127,20 @@ async def _rewrite_hedges(
 
     system = (
         "You are an executive writing editor. The Source Book below "
-        "contains hedging language that must be removed. Rewrite ONLY "
-        "the sentences that contain these banned phrases: "
+        "contains hedging language that must be removed. You MUST "
+        "rewrite every sentence containing a banned word. Replace "
+        "hedged language with direct, confident statements. Do NOT "
+        "preserve any instance of: "
         f"{hedge_list}. "
-        "Replace hedges with direct, authoritative commitments. "
-        "Do NOT change any other content. "
-        "Output the full corrected SourceBook JSON."
+        "Example rewrites:\n"
+        '- "Timeline is pending baseline" → "The engagement delivers '
+        'across 72 weeks in five phases"\n'
+        '- "Subject to stakeholder approval" → "The steering committee '
+        'approves at each phase gate"\n'
+        '- "This could be adjusted" → "This adapts to client '
+        'requirements at each phase gate"\n'
+        "Do NOT change any other content. Output the full corrected "
+        "SourceBook JSON."
     )
 
     user_msg = json.dumps(
@@ -341,6 +349,27 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
             current_pass = state.source_book.pass_number + 1
         source_book.pass_number = current_pass
 
+        # Deduplicate projects by case-insensitive name
+        if source_book.why_strategic_gears.project_experience:
+            seen: dict[str, bool] = {}
+            unique_projects = []
+            for proj in source_book.why_strategic_gears.project_experience:
+                key = proj.project_name.strip().lower()
+                if key not in seen:
+                    seen[key] = True
+                    unique_projects.append(proj)
+            if len(unique_projects) < len(
+                source_book.why_strategic_gears.project_experience
+            ):
+                logger.info(
+                    "Deduped projects: %d → %d",
+                    len(source_book.why_strategic_gears.project_experience),
+                    len(unique_projects),
+                )
+            source_book.why_strategic_gears.project_experience = (
+                unique_projects
+            )
+
         # Validate: if no slide blueprints, preserve from previous pass
         if not source_book.slide_blueprints:
             if state.source_book and state.source_book.slide_blueprints:
@@ -395,10 +424,26 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
             remaining = _scan_for_hedges(source_book)
             if remaining:
                 logger.warning(
-                    "Hedge rewrite: %d phrases still remain: %s",
+                    "Hedge rewrite pass 1: %d phrases remain: %s — "
+                    "running targeted second pass",
                     len(remaining),
                     ", ".join(remaining),
                 )
+                # Targeted second pass — rewrite ONLY remaining hedges
+                source_book = await _rewrite_hedges(
+                    source_book, remaining,
+                )
+                final_check = _scan_for_hedges(source_book)
+                if final_check:
+                    logger.warning(
+                        "Hedge rewrite pass 2: %d still remain: %s",
+                        len(final_check),
+                        ", ".join(final_check),
+                    )
+                else:
+                    logger.info(
+                        "Hedge rewrite pass 2: all phrases removed",
+                    )
             else:
                 logger.info("Hedge rewrite: all banned phrases removed")
         else:

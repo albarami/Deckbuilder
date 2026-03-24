@@ -269,13 +269,11 @@ async def extract_evidence_ledger(
             verif_status = verif_map.get(
                 parsed.confidence_label, "unverified",
             )
-            # Append verification instructions to source_reference
+            # Keep source_reference clean; put verification in its own field
             source_ref = parsed.source_reference
+            verification_note = ""
             if parsed.verifiability:
-                source_ref = (
-                    f"{source_ref} | "
-                    f"Verify: {parsed.verifiability[:150]}"
-                )
+                verification_note = parsed.verifiability[:200]
             entries.append(
                 EvidenceLedgerEntry(
                     claim_id=parsed.claim_id or f"CLAIM-{i + 1:03d}",
@@ -289,6 +287,7 @@ async def extract_evidence_ledger(
                         parsed.confidence_label,
                     ),
                     verifiability_status=verif_status,
+                    verification_note=verification_note,
                 )
             )
 

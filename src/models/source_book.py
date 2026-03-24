@@ -176,6 +176,7 @@ class EvidenceLedgerEntry(DeckForgeBaseModel):
     verifiability_status: Literal[
         "verified", "partially_verified", "unverified", "gap",
     ] = "unverified"
+    verification_note: str = ""
 
 
 class EvidenceLedger(DeckForgeBaseModel):

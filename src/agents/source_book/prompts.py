@@ -70,10 +70,19 @@ Map SG capabilities to RFP requirements with EVIDENCE:
   Real proposals show: "Nagaraj Padmanabhan, Senior Partner, 21+ years,
   MBA MIS, BSc EE, led SAP EA for oil/gas sector [CLM-0005]"
 
-  TEAM STRUCTURE: The first consultant must be the Project Director.
-  Then include 2-3 Workstream Leads and 2-3 Subject Matter Experts.
-  In each consultant's relevance field, state their reporting line:
-  "Reports to Project Director. Leads Workstream 2: EA Development."
+  The goal: a reviewer reading this section should feel they are
+  looking at a real bid team page, not a summary. Each profile must
+  be 100+ words with ALL fields populated. 5 exceptional profiles
+  outweigh 15 thin ones.
+
+  TEAM STRUCTURE: Produce a clear hierarchy subsection:
+  - Project Director (name) — overall engagement lead
+    - Workstream 1 Lead (name) — [phase/area they own]
+    - Workstream 2 Lead (name) — [phase/area they own]
+    - Subject Matter Experts: (names) — [specializations]
+  In each consultant's relevance field, state their reporting line
+  and WHY this person is the right fit for this specific RFP
+  requirement (1-2 sentences linking background to client need).
 
 - project_experience: Produce 12-15 UNIQUE prior projects from
   knowledge_graph. Do NOT repeat the same project under different names.
@@ -374,11 +383,12 @@ Section 1 (RFP Interpretation):
 - Score 3: General compliance list without specific mapping
 
 Section 3 (Why SG — CONSULTANT PROFILING D4):
-- Score 5: 5+ real named consultants EACH with: certifications (2+),
-  years_experience, education, prior_employers, domain_expertise,
-  specific RFP workstream assignment, and team hierarchy shown
-  (Director → Workstream Leads → SMEs). 100+ words per profile.
-- Score 4: 5+ consultants with most fields populated, some hierarchy
+- Score 5: 5+ real named consultants EACH with: role title, years,
+  education, certifications (2+), prior employers, domain expertise,
+  specific RFP workstream/phase assignment, RFP fit statement, AND
+  team hierarchy shown (Director → Leads → SMEs). 100+ words each.
+  5 exceptional profiles with ALL fields populated scores 5.
+- Score 4: 5+ consultants with most fields but missing 1-2 fields
 - Score 3: Named consultants but thin profiles (missing certs/years)
 - Score 2: Fewer than 4 consultants or placeholder names
 
@@ -432,6 +442,13 @@ CONVERGENCE GUIDANCE:
 - competitive_viability should be "adequate" (not "not_competitive")
   when content is specific and methodology is clear, even if evidence
   is thin
+
+CONVERGENCE NOTE: If the Source Book uses ALL available evidence from
+the knowledge graph and external research, and the content quality on
+methodology, governance, compliance, and blueprints is benchmark-grade,
+score 4/5 even if consultant count or project count is limited by
+available data. Do NOT penalize for data the system does not have.
+Score based on how well the system uses what it DOES have.
 
 PASS THRESHOLD:
 - overall_score >= 4
