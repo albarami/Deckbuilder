@@ -3,6 +3,7 @@
 ## Current Task
 
 - [x] Write an implementation-based technical document describing the actual built DeckForge system and the remaining work required to complete it.
+- [x] Semantic Scholar integration: `x-api-key` auth, bulk search + recommendations, no silent keyless retry after authenticated failure; optional `SEMANTIC_SCHOLAR_API_KEY` in `.env`.
 
 ## Discovered During Work
 
@@ -12,3 +13,4 @@
 - [ ] Fix Gate 2 source-review payload/UI mismatches so reviewer source selections are preserved and submitted.
 - [ ] Connect frontend history/dashboard views to backend session history if cross-browser or multi-user persistence is required.
 - [ ] Implement or integrate a production search backend in place of the `AzureAISearchBackend` stub when moving beyond local/dev search.
+- [ ] If `SEMANTIC_SCHOLAR_API_KEY` returns 403 with `x-api-key`, regenerate the key at https://www.semanticscholar.org/product/api (unauthenticated `graph/v1/paper/search` returns 200; invalid keys return 403).

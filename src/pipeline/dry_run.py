@@ -278,6 +278,7 @@ def get_dry_run_patches() -> list:
         ("src.agents.presentation.agent.call_llm", _presentation_response()),
         ("src.agents.qa.agent.call_llm", _qa_response()),
         ("src.pipeline.graph.semantic_search", _SEARCH_RESULTS),
+        ("src.pipeline.graph.gather_external_evidence", ([], {})),
         ("src.pipeline.graph.load_documents", _LOADED_DOCUMENTS),
     ]
 

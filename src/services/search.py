@@ -41,6 +41,9 @@ from src.utils.extractors import extract_directory
 
 logger = logging.getLogger(__name__)
 
+# Legacy cap: filesystem extraction was limited to three local docs per analysis pass.
+_MAX_LOCAL_FILES_FOR_ANALYSIS = 3
+
 DEFAULT_DOCS_PATH = os.environ.get(
     "KNOWLEDGE_DOCS_PATH",
     get_settings().local_docs_path,
@@ -630,25 +633,55 @@ def _list_supported_documents(docs_path: str) -> list[dict]:
 async def load_documents(
     approved_ids: list[str],
     docs_path: str = DEFAULT_DOCS_PATH,
+    *,
+    external_papers: dict[str, dict] | None = None,
 ) -> list[dict]:
     """Load full document content for approved source IDs.
 
-    Legacy function — preserved for backward compatibility.
+    ``external_papers`` maps ``S2-{paperId}`` (and other external ids) to Semantic Scholar
+    payloads when retrieval included academic sources.
     """
-    all_results = _list_supported_documents(docs_path)
-    approved = [r for r in all_results if r["doc_id"] in approved_ids][:3]
-
+    ext = external_papers or {}
     from src.utils.extractors import extract_document
 
     max_chars_per_document = 5_000
     documents: list[dict] = []
-    for result in approved:
+    all_results = _list_supported_documents(docs_path)
+    by_id = {r["doc_id"]: r for r in all_results}
+
+    local_loaded = 0
+    for doc_id in approved_ids:
+        if doc_id in ext:
+            paper = ext[doc_id]
+            abstract = str(paper.get("abstract") or "")
+            documents.append({
+                "doc_id": doc_id,
+                "title": str(paper.get("title") or "Untitled"),
+                "content_text": abstract[:max_chars_per_document],
+                "metadata": {
+                    "filename": f"semantic_scholar:{paper.get('paperId', '')}",
+                    "path": "",
+                    "source": "semantic_scholar",
+                    "url": paper.get("url") or "",
+                    "year": paper.get("year"),
+                    "citationCount": paper.get("citationCount", 0),
+                },
+            })
+            continue
+
+        if local_loaded >= _MAX_LOCAL_FILES_FOR_ANALYSIS:
+            continue
+
+        result = by_id.get(doc_id)
+        if result is None:
+            continue
+
         filepath = Path(result["metadata"]["path"])
         try:
             extracted = extract_document(str(filepath))
             content = extracted.full_text[:max_chars_per_document] if extracted.full_text else ""
         except Exception:
-            content = result["excerpt"]
+            content = ""
 
         documents.append({
             "doc_id": result["doc_id"],
@@ -656,5 +689,6 @@ async def load_documents(
             "content_text": content,
             "metadata": result["metadata"],
         })
+        local_loaded += 1
 
     return documents

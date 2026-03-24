@@ -1,7 +1,7 @@
 """DeckForgeState — the master LangGraph state passed between all agents."""
 
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -102,6 +102,8 @@ class DeckForgeState(DeckForgeBaseModel):
     # ─── Gate 2: Retrieval ───
     retrieved_sources: list[RetrievedSource] = Field(default_factory=list)
     approved_source_ids: list[str] = Field(default_factory=list)  # DOC-NNN ids user approved
+    # S2-{paperId} -> paper dict (title, abstract, url, …) for approved external sources
+    semantic_scholar_papers: dict[str, dict] = Field(default_factory=dict)
     gate_2: GateDecision | None = None
 
     # ─── Analysis ───
@@ -142,6 +144,13 @@ class DeckForgeState(DeckForgeBaseModel):
     # ─── Renderer mode (feature flag) ───
     renderer_mode: RendererMode = RendererMode.TEMPLATE_V2
     proposal_manifest: ProposalManifest | None = None
+
+    # ─── Assembly plan intermediates (Phase A) ───
+    methodology_blueprint: Any | None = None
+    slide_budget: Any | None = None
+    case_study_result: Any | None = None
+    team_result: Any | None = None
+    selected_service_divider: dict | None = None
 
     # ─── Output ───
     pptx_path: str | None = None  # Path to rendered PPTX

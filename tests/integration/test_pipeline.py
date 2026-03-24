@@ -344,6 +344,11 @@ async def test_full_pipeline_happy_path() -> None:
         new_callable=AsyncMock,
         return_value=_SEARCH_RESULTS,
     )
+    s2_patch = patch(
+        "src.pipeline.graph.gather_external_evidence",
+        new_callable=AsyncMock,
+        return_value=([], {}),
+    )
     load_docs_patch = patch(
         "src.pipeline.graph.load_documents",
         new_callable=AsyncMock,
@@ -357,6 +362,7 @@ async def test_full_pipeline_happy_path() -> None:
         ],
     )
     patches.append(search_patch)
+    patches.append(s2_patch)
     patches.append(load_docs_patch)
 
     for p in patches:
@@ -476,6 +482,11 @@ async def test_retrieval_chain() -> None:
             new_callable=AsyncMock,
             return_value=_SEARCH_RESULTS,
         ) as mock_search,
+        patch(
+            "src.pipeline.graph.gather_external_evidence",
+            new_callable=AsyncMock,
+            return_value=([], {}),
+        ),
     ):
         config = {"configurable": {"thread_id": "test-retrieval"}}
         # Run — context executes, gate_1 interrupts
@@ -535,6 +546,11 @@ async def test_gate_two_resume_applies_selected_source_ids() -> None:
             "src.pipeline.graph.semantic_search",
             new_callable=AsyncMock,
             return_value=_SEARCH_RESULTS,
+        ),
+        patch(
+            "src.pipeline.graph.gather_external_evidence",
+            new_callable=AsyncMock,
+            return_value=([], {}),
         ),
         patch(
             "src.pipeline.graph.load_documents",

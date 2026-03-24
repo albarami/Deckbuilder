@@ -26,6 +26,7 @@ from src.agents.qa import agent as qa_agent
 from src.agents.research import agent as research_agent
 from src.agents.retrieval import planner as retrieval_planner
 from src.agents.retrieval import ranker as retrieval_ranker
+from src.config.settings import get_settings
 from src.models.enums import PipelineStage, RendererMode
 from src.models.state import DeckForgeState, ErrorInfo, GateDecision
 from src.services.renderer import (
@@ -36,6 +37,11 @@ from src.services.renderer import (
 )
 from src.services.scorer_profiles import ScorerProfile
 from src.services.search import load_documents, semantic_search
+from src.services.semantic_scholar import (
+    SemanticScholarAPIError,
+    gather_external_evidence,
+    normalize_semantic_scholar_api_key,
+)
 
 # ──────────────────────────────────────────────────────────────
 # Pipeline nodes — thin wrappers that call agents and return
@@ -141,12 +147,20 @@ def _gate_2_summary(state: DeckForgeState) -> str:
 
 
 def _gate_3_summary(state: DeckForgeState) -> str:
+    manifest = state.proposal_manifest
+    if manifest is not None:
+        total = manifest.total_slides
+        sections = manifest.section_ids
+        return (
+            f"Assembly plan ready: {total} slides across "
+            f"{len(sections)} sections ({', '.join(sections)})."
+        )
     if state.report_markdown:
         length = len(state.report_markdown)
         return f"Research report ready ({length} chars)."
     if state.research_report and state.research_report.sections:
         return f"Research report ready ({len(state.research_report.sections)} sections)."
-    return "No research report generated."
+    return "No assembly plan or research report generated."
 
 
 def _gate_4_summary(state: DeckForgeState) -> str:
@@ -186,7 +200,7 @@ async def gate_2_node(state: DeckForgeState) -> dict[str, Any]:
 
 
 async def gate_3_node(state: DeckForgeState) -> dict[str, Any]:
-    """Gate 3: User reviews research report (most important gate)."""
+    """Gate 3: User reviews assembly plan (methodology, budget, selections)."""
     return await gate_node(state, 3, _gate_3_summary)
 
 
@@ -200,11 +214,28 @@ async def gate_5_node(state: DeckForgeState) -> dict[str, Any]:
     return await gate_node(state, 5, _gate_5_summary)
 
 
+def _merge_local_and_s2(local: list[dict], s2: list[dict]) -> list[dict]:
+    """Prefer local knowledge hits first, then Semantic Scholar rows (deduped by doc_id)."""
+    seen: set[str] = set()
+    out: list[dict] = []
+    for row in local:
+        did = str(row.get("doc_id", ""))
+        if did and did not in seen:
+            seen.add(did)
+            out.append(row)
+    for row in s2:
+        did = str(row.get("doc_id", ""))
+        if did and did not in seen:
+            seen.add(did)
+            out.append(row)
+    return out
+
+
 async def retrieval_node(state: DeckForgeState) -> dict[str, Any]:
     """Retrieval chain: Planner → Search → Ranker (single node).
 
     1. Call planner — get transient search queries
-    2. Pass queries to local search service
+    2. Pass queries to local search + optional Semantic Scholar (authenticated only)
     3. Pass search results to ranker — populates retrieved_sources
     """
     # Step 1: Plan
@@ -217,19 +248,46 @@ async def retrieval_node(state: DeckForgeState) -> dict[str, Any]:
             "last_error": state.last_error,
         }
 
-    # Step 2: Search — extract query strings and call semantic_search directly.
-    # Empty queries fall back to an empty result set (the planner always
-    # produces at least one query, so this is a safety net only).
+    # Step 2: Search — local index + optional S2 external evidence (x-api-key).
     query_strings = [q.query for q in queries.search_queries if q.query.strip()]
     if not query_strings:
-        search_results: list[dict] = []
+        search_results = []
+        s2_registry: dict[str, dict] = {}
     else:
-        search_results = await semantic_search(query_strings, top_k=10)
+        local_results = await semantic_search(query_strings, top_k=10)
+        api_key = normalize_semantic_scholar_api_key(
+            get_settings().semantic_scholar_api_key.get_secret_value(),
+        )
+        if api_key:
+            try:
+                s2_results, s2_registry = await gather_external_evidence(
+                    query_strings,
+                    api_key=api_key,
+                )
+            except SemanticScholarAPIError as e:
+                err = ErrorInfo(
+                    agent="semantic_scholar",
+                    error_type=type(e).__name__,
+                    message=str(e),
+                )
+                errors = [*state.errors, err]
+                return {
+                    "current_stage": PipelineStage.ERROR,
+                    "session": state.session,
+                    "errors": errors,
+                    "last_error": err,
+                    "semantic_scholar_papers": {},
+                }
+        else:
+            s2_results, s2_registry = [], {}
+
+        search_results = _merge_local_and_s2(local_results, s2_results)
 
     # Step 3: Rank
     result = await retrieval_ranker.run(state, search_results)
     return {
         "retrieved_sources": result.retrieved_sources,
+        "semantic_scholar_papers": s2_registry,
         "current_stage": result.current_stage,
         "session": result.session,
         "errors": result.errors,
@@ -248,7 +306,10 @@ async def analysis_node(state: DeckForgeState) -> dict[str, Any]:
         # Auto-approve all retrieved sources for local dev
         approved_ids = [s.doc_id for s in state.retrieved_sources]
 
-    documents = await load_documents(approved_ids)
+    documents = await load_documents(
+        approved_ids,
+        external_papers=state.semantic_scholar_papers,
+    )
     result = state
     merged_index = None
 
@@ -426,50 +487,38 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
     """Template-v2 renderer — manifest-driven, template-anchored.
 
     Requires ``state.proposal_manifest`` to be populated by an earlier
-    pipeline phase.  Fails closed if the manifest is absent — no empty
-    stub is ever constructed here.
+    pipeline phase (assembly plan node).  Fails closed if the manifest
+    is absent — no fallback rebuild from slides is permitted.
 
     The scorer profile for composition QA is dispatched by renderer mode.
     """
-    # ── Auto-build manifest if not already in state ────────────
+    import logging
+
+    _logger = logging.getLogger(__name__)
+
     manifest = state.proposal_manifest
     if manifest is None:
-        from src.services.manifest_builder import build_manifest_from_slides
-
-        slides = state.final_slides or (
-            state.written_slides.slides if state.written_slides else []
+        _logger.error(
+            "render_v2: proposal_manifest is None — fail closed. "
+            "The assembly plan must populate the manifest before rendering."
         )
-        if not slides:
-            return {
-                "current_stage": PipelineStage.ERROR,
-                "last_error": ErrorInfo(
-                    agent="render_v2",
-                    error_type="NoSlides",
-                    message="No slides available for rendering.",
+        return {
+            "current_stage": PipelineStage.ERROR,
+            "last_error": ErrorInfo(
+                agent="render_v2",
+                error_type="MissingManifest",
+                message=(
+                    "proposal_manifest is missing. Template-first mode requires "
+                    "the assembly plan to build the manifest before rendering. "
+                    "No fallback rebuild from slides is permitted."
                 ),
-            }
+            ),
+        }
 
-        language = state.output_language
-        lang_val = language.value if hasattr(language, "value") else str(language)
-        lang_suffix = "ar" if lang_val == "ar" else "en"
-        data_dir = Path("src/data")
-        catalog_lock_path = data_dir / f"catalog_lock_{lang_suffix}.json"
-
-        # Extract context from state
-        geography = "ksa"
-        sector = "technology"
-        if state.rfp_context:
-            geography = getattr(state.rfp_context, "geography", "ksa") or "ksa"
-            sector = getattr(state.rfp_context, "sector", "technology") or "technology"
-
-        manifest = build_manifest_from_slides(
-            slides=slides,
-            rfp_context=state.rfp_context,
-            catalog_lock_path=catalog_lock_path if catalog_lock_path.exists() else None,
-            language=lang_suffix,
-            geography=geography,
-            sector=sector,
-        )
+    _logger.info(
+        "render_v2: manifest present with %d entries, rendering via template-v2",
+        manifest.total_slides,
+    )
 
     from src.services.renderer_v2 import render_v2
     from src.services.template_manager import TemplateManager
@@ -512,6 +561,7 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
             else:
                 template_path = Path("PROPOSAL_TEMPLATE") / "PROPOSAL_TEMPLATE EN.potx"
 
+        _logger.info("render_v2: resolved template path = %s", template_path)
         tm = TemplateManager(str(template_path), catalog_lock_path)
     except Exception as exc:
         return {
@@ -525,6 +575,13 @@ async def _render_template_v2(state: DeckForgeState) -> dict[str, Any]:
 
     # Render via renderer_v2
     try:
+        _logger.info(
+            "render_v2: calling render_v2() with %d manifest entries, "
+            "catalog_lock=%s, output=%s",
+            manifest.total_slides,
+            catalog_lock_path,
+            pptx_path,
+        )
         v2_result = render_v2(manifest, tm, catalog_lock_path, pptx_path)
 
         result: dict[str, Any] = {
