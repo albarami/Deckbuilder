@@ -329,7 +329,7 @@ describe("GatePanel", () => {
     mockUseIsPptEnabled.mockReturnValue(false);
     render(<GatePanel gate={makeGate(4)} />);
     expect(screen.getByTestId("gate-ppt-coming-soon")).toBeInTheDocument();
-    expect(screen.queryByTestId("gate-actions")).not.toBeInTheDocument();
+    expect(screen.getByTestId("gate-ppt-continue-btn")).toBeInTheDocument();
   });
 
   it("handles empty gate data gracefully", () => {

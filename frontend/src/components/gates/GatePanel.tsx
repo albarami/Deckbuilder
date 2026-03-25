@@ -34,6 +34,7 @@ export interface GatePanelProps {
 
 export function GatePanel({ gate }: GatePanelProps) {
   const t = useTranslations("sourceBook");
+  const tCommon = useTranslations("common");
   const isPptEnabled = useIsPptEnabled();
   const { approve, reject, isDecidingGate } = useGate();
   const [modifications, setModifications] = useState<SourceModifications | null>(null);
@@ -83,8 +84,17 @@ export function GatePanel({ gate }: GatePanelProps) {
           />
         </div>
       ) : (
-        <div className="border-t border-sg-border bg-sg-mist/60 px-6 py-4 text-sm text-sg-slate/70 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
-          {t("pptComingSoon")}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-sg-border bg-sg-mist/60 px-6 py-4 dark:border-slate-800 dark:bg-slate-950/70">
+          <p className="text-sm text-sg-slate/70 dark:text-slate-300">{t("pptComingSoon")}</p>
+          <button
+            type="button"
+            onClick={handleApprove}
+            disabled={isDecidingGate}
+            className="inline-flex items-center rounded-lg bg-sg-teal px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sg-navy disabled:cursor-not-allowed disabled:opacity-60"
+            data-testid="gate-ppt-continue-btn"
+          >
+            {tCommon("next")}
+          </button>
         </div>
       )}
     </Card>

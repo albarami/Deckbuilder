@@ -76,21 +76,8 @@ export default function PipelineSessionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  useEffect(() => {
-    if (pipeline.sessionId && pipeline.status !== "idle") {
-      try {
-        sessionStorage.setItem(
-          `deckforge_session_${pipeline.sessionId}`,
-          JSON.stringify({
-            status: pipeline.status,
-            startedAt: pipeline.startedAt,
-          }),
-        );
-      } catch {
-        // sessionStorage may be unavailable
-      }
-    }
-  }, [pipeline.sessionId, pipeline.status, pipeline.startedAt]);
+  // Session state is managed server-side via SessionManager.
+  // No client-side sessionStorage mirroring needed.
 
   if (isLoading) {
     return (
@@ -315,7 +302,9 @@ function formatStageLabel(
       return t("stages.sources");
     case "report_generation":
     case "report":
-      return t("stages.report");
+    case "source_book_generation":
+    case "source_book":
+      return t("stages.sourceBook");
     case "slide_rendering":
     case "slides":
     case "rendering":

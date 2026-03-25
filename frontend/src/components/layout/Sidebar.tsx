@@ -83,9 +83,10 @@ export function Sidebar() {
       ];
 
       if (isPptEnabled) {
+        const pipelineBaseHref = extractPipelineBaseHref(pipelineHref);
         items.push({
           id: "slides",
-          href: pipelineHref.startsWith("/pipeline/") ? `${pipelineHref}/slides` : "/history",
+          href: pipelineBaseHref ? `${pipelineBaseHref}/slides` : "/history",
           labelKey: "nav.slides",
           icon: <GitBranch className="h-4 w-4" aria-hidden="true" />,
         });
@@ -135,4 +136,9 @@ export function Sidebar() {
       </div>
     </aside>
   );
+}
+
+function extractPipelineBaseHref(path: string): string | null {
+  const match = path.match(/^\/pipeline\/[^/]+/);
+  return match ? match[0] : null;
 }
