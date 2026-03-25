@@ -1,0 +1,17 @@
+﻿To: info@semanticscholar.org
+Subject: API key returns 403 on REST endpoints
+
+Hello Semantic Scholar team,
+
+I received an API key via email, but it returns 403 on all REST endpoints when sent as x-api-key.
+
+Observed behavior:
+- GET /graph/v1/paper/{paperId} with x-api-key -> 403 Forbidden
+- GET /graph/v1/paper/search/bulk with x-api-key -> 403 Forbidden
+- Same paper details endpoint without key -> 200 OK
+
+Key prefix: SAYz
+
+Can you confirm this key is activated for the REST API on api.semanticscholar.org?
+
+Thank you.
