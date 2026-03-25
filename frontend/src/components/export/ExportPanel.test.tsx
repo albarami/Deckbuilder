@@ -16,6 +16,8 @@ import type {
 
 // ── Mocks ──────────────────────────────────────────────────────────────
 
+const mockUseIsPptEnabled = vi.fn(() => true);
+
 vi.mock("next-intl", () => ({
   useTranslations: () => {
     const t = (key: string, values?: Record<string, unknown>) => {
@@ -56,7 +58,7 @@ vi.mock("@/stores/locale-store", () => ({
 }));
 
 vi.mock("@/hooks/use-is-ppt-enabled", () => ({
-  useIsPptEnabled: () => true,
+  useIsPptEnabled: () => mockUseIsPptEnabled(),
 }));
 
 const mockDownloadPptx = vi.fn().mockResolvedValue(undefined);
@@ -108,6 +110,7 @@ const defaultProps = {
 describe("ExportPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseIsPptEnabled.mockReturnValue(true);
   });
 
   it("renders the export panel with title", () => {
@@ -150,6 +153,15 @@ describe("ExportPanel", () => {
     );
     const downloadButtons = screen.getAllByTestId("download-button");
     expect(downloadButtons).toHaveLength(1);
+  });
+
+  it("hides PPTX download when PPT is disabled", () => {
+    mockUseIsPptEnabled.mockReturnValue(false);
+    render(<ExportPanel {...defaultProps} />);
+    const downloadButtons = screen.getAllByTestId("download-button");
+    expect(downloadButtons).toHaveLength(1);
+    expect(screen.queryByText("PowerPoint (.pptx)")).not.toBeInTheDocument();
+    expect(screen.getByText("Word Document (.docx)")).toBeInTheDocument();
   });
 
   it("triggers PPTX download on click", async () => {
