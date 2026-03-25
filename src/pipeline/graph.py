@@ -147,46 +147,91 @@ def _gate_2_summary(state: DeckForgeState) -> str:
 
 
 def _gate_3_summary(state: DeckForgeState) -> str:
+    mode_prefix = f"Mode: {state.deck_mode}"
     manifest = state.proposal_manifest
     if manifest is not None:
         total = manifest.total_slides
         sections = manifest.section_ids
         return (
-            f"Assembly plan ready: {total} slides across "
+            f"{mode_prefix} | Assembly plan ready: {total} slides across "
             f"{len(sections)} sections ({', '.join(sections)})."
         )
     if state.report_markdown:
         length = len(state.report_markdown)
-        return f"Research report ready ({length} chars)."
+        return f"{mode_prefix} | Research report ready ({length} chars)."
     if state.research_report and state.research_report.sections:
-        return f"Research report ready ({len(state.research_report.sections)} sections)."
-    return "No assembly plan or research report generated."
+        return f"{mode_prefix} | Research report ready ({len(state.research_report.sections)} sections)."
+    return f"{mode_prefix} | No assembly plan or research report generated."
 
 
 def _gate_4_summary(state: DeckForgeState) -> str:
+    mode_prefix = f"Mode: {state.deck_mode}"
+    blocker_suffix = ""
+    if state.unresolved_issues and state.unresolved_issues.has_blockers:
+        unresolved_count = sum(1 for issue in state.unresolved_issues.issues if not issue.resolved)
+        blocker_suffix = f" | Unresolved blockers: {unresolved_count}"
+
     if state.written_slides:
         count = len(state.written_slides.slides)
         mode = state.evidence_mode
         drafts = len(state.deck_drafts)
         reviews = len(state.deck_reviews)
         return (
-            f"Built slides: {count} slides ({mode} mode)"
+            f"{mode_prefix} | Built slides: {count} slides ({mode} mode)"
             f" | {drafts} drafts, {reviews} reviews"
+            f"{blocker_suffix}"
         )
     if state.slide_outline:
         count = len(state.slide_outline.slides)
-        return f"Slide outline: {count} slides."
-    return "No slides built."
+        return f"{mode_prefix} | Slide outline: {count} slides.{blocker_suffix}"
+    return f"{mode_prefix} | No slides built.{blocker_suffix}"
 
 
 def _gate_5_summary(state: DeckForgeState) -> str:
+    mode_prefix = f"Mode: {state.deck_mode}"
+    if state.submission_qa_result:
+        submission = state.submission_qa_result
+        parts = [
+            mode_prefix,
+            f"Submission QA: {submission.status}",
+        ]
+        if submission.summary:
+            parts.append(submission.summary)
+
+        if submission.density_result:
+            density = submission.density_result
+            density_blockers = []
+            for score in density.slide_scores:
+                has_blocker = any(v.severity == "blocker" for v in score.violations)
+                if has_blocker:
+                    density_blockers.append(score.slide_id)
+            density_blockers = sorted(dict.fromkeys(density_blockers))
+            if density.blocker_count > 0:
+                blocker_text = ", ".join(density_blockers) if density_blockers else "none listed"
+                parts.append(
+                    f"Density: {density.blocker_count} blockers ({blocker_text})"
+                )
+
+        if submission.evidence_provenance:
+            provenance = submission.evidence_provenance
+            if provenance.blocker_count > 0:
+                provenance_ids = sorted(
+                    dict.fromkeys(issue.slide_id for issue in provenance.issues)
+                )
+                parts.append(
+                    f"Provenance: {provenance.blocker_count} blockers "
+                    f"({', '.join(provenance_ids)})"
+                )
+
+        return " | ".join(parts)
+
     if state.qa_result:
         s = state.qa_result.deck_summary
         return (
-            f"QA complete: {s.passed} passed, {s.failed} failed"
+            f"{mode_prefix} | QA complete: {s.passed} passed, {s.failed} failed"
             f" | fail_close={s.fail_close}"
         )
-    return "No QA result."
+    return f"{mode_prefix} | No QA result."
 
 
 async def gate_1_node(state: DeckForgeState) -> dict[str, Any]:

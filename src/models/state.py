@@ -13,6 +13,7 @@ from .proposal_manifest import ProposalManifest
 from .qa import QAResult
 from .report import ResearchReport
 from .rfp import RFPContext
+from .slide_blueprint import SlideBlueprint
 from .slides import SlideObject, SlideOutline, WrittenSlides
 from .submission import InternalNotePack, SubmissionQAResult, SubmissionSourcePack, UnresolvedIssueRegistry
 from .waiver import WaiverObject
@@ -116,6 +117,7 @@ class DeckForgeState(DeckForgeBaseModel):
 
     # ─── Gate 4: Slide Outline / Built Slides ───
     slide_outline: SlideOutline | None = None
+    slide_blueprint: SlideBlueprint | None = None
     gate_4: GateDecision | None = None
 
     # ─── Iterative Builder (M10) ───

@@ -611,7 +611,15 @@ async def render_pptx(
     Returns:
         RenderResult with pptx_path, slide_count, and per-slide render_log.
     """
-    prs = Presentation(template_path)
+    template_file = Path(template_path)
+    if template_file.exists():
+        prs = Presentation(template_path)
+    else:
+        logger.warning(
+            "Template file '%s' not found. Falling back to default PowerPoint template.",
+            template_path,
+        )
+        prs = Presentation()
 
     # Remove existing slides from template
     for sldId in list(prs.slides._sldIdLst):
@@ -631,6 +639,16 @@ async def render_pptx(
 
         # Select layout
         layout_idx = _get_layout_index(slide_obj.layout_type)
+        if layout_idx >= len(prs.slide_layouts):
+            fallback_idx = min(_DEFAULT_LAYOUT_IDX, len(prs.slide_layouts) - 1)
+            logger.warning(
+                "Layout index %d unavailable in active template (%d layouts). "
+                "Falling back to index %d.",
+                layout_idx,
+                len(prs.slide_layouts),
+                fallback_idx,
+            )
+            layout_idx = fallback_idx
         layout = prs.slide_layouts[layout_idx]
         slide = prs.slides.add_slide(layout)
 

@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     storage_backend: str = "local"
     search_backend: str = "local"
     state_backend: str = "local"
-    local_docs_path: str = "data test"
+    local_docs_path: str = "./test_docs"
     template_path: str = "./templates/Presentation6.pptx"
     output_path: str = "./output"
     state_path: str = "./state"
