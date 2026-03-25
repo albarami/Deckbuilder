@@ -46,30 +46,45 @@ def _house_entry(section_id: str, section_name: str, action: str = "include_as_i
 
 
 def _valid_blueprint() -> list[SlideBlueprintEntry]:
-    # Required sections in canonical order; S09 appears exactly 3 times.
-    return [
-        _hybrid_entry("S01", "Proposal Shell"),
-        _dynamic_entry("S02", "Introduction Message"),
-        _hybrid_entry("S03", "Table of Contents"),
-        _hybrid_entry("S04", "Introduction and Understanding (Divider)"),
-        _dynamic_entry("S05", "Understanding of Project"),
-        _hybrid_entry("S06", "Why Strategic Gears (Divider)"),
-        _dynamic_entry("S07", "Why Strategic Gears (Evidence Content)"),
-        _hybrid_entry("S08", "Methodology (Divider)"),
-        _dynamic_entry("S09", "Methodology (Overview)"),
-        _dynamic_entry("S09", "Methodology (Focused Phase)"),
-        _dynamic_entry("S09", "Methodology (Detailed Phase)"),
-        _hybrid_entry("S10", "Project Timeline and Outcome (Divider)"),
-        _dynamic_entry("S11", "Project Timeline and Outcomes"),
-        _hybrid_entry("S12", "Proposed Project Team (Divider)"),
-        _hybrid_entry("S13", "Project Governance (Divider)"),
-        _house_entry("S18", "Organizational Excellence Case Pool", action="select_from_pool"),
-        _house_entry("S20", "Marketing Case Pool", action="select_from_pool"),
-        _house_entry("S22", "Digital, Cloud, and AI Case Pool", action="select_from_pool"),
-        _house_entry("S30", "Leadership Bio Pool", action="select_from_pool"),
-        _house_entry("S30", "Leadership Bio Pool", action="select_from_pool"),
-        _house_entry("S31", "Closing Shell Sequence", action="include_as_is"),
-    ]
+    # Full contract coverage: explicit entry for every S01..S31 section.
+    entries: list[SlideBlueprintEntry] = []
+    for spec in TEMPLATE_SECTION_ORDER:
+        section_id = spec.section_id
+        section_name = spec.section_name
+
+        if section_id == "S09":
+            # Exactly 3 methodology entries in canonical order.
+            entries.extend(
+                [
+                    _dynamic_entry("S09", "Methodology (Overview)"),
+                    _dynamic_entry("S09", "Methodology (Focused Phase)"),
+                    _dynamic_entry("S09", "Methodology (Detailed Phase)"),
+                ]
+            )
+            continue
+
+        if spec.ownership == "dynamic":
+            entries.append(_dynamic_entry(section_id, section_name))
+            continue
+
+        if spec.ownership == "hybrid":
+            entries.append(_hybrid_entry(section_id, section_name))
+            continue
+
+        # House ownership — explicit include/skip references.
+        if section_id in {"S18", "S20", "S22"}:
+            entries.append(_house_entry(section_id, section_name, action="select_from_pool"))
+            continue
+        if section_id == "S30":
+            entries.append(_house_entry(section_id, section_name, action="select_from_pool"))
+            entries.append(_house_entry(section_id, section_name, action="select_from_pool"))
+            continue
+        if section_id == "S31":
+            entries.append(_house_entry(section_id, section_name, action="include_as_is"))
+            continue
+        entries.append(_house_entry(section_id, section_name, action="skip"))
+
+    return entries
 
 
 def test_valid_blueprint_passes_validation() -> None:

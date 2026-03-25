@@ -13,7 +13,7 @@ from src.models.rfp import (
     EvaluationSubCriterion,
     RFPContext,
 )
-from src.models.slides import SlideObject, SlideOutline
+from src.models.slide_blueprint import SlideBlueprint, SlideBlueprintEntry
 from src.models.state import DeckForgeState
 from src.services.llm import LLMError, LLMResponse
 
@@ -54,47 +54,44 @@ GAP: No NCA cybersecurity compliance evidence [GAP-001].
 """
 
 
-def _make_sample_slide_outline() -> SlideOutline:
-    """Sample SlideOutline with 3 slides using different layout types."""
-    return SlideOutline(
-        slides=[
-            SlideObject(
-                slide_id="S-001",
-                title="Renewal of Support for SAP Systems",
-                layout_type=LayoutType.TITLE,
-                report_section_ref="SEC-01",
-                content_guidance="Cover slide: RFP name, entity, date",
-                source_claims=[],
+def _make_sample_slide_blueprint() -> SlideBlueprint:
+    """Sample template-locked blueprint response."""
+    return SlideBlueprint(
+        entries=[
+            SlideBlueprintEntry(
+                section_id="S01",
+                section_name="Proposal Shell",
+                ownership="hybrid",
+                slide_title="Renewal of Support for SAP Systems",
+                key_message="Proposal structure for SAP renewal",
+                house_action="include_as_is",
             ),
-            SlideObject(
-                slide_id="S-002",
-                title="Strategic Gears SAP Expertise",
-                layout_type=LayoutType.CONTENT_1COL,
-                report_section_ref="SEC-03",
-                content_guidance="Use CLM-0001 for SAP experience summary",
-                source_claims=["CLM-0001"],
+            SlideBlueprintEntry(
+                section_id="S02",
+                section_name="Introduction Message",
+                ownership="dynamic",
+                slide_title="Strategic Gears SAP Expertise",
+                key_message="Proven SAP delivery for public-sector entities",
+                bullet_points=["8 consultants", "12 modules", "9-month delivery"],
+                evidence_ids=["CLM-0001"],
+                visual_guidance="Executive message layout",
             ),
-            SlideObject(
-                slide_id="S-003",
-                title="Compliance Status",
-                layout_type=LayoutType.COMPLIANCE_MATRIX,
-                report_section_ref="SEC-06",
-                content_guidance="Map compliance requirements to evidence. Flag GAP-001.",
-                source_claims=[],
+            SlideBlueprintEntry(
+                section_id="S03",
+                section_name="Table of Contents",
+                ownership="hybrid",
+                slide_title="Table of Contents",
+                key_message="Template-native section sequence",
+                house_action="include_as_is",
             ),
-        ],
-        slide_count=3,
-        weight_allocation={
-            "Previous Experience": "40% — 2 slides",
-            "Technical Approach": "30% — 1 slide",
-        },
+        ]
     )
 
 
 def _make_success_response() -> LLMResponse:
-    """LLMResponse wrapping valid SlideOutline."""
+    """LLMResponse wrapping valid SlideBlueprint."""
     return LLMResponse(
-        parsed=_make_sample_slide_outline(),
+        parsed=_make_sample_slide_blueprint(),
         input_tokens=6000,
         output_tokens=3000,
         model="gpt-5.4",
@@ -112,9 +109,9 @@ def _make_input_state() -> DeckForgeState:
 
 
 @pytest.mark.asyncio
-@patch("src.agents.structure.agent.call_llm", new_callable=AsyncMock)
+@patch("src.agents.slide_architect.structure.agent.call_llm", new_callable=AsyncMock)
 async def test_structure_happy_path(mock_call_llm: AsyncMock) -> None:
-    """Approved report + rfp_context → state.slide_outline populated, stage = outline_review."""
+    """Approved report + rfp_context → state.slide_blueprint populated."""
     mock_call_llm.return_value = _make_success_response()
     state = _make_input_state()
 
@@ -122,14 +119,15 @@ async def test_structure_happy_path(mock_call_llm: AsyncMock) -> None:
 
     result = await run(state)
 
-    assert result.slide_outline is not None
-    assert isinstance(result.slide_outline, SlideOutline)
+    assert result.slide_blueprint is not None
+    assert isinstance(result.slide_blueprint, SlideBlueprint)
+    assert result.slide_outline is not None  # compatibility object for downstream consumers
     assert result.current_stage == "outline_review"
     assert result.session.total_llm_calls == 1
 
 
 @pytest.mark.asyncio
-@patch("src.agents.structure.agent.call_llm", new_callable=AsyncMock)
+@patch("src.agents.slide_architect.structure.agent.call_llm", new_callable=AsyncMock)
 async def test_structure_uses_model_map(mock_call_llm: AsyncMock) -> None:
     """Agent uses MODEL_MAP['structure_agent'], resolves to GPT-5.4, not Claude."""
     mock_call_llm.return_value = _make_success_response()
@@ -143,10 +141,11 @@ async def test_structure_uses_model_map(mock_call_llm: AsyncMock) -> None:
     call_kwargs = mock_call_llm.call_args
     assert call_kwargs.kwargs["model"] == MODEL_MAP["structure_agent"]
     assert "gpt" in MODEL_MAP["structure_agent"]
+    assert call_kwargs.kwargs["response_model"] is SlideBlueprint
 
 
 @pytest.mark.asyncio
-@patch("src.agents.structure.agent.call_llm", new_callable=AsyncMock)
+@patch("src.agents.slide_architect.structure.agent.call_llm", new_callable=AsyncMock)
 async def test_structure_uses_system_prompt(mock_call_llm: AsyncMock) -> None:
     """Agent passes SYSTEM_PROMPT starting with 'You are the Structure Agent'."""
     mock_call_llm.return_value = _make_success_response()
@@ -163,7 +162,7 @@ async def test_structure_uses_system_prompt(mock_call_llm: AsyncMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("src.agents.structure.agent.call_llm", new_callable=AsyncMock)
+@patch("src.agents.slide_architect.structure.agent.call_llm", new_callable=AsyncMock)
 async def test_structure_handles_llm_error(mock_call_llm: AsyncMock) -> None:
     """LLMError is caught, errors populated, stage = ERROR."""
     mock_call_llm.side_effect = LLMError(
@@ -181,10 +180,11 @@ async def test_structure_handles_llm_error(mock_call_llm: AsyncMock) -> None:
     assert len(result.errors) == 1
     assert result.errors[0].agent == "structure_agent"
     assert result.slide_outline is None
+    assert result.slide_blueprint is None
 
 
 @pytest.mark.asyncio
-@patch("src.agents.structure.agent.call_llm", new_callable=AsyncMock)
+@patch("src.agents.slide_architect.structure.agent.call_llm", new_callable=AsyncMock)
 async def test_structure_updates_token_counts(mock_call_llm: AsyncMock) -> None:
     """Successful call updates state.session token counters."""
     mock_call_llm.return_value = _make_success_response()
@@ -200,7 +200,7 @@ async def test_structure_updates_token_counts(mock_call_llm: AsyncMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("src.agents.structure.agent.call_llm", new_callable=AsyncMock)
+@patch("src.agents.slide_architect.structure.agent.call_llm", new_callable=AsyncMock)
 async def test_structure_builds_user_message(mock_call_llm: AsyncMock) -> None:
     """User message includes approved_report, rfp_context, presentation_type, evaluation_criteria, output_language."""
     mock_call_llm.return_value = _make_success_response()
@@ -223,9 +223,9 @@ async def test_structure_builds_user_message(mock_call_llm: AsyncMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("src.agents.structure.agent.call_llm", new_callable=AsyncMock)
+@patch("src.agents.slide_architect.structure.agent.call_llm", new_callable=AsyncMock)
 async def test_structure_outline_has_slides(mock_call_llm: AsyncMock) -> None:
-    """Parsed SlideOutline has slides with SlideObject items."""
+    """Compatibility SlideOutline is derived from template blueprint."""
     mock_call_llm.return_value = _make_success_response()
     state = _make_input_state()
 
@@ -239,14 +239,14 @@ async def test_structure_outline_has_slides(mock_call_llm: AsyncMock) -> None:
     assert outline.slides[0].slide_id == "S-001"
     assert outline.slides[0].title == "Renewal of Support for SAP Systems"
     assert outline.slides[0].layout_type == LayoutType.TITLE
-    assert outline.slides[0].report_section_ref == "SEC-01"
+    assert outline.slides[0].report_section_ref == "S01"
     assert outline.slides[1].layout_type == LayoutType.CONTENT_1COL
     assert "CLM-0001" in outline.slides[1].source_claims
-    assert outline.slides[2].layout_type == LayoutType.COMPLIANCE_MATRIX
+    assert outline.slides[2].layout_type == LayoutType.AGENDA
 
 
 @pytest.mark.asyncio
-@patch("src.agents.structure.agent.call_llm", new_callable=AsyncMock)
+@patch("src.agents.slide_architect.structure.agent.call_llm", new_callable=AsyncMock)
 async def test_structure_slide_count_matches(mock_call_llm: AsyncMock) -> None:
     """slide_outline.slide_count matches len(slide_outline.slides)."""
     mock_call_llm.return_value = _make_success_response()
@@ -260,4 +260,4 @@ async def test_structure_slide_count_matches(mock_call_llm: AsyncMock) -> None:
     assert outline is not None
     assert outline.slide_count == len(outline.slides)
     assert outline.slide_count == 3
-    assert len(outline.weight_allocation) == 2
+    assert "template_locked_contract" in outline.weight_allocation

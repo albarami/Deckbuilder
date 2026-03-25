@@ -133,6 +133,7 @@ class DeckForgeState(DeckForgeBaseModel):
 
     # ─── Gate 4: Slide Outline / Built Slides ───
     slide_outline: SlideOutline | None = None
+    slide_blueprint: SlideBlueprint | None = None
     gate_4: GateDecision | None = None
 
     # ─── Iterative Builder (M10) ───

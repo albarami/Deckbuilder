@@ -70,8 +70,6 @@ def validate_blueprint_against_template(
 
     template_map = {spec.section_id: spec for spec in template}
     template_index = {spec.section_id: idx for idx, spec in enumerate(template)}
-    required_sections = [spec.section_id for spec in template if spec.required]
-
     seen_sections: set[str] = set()
     section_counts: dict[str, int] = {}
     last_idx = -1
@@ -105,9 +103,23 @@ def validate_blueprint_against_template(
         section_counts[entry.section_id] = section_counts.get(entry.section_id, 0) + 1
         seen_sections.add(entry.section_id)
 
-    for required_section in required_sections:
-        if required_section not in seen_sections:
-            violations.append(f"Missing required section '{required_section}'.")
+    # Full contract coverage: all sections should be explicitly represented.
+    for spec in template:
+        if spec.section_id in seen_sections:
+            continue
+        if spec.required:
+            violations.append(f"Missing required section '{spec.section_id}'.")
+            continue
+        logger.warning(
+            "Template alignment warning: optional section '%s' is absent. "
+            "Include an explicit entry with house_action='skip' to keep "
+            "the blueprint contract complete.",
+            spec.section_id,
+        )
+        violations.append(
+            f"Missing optional section '{spec.section_id}'. "
+            "Add explicit entry with house_action='skip' or include action."
+        )
 
     for section_id, count in section_counts.items():
         spec = template_map.get(section_id)
@@ -140,6 +152,19 @@ def validate_blueprint_against_template(
     )
     if not has_house_reference:
         violations.append("Blueprint must include house/hybrid reference entries, not dynamic-only sections.")
+
+    first_seen_order = [sid for sid in [spec.section_id for spec in template] if sid in seen_sections]
+    seen_in_blueprint_order: list[str] = []
+    seen_tracker: set[str] = set()
+    for entry in blueprint:
+        if entry.section_id in seen_tracker:
+            continue
+        seen_tracker.add(entry.section_id)
+        seen_in_blueprint_order.append(entry.section_id)
+    if seen_in_blueprint_order != first_seen_order:
+        violations.append(
+            "Section order violation: first occurrence order must match canonical S01-S31 order."
+        )
 
     return violations
 
