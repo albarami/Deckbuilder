@@ -1,34 +1,78 @@
-"""Slide Blueprint — structured per-slide content specification.
+"""Blueprint schema with ownership-aware section entries.
 
-The Slide Blueprint is produced by the Slide Architect agent after Gate 3
-approval. It maps Source Book content to individual slide specifications
-with explicit bullet logic, evidence references, and layout guidance.
-
-The SlideBlueprintEntry model lives in source_book.py (Section 6 of the
-Source Book). This module defines the SlideBlueprint container that wraps
-a list of entries with aggregate metadata.
+This module defines the template-locked blueprint used by the Structure Agent.
+The Source Book Writer uses a separate SlideBlueprintEntry defined in
+source_book.py (with slide_number, proof_points, etc.) for Section 6 content.
 """
 
-from pydantic import Field
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import model_validator
 
 from .common import DeckForgeBaseModel
-from .source_book import SlideBlueprintEntry
+
+OwnershipType = Literal["house", "dynamic", "hybrid"]
+HouseActionType = Literal["include_as_is", "select_from_pool", "skip"]
+
+
+class SlideBlueprintEntry(DeckForgeBaseModel):
+    """One template-mapped blueprint entry."""
+
+    section_id: str
+    section_name: str
+    ownership: OwnershipType
+
+    slide_title: str | None = None
+    key_message: str | None = None
+    bullet_points: list[str] | None = None
+    evidence_ids: list[str] | None = None
+    visual_guidance: str | None = None
+
+    house_action: HouseActionType | None = None
+    pool_selection_criteria: str | None = None
+
+    @model_validator(mode="after")
+    def validate_ownership_fields(self) -> SlideBlueprintEntry:
+        """Enforce content split for house/dynamic/hybrid entries."""
+        has_dynamic_payload = any(
+            (
+                self.slide_title,
+                self.key_message,
+                self.bullet_points,
+                self.evidence_ids,
+                self.visual_guidance,
+            )
+        )
+
+        if self.ownership == "house":
+            if has_dynamic_payload:
+                raise ValueError("House entries cannot contain generated content fields.")
+            if self.house_action is None:
+                raise ValueError("House entries must set house_action.")
+
+        if self.ownership == "dynamic":
+            if not has_dynamic_payload:
+                raise ValueError("Dynamic entries must include generated content fields.")
+            if self.house_action is not None:
+                raise ValueError("Dynamic entries cannot set house_action.")
+            if self.pool_selection_criteria is not None:
+                raise ValueError("Dynamic entries cannot set pool_selection_criteria.")
+
+        if self.ownership == "hybrid":
+            if self.house_action is None:
+                raise ValueError("Hybrid entries must set house_action for template shell handling.")
+            if self.bullet_points or self.evidence_ids or self.visual_guidance:
+                raise ValueError(
+                    "Hybrid entries may only parameterize title/key message; "
+                    "they cannot include full generated content payload."
+                )
+
+        return self
 
 
 class SlideBlueprint(DeckForgeBaseModel):
-    """Complete slide blueprint — output of the Slide Architect agent.
+    """Ordered blueprint document."""
 
-    Contains per-slide content specifications (SlideBlueprintEntry) plus
-    aggregate metadata for quality validation.
-
-    Fields:
-        blueprint_version: Schema version for forward compatibility.
-        total_variable_slides: Number of b_variable slides in the blueprint.
-        evidence_coverage: Fraction (0.0-1.0) of slides with evidence backing.
-        entries: Per-slide content specifications.
-    """
-
-    blueprint_version: str = "1.0"
-    total_variable_slides: int = 0
-    evidence_coverage: float = 0.0
-    entries: list[SlideBlueprintEntry] = Field(default_factory=list)
+    entries: list[SlideBlueprintEntry]

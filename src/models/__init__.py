@@ -16,6 +16,7 @@ from .retrieval import (  # noqa: F401
     SearchQuery,
 )
 from .rfp import ComplianceRequirement, Deliverable, EvaluationCriteria, RFPContext, ScopeItem  # noqa: F401
+from .slide_blueprint import SlideBlueprint, SlideBlueprintEntry  # noqa: F401
 from .slides import BodyContent, ChartSpec, SlideObject, SlideOutline, WrittenSlides  # noqa: F401
 from .state import (  # noqa: F401
     ConversationTurn,
@@ -26,4 +27,5 @@ from .state import (  # noqa: F401
     SessionMetadata,
     UploadedDocument,
 )
+from .template_contract import TEMPLATE_SECTION_ORDER, TemplateSectionSpec  # noqa: F401
 from .waiver import WaiverObject  # noqa: F401
