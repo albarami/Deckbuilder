@@ -370,14 +370,14 @@ Implementation note: use `completedGates` + current outputs/status for robust pe
 
 ### Integration tests
 
-1. Intake flow  
-   - Upload + start pipeline request payload correctness.
+1. `frontend/src/tests/integration/intake-upload-start.integration.test.tsx` (**new file**)  
+   - Covers intake upload + optional paste + start pipeline request payload/flow.
 
-2. Gate progression flow  
-   - Gate 1 approve -> Gate 2 approve -> Gate 3 Source Book rendering.
+2. `frontend/src/tests/integration/pipeline-gates-1-2-3.integration.test.tsx` (**new file**)  
+   - Covers Gate 1 approve -> Gate 2 approve -> Gate 3 Source Book review rendering and interaction.
 
-3. Gate 3 DOCX behavior  
-   - Download action available at Gate 3 pending (not only full complete).
+3. `frontend/src/tests/integration/gate3-docx-availability.integration.test.tsx` (**new file**)  
+   - Covers DOCX button visibility and download invocation while Gate 3 is pending (not only `status === "complete"`).
 
 ### E2E tests (Playwright)
 
