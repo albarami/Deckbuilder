@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from dataclasses import dataclass
 from typing import Generic, TypeVar
@@ -12,6 +13,8 @@ import openai
 
 from src.config.settings import get_settings
 from src.models.common import DeckForgeBaseModel
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=DeckForgeBaseModel)
 
@@ -157,6 +160,19 @@ async def _call_anthropic(  # noqa: UP047
             model=model, attempts=1,
             last_error=ValueError("Anthropic response contained no tool_use block"),
         )
+
+    # Diagnostic logging for empty tool responses
+    if not tool_block.input or tool_block.input == {}:
+        logger.warning(
+            "Anthropic returned EMPTY tool input for %s. "
+            "stop_reason=%s, input_tokens=%d, output_tokens=%d, max_tokens=%d",
+            response_model.__name__,
+            response.stop_reason,
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            max_tokens,
+        )
+
     try:
         parsed = response_model.model_validate(tool_block.input)
     except Exception as e:

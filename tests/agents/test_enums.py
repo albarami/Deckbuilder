@@ -40,8 +40,10 @@ def test_action_type_values():
 
 def test_pipeline_stage_values():
     from src.models.enums import PipelineStage
-    expected = {"intake", "context_review", "source_review", "analysis", "report_review",
-                "outline_review", "slide_building", "content_generation", "qa", "deck_review", "finalized", "error"}
+    expected = {"intake", "context_review", "source_review", "analysis",
+                "assembly_plan_review", "report_review",
+                "outline_review", "slide_building", "content_generation",
+                "qa", "deck_review", "finalized", "error"}
     assert {e.value for e in PipelineStage} == expected
 
 

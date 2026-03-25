@@ -2,7 +2,6 @@
  * RecentProposals — List of recent pipeline sessions from backend API.
  *
  * Shows each session with RFP name, status badge, and a resume link.
- * Falls back to sessionStorage if the backend API is unavailable.
  */
 
 "use client";
@@ -41,40 +40,9 @@ async function getRecentSessions(): Promise<RecentSession[]> {
       slideCount: s.slide_count ?? 0,
     }));
   } catch {
-    return getRecentSessionsFromStorage();
+    // Backend unavailable — return empty list
+    return [];
   }
-}
-
-function getRecentSessionsFromStorage(): RecentSession[] {
-  if (typeof window === "undefined") return [];
-
-  const sessions: RecentSession[] = [];
-
-  for (let i = 0; i < sessionStorage.length; i++) {
-    const key = sessionStorage.key(i);
-    if (!key?.startsWith("deckforge_session_")) continue;
-
-    try {
-      const data = JSON.parse(sessionStorage.getItem(key) ?? "{}");
-      const sessionId = key.replace("deckforge_session_", "");
-      sessions.push({
-        sessionId,
-        rfpName: data.rfpName || `Session ${sessionId.slice(0, 8)}`,
-        status: data.status ?? "unknown",
-        startedAt: data.startedAt ?? "",
-        slideCount: 0,
-      });
-    } catch {
-      // Skip invalid entries
-    }
-  }
-
-  sessions.sort((a, b) => {
-    if (!a.startedAt || !b.startedAt) return 0;
-    return new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime();
-  });
-
-  return sessions.slice(0, 10);
 }
 
 export function RecentProposals() {

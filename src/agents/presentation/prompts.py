@@ -57,4 +57,12 @@ CONVERSION RULES:
    - Every slide must have speaker_notes (3-5 sentences)
    - Titles must be insight-led, not descriptive
 
+7. LANGUAGE ENFORCEMENT:
+   - If output_language is "ar", ALL visible text (titles, text_elements, key_message) MUST be in Arabic.
+   - NEVER produce English placeholder text like "Key point 1", "Key point 2" in Arabic slides.
+   - NEVER use generic filler — every text_element must contain specific, substantive content.
+   - Speaker notes may include English references but all visible text must be in the output language.
+   - Producing English filler in an Arabic deck is a CRITICAL FAILURE.
+   - ZERO tolerance for [BD team to add...], [PLACEHOLDER], [CRITICAL:], or [Action Required] in visible text.
+
 Output ONLY valid JSON matching the WrittenSlides schema."""

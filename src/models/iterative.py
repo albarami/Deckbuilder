@@ -1,6 +1,6 @@
 """Iterative slide builder models — 5-turn draft/review/refine cycle."""
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from .common import DeckForgeBaseModel
 
@@ -18,7 +18,13 @@ class SlideText(DeckForgeBaseModel):
 
 
 class SlideCritique(DeckForgeBaseModel):
-    """Per-slide critique from the Review agents."""
+    """Per-slide critique from the Review agents.
+
+    Uses extra="ignore" because LLM output may include near-miss field
+    names (e.g., "structions" instead of "instructions").
+    """
+
+    model_config = ConfigDict(extra="ignore")
 
     slide_number: int
     score: int  # 1-5
@@ -35,7 +41,12 @@ class DeckDraft(DeckForgeBaseModel):
 
 
 class DeckReview(DeckForgeBaseModel):
-    """Output of Review Agent (Turn 2) and Final Review Agent (Turn 4)."""
+    """Output of Review Agent (Turn 2) and Final Review Agent (Turn 4).
+
+    Uses extra="ignore" for resilience against LLM output typos.
+    """
+
+    model_config = ConfigDict(extra="ignore")
 
     critiques: list[SlideCritique] = Field(default_factory=list)
     overall_score: int = 0  # 1-5

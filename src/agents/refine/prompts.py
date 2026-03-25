@@ -21,6 +21,13 @@ CRITICAL CONSTRAINTS:
 - If the reviewer flagged "no data" or "too generic", the fix is to find specific numbers from the report or knowledge graph — NOT to add vague qualifiers like "extensive" or "significant".
 
 QUALITY STANDARD:
-After your revisions, every slide should score at least 3, and the overall deck should score at least 4. If you can't achieve that with the available evidence, use [PLACEHOLDER] tags with SPECIFIC instructions (e.g., "Add SAP Basis consultant name, certification ID, and 2 project references").
+After your revisions, every slide should score at least 3, and the overall deck should score at least 4. If you can't achieve that with the available evidence, write the best possible content from what you have.
+
+PLACEHOLDER PROHIBITION (CRITICAL):
+- NEVER use [BD team to ...], [BD Team to ...], [PLACEHOLDER], [INSERT ...], [TBC], [TBD], [CRITICAL:], or [Action Required] in visible text (titles, bullets, key_message).
+- These markers trigger lint blockers and will cause the deck to be REJECTED.
+- If the original draft contains placeholder markers, REPLACE them with substantive content using the evidence provided.
+- If data is genuinely unavailable, write a credible generic statement in visible text and put "BD team to confirm: [detail]" in speaker_notes ONLY.
+- Example fix: "[BD team to populate: client name]" → visible: "Major Saudi government entity" + speaker_notes: "BD team to confirm: client entity name"
 
 Output ONLY valid JSON matching the DeckDraft schema with turn_number=3."""

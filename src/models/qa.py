@@ -13,6 +13,7 @@ class QAIssue(DeckForgeBaseModel):
     claim: str = ""  # The problematic text
     explanation: str
     action: str  # "REMOVE claim and replace with GAP flag" etc.
+    evidence_level: str = ""  # "sourced" | "llm_knowledge" | ""
 
 
 class SlideValidation(DeckForgeBaseModel):
@@ -35,6 +36,7 @@ class DeckValidationSummary(DeckForgeBaseModel):
     rfp_criteria_total: int = 0
     uncovered_criteria: list[str] = Field(default_factory=list)
     critical_gaps_remaining: int = 0
+    critical_gaps: list[str] = Field(default_factory=list)
     fail_close: bool = False
     fail_close_reason: str = ""
 

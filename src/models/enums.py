@@ -124,6 +124,7 @@ class PipelineStage(StrEnum):
     CONTEXT_REVIEW = "context_review"
     SOURCE_REVIEW = "source_review"
     ANALYSIS = "analysis"
+    ASSEMBLY_PLAN_REVIEW = "assembly_plan_review"
     REPORT_REVIEW = "report_review"
     OUTLINE_REVIEW = "outline_review"
     SLIDE_BUILDING = "slide_building"
@@ -178,10 +179,8 @@ class RenderStatus(StrEnum):
 class RendererMode(StrEnum):
     """Feature flag controlling which renderer is used.
 
-    LEGACY  — the original renderer.py (default, unchanged).
-    TEMPLATE_V2 — template-anchored renderer_v2.py (official .potx).
-
-    Legacy remains the default until all acceptance gates pass.
+    TEMPLATE_V2 — template-anchored renderer_v2.py (official .potx, production default).
+    LEGACY  — the original renderer.py (kept for backward compat).
     """
 
     LEGACY = "legacy"
@@ -208,6 +207,8 @@ class DensityViolationSeverity(StrEnum):
 class ContentRouting(StrEnum):
     SLIDE_BODY = "slide_body"
     SPEAKER_NOTES = "speaker_notes"
+    NOTES_ONLY = "notes_only"
+    QA_ONLY = "qa_only"
     APPENDIX = "appendix"
     EXCLUDED = "excluded"
 

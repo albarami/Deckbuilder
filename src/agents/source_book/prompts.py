@@ -463,7 +463,9 @@ Output ONLY valid JSON matching the SourceBookReview schema."""
 TEMPLATE_LOCKED_SECTION6_RULES = """\
 SECTION 6: TEMPLATE-LOCKED SLIDE BLUEPRINT (MANDATORY)
 The slide-by-slide blueprint must follow the canonical template order exactly:
-S01, S02, S03, S04, S05, S06, S07, S08, S09, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S20, S21, S22, S23, S24, S25, S26, S27, S28, S29, S30, S31.
+S01, S02, S03, S04, S05, S06, S07, S08, S09, S10, S11, S12, S13,
+S14, S15, S16, S17, S18, S19, S20, S21, S22, S23, S24, S25, S26,
+S27, S28, S29, S30, S31.
 
 Each blueprint entry must include:
 - section_id (must be one of S01..S31)

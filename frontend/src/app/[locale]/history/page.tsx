@@ -45,34 +45,8 @@ export default function HistoryPage() {
           })),
         );
       } catch {
-        if (!mounted || typeof window === "undefined") return;
-        // Fallback to sessionStorage
-        const collected: HistorySession[] = [];
-        for (let i = 0; i < sessionStorage.length; i += 1) {
-          const key = sessionStorage.key(i);
-          if (!key?.startsWith("deckforge_session_")) continue;
-          try {
-            const parsed = JSON.parse(sessionStorage.getItem(key) ?? "{}") as {
-              status?: string;
-              startedAt?: string;
-              language?: string;
-            };
-            collected.push({
-              sessionId: key.replace("deckforge_session_", ""),
-              status: parsed.status ?? "unknown",
-              startedAt: parsed.startedAt ?? "",
-              language: parsed.language ?? "en",
-            });
-          } catch {
-            // skip
-          }
-        }
-        collected.sort((a, b) => {
-          const aTs = new Date(a.startedAt).getTime();
-          const bTs = new Date(b.startedAt).getTime();
-          return (Number.isNaN(bTs) ? 0 : bTs) - (Number.isNaN(aTs) ? 0 : aTs);
-        });
-        setSessions(collected);
+        // Backend unavailable — show empty state
+        if (mounted) setSessions([]);
       }
     }
 

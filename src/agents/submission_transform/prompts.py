@@ -34,32 +34,38 @@ Read the Research Report section by section. For each factual statement:
 1. Create a ContentUnit with a unique unit_id (CU-0001, CU-0002, ...)
 2. Preserve the original text and all [Ref: CLM-xxxx] citations
 3. Record the original_section_ref (SEC-NN from the report)
-4. Assign a routing classification:
+4. Assign a routing classification (use the EXACT lowercase enum \
+values shown below):
 
-   - VISIBLE_DECK_SAFE: Grounded facts with strong evidence \
-(≥1 CLM reference) suitable for client-facing visible slide text \
+   - slide_body: Grounded facts with strong evidence \
+(>=1 CLM reference) suitable for client-facing visible slide text \
 (title, body bullets). NEVER use this for content intended for \
 speaker notes.
-   - NOTES_ONLY: Facts with thin evidence, supplementary context, \
-or delivery guidance. Goes in speaker notes only. Also use for \
+   - speaker_notes: Facts suitable for presenter reference but not \
+for visible slide text. Use for delivery guidance, talking points, \
+and supplementary context that supports the visible content.
+   - notes_only: Facts with thin evidence, supplementary context, \
+or internal-only material. Goes in speaker notes only. Also use for \
 factual content that is true but not suitable for visible client \
 text (too detailed, supporting context, etc.).
-   - QA_ONLY: Gap flags, validation notes, QA reference material. \
+   - qa_only: Gap flags, validation notes, QA reference material. \
 Never appears on any slide surface.
-   - WAIVED_OR_BLOCKED: Content from waived gaps or explicitly \
+   - appendix: Detailed supporting material for the appendix section.
+   - excluded: Content from waived gaps or explicitly \
 blocked material. Excluded from all outputs.
 
 5. Provide a routing_reason explaining why this routing was chosen.
 
 ROUTING RULES:
 - Every claim with [Ref: CLM-xxxx] from approved source documents \
-→ VISIBLE_DECK_SAFE
+-> slide_body
 - Claims from general knowledge or industry standards \
-(tagged [GENERAL]) → NOTES_ONLY \
+(tagged [GENERAL]) -> speaker_notes \
 (can support visible text but the content itself goes in notes)
-- Placeholder instructions, gap flags, "human must fill" → QA_ONLY
-- Waived gaps → WAIVED_OR_BLOCKED
-- When in doubt, route to NOTES_ONLY — it is safer to under-expose \
+- Placeholder instructions, gap flags, "human must fill" -> qa_only
+- Waived gaps -> excluded
+- Detailed data tables, lengthy reference material -> appendix
+- When in doubt, route to notes_only -- it is safer to under-expose \
 than over-expose
 
 ───────────────────────────────────────────────────────
@@ -222,8 +228,8 @@ Return valid JSON with THREE top-level keys:
 
 All enum values must be lowercase strings matching the enum \
 definitions:
-- ContentRouting: "visible_deck_safe", "notes_only", \
-"qa_only", "waived_or_blocked"
+- ContentRouting: "slide_body", "speaker_notes", "notes_only", \
+"qa_only", "appendix", "excluded"
 - BundleType: "case_study", "team_profile", "compliance", \
 "framework", "metric"
 - LayoutType: "TITLE", "AGENDA", "SECTION", "CONTENT_1COL", \

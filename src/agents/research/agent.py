@@ -39,7 +39,26 @@ async def run(state: DeckForgeState) -> DeckForgeState:
             max_tokens=16000,
         )
         state.research_report = result.parsed
-        state.report_markdown = result.parsed.full_markdown
+
+        # Reconstruct full_markdown from sections if the LLM omitted it
+        # (common when the report is large — LLM fills sections but skips
+        # the redundant full_markdown field to save tokens).
+        md = result.parsed.full_markdown
+        if not md and result.parsed.sections:
+            parts = [f"# {result.parsed.title}\n"]
+            for sec in result.parsed.sections:
+                parts.append(f"## {sec.heading}\n\n{sec.content_markdown}\n")
+            if result.parsed.all_gaps:
+                parts.append("## Gaps\n")
+                for gap in result.parsed.all_gaps:
+                    parts.append(
+                        f"- **{gap.gap_id}** ({gap.severity}): {gap.description} "
+                        f"— {gap.action_required}\n"
+                    )
+            md = "\n".join(parts)
+            result.parsed.full_markdown = md
+
+        state.report_markdown = md
         state.current_stage = PipelineStage.REPORT_REVIEW
         state.session.total_input_tokens += result.input_tokens
         state.session.total_output_tokens += result.output_tokens

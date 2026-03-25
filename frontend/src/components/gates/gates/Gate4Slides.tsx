@@ -156,7 +156,7 @@ function extractSlides(data: unknown): SlideOutline[] {
     title: String(s.title ?? `Slide ${i + 1}`),
     key_message: String(s.key_message ?? ""),
     layout_type: String(s.layout_type ?? ""),
-    section: String(s.section ?? "Other"),
+    section: String(s.section_id ?? s.section ?? "Other"),
     slide_type: String(s.slide_type ?? "content"),
     report_section_ref: typeof s.report_section_ref === "string" ? s.report_section_ref : undefined,
     source_refs: Array.isArray(s.source_refs)

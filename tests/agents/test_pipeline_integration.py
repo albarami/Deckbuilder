@@ -95,9 +95,9 @@ class TestStateDefault:
 
 
 class TestSettingsDefault:
-    """Settings.renderer_mode defaults to 'legacy'."""
+    """Settings.renderer_mode defaults to 'template_v2' (production path)."""
 
-    def test_default_is_legacy(self):
+    def test_default_is_template_v2(self):
         from src.config.settings import Settings
 
         # Build settings with minimal required fields
@@ -105,7 +105,7 @@ class TestSettingsDefault:
             openai_api_key="test",  # type: ignore[arg-type]
             anthropic_api_key="test",  # type: ignore[arg-type]
         )
-        assert s.renderer_mode == "legacy"
+        assert s.renderer_mode == "template_v2"
 
 
 # ── Settings → State Wiring ──────────────────────────────────────────
@@ -279,20 +279,21 @@ class TestRenderNodeV2Dispatch:
         state = DeckForgeState(
             renderer_mode=RendererMode.TEMPLATE_V2,
             final_slides=[slide],
-            # proposal_manifest deliberately NOT set — will be auto-built
+            geography="ksa",
+            proposal_mode="standard",
+            # proposal_manifest deliberately NOT set — fail-closed
         )
 
         with patch("src.pipeline.graph.render_pptx") as mock_legacy:
             result = asyncio.run(render_node(state))
             mock_legacy.assert_not_called()
 
-        # Auto-build may fail at render stage (no template), but should NOT
-        # fail with MissingManifest — manifest is auto-built from slides
-        if result["current_stage"] == "error":
-            assert result["last_error"].error_type != "MissingManifest"
+        # Fail-closed: no manifest ⇒ MissingManifest error
+        assert result["current_stage"] == "error"
+        assert result["last_error"].error_type == "MissingManifest"
 
-    def test_v2_without_manifest_no_slides_fails_no_slides(self):
-        """V2 mode with no manifest AND no slides => NoSlides error."""
+    def test_v2_without_manifest_fails_missing_manifest(self):
+        """V2 mode with no manifest => MissingManifest error (fail-closed)."""
         from src.models.state import DeckForgeState
         from src.pipeline.graph import render_node
 
@@ -300,7 +301,7 @@ class TestRenderNodeV2Dispatch:
         result = asyncio.run(render_node(state))
 
         assert result["current_stage"] == "error"
-        assert result["last_error"].error_type == "NoSlides"
+        assert result["last_error"].error_type == "MissingManifest"
 
     def test_v2_does_not_call_legacy_renderer(self):
         """V2 path must never call render_pptx (the legacy renderer)."""
@@ -317,12 +318,12 @@ class TestRenderNodeV2Dispatch:
 # ── Missing Manifest Fail-Closed ─────────────────────────────────────
 
 
-class TestManifestAutoBuilt:
-    """The v2 path auto-builds manifest from slides when not provided.
-    With no slides, it returns NoSlides error."""
+class TestManifestFailClosed:
+    """The v2 path fails closed when proposal_manifest is None.
+    No auto-build from slides — manifest must come from assembly plan."""
 
-    def test_manifest_none_no_slides_returns_no_slides_error(self):
-        """Explicit: state.proposal_manifest is None, no slides → NoSlides error."""
+    def test_manifest_none_returns_missing_manifest_error(self):
+        """state.proposal_manifest is None → MissingManifest error."""
         from src.models.state import DeckForgeState
         from src.pipeline.graph import _render_template_v2
 
@@ -333,10 +334,10 @@ class TestManifestAutoBuilt:
         result = asyncio.run(_render_template_v2(state))
 
         assert result["current_stage"] == "error"
-        assert result["last_error"].error_type == "NoSlides"
+        assert result["last_error"].error_type == "MissingManifest"
 
-    def test_manifest_none_default_no_slides_returns_error(self):
-        """Default state (no manifest, no slides) → NoSlides error on v2 path."""
+    def test_default_state_returns_missing_manifest_error(self):
+        """Default state (no manifest) → MissingManifest error."""
         from src.models.state import DeckForgeState
         from src.pipeline.graph import _render_template_v2
 
@@ -344,10 +345,10 @@ class TestManifestAutoBuilt:
         result = asyncio.run(_render_template_v2(state))
 
         assert result["current_stage"] == "error"
-        assert result["last_error"].error_type == "NoSlides"
+        assert result["last_error"].error_type == "MissingManifest"
 
-    def test_error_message_is_explicit(self):
-        """Error message must clearly state why — not a generic error."""
+    def test_error_message_mentions_manifest(self):
+        """Error message must mention manifest — not a generic error."""
         from src.models.state import DeckForgeState
         from src.pipeline.graph import _render_template_v2
 
@@ -355,7 +356,7 @@ class TestManifestAutoBuilt:
         result = asyncio.run(_render_template_v2(state))
 
         msg = result["last_error"].message
-        assert "slides" in msg.lower() or "No slides" in msg
+        assert "manifest" in msg.lower()
 
     def test_error_agent_is_render_v2(self):
         """Error must be attributed to render_v2, not generic 'render'."""
@@ -376,28 +377,25 @@ class TestNoEmptyManifestFallback:
     a ProposalManifest(entries=[]).  The manifest must come from state."""
 
     def test_no_proposal_manifest_construction_in_render_v2(self):
-        """Source code of graph.py must not contain ProposalManifest(entries=[])."""
+        """The _render_template_v2 function must not construct ProposalManifest.
+
+        section_fill_node legitimately reconstructs the manifest to merge
+        filler data, so we only check the render function itself.
+        """
         graph_path = Path("src/pipeline/graph.py")
         source = graph_path.read_text(encoding="utf-8")
 
-        tree = ast.parse(source)
+        # Extract only the _render_template_v2 function source
+        render_start = source.find("async def _render_template_v2")
+        render_end = source.find("\nasync def ", render_start + 1)
+        if render_end == -1:
+            render_end = source.find("\ndef ", render_start + 1)
+        render_source = source[render_start:render_end]
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                func = node.func
-                # Match ProposalManifest(...) call
-                name = ""
-                if isinstance(func, ast.Name):
-                    name = func.id
-                elif isinstance(func, ast.Attribute):
-                    name = func.attr
-
-                if name == "ProposalManifest":
-                    pytest.fail(
-                        f"Found ProposalManifest() construction at line {node.lineno} "
-                        f"in graph.py — v2 path must read manifest from state, "
-                        f"never construct one"
-                    )
+        assert "ProposalManifest(" not in render_source, (
+            "_render_template_v2 must read manifest from state, "
+            "never construct one"
+        )
 
     def test_no_entries_empty_list_in_render_v2(self):
         """Double-check: 'entries=[]' pattern must not appear in graph.py."""
@@ -410,23 +408,28 @@ class TestNoEmptyManifestFallback:
             "stub that was supposed to be removed"
         )
 
-    def test_no_import_of_proposal_manifest_in_graph(self):
-        """graph.py must NOT import ProposalManifest at all — the manifest
-        lives in state, not constructed in the render path."""
+    def test_no_import_of_proposal_manifest_at_module_level(self):
+        """graph.py must NOT import ProposalManifest at module level.
+
+        The manifest lives in state. section_fill_node uses a local
+        import to reconstruct the manifest (legitimate), but the render
+        path must never construct one.
+        """
         graph_path = Path("src/pipeline/graph.py")
         source = graph_path.read_text(encoding="utf-8")
 
         tree = ast.parse(source)
 
         for node in ast.walk(tree):
-            if isinstance(node, ast.Import | ast.ImportFrom):
-                if isinstance(node, ast.ImportFrom):
+            if isinstance(node, ast.ImportFrom):
+                # Only check module-level imports (col_offset == 0)
+                if node.col_offset == 0:
                     names = [alias.name for alias in node.names]
                     if "ProposalManifest" in names:
                         pytest.fail(
-                            f"graph.py imports ProposalManifest at line {node.lineno} "
-                            f"— manifest must come from state, not be imported "
-                            f"for construction"
+                            f"graph.py imports ProposalManifest at module level "
+                            f"(line {node.lineno}) — manifest must come from "
+                            f"state at module level"
                         )
 
 

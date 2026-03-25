@@ -55,6 +55,7 @@ export function StartPipelineButton({
       proposal_mode: config.proposalMode,
       sector: config.sector,
       geography: config.geography,
+      renderer_mode: "template_v2",
     };
 
     try {

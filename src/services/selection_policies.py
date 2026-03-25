@@ -365,3 +365,138 @@ def select_team_members(
         selected=tuple(selected),
         excluded=tuple(excluded),
     )
+
+
+# ── Service Divider Selection ──────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class ServiceDividerSelectionResult:
+    """Result of service-divider selection.
+
+    Picks the single best-matching service divider from the
+    ``service_divider_pool`` in the catalog lock.  Selection is
+    based on sector/service keyword overlap.
+    """
+
+    selected_service_divider: str  # semantic_id of the chosen divider
+    score: float
+    reason: str
+
+
+# Canonical keyword → service_category mapping for fuzzy matching
+_SERVICE_KEYWORD_MAP: dict[str, str] = {
+    "strategy": "strategy",
+    "strategic": "strategy",
+    "transformation": "strategy",
+    "organizational": "organizational excellence",
+    "organisation": "organizational excellence",
+    "excellence": "organizational excellence",
+    "operations": "organizational excellence",
+    "marketing": "marketing",
+    "brand": "marketing",
+    "digital": "digital, cloud, and ai",
+    "cloud": "digital, cloud, and ai",
+    "ai": "digital, cloud, and ai",
+    "artificial intelligence": "digital, cloud, and ai",
+    "technology": "digital, cloud, and ai",
+    "it": "digital, cloud, and ai",
+    "ict": "digital, cloud, and ai",
+    "people": "people advisory",
+    "hr": "people advisory",
+    "human resources": "people advisory",
+    "talent": "people advisory",
+    "deals": "deals advisory",
+    "m&a": "deals advisory",
+    "acquisition": "deals advisory",
+    "research": "research",
+    "study": "research",
+    "survey": "research",
+}
+
+
+def select_service_divider(
+    rfp_context: dict[str, Any],
+    service_divider_pool: list[dict[str, Any]],
+) -> ServiceDividerSelectionResult:
+    """Select the best service divider from the pool.
+
+    Matching logic:
+      1. Exact service_category match against sector
+      2. Keyword overlap against services + sector + capability tags
+      3. Default to "strategy" if no match
+
+    Parameters
+    ----------
+    rfp_context:
+        Dict with keys: sector, services, capability_tags, etc.
+    service_divider_pool:
+        List of dicts with: semantic_id, service_category, display_name.
+
+    Returns
+    -------
+    ServiceDividerSelectionResult with the chosen divider.
+    """
+    if not service_divider_pool:
+        return ServiceDividerSelectionResult(
+            selected_service_divider="",
+            score=0.0,
+            reason="empty pool",
+        )
+
+    sector = str(rfp_context.get("sector", "")).lower().strip()
+    services = [
+        s.lower().strip()
+        for s in rfp_context.get("services", [])
+    ]
+    cap_tags = [
+        t.lower().strip()
+        for t in rfp_context.get("capability_tags", [])
+    ]
+    all_keywords = [sector] + services + cap_tags
+
+    # Score each divider
+    best_id = ""
+    best_score = -1.0
+    best_reason = "default"
+
+    for divider in service_divider_pool:
+        cat = str(divider.get("service_category", "")).lower().strip()
+        sem_id = str(divider.get("semantic_id", ""))
+        score = 0.0
+        reasons: list[str] = []
+
+        # Exact sector match
+        if cat and sector and cat == sector:
+            score += 5.0
+            reasons.append(f"exact_sector:{sector}")
+
+        # Keyword overlap
+        for kw in all_keywords:
+            mapped = _SERVICE_KEYWORD_MAP.get(kw, "")
+            if mapped == cat:
+                score += 2.0
+                reasons.append(f"keyword:{kw}")
+
+        # Partial substring match
+        for kw in all_keywords:
+            if kw and len(kw) > 2 and kw in cat:
+                score += 1.0
+                reasons.append(f"substring:{kw}")
+
+        if score > best_score:
+            best_score = score
+            best_id = sem_id
+            best_reason = " + ".join(reasons) if reasons else "default"
+
+    # Fallback to first divider (strategy) if no match
+    if best_score <= 0 and service_divider_pool:
+        fallback = service_divider_pool[0]
+        best_id = str(fallback.get("semantic_id", ""))
+        best_reason = "default_fallback"
+
+    return ServiceDividerSelectionResult(
+        selected_service_divider=best_id,
+        score=max(best_score, 0.0),
+        reason=best_reason,
+    )

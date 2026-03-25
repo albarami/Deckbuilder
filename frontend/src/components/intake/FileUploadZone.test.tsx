@@ -10,13 +10,19 @@ import type { UploadedFileInfo } from "@/lib/types/pipeline";
 // ── Mocks ──────────────────────────────────────────────────────────────
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => {
+  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
     const messages: Record<string, string> = {
       uploadFiles: "Upload RFP Documents",
       dragDrop: "Drag and drop files here, or click to browse",
       supportedFormats: "PDF, DOCX, TXT — max 50MB per file",
       uploading: "Uploading...",
     };
+    if (key === "unsupportedFileType" && values?.filename) {
+      return `${values.filename}: unsupported file type`;
+    }
+    if (key === "exceedsMaxSize" && values?.filename) {
+      return `${values.filename}: exceeds max size`;
+    }
     return messages[key] ?? key;
   },
 }));

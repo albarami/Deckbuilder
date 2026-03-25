@@ -16,28 +16,34 @@ from langgraph.types import Command
 from backend.models.api_models import (
     AgentRunInfo,
     AgentRunStatus,
+    CaseStudySummary,
     DeliverableInfo,
     GapItem,
     Gate1ContextData,
     Gate2SourceReviewData,
+    Gate3AssemblyPlanData,
     Gate3ReportReviewData,
     Gate4SlideReviewData,
     Gate5QaReviewData,
     GatePayloadType,
+    ManifestCompositionSummary,
+    MethodologyPhaseSummary,
     ReadinessStatus,
     ReportSectionSummary,
     RfpBriefInput,
     SensitivitySummary,
+    SlideBudgetSummary,
     SlidePreviewItem,
     SourceIndexItem,
     SourceReviewItem,
     SSEEvent,
+    TeamBioSummary,
     ThumbnailMode,
 )
 from backend.services.session_manager import PipelineSession, SessionManager
 from backend.services.sse_broadcaster import SSEBroadcaster
 from src.models.enums import Language, PipelineStage, RendererMode
-from src.models.state import DeckForgeState, UploadedDocument
+from src.models.state import DeckForgeState, SessionMetadata, UploadedDocument
 from src.pipeline.dry_run import get_dry_run_patches
 
 FRONTEND_STAGE_MAP: dict[str, tuple[str, str, int | None]] = {
@@ -45,6 +51,7 @@ FRONTEND_STAGE_MAP: dict[str, tuple[str, str, int | None]] = {
     PipelineStage.CONTEXT_REVIEW.value: ("context_analysis", "Context Understanding", 2),
     PipelineStage.SOURCE_REVIEW.value: ("source_research", "Knowledge Retrieval", 3),
     PipelineStage.ANALYSIS.value: ("analysis", "Deep Analysis", 4),
+    PipelineStage.ASSEMBLY_PLAN_REVIEW.value: ("assembly_plan", "Assembly Plan Review", 4),
     PipelineStage.REPORT_REVIEW.value: ("report_generation", "Research Report Generation", 5),
     PipelineStage.SLIDE_BUILDING.value: ("slide_rendering", "Iterative Slide Builder", 6),
     PipelineStage.CONTENT_GENERATION.value: ("slide_rendering", "Iterative Slide Builder", 7),
@@ -135,6 +142,10 @@ def _build_initial_state(
         user_notes=session.user_notes,
         output_language=_to_language(session.language),
         renderer_mode=RendererMode(session.renderer_mode) if session.renderer_mode else RendererMode.TEMPLATE_V2,
+        proposal_mode=session.proposal_mode or "standard",
+        sector=session.sector or "",
+        geography=session.geography or "",
+        session=SessionMetadata(session_id=session.session_id),
     )
 
 
@@ -511,6 +522,8 @@ def _build_gate_payloads(
     if gate_number == 2:
         return GatePayloadType.SOURCE_REVIEW, _build_gate2_payload(state)
     if gate_number == 3:
+        if state.assembly_plan is not None:
+            return GatePayloadType.ASSEMBLY_PLAN_REVIEW, _build_gate3_assembly_plan_payload(state)
         return GatePayloadType.REPORT_REVIEW, _build_gate3_payload(state)
     if gate_number == 4:
         return GatePayloadType.SLIDE_REVIEW, _build_gate4_payload(session_id, state)
@@ -655,6 +668,125 @@ def _build_gate3_payload(state: DeckForgeState) -> Gate3ReportReviewData:
     )
 
 
+def _safe_attr(obj: Any, key: str, default: Any = None) -> Any:
+    """Get attribute from object or dict, with fallback."""
+    val = getattr(obj, key, None)
+    if val is not None:
+        return val
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return default
+
+
+def _build_gate3_assembly_plan_payload(
+    state: DeckForgeState,
+) -> Gate3AssemblyPlanData:
+    """Build Gate 3 payload from assembly plan (template-first path)."""
+    plan = state.assembly_plan
+    if plan is None:
+        return Gate3AssemblyPlanData()
+
+    llm_output = _safe_attr(plan, "llm_output")
+    case_result = _safe_attr(plan, "case_study_result")
+    team_result = _safe_attr(plan, "team_result")
+    budget = _safe_attr(plan, "slide_budget")
+
+    # Methodology phases
+    phases: list[MethodologyPhaseSummary] = []
+    if llm_output:
+        raw_phases = _safe_attr(llm_output, "methodology_phases", [])
+        for phase in (raw_phases or []):
+            phases.append(MethodologyPhaseSummary(
+                phase_name=_safe_attr(phase, "phase_name_en", ""),
+                activities_count=len(
+                    _safe_attr(phase, "activities", []) or []
+                ),
+                deliverables_count=len(
+                    _safe_attr(phase, "deliverables", []) or []
+                ),
+            ))
+
+    # Case studies
+    case_studies: list[CaseStudySummary] = []
+    if case_result:
+        for cs in (_safe_attr(case_result, "selected", []) or []):
+            case_studies.append(CaseStudySummary(
+                asset_id=_safe_attr(cs, "asset_id", ""),
+                score=float(_safe_attr(cs, "score", 0.0) or 0),
+            ))
+
+    # Team bios
+    team_bios: list[TeamBioSummary] = []
+    if team_result:
+        for tb in (_safe_attr(team_result, "selected", []) or []):
+            team_bios.append(TeamBioSummary(
+                asset_id=_safe_attr(tb, "asset_id", ""),
+                score=float(_safe_attr(tb, "score", 0.0) or 0),
+            ))
+
+    # Slide budget
+    budget_summary = SlideBudgetSummary()
+    if budget:
+        budget_summary = SlideBudgetSummary(
+            a1_clone=int(_safe_attr(budget, "a1_clone", 0) or 0),
+            a2_shell=int(_safe_attr(budget, "a2_shell", 0) or 0),
+            b_variable=int(_safe_attr(budget, "b_variable", 0) or 0),
+            pool_clone=int(_safe_attr(budget, "pool_clone", 0) or 0),
+            total=int(_safe_attr(budget, "total_slides", 0) or 0),
+        )
+
+    # Service divider — from service_divider_result or state field
+    svc_result = _safe_attr(plan, "service_divider_result")
+    service_divider = ""
+    if svc_result:
+        service_divider = str(
+            _safe_attr(svc_result, "selected_service_divider", "")
+            or ""
+        )
+    if not service_divider:
+        # Fallback: read from state-level field
+        service_divider = str(
+            getattr(state, "selected_service_divider", "") or ""
+        )
+
+    # Manifest composition
+    manifest = state.proposal_manifest
+    manifest_comp = ManifestCompositionSummary()
+    if manifest:
+        entries = _safe_attr(manifest, "entries", []) or []
+        type_counts: dict[str, int] = {}
+        for entry in entries:
+            etype = str(_safe_attr(entry, "entry_type", "") or "")
+            type_counts[etype] = type_counts.get(etype, 0) + 1
+        manifest_comp = ManifestCompositionSummary(
+            total_entries=len(entries),
+            entry_type_counts=type_counts,
+        )
+
+    # Win themes
+    win_themes: list[str] = []
+    if llm_output:
+        raw = _safe_attr(llm_output, "win_themes", [])
+        win_themes = list(raw or [])
+
+    mode = _safe_attr(llm_output, "proposal_mode", "standard")
+    geo = _safe_attr(llm_output, "geography", "")
+    sector = _safe_attr(llm_output, "sector", "")
+
+    return Gate3AssemblyPlanData(
+        proposal_mode=str(mode) if mode else "standard",
+        geography=str(geo) if geo else "",
+        sector=str(sector) if sector else "",
+        methodology_phases=phases,
+        slide_budget=budget_summary,
+        case_studies=case_studies,
+        team_bios=team_bios,
+        selected_service_divider=service_divider,
+        manifest_composition=manifest_comp,
+        win_themes=win_themes,
+    )
+
+
 def _build_gate4_payload(
     session_id: str,
     state: DeckForgeState,
@@ -741,6 +873,7 @@ def _gate_number_from_stage(stage: Any) -> int | None:
     return {
         PipelineStage.CONTEXT_REVIEW.value: 1,
         PipelineStage.SOURCE_REVIEW.value: 2,
+        PipelineStage.ASSEMBLY_PLAN_REVIEW.value: 3,
         PipelineStage.REPORT_REVIEW.value: 3,
         PipelineStage.CONTENT_GENERATION.value: 4,
         PipelineStage.QA.value: 5,

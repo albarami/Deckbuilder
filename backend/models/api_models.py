@@ -53,6 +53,7 @@ class GatePayloadType(StrEnum):
     CONTEXT_REVIEW = "context_review"
     SOURCE_REVIEW = "source_review"
     REPORT_REVIEW = "report_review"
+    ASSEMBLY_PLAN_REVIEW = "assembly_plan_review"
     SLIDE_REVIEW = "slide_review"
     QA_REVIEW = "qa_review"
 
@@ -179,7 +180,7 @@ class StartPipelineRequest(BaseModel):
     proposal_mode: ProposalMode = ProposalMode.STANDARD
     sector: str = ""
     geography: str = ""
-    renderer_mode: RendererMode = RendererMode.LEGACY
+    renderer_mode: RendererMode = RendererMode.TEMPLATE_V2
 
 
 class StartPipelineResponse(BaseModel):
@@ -269,6 +270,67 @@ class Gate3ReportReviewData(BaseModel):
     source_index: list[SourceIndexItem] = Field(default_factory=list)
 
 
+class MethodologyPhaseSummary(BaseModel):
+    """Summary of a single methodology phase for Gate 3 assembly plan review."""
+
+    phase_name: str
+    activities_count: int = 0
+    deliverables_count: int = 0
+
+
+class CaseStudySummary(BaseModel):
+    """Summary of a selected case study for Gate 3 assembly plan review."""
+
+    asset_id: str
+    score: float = 0.0
+
+
+class TeamBioSummary(BaseModel):
+    """Summary of a selected team member for Gate 3 assembly plan review."""
+
+    asset_id: str
+    score: float = 0.0
+
+
+class SlideBudgetSummary(BaseModel):
+    """Slide budget breakdown for Gate 3 assembly plan review."""
+
+    a1_clone: int = 0
+    a2_shell: int = 0
+    b_variable: int = 0
+    pool_clone: int = 0
+    total: int = 0
+
+
+class ManifestCompositionSummary(BaseModel):
+    """Manifest composition summary for Gate 3 assembly plan review."""
+
+    total_entries: int = 0
+    entry_type_counts: dict[str, int] = Field(default_factory=dict)
+
+
+class Gate3AssemblyPlanData(BaseModel):
+    """Structured payload for Gate 3 assembly plan review.
+
+    Surfaces the template-first assembly plan decisions:
+    methodology, slide budget, case studies, team bios,
+    service divider, and manifest composition.
+    """
+
+    proposal_mode: str = "standard"
+    geography: str = ""
+    sector: str = ""
+    methodology_phases: list[MethodologyPhaseSummary] = Field(default_factory=list)
+    slide_budget: SlideBudgetSummary = Field(default_factory=SlideBudgetSummary)
+    case_studies: list[CaseStudySummary] = Field(default_factory=list)
+    team_bios: list[TeamBioSummary] = Field(default_factory=list)
+    selected_service_divider: str = ""
+    manifest_composition: ManifestCompositionSummary = Field(
+        default_factory=ManifestCompositionSummary
+    )
+    win_themes: list[str] = Field(default_factory=list)
+
+
 class SlidePreviewItem(BaseModel):
     """Draft or final slide preview entry."""
 
@@ -356,6 +418,7 @@ class GateInfo(BaseModel):
         Gate1ContextData
         | Gate2SourceReviewData
         | Gate3ReportReviewData
+        | Gate3AssemblyPlanData
         | Gate4SlideReviewData
         | Gate5QaReviewData
         | dict[str, Any]

@@ -81,22 +81,20 @@ def _make_state_with_manifest_and_budget() -> DeckForgeState:
         },
     )
 
-    # Blueprint must have exactly 2 entries to match the 2 b_variable manifest entries
     blueprint = SlideBlueprint(
-        blueprint_version="1.0",
-        total_variable_slides=2,
-        evidence_coverage=0.5,
         entries=[
             SlideBlueprintEntry(
-                slide_number=1, section="section_01",
-                layout="content_heading_desc",
-                purpose="Understanding slide 1", title="Understanding",
+                section_id="S05",
+                section_name="Understanding of Project",
+                ownership="dynamic",
+                slide_title="Understanding",
                 key_message="Key message 1",
             ),
             SlideBlueprintEntry(
-                slide_number=2, section="section_01",
-                layout="content_heading_desc",
-                purpose="Understanding slide 2", title="Context",
+                section_id="S05",
+                section_name="Understanding of Project",
+                ownership="dynamic",
+                slide_title="Context",
                 key_message="Key message 2",
             ),
         ],
@@ -281,22 +279,21 @@ class TestSectionFillNodeGraphLevel:
                 ),
             },
         )
-        # Add blueprint matching the 2 b_variable entries so we pass
-        # the blueprint alignment check and reach the budget check
         blueprint = SlideBlueprint(
-            blueprint_version="1.0",
-            total_variable_slides=2,
-            evidence_coverage=0.5,
             entries=[
                 SlideBlueprintEntry(
-                    slide_number=1, section="section_01",
-                    layout="content_heading_desc",
-                    purpose="p", title="t", key_message="k",
+                    section_id="S05",
+                    section_name="Understanding of Project",
+                    ownership="dynamic",
+                    slide_title="t",
+                    key_message="k",
                 ),
                 SlideBlueprintEntry(
-                    slide_number=2, section="section_01",
-                    layout="content_heading_desc",
-                    purpose="p", title="t", key_message="k",
+                    section_id="S05",
+                    section_name="Understanding of Project",
+                    ownership="dynamic",
+                    slide_title="t",
+                    key_message="k",
                 ),
             ],
         )

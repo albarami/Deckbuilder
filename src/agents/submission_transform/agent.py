@@ -85,7 +85,7 @@ async def run(state: DeckForgeState) -> DeckForgeState:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=SubmissionTransformOutput,
-            max_tokens=16000,
+            max_tokens=32000,
         )
 
         output = result.parsed

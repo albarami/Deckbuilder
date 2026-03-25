@@ -54,13 +54,15 @@ async def run(state: DeckForgeState, approved_sources: list[dict]) -> DeckForgeS
     if state.rfp_context and state.rfp_context.evaluation_criteria:
         evaluation_criteria = state.rfp_context.evaluation_criteria.model_dump()
 
+    MAX_CHARS_PER_DOC = 50_000
+    MAX_DOCS = 10
     compact_sources = [
         {
             "doc_id": source.get("doc_id"),
             "title": source.get("title"),
-            "content_text": str(source.get("content_text", ""))[:1500],
+            "content_text": str(source.get("content_text", ""))[:MAX_CHARS_PER_DOC],
         }
-        for source in approved_sources[:2]
+        for source in approved_sources[:MAX_DOCS]
     ]
 
     user_message = json.dumps({

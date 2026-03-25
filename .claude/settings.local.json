@@ -161,7 +161,31 @@
       "Bash(grep -v \"^$\")",
       "Bash(ruff check:*)",
       "Bash(echo \"EXIT: $?\")",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npm install:*)",
+      "Bash(find C:ProjectsDeckbuilder.claudeworktreesagitated-williamsonfrontendsrccomponentsgates -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(find C:/Projects/Deckbuilder/.claude/worktrees/agitated-williamson/frontend/src -type f \\\\\\(-name *Gate* -o -name *pipeline* -o -name *store* -o -name StartPipeline* \\\\\\))",
+      "Bash(grep -l sessionStorage C:/Projects/Deckbuilder/.claude/worktrees/agitated-williamson/frontend/src/**/*.tsx C:/Projects/Deckbuilder/.claude/worktrees/agitated-williamson/frontend/src/**/*.ts)",
+      "Bash(xargs grep:*)",
+      "Bash(OPENAI_API_KEY=test ANTHROPIC_API_KEY=test python -m pytest backend/tests/ -x --tb=short)",
+      "Bash(OPENAI_API_KEY=test ANTHROPIC_API_KEY=test python -m pytest tests/ -x --tb=short)",
+      "Bash(OPENAI_API_KEY=test ANTHROPIC_API_KEY=test python -m pytest tests/ --ignore=tests/agents/test_config.py --tb=short)",
+      "Bash(OPENAI_API_KEY=test ANTHROPIC_API_KEY=test python -m pytest tests/integration/test_pipeline.py -x --tb=short)",
+      "Bash(ls \"C:\\\\Projects\\\\Deckbuilder\\\\.claude\\\\worktrees\\\\agitated-williamson\\\\src\\\\data\"\"*.potx 2>&1; ls \"C:ProjectsDeckbuilder.claudeworktreesagitated-williamsonPROPOSAL_TEMPLATE\"\"*.potx)",
+      "Read(//c/Projects/Deckbuilder/**)",
+      "Bash(dir /s /b *.potx)",
+      "Bash(dir \"PROPOSAL_TEMPLATE\\\\PROPOSAL_TEMPLATE EN.potx\")",
+      "Bash(dir \"PROPOSAL_TEMPLATE\\\\Arabic_Proposal_Template.potx\")",
+      "Bash(cmd //c \"mklink /D PROPOSAL_TEMPLATE C:\\\\Projects\\\\Deckbuilder\\\\PROPOSAL_TEMPLATE\")",
+      "Bash(cmd //c \"mklink /D \"\"data test\"\" \"\"C:\\\\Projects\\\\Deckbuilder\\\\data test\"\"\")",
+      "Bash(ls -la \"C:/Projects/Deckbuilder/data test/\"*.pdf)",
+      "Bash(ls -la \"C:/Projects/Deckbuilder/.claude/worktrees/agitated-williamson/src/data/catalog_lock_\"*)",
+      "Bash(cmd //c \"dir /a\")",
+      "Bash(cmd //c \"dir\")",
+      "Bash(cmd //c \"mklink /J \"\"data test\"\" \"\"C:\\\\Projects\\\\Deckbuilder\\\\data test\"\"\")",
+      "Bash(cmd //c \"rmdir \"\"data test\"\"\")",
+      "Bash(cmd //c \"dir \"\"data test\"\"\")"
     ]
   }
 }

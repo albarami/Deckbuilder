@@ -54,6 +54,7 @@ class SlideObject(DeckForgeBaseModel):
     sensitivity_tags: list[SensitivityTag] = Field(default_factory=list)
     content_guidance: str = ""  # Structural only: claim IDs + layout instructions, no factual wording
     change_history: list[ChangeLogEntry] = Field(default_factory=list)
+    manifest_asset_id: str | None = None  # Provenance: manifest entry asset_id this slide was built for
 
 
 class SlideOutline(DeckForgeBaseModel):

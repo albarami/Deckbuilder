@@ -81,13 +81,22 @@ _WORKFLOW_COMMENTARY: list[_LintRule] = [
 
 _INTERNAL_MARKERS: list[_LintRule] = [
     _LintRule(
+        name="internal_note",
+        pattern=re.compile(
+            r"\[INTERNAL NOTE:\s*[^\]]*\]",
+            re.IGNORECASE,
+        ),
+        severity=LintSeverity.BLOCKER,
+        suggestion="Move internal note to speaker notes or remove",
+    ),
+    _LintRule(
         name="internal_marker_bracket",
         pattern=re.compile(
             r"\[(?:GENERAL|SOURCED|INTERNAL|GAP)\]",
             re.IGNORECASE,
         ),
         severity=LintSeverity.BLOCKER,
-        suggestion="Remove internal marker \u2014 not client-facing",
+        suggestion="Remove internal marker -- not client-facing",
     ),
     _LintRule(
         name="gap_id_visible",
@@ -96,7 +105,37 @@ _INTERNAL_MARKERS: list[_LintRule] = [
             re.IGNORECASE,
         ),
         severity=LintSeverity.BLOCKER,
-        suggestion="Remove gap ID \u2014 use descriptive text instead",
+        suggestion="Remove gap ID -- use descriptive text instead",
+    ),
+    _LintRule(
+        name="bd_team_instruction",
+        pattern=re.compile(
+            r"\[(?:BD team|CRITICAL:|Action Required|Confirm\b|Add\b)[^\]]*\]",
+            re.IGNORECASE,
+        ),
+        severity=LintSeverity.BLOCKER,
+        suggestion="Remove internal instruction -- not client-facing",
+    ),
+    _LintRule(
+        name="generic_filler",
+        pattern=re.compile(
+            r"Key point \d",
+            re.IGNORECASE,
+        ),
+        severity=LintSeverity.BLOCKER,
+        suggestion="Replace generic filler with specific content",
+    ),
+    _LintRule(
+        name="submission_instruction",
+        pattern=re.compile(
+            r"(?:(?:needs? |remains? |yet )?to be added\b(?! value| benefit| to (?:the|our|your))"
+            r"|(?:must |should |needs? to ).{1,40}before submission"
+            r"|no row should remain"
+            r"|must be resolved before|unresolved in client version)",
+            re.IGNORECASE,
+        ),
+        severity=LintSeverity.BLOCKER,
+        suggestion="Remove submission instruction -- not client-facing",
     ),
 ]
 

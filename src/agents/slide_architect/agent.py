@@ -117,28 +117,9 @@ async def run(state: DeckForgeState) -> dict:
 
         blueprint = llm_result.parsed
 
-        # Validate: total_variable_slides should match entries count
-        if blueprint.total_variable_slides != len(blueprint.entries):
-            logger.warning(
-                "SlideBlueprint total_variable_slides=%d but has %d entries",
-                blueprint.total_variable_slides,
-                len(blueprint.entries),
-            )
-            blueprint.total_variable_slides = len(blueprint.entries)
-
-        # Calculate evidence coverage if not set
-        if blueprint.entries:
-            slides_with_evidence = sum(
-                1 for e in blueprint.entries if e.proof_points
-            )
-            blueprint.evidence_coverage = (
-                slides_with_evidence / len(blueprint.entries)
-            )
-
         logger.info(
-            "Slide blueprint complete: %d entries, evidence_coverage=%.1f%%",
+            "Slide blueprint complete: %d entries",
             len(blueprint.entries),
-            blueprint.evidence_coverage * 100,
         )
 
         # Update session accounting
@@ -156,12 +137,7 @@ async def run(state: DeckForgeState) -> dict:
         logger.error("Slide Architect failed: %s", e)
 
         return {
-            "slide_blueprint": SlideBlueprint(
-                blueprint_version="1.0",
-                total_variable_slides=0,
-                evidence_coverage=0.0,
-                entries=[],
-            ),
+            "slide_blueprint": SlideBlueprint(entries=[]),
             "errors": state.errors + [
                 ErrorInfo(
                     agent="slide_architect",

@@ -1,8 +1,9 @@
-"""Manifest builder — converts WrittenSlides (list[SlideObject]) to ProposalManifest.
+"""Manifest builder — converts assembly plans or WrittenSlides to ProposalManifest.
 
-This bridges the AI-generated slide content to the renderer_v2 pipeline by
-constructing a valid ProposalManifest with house entries, b_variable slides,
-company profile clones, and closing slides.
+Two entry points:
+1. build_manifest_from_assembly_plan() — template-first: uses slide budget,
+   selection results, and methodology blueprint to build a proper manifest.
+2. build_manifest_from_slides() — legacy bridge: maps SlideObjects to entries.
 """
 
 from __future__ import annotations
@@ -379,3 +380,370 @@ def _add_pool_clones(
                     ))
         except Exception:
             logger.warning("Failed to select team members", exc_info=True)
+
+
+# ── Assembly-plan-driven manifest builder ────────────────────────────
+
+
+def build_manifest_from_assembly_plan(
+    assembly_plan: Any,
+    catalog_lock_path: Path | None = None,
+    language: str = "en",
+) -> ProposalManifest:
+    """Build a ProposalManifest from an AssemblyPlanResult.
+
+    This is the template-first path: the assembly plan contains the
+    inclusion policy, methodology blueprint, selection results, and
+    slide budget.  The manifest is built deterministically from these.
+
+    Parameters
+    ----------
+    assembly_plan : AssemblyPlanResult
+        Complete assembly plan from the assembly_plan agent.
+    catalog_lock_path : Path, optional
+        Path to catalog lock JSON for slide_idx lookups.
+    language : str
+        "en" or "ar".
+
+    Returns
+    -------
+    ProposalManifest
+        Ordered list of ManifestEntry objects ready for renderer_v2.
+    """
+    from src.models.proposal_manifest import (
+        get_company_profile_ids,
+        get_ksa_context_ids,
+    )
+
+    policy = assembly_plan.inclusion_policy
+    budget = assembly_plan.slide_budget
+    meth_bp = assembly_plan.methodology_blueprint
+    cs_result = assembly_plan.case_study_result
+    team_result = assembly_plan.team_result
+    llm_output = assembly_plan.llm_output
+
+    sec_names = _SECTION_NAMES_AR if language == "ar" else _SECTION_NAMES_EN
+
+    # Load catalog lock for slide_idx lookups
+    lock_data: dict[str, Any] = {}
+    if catalog_lock_path and catalog_lock_path.exists():
+        try:
+            lock_data = json.loads(catalog_lock_path.read_text(encoding="utf-8"))
+        except Exception:
+            logger.warning("Failed to load catalog lock", exc_info=True)
+
+    # Build slide_idx lookup maps
+    cs_idx_map: dict[str, int] = {}
+    cs_pool_raw = lock_data.get("case_study_pool", {})
+    if isinstance(cs_pool_raw, dict):
+        for entries in cs_pool_raw.values():
+            for entry in entries:
+                cs_idx_map[entry["semantic_id"]] = entry["slide_idx"]
+    elif isinstance(cs_pool_raw, list):
+        for entry in cs_pool_raw:
+            cs_idx_map[entry["semantic_id"]] = entry["slide_idx"]
+
+    team_idx_map: dict[str, int] = {}
+    for entry in lock_data.get("team_bio_pool", []):
+        team_idx_map[entry["semantic_id"]] = entry["slide_idx"]
+
+    entries: list[ManifestEntry] = []
+
+    # ── Cover section (3 A2 shells) ────────────────────────────────
+    entries.append(ManifestEntry(
+        entry_type="a2_shell",
+        asset_id="proposal_cover",
+        semantic_layout_id="proposal_cover",
+        content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+        section_id="cover",
+        injection_data={
+            "subtitle": llm_output.rfp_summary[:100] if llm_output.rfp_summary else "",
+            "client_name": llm_output.client_name,
+            "date_text": "",
+        },
+    ))
+    entries.append(ManifestEntry(
+        entry_type="a2_shell",
+        asset_id="intro_message",
+        semantic_layout_id="intro_message",
+        content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+        section_id="cover",
+    ))
+    entries.append(ManifestEntry(
+        entry_type="a2_shell",
+        asset_id="toc_agenda",
+        semantic_layout_id="toc_table",
+        content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+        section_id="cover",
+        injection_data={
+            "title": (
+                "\u062c\u062f\u0648\u0644 \u0627\u0644\u0645\u062d\u062a\u0648\u064a\u0627\u062a"
+                if language == "ar"
+                else "Table of Contents"
+            ),
+            "rows": [
+                [f"{i + 1:02d}", sec_names[i]] for i in range(len(sec_names))
+            ],
+        },
+    ))
+
+    # ── Section 01: Understanding (divider + b_variable content) ───
+    entries.append(ManifestEntry(
+        entry_type="a2_shell",
+        asset_id="section_divider_01",
+        semantic_layout_id="section_divider_01",
+        content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+        section_id="section_01",
+        injection_data={"title": sec_names[0], "body": " "},
+    ))
+    understanding_count = budget.section_budgets["section_01"].breakdown.get("content", 3)
+    for i in range(understanding_count):
+        entries.append(ManifestEntry(
+            entry_type="b_variable",
+            asset_id=f"understanding_{i + 1:02d}",
+            semantic_layout_id="content_heading_desc",
+            content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+            section_id="section_01",
+        ))
+
+    # ── Section 02: Why Strategic Gears ────────────────────────────
+    entries.append(ManifestEntry(
+        entry_type="a2_shell",
+        asset_id="section_divider_02",
+        semantic_layout_id="section_divider_02",
+        content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+        section_id="section_02",
+        injection_data={"title": sec_names[1], "body": " "},
+    ))
+
+    # KSA context A1 clones (only for geography=ksa)
+    if policy.include_ksa_context:
+        for kid in get_ksa_context_ids():
+            entries.append(ManifestEntry(
+                entry_type="a1_clone",
+                asset_id=kid,
+                semantic_layout_id=kid,
+                content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
+                section_id="section_02",
+            ))
+
+    # Case study pool clones (deterministically selected)
+    for sa in cs_result.selected:
+        slide_idx = cs_idx_map.get(sa.asset_id)
+        layout_id = "case_study_cases"
+        # Check if it's the detailed layout
+        if slide_idx is not None:
+            for entries_list in (cs_pool_raw.values() if isinstance(cs_pool_raw, dict) else [cs_pool_raw]):
+                for e in entries_list:
+                    if e.get("semantic_id") == sa.asset_id:
+                        layout_id = e.get("semantic_layout_id", "case_study_cases")
+                        break
+        entries.append(ManifestEntry(
+            entry_type="pool_clone",
+            asset_id=sa.asset_id,
+            semantic_layout_id=layout_id,
+            content_source_policy=ContentSourcePolicy.APPROVED_ASSET_POOL,
+            section_id="section_02",
+            injection_data={"source_slide_idx": slide_idx} if slide_idx else None,
+        ))
+
+    # Service divider pool clone (selected by deterministic policy)
+    svc_result = getattr(assembly_plan, "service_divider_result", None)
+    svc_divider_id = ""
+    if svc_result:
+        svc_divider_id = getattr(svc_result, "selected_service_divider", "")
+    svc_divider_pool = lock_data.get("service_divider_pool", [])
+    if svc_divider_id:
+        # Find matching pool entry for slide_idx
+        svc_layout = svc_divider_id
+        svc_slide_idx = None
+        for sd in svc_divider_pool:
+            if sd.get("semantic_id") == svc_divider_id:
+                svc_layout = sd.get("semantic_layout_id", svc_divider_id)
+                svc_slide_idx = sd.get("slide_idx")
+                break
+        entries.append(ManifestEntry(
+            entry_type="pool_clone",
+            asset_id=svc_divider_id,
+            semantic_layout_id=svc_layout,
+            content_source_policy=ContentSourcePolicy.APPROVED_ASSET_POOL,
+            section_id="section_02",
+            injection_data=(
+                {"source_slide_idx": svc_slide_idx}
+                if svc_slide_idx else None
+            ),
+        ))
+    elif svc_divider_pool:
+        # Fallback: use first service divider
+        fallback = svc_divider_pool[0]
+        entries.append(ManifestEntry(
+            entry_type="pool_clone",
+            asset_id=fallback.get("semantic_id", "svc_divider_strategy"),
+            semantic_layout_id=fallback.get(
+                "semantic_layout_id", "svc_strategy"
+            ),
+            content_source_policy=ContentSourcePolicy.APPROVED_ASSET_POOL,
+            section_id="section_02",
+            injection_data=(
+                {"source_slide_idx": fallback.get("slide_idx")}
+                if fallback.get("slide_idx") else None
+            ),
+        ))
+
+    # ── Section 03: Methodology ────────────────────────────────────
+    entries.append(ManifestEntry(
+        entry_type="a2_shell",
+        asset_id="section_divider_03",
+        semantic_layout_id="section_divider_03",
+        content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+        section_id="section_03",
+        injection_data={"title": sec_names[2], "body": " "},
+    ))
+
+    # Methodology overview slide
+    overview_layout = meth_bp.phases[0].overview_layout if meth_bp.phases else "methodology_overview_4"
+    entries.append(ManifestEntry(
+        entry_type="b_variable",
+        asset_id="methodology_overview",
+        semantic_layout_id=overview_layout,
+        content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+        section_id="section_03",
+    ))
+
+    # Per-phase focused + detail slides
+    for phase in meth_bp.phases:
+        for fl in phase.focused_layouts:
+            entries.append(ManifestEntry(
+                entry_type="b_variable",
+                asset_id=f"methodology_{phase.phase_id}_focused",
+                semantic_layout_id=fl,
+                content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+                section_id="section_03",
+                methodology_phase=phase.phase_id,
+            ))
+        for dl in phase.detail_layouts:
+            entries.append(ManifestEntry(
+                entry_type="b_variable",
+                asset_id=f"methodology_{phase.phase_id}_detail",
+                semantic_layout_id=dl,
+                content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+                section_id="section_03",
+                methodology_phase=phase.phase_id,
+            ))
+
+    # ── Section 04: Timeline & Outcome ─────────────────────────────
+    entries.append(ManifestEntry(
+        entry_type="a2_shell",
+        asset_id="section_divider_04",
+        semantic_layout_id="section_divider_04",
+        content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+        section_id="section_04",
+        injection_data={"title": sec_names[3], "body": " "},
+    ))
+    timeline_count = budget.section_budgets["section_04"].breakdown.get("content", 2)
+    for i in range(timeline_count):
+        entries.append(ManifestEntry(
+            entry_type="b_variable",
+            asset_id=f"timeline_{i + 1:02d}",
+            semantic_layout_id="content_heading_content",
+            content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+            section_id="section_04",
+        ))
+
+    # ── Section 05: Team ───────────────────────────────────────────
+    entries.append(ManifestEntry(
+        entry_type="a2_shell",
+        asset_id="section_divider_05",
+        semantic_layout_id="section_divider_05",
+        content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+        section_id="section_05",
+        injection_data={"title": sec_names[4], "body": " "},
+    ))
+
+    # Leadership A1 clone (standard/full mode)
+    if policy.include_leadership:
+        entries.append(ManifestEntry(
+            entry_type="a1_clone",
+            asset_id="our_leadership",
+            semantic_layout_id="our_leadership",
+            content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
+            section_id="section_05",
+        ))
+
+    # Team bio pool clones (deterministically selected)
+    for sa in team_result.selected:
+        slide_idx = team_idx_map.get(sa.asset_id)
+        entries.append(ManifestEntry(
+            entry_type="pool_clone",
+            asset_id=sa.asset_id,
+            semantic_layout_id="team_two_members",
+            content_source_policy=ContentSourcePolicy.APPROVED_ASSET_POOL,
+            section_id="section_05",
+            injection_data={"source_slide_idx": slide_idx} if slide_idx else None,
+        ))
+
+    # ── Section 06: Governance ─────────────────────────────────────
+    entries.append(ManifestEntry(
+        entry_type="a2_shell",
+        asset_id="section_divider_06",
+        semantic_layout_id="section_divider_06",
+        content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+        section_id="section_06",
+        injection_data={"title": sec_names[5], "body": " "},
+    ))
+    governance_count = budget.section_budgets["section_06"].breakdown.get("content", 1)
+    for i in range(governance_count):
+        entries.append(ManifestEntry(
+            entry_type="b_variable",
+            asset_id=f"governance_{i + 1:02d}",
+            semantic_layout_id="content_heading_content",
+            content_source_policy=ContentSourcePolicy.PROPOSAL_SPECIFIC,
+            section_id="section_06",
+        ))
+
+    # ── Company Profile A1 clones ──────────────────────────────────
+    for pid in get_company_profile_ids(policy.company_profile_depth):
+        entries.append(ManifestEntry(
+            entry_type="a1_clone",
+            asset_id=pid,
+            semantic_layout_id=pid,
+            content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
+            section_id="company_profile",
+        ))
+
+    # Services overview (full mode only)
+    if policy.include_services_overview:
+        entries.append(ManifestEntry(
+            entry_type="a1_clone",
+            asset_id="services_overview",
+            semantic_layout_id="services_overview",
+            content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
+            section_id="company_profile",
+        ))
+
+    # ── Closing A1 clones ──────────────────────────────────────────
+    for cid in ["know_more", "contact"]:
+        entries.append(ManifestEntry(
+            entry_type="a1_clone",
+            asset_id=cid,
+            semantic_layout_id=cid,
+            content_source_policy=ContentSourcePolicy.INSTITUTIONAL_REUSE,
+            section_id="closing",
+        ))
+
+    manifest = ProposalManifest(entries=entries, inclusion_policy=policy)
+
+    # ── Invariant: manifest.total_slides must equal slide budget ───
+    budget = assembly_plan.slide_budget
+    if budget is not None:
+        budget_total = getattr(budget, "total_slides", None)
+        if budget_total is not None and manifest.total_slides != budget_total:
+            raise ValueError(
+                f"Manifest/budget mismatch: manifest has "
+                f"{manifest.total_slides} entries but slide budget "
+                f"expects {budget_total}. This is a pipeline invariant "
+                f"violation — the manifest builder must produce exactly "
+                f"as many entries as the slide budgeter computed."
+            )
+
+    return manifest

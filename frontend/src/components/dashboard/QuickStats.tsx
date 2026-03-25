@@ -1,7 +1,7 @@
 /**
  * QuickStats — Row of stat cards showing proposal counts.
  *
- * Reads from the backend sessions API (with sessionStorage fallback).
+ * Reads from the backend sessions API.
  */
 
 "use client";
@@ -17,10 +17,7 @@ interface Stats {
   total: number;
 }
 
-/**
- * Fetch session counts from the backend API.
- * Falls back to sessionStorage if the API is unavailable.
- */
+/** Fetch session counts from the backend API. */
 async function getSessionStats(): Promise<Stats> {
   try {
     const response = await listSessions();
@@ -37,36 +34,9 @@ async function getSessionStats(): Promise<Stats> {
 
     return { active, completed, total: active + completed };
   } catch {
-    // Fallback to sessionStorage if backend unavailable
-    return getSessionStatsFromStorage();
-  }
-}
-
-function getSessionStatsFromStorage(): Stats {
-  if (typeof window === "undefined") {
+    // Backend unavailable — return empty state
     return { active: 0, completed: 0, total: 0 };
   }
-
-  let active = 0;
-  let completed = 0;
-
-  for (let i = 0; i < sessionStorage.length; i++) {
-    const key = sessionStorage.key(i);
-    if (!key?.startsWith("deckforge_session_")) continue;
-
-    try {
-      const data = JSON.parse(sessionStorage.getItem(key) ?? "{}");
-      if (data.status === "complete") {
-        completed++;
-      } else if (data.status === "running" || data.status === "gate_pending") {
-        active++;
-      }
-    } catch {
-      // Skip invalid entries
-    }
-  }
-
-  return { active, completed, total: active + completed };
 }
 
 export function QuickStats() {

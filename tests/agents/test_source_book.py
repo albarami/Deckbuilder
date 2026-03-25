@@ -1350,47 +1350,38 @@ class TestSlideBlueprintSchema:
         """Empty SlideBlueprint should have valid defaults."""
         from src.models.slide_blueprint import SlideBlueprint
 
-        bp = SlideBlueprint()
-        assert bp.blueprint_version == "1.0"
-        assert bp.total_variable_slides == 0
-        assert bp.evidence_coverage == 0.0
+        bp = SlideBlueprint(entries=[])
         assert bp.entries == []
 
     def test_blueprint_with_entries(self):
-        """SlideBlueprint should accept a list of SlideBlueprintEntry."""
+        """SlideBlueprint should accept template-contract SlideBlueprintEntry list."""
         from src.models.slide_blueprint import SlideBlueprint
+        from src.models.slide_blueprint import SlideBlueprintEntry as ContractEntry
 
         entries = [
-            SlideBlueprintEntry(
-                slide_number=1,
-                section="section_01",
-                layout="content_heading_desc",
-                purpose="Establish understanding of client challenge",
-                title="Understanding the Challenge",
+            ContractEntry(
+                section_id="S05",
+                section_name="Understanding of Project",
+                ownership="dynamic",
+                slide_title="Understanding the Challenge",
                 key_message="We understand your needs",
-                bullet_logic=["Point 1", "Point 2"],
-                proof_points=["CLM-0001"],
+                bullet_points=["Point 1", "Point 2"],
+                evidence_ids=["CLM-0001"],
             ),
-            SlideBlueprintEntry(
-                slide_number=2,
-                section="section_02",
-                layout="content_heading_desc",
-                purpose="Show why SG is the right partner",
-                title="Why Strategic Gears",
+            ContractEntry(
+                section_id="S07",
+                section_name="Why Strategic Gears Evidence",
+                ownership="dynamic",
+                slide_title="Why Strategic Gears",
                 key_message="Proven track record",
-                bullet_logic=["Track record", "Team expertise"],
-                proof_points=["CLM-0002", "CLM-0003"],
+                bullet_points=["Track record", "Team expertise"],
+                evidence_ids=["CLM-0002", "CLM-0003"],
             ),
         ]
-        bp = SlideBlueprint(
-            total_variable_slides=2,
-            evidence_coverage=1.0,
-            entries=entries,
-        )
-        assert bp.total_variable_slides == 2
+        bp = SlideBlueprint(entries=entries)
         assert len(bp.entries) == 2
-        assert bp.entries[0].section == "section_01"
-        assert bp.entries[1].section == "section_02"
+        assert bp.entries[0].section_id == "S05"
+        assert bp.entries[1].section_id == "S07"
 
     def test_blueprint_entry_proof_points_validator(self):
         """SlideBlueprintEntry should reject must_have_evidence without proof_points."""
@@ -1426,18 +1417,16 @@ class TestSlideBlueprintSchema:
     def test_slide_blueprint_in_state(self):
         """DeckForgeState should accept slide_blueprint field."""
         from src.models.slide_blueprint import SlideBlueprint
+        from src.models.slide_blueprint import SlideBlueprintEntry as ContractEntry
 
         state = DeckForgeState(
             slide_blueprint=SlideBlueprint(
-                total_variable_slides=3,
-                evidence_coverage=0.8,
                 entries=[
-                    SlideBlueprintEntry(
-                        slide_number=i,
-                        section=f"section_0{i}",
-                        layout="content_heading_desc",
-                        purpose=f"Purpose {i}",
-                        title=f"Title {i}",
+                    ContractEntry(
+                        section_id=f"S0{i}",
+                        section_name=f"Section {i}",
+                        ownership="dynamic",
+                        slide_title=f"Title {i}",
                         key_message=f"Key message {i}",
                     )
                     for i in range(1, 4)
@@ -1445,7 +1434,6 @@ class TestSlideBlueprintSchema:
             ),
         )
         assert state.slide_blueprint is not None
-        assert state.slide_blueprint.total_variable_slides == 3
         assert len(state.slide_blueprint.entries) == 3
 
 
@@ -1542,7 +1530,6 @@ class TestSlideArchitectAgent:
         ):
             result = await run(state)
 
-        assert result["slide_blueprint"].total_variable_slides == 0
         assert result["slide_blueprint"].entries == []
         assert result["last_error"].agent == "slide_architect"
         assert "LLM unavailable" in result["last_error"].message
@@ -1772,22 +1759,19 @@ class TestBlueprintManifestAlignment:
     def _make_blueprint(entry_count: int):
         """Create a SlideBlueprint with exactly entry_count entries."""
         from src.models.slide_blueprint import SlideBlueprint
+        from src.models.slide_blueprint import SlideBlueprintEntry as ContractEntry
 
         entries = [
-            SlideBlueprintEntry(
-                slide_number=i + 1,
-                section="section_01",
-                layout="content_heading_desc",
-                purpose=f"Purpose {i}",
-                title=f"Title {i}",
+            ContractEntry(
+                section_id="S05",
+                section_name="Understanding of Project",
+                ownership="dynamic",
+                slide_title=f"Title {i}",
                 key_message=f"Msg {i}",
             )
             for i in range(entry_count)
         ]
-        return SlideBlueprint(
-            total_variable_slides=entry_count,
-            entries=entries,
-        )
+        return SlideBlueprint(entries=entries)
 
     @pytest.mark.asyncio
     async def test_mismatch_blueprint_fewer_than_manifest(self):

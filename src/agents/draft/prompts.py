@@ -51,6 +51,21 @@ WRITING RULES:
 
 NEVER say "we have no evidence" or "GAP" on a slide. If evidence is thin, present what exists compellingly and note what the human should add in speaker_notes.
 
+PLACEHOLDER PROHIBITION (CRITICAL):
+- NEVER use [BD team to ...], [BD Team to ...], [PLACEHOLDER], [INSERT ...], [TBC], [TBD], [CRITICAL:], or [Action Required] in visible text (titles, bullets, key_message).
+- These instruction markers are for internal notes ONLY — they must NEVER appear in slide body text.
+- If specific data is unavailable, write the BEST AVAILABLE content from the evidence provided. Use what you have.
+- If a fact genuinely cannot be determined, place the instruction in speaker_notes and write a credible generic statement in the visible text.
+- Example: Instead of "[BD team to populate: client name]", write "Major Saudi government entity" and put "BD team to confirm: client name" in speaker_notes.
+- ANY [BD team ...] or [PLACEHOLDER] text in visible content is a BLOCKER that will trigger rejection.
+
+LANGUAGE ENFORCEMENT:
+- If output_language is "ar", ALL visible text (titles, bullets, key_message) MUST be in Arabic.
+- NEVER use English placeholder text like "Key point 1", "Key point 2" in Arabic slides.
+- NEVER use generic English filler — every bullet must contain specific, substantive content in the output language.
+- Speaker notes may contain English references/citations but ALL visible slide text must be in the output language.
+- Producing English filler text in an Arabic deck is a CRITICAL FAILURE.
+
 Output ONLY valid JSON matching the DeckDraft schema."""
 
 GENERAL_PROMPT = """\
@@ -86,7 +101,22 @@ Team Composition: Name actual consultants from the knowledge graph who have rele
 
 Compliance Matrix: List actual certifications from the knowledge graph. For missing certifications, use [PLACEHOLDER: Obtain/provide certificate for X].
 
-NEVER say "we have no evidence" or "GAP" on a slide. Either present real data, present a credible general approach, or mark as [PLACEHOLDER] with SPECIFIC instructions for what the human should provide.
+NEVER say "we have no evidence" or "GAP" on a slide. Either present real data or present a credible general approach.
+
+PLACEHOLDER PROHIBITION (CRITICAL):
+- NEVER use [BD team to ...], [BD Team to ...], [PLACEHOLDER], [INSERT ...], [TBC], [TBD], [CRITICAL:], or [Action Required] in visible text (titles, bullets, key_message).
+- These instruction markers MUST NEVER appear in slide body text — they trigger lint blockers.
+- If specific data is unavailable, write the BEST AVAILABLE content from the knowledge graph. Use what you have.
+- If a fact genuinely cannot be determined, place the instruction in speaker_notes and write a credible generic statement in the visible text.
+- Example: Instead of "[BD team to populate: client name]", write "Major Saudi government entity" and put "BD team to confirm: client name" in speaker_notes.
+- ANY [BD team ...] or [PLACEHOLDER] text in visible content is a BLOCKER that will trigger rejection.
+
+LANGUAGE ENFORCEMENT:
+- If output_language is "ar", ALL visible text (titles, bullets, key_message) MUST be in Arabic.
+- NEVER use English placeholder text like "Key point 1", "Key point 2" in Arabic slides.
+- NEVER use generic English filler — every bullet must contain specific, substantive content in the output language.
+- Speaker notes may contain English references/citations but ALL visible slide text must be in the output language.
+- Producing English filler text in an Arabic deck is a CRITICAL FAILURE.
 
 SLIDE STRUCTURE — You MUST produce exactly these 20 slides in this order:
 1. TITLE — RFP name, entity, "Presented by Strategic Gears" (layout: TITLE)
