@@ -1,6 +1,8 @@
 /**
  * Gate3Research — Research Report review panel.
  *
+ * Legacy fallback for Gate 3 payloads that are not Source Book review data.
+ *
  * Renders the research report output as markdown via MarkdownViewer.
  * Gate data contains { report: string } with the full markdown report.
  */
@@ -37,6 +39,11 @@ export function Gate3Research({ gate }: Gate3ResearchProps) {
 function extractReport(data: unknown): string | null {
   if (!data || typeof data !== "object") return null;
   const obj = data as Record<string, unknown>;
+  // Backend sends report_markdown (Gate3ReportReviewData contract)
+  if (typeof obj.report_markdown === "string" && obj.report_markdown.length > 0) {
+    return obj.report_markdown;
+  }
+  // Legacy fallback
   if (typeof obj.report === "string" && obj.report.length > 0) {
     return obj.report;
   }

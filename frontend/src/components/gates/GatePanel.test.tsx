@@ -40,11 +40,26 @@ vi.mock("next-intl", () => ({
         qaPassed: `${values?.count ?? 0} passed`,
         qaFailed: `${values?.count ?? 0} failed`,
         qaWarnings: `${values?.count ?? 0} warnings`,
+        qaReadiness: "Readiness",
+        qaReady: "Ready",
+        qaReview: "Review",
+        qaNeedsFixes: "Needs Fixes",
+        qaBlocked: "Blocked",
+        qaFailClose: "Fail-close active",
+        qaPass: "Pass",
+        qaFail: "Fail",
+        qaWarning: "Warning",
+        qaWaivers: "Waivers",
+        qaTemplateCompliance: "Template Compliance",
+        qaCoverage: "Coverage",
+        missingFields: "Missing Fields",
+        evaluationHighlights: "Evaluation Highlights",
       };
       return messages[key] ?? key;
     };
     return t;
   },
+  useLocale: () => "en",
 }));
 
 vi.mock("@/hooks/use-gate", () => ({
@@ -95,14 +110,40 @@ describe("GatePanel", () => {
     render(
       <GatePanel
         gate={makeGate(1, {
-          client_name: "Acme Corp",
-          sector: "Technology",
+          rfp_brief: {
+            rfp_name: { en: "Acme Corp RFP", ar: "" },
+            issuing_entity: "Acme Corp",
+            procurement_platform: "",
+            mandate_summary: "Technology services",
+            scope_requirements: [],
+            deliverables: [],
+            technical_evaluation: [],
+            financial_evaluation: [],
+            mandatory_compliance: [],
+            key_dates: {
+              inquiry_deadline: "",
+              submission_deadline: "",
+              opening_date: "",
+              expected_award_date: "",
+              service_start_date: "",
+            },
+            submission_format: {
+              format: "",
+              delivery_method: "",
+              file_requirements: [],
+              additional_instructions: "",
+            },
+          },
+          missing_fields: [],
+          selected_output_language: "en",
+          user_notes: "",
+          evaluation_highlights: [],
         })}
       />,
     );
     expect(screen.getByTestId("gate-1-context")).toBeInTheDocument();
+    expect(screen.getByText("Acme Corp RFP")).toBeInTheDocument();
     expect(screen.getByText("Acme Corp")).toBeInTheDocument();
-    expect(screen.getByText("Technology")).toBeInTheDocument();
   });
 
   it("renders Gate 2 — Source Research with checkboxes", () => {
@@ -130,7 +171,11 @@ describe("GatePanel", () => {
     render(
       <GatePanel
         gate={makeGate(3, {
-          report: "# Research Report\n\n## Key Findings\n\n- Finding one\n- Finding two",
+          report_markdown: "# Research Report\n\n## Key Findings\n\n- Finding one\n- Finding two",
+          sections: [],
+          gaps: [],
+          sensitivity_summary: [],
+          source_index: [],
         })}
       />,
     );
@@ -138,6 +183,69 @@ describe("GatePanel", () => {
     expect(screen.getByTestId("markdown-viewer")).toBeInTheDocument();
     expect(screen.getByText("Research Report")).toBeInTheDocument();
     expect(screen.getByText("Key Findings")).toBeInTheDocument();
+  });
+
+  it("renders Gate 3 — Source Book panel when payload_type is source_book_review", () => {
+    render(
+      <GatePanel
+        gate={{
+          gate_number: 3,
+          summary: "Source Book ready",
+          prompt: "Please review",
+          payload_type: "source_book_review",
+          gate_data: {
+            source_book_title: "Digital Transformation Source Book",
+            total_word_count: 4200,
+            section_count: 7,
+            sections: [
+              {
+                section_id: "executive_summary",
+                title: "Executive Summary",
+                preview_paragraph: "This is the first section preview.",
+              },
+            ],
+            quality_summary: {
+              reviewer_score: 88,
+              benchmark_passed: true,
+              evidence_count: 25,
+              blueprint_count: 13,
+            },
+            evidence_summary: {
+              evidence_ledger_entries: 25,
+              external_source_count: 9,
+            },
+            blueprint_summary: {
+              total_entries: 13,
+              covered_sections: ["executive_summary"],
+            },
+            docx_ready: true,
+          },
+        }}
+      />,
+    );
+    expect(screen.getByTestId("gate-3-source-book")).toBeInTheDocument();
+    expect(screen.getByTestId("gate-3-docx-download")).toBeInTheDocument();
+    expect(screen.getByText("Digital Transformation Source Book")).toBeInTheDocument();
+  });
+
+  it("renders Gate 3 — Source Book panel via shape detection fallback", () => {
+    render(
+      <GatePanel
+        gate={{
+          gate_number: 3,
+          summary: "Source Book shape",
+          prompt: "Please review",
+          payload_type: "report_review",
+          gate_data: {
+            total_word_count: 3100,
+            section_count: 7,
+            sections: [],
+            docx_ready: true,
+          },
+        }}
+      />,
+    );
+    expect(screen.getByTestId("gate-3-source-book")).toBeInTheDocument();
   });
 
   it("renders Gate 4 — Slide Rendering with outline", () => {
@@ -152,20 +260,31 @@ describe("GatePanel", () => {
       />,
     );
     expect(screen.getByTestId("gate-4-slides")).toBeInTheDocument();
-    expect(screen.getByText("Cover")).toBeInTheDocument();
-    expect(screen.getByText("Understanding")).toBeInTheDocument();
-    expect(screen.getByText("Introduction")).toBeInTheDocument();
-    expect(screen.getByText("Section 01")).toBeInTheDocument();
+    // Titles appear in both the card grid and the section list
+    expect(screen.getAllByText("Cover").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Understanding").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Introduction").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Section 01").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders Gate 5 — QA Results with pass/fail badges", () => {
     render(
       <GatePanel
         gate={makeGate(5, {
+          submission_readiness: "needs_fixes",
+          fail_close: false,
+          critical_gaps: [],
+          lint_status: "ready",
+          density_status: "ready",
+          template_compliance: "ready",
+          language_status: "ready",
+          coverage_status: "ready",
+          waivers: [],
           results: [
             { slide_index: 1, check: "Font check", status: "pass", details: "OK" },
             { slide_index: 2, check: "Layout check", status: "fail", details: "Overflow" },
           ],
+          deliverables: [],
         })}
       />,
     );
@@ -184,7 +303,7 @@ describe("GatePanel", () => {
 
   it("renders gate number in header", () => {
     render(<GatePanel gate={makeGate(3)} />);
-    expect(screen.getByText("3")).toBeInTheDocument();
+    // Gate number is rendered as part of the title string "Gate 3 Review"
     expect(screen.getByText("Gate 3 Review")).toBeInTheDocument();
   });
 

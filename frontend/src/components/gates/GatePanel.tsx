@@ -19,6 +19,8 @@ import { GateActions } from "./GateActions";
 import { Gate1Context } from "./gates/Gate1Context";
 import { Gate2Sources, type SourceModifications } from "./gates/Gate2Sources";
 import { Gate3Research } from "./gates/Gate3Research";
+import { Gate3AssemblyPlan } from "./gates/Gate3AssemblyPlan";
+import { Gate3SourceBook } from "./gates/Gate3SourceBook";
 import { Gate4Slides } from "./gates/Gate4Slides";
 import { Gate5QA } from "./gates/Gate5QA";
 import type { GateDecisionRequest, GateInfo } from "@/lib/types/pipeline";
@@ -97,6 +99,12 @@ function GateContent({ gate, onModificationsChange }: GateContentProps) {
         />
       );
     case 3:
+      if (gate.payload_type === "source_book_review" || isSourceBookPayload(gate.gate_data)) {
+        return <Gate3SourceBook gate={gate} />;
+      }
+      if (gate.payload_type === "assembly_plan_review") {
+        return <Gate3AssemblyPlan gate={gate} />;
+      }
       return <Gate3Research gate={gate} />;
     case 4:
       return <Gate4Slides gate={gate} />;
@@ -109,4 +117,14 @@ function GateContent({ gate, onModificationsChange }: GateContentProps) {
         </p>
       );
   }
+}
+
+function isSourceBookPayload(data: unknown): boolean {
+  if (!data || typeof data !== "object") return false;
+  const obj = data as Record<string, unknown>;
+  return (
+    Array.isArray(obj.sections) &&
+    typeof obj.total_word_count === "number" &&
+    typeof obj.section_count === "number"
+  );
 }
