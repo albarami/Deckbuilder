@@ -55,6 +55,10 @@ vi.mock("@/stores/locale-store", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-is-ppt-enabled", () => ({
+  useIsPptEnabled: () => true,
+}));
+
 const mockDownloadPptx = vi.fn().mockResolvedValue(undefined);
 const mockDownloadDocx = vi.fn().mockResolvedValue(undefined);
 
@@ -133,7 +137,19 @@ describe("ExportPanel", () => {
   it("renders unavailable download buttons when not ready", () => {
     render(<ExportPanel {...defaultProps} outputs={null} />);
     const unavailable = screen.getAllByTestId("download-unavailable");
-    expect(unavailable).toHaveLength(2);
+    expect(unavailable).toHaveLength(4);
+  });
+
+  it("keeps DOCX available when gate 3 is pending (outputs null)", () => {
+    render(
+      <ExportPanel
+        {...defaultProps}
+        outputs={null}
+        sourceBookGatePending
+      />,
+    );
+    const downloadButtons = screen.getAllByTestId("download-button");
+    expect(downloadButtons).toHaveLength(1);
   });
 
   it("triggers PPTX download on click", async () => {
@@ -239,7 +255,7 @@ describe("ExportPanel", () => {
     const downloadButtons = screen.getAllByTestId("download-button");
     expect(downloadButtons).toHaveLength(1);
     const unavailable = screen.getAllByTestId("download-unavailable");
-    expect(unavailable).toHaveLength(1);
+    expect(unavailable).toHaveLength(3);
   });
 
   it("handles zero elapsed time", () => {

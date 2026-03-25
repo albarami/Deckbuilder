@@ -17,13 +17,16 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Link } from "@/i18n/routing";
+import { useIsPptEnabled } from "@/hooks/use-is-ppt-enabled";
 import type { PipelineStatusResponse } from "@/lib/types/pipeline";
 
 export default function ExportPage() {
   const t = useTranslations("export");
   const tPipeline = useTranslations("pipeline");
+  const tSourceBook = useTranslations("sourceBook");
   const params = useParams<{ id: string }>();
   const sessionId = params.id;
+  const isPptEnabled = useIsPptEnabled();
 
   const [isLoading, setIsLoading] = useState(true);
   const [statusData, setStatusData] = useState<PipelineStatusResponse | null>(null);
@@ -108,6 +111,15 @@ export default function ExportPage() {
 
   // ── Main export view ────────────────────────────────────────────────
 
+  const sourceBookGatePending =
+    statusData.status === "gate_pending" && statusData.current_gate?.gate_number === 3;
+  const docxReady =
+    Boolean(statusData.outputs?.docx_ready) ||
+    Boolean(statusData.outputs?.deliverables?.some((d) => d.key === "docx" && d.ready));
+  const sourceBookReadyCheckpoint =
+    statusData.completed_gates.some((gate) => gate.gate_number === 3 && gate.approved) &&
+    docxReady;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -118,11 +130,13 @@ export default function ExportPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href={`/pipeline/${sessionId}/slides`}>
-            <Button variant="ghost" size="sm" className="dark:text-slate-200 dark:hover:bg-slate-800">
-              {t("viewSlides")}
-            </Button>
-          </Link>
+          {isPptEnabled ? (
+            <Link href={`/pipeline/${sessionId}/slides`}>
+              <Button variant="ghost" size="sm" className="dark:text-slate-200 dark:hover:bg-slate-800">
+                {t("viewSlides")}
+              </Button>
+            </Link>
+          ) : null}
           <Link href={`/pipeline/${sessionId}`}>
             <Button variant="ghost" size="sm" className="dark:text-slate-200 dark:hover:bg-slate-800">
               {t("backToPipeline")}
@@ -131,13 +145,21 @@ export default function ExportPage() {
         </div>
       </div>
 
+      {(sourceBookGatePending || sourceBookReadyCheckpoint) && (
+        <Card variant="flat" className="rounded-xl border-sg-border/80 bg-sg-mist/50 dark:border-slate-800 dark:bg-slate-950/60">
+          <p className="text-sm font-semibold text-sg-navy dark:text-slate-100">{tSourceBook("readyTitle")}</p>
+        </Card>
+      )}
+
       <ExportPanel
         sessionId={sessionId}
-        outputs={statusData.status === "complete" ? statusData.outputs : null}
+        outputs={statusData.outputs}
         metadata={statusData.session_metadata}
         completedGates={statusData.completed_gates}
         startedAt={statusData.started_at}
         elapsedMs={statusData.elapsed_ms}
+        sourceBookGatePending={sourceBookGatePending}
+        sourceBookReadyCheckpoint={sourceBookReadyCheckpoint}
       />
     </div>
   );

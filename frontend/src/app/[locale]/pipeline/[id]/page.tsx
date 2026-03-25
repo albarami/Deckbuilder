@@ -17,12 +17,13 @@
 
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Clock3, Sparkles, Workflow } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import { usePipeline } from "@/hooks/use-pipeline";
 import { useSSE } from "@/hooks/use-sse";
+import { useIsPptEnabled } from "@/hooks/use-is-ppt-enabled";
 import { PipelineHeader } from "@/components/pipeline/PipelineHeader";
 import { PipelineProgressBar } from "@/components/pipeline/PipelineProgressBar";
 import { ActivityTimeline } from "@/components/pipeline/ActivityTimeline";
@@ -35,6 +36,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Link } from "@/i18n/routing";
+import { downloadDocx } from "@/lib/api/export";
 import type { GateInfo, PipelineOutputs, PipelineStatus } from "@/lib/types/pipeline";
 
 export default function PipelineSessionPage() {
@@ -147,10 +149,14 @@ export default function PipelineSessionPage() {
             status={pipeline.status}
             currentStage={pipeline.currentStage}
             currentGate={pipeline.currentGate}
+            completedGates={pipeline.completedGates}
             outputs={pipeline.outputs}
             error={pipeline.error}
             llmCalls={pipeline.sessionMetadata.total_llm_calls}
             totalCostUsd={pipeline.sessionMetadata.total_cost_usd}
+            events={pipeline.events}
+            isSourceBookGatePending={pipeline.isSourceBookGatePending}
+            isSourceBookReadyCheckpoint={pipeline.isSourceBookReadyCheckpoint}
           />
         </div>
 
@@ -172,10 +178,14 @@ interface PipelinePrimaryPanelProps {
   status: PipelineStatus | "idle";
   currentStage: string;
   currentGate: GateInfo | null;
+  completedGates: { gate_number: number; approved: boolean }[];
   outputs: PipelineOutputs | null;
   error: { agent: string; message: string } | null;
   llmCalls: number;
   totalCostUsd: number;
+  events: Array<{ gate_number?: number | null; gate_data?: unknown | null }>;
+  isSourceBookGatePending: boolean;
+  isSourceBookReadyCheckpoint: boolean;
 }
 
 function PipelinePrimaryPanel({
@@ -183,14 +193,34 @@ function PipelinePrimaryPanel({
   status,
   currentStage,
   currentGate,
+  completedGates,
   outputs,
   error,
   llmCalls,
   totalCostUsd,
+  events,
+  isSourceBookGatePending,
+  isSourceBookReadyCheckpoint,
 }: PipelinePrimaryPanelProps) {
   const t = useTranslations("pipeline");
+  const isPptEnabled = useIsPptEnabled();
+  const latestSourceBookSummary =
+    extractSourceBookSummary(currentGate?.gate_data) ??
+    extractSourceBookSummaryFromEvents(events);
 
   if (status === "gate_pending" && currentGate) {
+    if (currentGate.gate_number === 3 && isSourceBookGatePending) {
+      return (
+        <div className="space-y-4">
+          <SourceBookCheckpointCard
+            sessionId={sessionId}
+            title={t("gatePendingTitle", { number: 3 })}
+            summary={latestSourceBookSummary}
+          />
+          <GatePanel gate={currentGate} />
+        </div>
+      );
+    }
     return <GatePanel gate={currentGate} />;
   }
 
@@ -199,6 +229,16 @@ function PipelinePrimaryPanel({
       <PipelineComplete
         sessionId={sessionId}
         outputs={outputs}
+      />
+    );
+  }
+
+  if (!isPptEnabled && isSourceBookReadyCheckpoint) {
+    return (
+      <SourceBookCheckpointCard
+        sessionId={sessionId}
+        title={t("sourceBook.readyTitle")}
+        summary={latestSourceBookSummary}
       />
     );
   }
@@ -256,7 +296,13 @@ function PipelinePrimaryPanel({
         <MetricCard
           icon={<Workflow className="h-4 w-4" aria-hidden="true" />}
           label={t("metricStatus")}
-          value={status === "running" ? t("metricLive") : t("metricReview")}
+          value={
+            status === "running"
+              ? t("metricLive")
+              : completedGates.some((gate) => gate.gate_number === 3 && gate.approved)
+                ? t("sourceBook.readyTitle")
+                : t("metricReview")
+          }
         />
         <MetricCard
           icon={<Sparkles className="h-4 w-4" aria-hidden="true" />}
@@ -266,6 +312,118 @@ function PipelinePrimaryPanel({
       </div>
     </Card>
   );
+}
+
+function SourceBookCheckpointCard({
+  sessionId,
+  title,
+  summary,
+}: {
+  sessionId: string;
+  title: string;
+  summary: SourceBookSummary | null;
+}) {
+  const t = useTranslations("sourceBook");
+  const tExport = useTranslations("export");
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleDownload = useCallback(async () => {
+    setError(null);
+    setIsDownloading(true);
+    try {
+      await downloadDocx(sessionId);
+    } catch {
+      setError(tExport("downloadError"));
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [sessionId, tExport]);
+
+  return (
+    <Card variant="elevated" className="space-y-4 rounded-2xl dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-sg-navy dark:text-slate-100">{title}</h3>
+          <p className="text-sm text-sg-slate/70 dark:text-slate-300">{t("readyTitle")}</p>
+        </div>
+        <Button
+          variant="primary"
+          size="md"
+          onClick={handleDownload}
+          loading={isDownloading}
+          disabled={isDownloading}
+          className="bg-sg-teal hover:bg-sg-navy"
+          data-testid="source-book-session-docx-btn"
+        >
+          {t("downloadDocxNow")}
+        </Button>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <MetricCard
+          icon={<Sparkles className="h-4 w-4" aria-hidden="true" />}
+          label={t("sectionPreview")}
+          value={summary ? String(summary.sectionCount) : "0"}
+        />
+        <MetricCard
+          icon={<Workflow className="h-4 w-4" aria-hidden="true" />}
+          label={t("evidenceSummary")}
+          value={summary ? String(summary.evidenceCount) : "0"}
+        />
+        <MetricCard
+          icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
+          label={t("wordCount")}
+          value={summary ? String(summary.wordCount) : "0"}
+        />
+      </div>
+
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+    </Card>
+  );
+}
+
+interface SourceBookSummary {
+  sectionCount: number;
+  wordCount: number;
+  evidenceCount: number;
+}
+
+function extractSourceBookSummary(gateData: unknown): SourceBookSummary | null {
+  if (!gateData || typeof gateData !== "object") return null;
+  const data = gateData as Record<string, unknown>;
+
+  if (!Array.isArray(data.sections)) return null;
+
+  const quality = toRecord(data.quality_summary);
+  const evidence = toRecord(data.evidence_summary);
+
+  return {
+    sectionCount: typeof data.section_count === "number" ? data.section_count : data.sections.length,
+    wordCount: typeof data.total_word_count === "number" ? data.total_word_count : 0,
+    evidenceCount:
+      (typeof quality?.evidence_count === "number" && quality.evidence_count) ||
+      (typeof evidence?.evidence_ledger_entries === "number" && evidence.evidence_ledger_entries) ||
+      0,
+  };
+}
+
+function extractSourceBookSummaryFromEvents(
+  events: Array<{ gate_number?: number | null; gate_data?: unknown | null }>,
+): SourceBookSummary | null {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (event.gate_number === 3) {
+      const summary = extractSourceBookSummary(event.gate_data);
+      if (summary) return summary;
+    }
+  }
+  return null;
+}
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") return null;
+  return value as Record<string, unknown>;
 }
 
 function MetricCard({

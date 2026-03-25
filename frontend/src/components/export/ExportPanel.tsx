@@ -11,6 +11,7 @@ import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { useIsPptEnabled } from "@/hooks/use-is-ppt-enabled";
 import { DownloadButton } from "./DownloadButton";
 import { ExportSummary } from "./ExportSummary";
 import { downloadPptx, downloadDocx, downloadSourceIndex, downloadGapReport } from "@/lib/api/export";
@@ -35,6 +36,10 @@ export interface ExportPanelProps {
   elapsedMs: number;
   /** Optional CSS class */
   className?: string;
+  /** True when Gate 3 is pending and Source Book is ready for review */
+  sourceBookGatePending?: boolean;
+  /** True when Source Book is approved and DOCX is ready */
+  sourceBookReadyCheckpoint?: boolean;
 }
 
 export function ExportPanel({
@@ -45,8 +50,12 @@ export function ExportPanel({
   startedAt,
   elapsedMs,
   className = "",
+  sourceBookGatePending = false,
+  sourceBookReadyCheckpoint = false,
 }: ExportPanelProps) {
   const t = useTranslations("export");
+  const tSourceBook = useTranslations("sourceBook");
+  const isPptEnabled = useIsPptEnabled();
 
   const handlePptxDownload = useCallback(
     () => downloadPptx(sessionId),
@@ -70,6 +79,9 @@ export function ExportPanel({
 
   const isReady = outputs !== null;
   const slideCount = outputs?.slide_count ?? 0;
+  const docxReadyByOutput = outputs?.docx_ready ?? false;
+  const sourceBookEligible = sourceBookGatePending || sourceBookReadyCheckpoint || docxReadyByOutput;
+  const showFullPipelineMessage = !sourceBookEligible && !isReady;
 
   return (
     <div className={`space-y-6 ${className}`} data-testid="export-panel">
@@ -93,7 +105,9 @@ export function ExportPanel({
                 {t("slideCount", { count: slideCount })}
               </p>
             ) : (
-              <p className="text-sm text-amber-600">{t("notReady")}</p>
+              <p className="text-sm text-amber-600">
+                {showFullPipelineMessage ? t("notReady") : tSourceBook("readyTitle")}
+              </p>
             )}
           </div>
         </div>
@@ -104,16 +118,16 @@ export function ExportPanel({
             label={t("downloadPptx")}
             onDownload={handlePptxDownload}
             variant="primary"
-            available={isReady && (outputs?.pptx_ready ?? false)}
+            available={isPptEnabled && isReady && (outputs?.pptx_ready ?? false)}
             unavailableLabel={t("downloadPptx")}
             errorMessage={t("downloadError")}
           />
           <DownloadButton
-            label={t("downloadDocx")}
+            label={tSourceBook("downloadDocxNow")}
             onDownload={handleDocxDownload}
-            variant="secondary"
-            available={isReady && (outputs?.docx_ready ?? false)}
-            unavailableLabel={t("downloadDocx")}
+            variant="primary"
+            available={sourceBookEligible}
+            unavailableLabel={tSourceBook("downloadDocxNow")}
             errorMessage={t("downloadError")}
           />
           <DownloadButton
@@ -137,10 +151,10 @@ export function ExportPanel({
         {/* File format hints */}
         {isReady && (
           <div className="flex flex-wrap gap-2" data-testid="format-hints">
-            {outputs?.pptx_ready && (
+            {isPptEnabled && outputs?.pptx_ready && (
               <Badge variant="info">{t("formatPptx")}</Badge>
             )}
-            {outputs?.docx_ready && (
+            {sourceBookEligible && (
               <Badge variant="info">{t("formatDocx")}</Badge>
             )}
           </div>

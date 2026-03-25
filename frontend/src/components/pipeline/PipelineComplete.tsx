@@ -13,6 +13,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Link } from "@/i18n/routing";
+import { useIsPptEnabled } from "@/hooks/use-is-ppt-enabled";
 import { downloadPptx, downloadDocx } from "@/lib/api/export";
 import type { PipelineOutputs } from "@/lib/types/pipeline";
 
@@ -26,6 +27,8 @@ export function PipelineComplete({
   outputs,
 }: PipelineCompleteProps) {
   const t = useTranslations("export");
+  const tSourceBook = useTranslations("sourceBook");
+  const isPptEnabled = useIsPptEnabled();
   const [downloading, setDownloading] = useState<"pptx" | "docx" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +52,47 @@ export function PipelineComplete({
     [sessionId, t],
   );
 
+  if (!isPptEnabled) {
+    return (
+      <SourceBookCompletePanel
+        sessionId={sessionId}
+        outputs={outputs}
+        downloading={downloading}
+        onDownload={handleDownload}
+        error={error}
+        sourceBookTitle={tSourceBook("readyTitle")}
+        docxCta={tSourceBook("downloadDocxNow")}
+        fallbackCountLabel={t("slideCount", { count: outputs.slide_count })}
+      />
+    );
+  }
+
+  return (
+    <FullPipelineCompletePanel
+      sessionId={sessionId}
+      outputs={outputs}
+      downloading={downloading}
+      onDownload={handleDownload}
+      error={error}
+    />
+  );
+}
+
+function FullPipelineCompletePanel({
+  sessionId,
+  outputs,
+  downloading,
+  onDownload,
+  error,
+}: {
+  sessionId: string;
+  outputs: PipelineOutputs;
+  downloading: "pptx" | "docx" | null;
+  onDownload: (format: "pptx" | "docx") => Promise<void>;
+  error: string | null;
+}) {
+  const t = useTranslations("export");
+
   return (
     <Card variant="elevated" className="space-y-4 rounded-2xl dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center gap-3">
@@ -70,7 +114,7 @@ export function PipelineComplete({
             size="md"
             loading={downloading === "pptx"}
             disabled={downloading !== null}
-            onClick={() => handleDownload("pptx")}
+            onClick={() => onDownload("pptx")}
             className="flex-1 bg-sg-teal hover:bg-sg-navy"
           >
             <Presentation className="h-4 w-4" aria-hidden="true" />
@@ -83,7 +127,7 @@ export function PipelineComplete({
             size="md"
             loading={downloading === "docx"}
             disabled={downloading !== null}
-            onClick={() => handleDownload("docx")}
+            onClick={() => onDownload("docx")}
             className="flex-1"
           >
             <FileStack className="h-4 w-4" aria-hidden="true" />
@@ -105,6 +149,73 @@ export function PipelineComplete({
             {t("viewSlides")}
           </Button>
         </Link>
+        <Link href={`/pipeline/${sessionId}/export`}>
+          <Button variant="ghost" size="sm">
+            <Download className="h-4 w-4" aria-hidden="true" />
+            {t("viewExport")}
+          </Button>
+        </Link>
+      </div>
+    </Card>
+  );
+}
+
+function SourceBookCompletePanel({
+  sessionId,
+  outputs,
+  downloading,
+  onDownload,
+  error,
+  sourceBookTitle,
+  docxCta,
+  fallbackCountLabel,
+}: {
+  sessionId: string;
+  outputs: PipelineOutputs;
+  downloading: "pptx" | "docx" | null;
+  onDownload: (format: "pptx" | "docx") => Promise<void>;
+  error: string | null;
+  sourceBookTitle: string;
+  docxCta: string;
+  fallbackCountLabel: string;
+}) {
+  const t = useTranslations("export");
+
+  return (
+    <Card variant="elevated" className="space-y-4 rounded-2xl dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
+          <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden="true" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-sg-navy dark:text-slate-100">{sourceBookTitle}</h3>
+          <p className="text-sm text-sg-slate/70 dark:text-slate-300">{fallbackCountLabel}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {outputs.docx_ready && (
+          <Button
+            variant="primary"
+            size="md"
+            loading={downloading === "docx"}
+            disabled={downloading !== null}
+            onClick={() => onDownload("docx")}
+            className="flex-1 bg-sg-teal hover:bg-sg-navy"
+          >
+            <FileStack className="h-4 w-4" aria-hidden="true" />
+            {docxCta}
+          </Button>
+        )}
+      </div>
+
+      {error && (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-2 border-t border-sg-border pt-4">
         <Link href={`/pipeline/${sessionId}/export`}>
           <Button variant="ghost" size="sm">
             <Download className="h-4 w-4" aria-hidden="true" />
