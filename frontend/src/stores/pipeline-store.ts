@@ -145,7 +145,7 @@ export const isSourceBookReadyCheckpoint = (state: SourceBookCheckpointState): b
   const gate3Approved = state.completedGates.some(
     (gate) => gate.gate_number === 3 && gate.approved,
   );
-  return isSourceBookGatePending(state) || (gate3Approved && isDocxReady(state));
+  return gate3Approved && isDocxReady(state);
 };
 
 // ── Store ─────────────────────────────────────────────────────────────

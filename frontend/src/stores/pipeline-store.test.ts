@@ -5,9 +5,45 @@
  * and error paths. No HTTP calls — pure store logic.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { usePipelineStore } from "./pipeline-store";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import {
+  isSourceBookGatePending,
+  isSourceBookReadyCheckpoint,
+  usePipelineStore,
+} from "./pipeline-store";
 import type { PipelineStatusResponse } from "@/lib/types/pipeline";
+
+// Mock the pipeline API to prevent real HTTP calls in the pipeline_complete handler
+vi.mock("@/lib/api/pipeline", () => ({
+  getStatus: vi.fn().mockResolvedValue({
+    session_id: "mock",
+    status: "complete",
+    current_stage: "finalized",
+    outputs: {
+      pptx_ready: true,
+      docx_ready: true,
+      source_index_ready: false,
+      gap_report_ready: false,
+      slide_count: 15,
+      preview_ready: true,
+      deliverables: [],
+    },
+    deliverables: [],
+    completed_gates: [],
+    started_at: "2024-01-01T00:00:00Z",
+    elapsed_ms: 0,
+    error: null,
+    session_metadata: {
+      total_llm_calls: 0,
+      total_input_tokens: 0,
+      total_output_tokens: 0,
+      total_cost_usd: 0,
+    },
+    agent_runs: [],
+    rfp_name: "",
+    issuing_entity: "",
+  }),
+}));
 
 // Reset store between tests
 beforeEach(() => {
@@ -15,6 +51,104 @@ beforeEach(() => {
 });
 
 describe("PipelineStore", () => {
+  it("source-book state split: gate 3 pending + DOCX ready => pending true, ready false", () => {
+    const state = {
+      status: "gate_pending" as const,
+      currentGate: {
+        gate_number: 3,
+        summary: "Source Book ready for review",
+        prompt: "Review and approve",
+        payload_type: "source_book_review" as const,
+      },
+      completedGates: [],
+      outputs: {
+        pptx_ready: false,
+        docx_ready: true,
+        source_index_ready: false,
+        gap_report_ready: false,
+        slide_count: 0,
+        preview_ready: false,
+        deliverables: [],
+      },
+    };
+
+    expect(isSourceBookGatePending(state)).toBe(true);
+    expect(isSourceBookReadyCheckpoint(state)).toBe(false);
+  });
+
+  it("source-book state split: gate 3 approved + DOCX ready => pending false, ready true", () => {
+    const state = {
+      status: "running" as const,
+      currentGate: null,
+      completedGates: [
+        {
+          gate_number: 3,
+          approved: true,
+          feedback: "",
+          decided_at: "2024-01-01T00:00:00Z",
+        },
+      ],
+      outputs: {
+        pptx_ready: false,
+        docx_ready: true,
+        source_index_ready: false,
+        gap_report_ready: false,
+        slide_count: 0,
+        preview_ready: false,
+        deliverables: [],
+      },
+    };
+
+    expect(isSourceBookGatePending(state)).toBe(false);
+    expect(isSourceBookReadyCheckpoint(state)).toBe(true);
+  });
+
+  it("source-book state split: gate 3 approved + DOCX not ready => ready false", () => {
+    const state = {
+      status: "running" as const,
+      currentGate: null,
+      completedGates: [
+        {
+          gate_number: 3,
+          approved: true,
+          feedback: "",
+          decided_at: "2024-01-01T00:00:00Z",
+        },
+      ],
+      outputs: {
+        pptx_ready: false,
+        docx_ready: false,
+        source_index_ready: false,
+        gap_report_ready: false,
+        slide_count: 0,
+        preview_ready: false,
+        deliverables: [],
+      },
+    };
+
+    expect(isSourceBookReadyCheckpoint(state)).toBe(false);
+  });
+
+  it("source-book state split: no gate 3 => both false", () => {
+    const state = {
+      status: "running" as const,
+      currentGate: null,
+      completedGates: [],
+      outputs: {
+        pptx_ready: false,
+        docx_ready: false,
+        source_index_ready: false,
+        gap_report_ready: false,
+        slide_count: 0,
+        preview_ready: false,
+        deliverables: [],
+      },
+    };
+
+    expect(isSourceBookGatePending(state)).toBe(false);
+    expect(isSourceBookReadyCheckpoint(state)).toBe(false);
+  });
+
   it("starts in idle state", () => {
     const state = usePipelineStore.getState();
     expect(state.status).toBe("idle");
@@ -74,7 +208,7 @@ describe("PipelineStore", () => {
     expect(state.completedGates[0].approved).toBe(true);
   });
 
-  it("recordGateDecision (rejected) transitions to complete", () => {
+  it("recordGateDecision (rejected) transitions to running (revision loop)", () => {
     const store = usePipelineStore.getState();
     store.setSession("sess-123", "2024-01-01T00:00:00Z");
     store.setGatePending({
@@ -91,7 +225,8 @@ describe("PipelineStore", () => {
     });
 
     const state = usePipelineStore.getState();
-    expect(state.status).toBe("complete");
+    // Rejection keeps pipeline running — backend loops back to preceding agent
+    expect(state.status).toBe("running");
     expect(state.completedGates).toHaveLength(1);
     expect(state.completedGates[0].approved).toBe(false);
     expect(state.completedGates[0].feedback).toBe("Not enough sources");
@@ -202,7 +337,7 @@ describe("PipelineStore", () => {
     expect(state.currentGate?.gate_number).toBe(3);
   });
 
-  it("handleSSEEvent processes pipeline_complete", () => {
+  it("handleSSEEvent processes pipeline_complete", async () => {
     const store = usePipelineStore.getState();
     store.setSession("sess-123", "2024-01-01T00:00:00Z");
 
@@ -213,9 +348,12 @@ describe("PipelineStore", () => {
       timestamp: "2024-01-01T00:05:00Z",
     });
 
-    const state = usePipelineStore.getState();
-    expect(state.status).toBe("complete");
-    expect(state.outputs?.slide_count).toBe(15);
+    // Wait for the async getStatus call to resolve
+    await vi.waitFor(() => {
+      const state = usePipelineStore.getState();
+      expect(state.status).toBe("complete");
+      expect(state.outputs?.slide_count).toBe(15);
+    });
   });
 
   it("handleSSEEvent processes pipeline_error", () => {
@@ -267,7 +405,7 @@ describe("PipelineStore", () => {
     expect(state.events).toHaveLength(0);
   });
 
-  it("full lifecycle: idle → running → gate → running → complete", () => {
+  it("full lifecycle: idle → running → gate → running → complete", async () => {
     const store = usePipelineStore.getState();
 
     // Start
@@ -300,7 +438,11 @@ describe("PipelineStore", () => {
       slide_count: 10,
       timestamp: "t3",
     });
-    expect(usePipelineStore.getState().status).toBe("complete");
-    expect(usePipelineStore.getState().completedGates).toHaveLength(1);
+
+    // Wait for async getStatus to resolve
+    await vi.waitFor(() => {
+      expect(usePipelineStore.getState().status).toBe("complete");
+      expect(usePipelineStore.getState().completedGates).toHaveLength(1);
+    });
   });
 });
