@@ -15,6 +15,7 @@ from src.models.rfp import (
 )
 from src.models.slide_blueprint import SlideBlueprint, SlideBlueprintEntry
 from src.models.state import DeckForgeState
+from src.models.template_contract import TEMPLATE_SECTION_ORDER
 from src.services.llm import LLMError, LLMResponse
 
 
@@ -55,37 +56,44 @@ GAP: No NCA cybersecurity compliance evidence [GAP-001].
 
 
 def _make_sample_slide_blueprint() -> SlideBlueprint:
-    """Sample template-locked blueprint response."""
-    return SlideBlueprint(
-        entries=[
+    """Sample valid full-contract blueprint response."""
+    entries: list[SlideBlueprintEntry] = []
+    for spec in TEMPLATE_SECTION_ORDER:
+        if spec.ownership == "dynamic":
+            entries.append(
+                SlideBlueprintEntry(
+                    section_id=spec.section_id,
+                    section_name=spec.section_name,
+                    ownership="dynamic",
+                    slide_title=f"{spec.section_name} title",
+                    key_message=f"{spec.section_name} key message",
+                    bullet_points=[f"{spec.section_name} bullet"],
+                    evidence_ids=["CLM-0001"],
+                    visual_guidance="Use consultant-grade visual hierarchy.",
+                )
+            )
+            continue
+        if spec.ownership == "hybrid":
+            entries.append(
+                SlideBlueprintEntry(
+                    section_id=spec.section_id,
+                    section_name=spec.section_name,
+                    ownership="hybrid",
+                    slide_title=spec.section_name,
+                    key_message=f"{spec.section_name} shell guidance",
+                    house_action="include_as_is",
+                )
+            )
+            continue
+        entries.append(
             SlideBlueprintEntry(
-                section_id="S01",
-                section_name="Proposal Shell",
-                ownership="hybrid",
-                slide_title="Renewal of Support for SAP Systems",
-                key_message="Proposal structure for SAP renewal",
-                house_action="include_as_is",
-            ),
-            SlideBlueprintEntry(
-                section_id="S02",
-                section_name="Introduction Message",
-                ownership="dynamic",
-                slide_title="Strategic Gears SAP Expertise",
-                key_message="Proven SAP delivery for public-sector entities",
-                bullet_points=["8 consultants", "12 modules", "9-month delivery"],
-                evidence_ids=["CLM-0001"],
-                visual_guidance="Executive message layout",
-            ),
-            SlideBlueprintEntry(
-                section_id="S03",
-                section_name="Table of Contents",
-                ownership="hybrid",
-                slide_title="Table of Contents",
-                key_message="Template-native section sequence",
-                house_action="include_as_is",
-            ),
-        ]
-    )
+                section_id=spec.section_id,
+                section_name=spec.section_name,
+                ownership="house",
+                house_action="skip",
+            )
+        )
+    return SlideBlueprint(entries=entries)
 
 
 def _make_success_response() -> LLMResponse:
@@ -235,13 +243,12 @@ async def test_structure_outline_has_slides(mock_call_llm: AsyncMock) -> None:
 
     outline = result.slide_outline
     assert outline is not None
-    assert len(outline.slides) == 3
+    assert len(outline.slides) == len(TEMPLATE_SECTION_ORDER)
     assert outline.slides[0].slide_id == "S-001"
-    assert outline.slides[0].title == "Renewal of Support for SAP Systems"
+    assert outline.slides[0].title == "Proposal Shell"
     assert outline.slides[0].layout_type == LayoutType.TITLE
     assert outline.slides[0].report_section_ref == "S01"
     assert outline.slides[1].layout_type == LayoutType.CONTENT_1COL
-    assert "CLM-0001" in outline.slides[1].source_claims
     assert outline.slides[2].layout_type == LayoutType.AGENDA
 
 
@@ -259,5 +266,80 @@ async def test_structure_slide_count_matches(mock_call_llm: AsyncMock) -> None:
     outline = result.slide_outline
     assert outline is not None
     assert outline.slide_count == len(outline.slides)
-    assert outline.slide_count == 3
+    assert outline.slide_count == len(TEMPLATE_SECTION_ORDER)
     assert "template_locked_contract" in outline.weight_allocation
+
+
+@pytest.mark.asyncio
+@patch("src.agents.slide_architect.structure.agent.call_llm", new_callable=AsyncMock)
+async def test_structure_validation_failure_blocks_downstream(mock_call_llm: AsyncMock) -> None:
+    """Invalid blueprint fails before state storage and outline creation."""
+    invalid = _make_sample_slide_blueprint().model_copy(deep=True)
+    invalid.entries[0], invalid.entries[1] = invalid.entries[1], invalid.entries[0]
+    mock_call_llm.return_value = LLMResponse(
+        parsed=invalid,
+        input_tokens=6000,
+        output_tokens=3000,
+        model="gpt-5.4",
+        latency_ms=45000.0,
+    )
+    state = _make_input_state()
+
+    from src.agents.structure.agent import run
+
+    result = await run(state)
+
+    assert result.current_stage == "error"
+    assert result.slide_blueprint is None
+    assert result.slide_outline is None
+    assert result.last_error is not None
+    assert result.last_error.error_type == "BlueprintValidationError"
+    assert "Section order violation" in result.last_error.message
+    assert any("Section order violation" in err.message for err in result.errors)
+
+
+@pytest.mark.asyncio
+@patch("src.agents.slide_architect.structure.agent.validate_blueprint_against_template")
+@patch("src.agents.slide_architect.structure.agent.call_llm", new_callable=AsyncMock)
+async def test_structure_validation_failure_surfaces_structured_violations(
+    mock_call_llm: AsyncMock,
+    mock_validate: AsyncMock,
+) -> None:
+    """Violation text is surfaced in structured ErrorInfo message."""
+    mock_call_llm.return_value = _make_success_response()
+    mock_validate.return_value = [
+        "Missing required section 'S31'.",
+        "Section order violation: first occurrence order must match canonical S01-S31 order.",
+    ]
+    state = _make_input_state()
+
+    from src.agents.structure.agent import run
+
+    result = await run(state)
+
+    assert result.current_stage == "error"
+    assert result.last_error is not None
+    assert result.last_error.error_type == "BlueprintValidationError"
+    assert "Missing required section 'S31'." in result.last_error.message
+    assert "Section order violation" in result.last_error.message
+
+
+@pytest.mark.asyncio
+@patch("src.agents.slide_architect.structure.agent.validate_blueprint_against_template")
+@patch("src.agents.slide_architect.structure.agent.call_llm", new_callable=AsyncMock)
+async def test_structure_validation_failure_keeps_outline_unset(
+    mock_call_llm: AsyncMock,
+    mock_validate: AsyncMock,
+) -> None:
+    """Compatibility outline is not produced when validation fails."""
+    mock_call_llm.return_value = _make_success_response()
+    mock_validate.return_value = ["Unknown section_id 'S99' not present in template contract."]
+    state = _make_input_state()
+
+    from src.agents.structure.agent import run
+
+    result = await run(state)
+
+    assert result.current_stage == "error"
+    assert result.slide_blueprint is None
+    assert result.slide_outline is None

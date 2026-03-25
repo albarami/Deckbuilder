@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from src.config.models import MODEL_MAP
 from src.models.enums import LayoutType, PipelineStage
 from src.models.slide_blueprint import SlideBlueprint
 from src.models.slides import SlideObject, SlideOutline
 from src.models.state import DeckForgeState, ErrorInfo
+from src.models.template_contract import TEMPLATE_SECTION_ORDER
 from src.services.llm import LLMError, call_llm
+from src.services.template_validator import validate_blueprint_against_template
 
 from .prompts import SYSTEM_PROMPT
+
+logger = logging.getLogger(__name__)
 
 
 def _layout_for_section(section_id: str) -> LayoutType:
@@ -93,12 +98,32 @@ async def run(state: DeckForgeState) -> DeckForgeState:
             response_model=SlideBlueprint,
             max_tokens=8000,
         )
-        state.slide_blueprint = result.parsed
-        state.slide_outline = _blueprint_to_outline(result.parsed)
-        state.current_stage = PipelineStage.OUTLINE_REVIEW
         state.session.total_input_tokens += result.input_tokens
         state.session.total_output_tokens += result.output_tokens
         state.session.total_llm_calls += 1
+
+        blueprint = result.parsed
+        violations = validate_blueprint_against_template(
+            blueprint.entries,
+            TEMPLATE_SECTION_ORDER,
+        )
+        if violations:
+            logger.error("Blueprint validation failed: %s", violations)
+            state.current_stage = PipelineStage.ERROR
+            state.errors.append(
+                ErrorInfo(
+                    agent="structure_agent",
+                    error_type="BlueprintValidationError",
+                    message="; ".join(violations),
+                    retries_attempted=0,
+                )
+            )
+            state.last_error = state.errors[-1]
+            return state
+
+        state.slide_blueprint = blueprint
+        state.slide_outline = _blueprint_to_outline(blueprint)
+        state.current_stage = PipelineStage.OUTLINE_REVIEW
     except LLMError as e:
         state.current_stage = PipelineStage.ERROR
         state.errors.append(
