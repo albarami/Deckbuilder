@@ -80,6 +80,11 @@ vi.mock("@/stores/locale-store", () => ({
   }),
 }));
 
+const mockUseIsPptEnabled = vi.fn(() => true);
+vi.mock("@/hooks/use-is-ppt-enabled", () => ({
+  useIsPptEnabled: () => mockUseIsPptEnabled(),
+}));
+
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function makeGate(gateNumber: number, data?: GateInfo["gate_data"]): GateInfo {
@@ -97,6 +102,7 @@ function makeGate(gateNumber: number, data?: GateInfo["gate_data"]): GateInfo {
 describe("GatePanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseIsPptEnabled.mockReturnValue(true);
   });
 
   it("renders gate panel with header and actions", () => {
@@ -317,6 +323,13 @@ describe("GatePanel", () => {
   it("handles unknown gate number gracefully", () => {
     render(<GatePanel gate={makeGate(99)} />);
     expect(screen.getByText("Unknown gate: 99")).toBeInTheDocument();
+  });
+
+  it("renders non-blocking coming soon treatment for gate 4 when PPT is disabled", () => {
+    mockUseIsPptEnabled.mockReturnValue(false);
+    render(<GatePanel gate={makeGate(4)} />);
+    expect(screen.getByTestId("gate-ppt-coming-soon")).toBeInTheDocument();
+    expect(screen.queryByTestId("gate-actions")).not.toBeInTheDocument();
   });
 
   it("handles empty gate data gracefully", () => {

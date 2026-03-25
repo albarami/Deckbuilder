@@ -21,11 +21,14 @@ import { SlideExportBar } from "@/components/slides/SlideExportBar";
 import { Button } from "@/components/ui/Button";
 import { Link } from "@/i18n/routing";
 import type { SlideInfo } from "@/lib/types/slides";
+import { useIsPptEnabled } from "@/hooks/use-is-ppt-enabled";
 
 export default function SlideBrowserPage() {
   const t = useTranslations("slides");
+  const tSourceBook = useTranslations("sourceBook");
   const params = useParams<{ id: string }>();
   const sessionId = params.id;
+  const isPptEnabled = useIsPptEnabled();
 
   const store = useSlidesStore();
   const pipelineOutputs = usePipelineStore((s) => s.outputs);
@@ -33,7 +36,7 @@ export default function SlideBrowserPage() {
   // Fetch slides on mount
   useEffect(() => {
     async function fetchSlides() {
-      if (!sessionId) return;
+      if (!sessionId || !isPptEnabled) return;
 
       store.setLoading(true);
       store.setError(null);
@@ -54,7 +57,7 @@ export default function SlideBrowserPage() {
 
     fetchSlides();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [isPptEnabled, sessionId]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -80,6 +83,28 @@ export default function SlideBrowserPage() {
     },
     [store],
   );
+
+  if (!isPptEnabled) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <div className="rounded-2xl border border-sg-border bg-white p-8 text-center shadow-sg-card dark:border-slate-800 dark:bg-slate-900">
+          <h1 className="text-2xl font-bold text-sg-navy dark:text-slate-100">
+            {tSourceBook("pptComingSoon")}
+          </h1>
+          <p className="mt-3 text-sm text-sg-slate/70 dark:text-slate-300">
+            {tSourceBook("readyTitle")}
+          </p>
+          <div className="mt-6">
+            <Link href={`/pipeline/${sessionId}`}>
+              <Button variant="primary" className="bg-sg-teal hover:bg-sg-navy">
+                {t("backToPipeline")}
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

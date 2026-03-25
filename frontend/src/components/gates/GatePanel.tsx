@@ -13,7 +13,9 @@
 
 import { useState, useCallback } from "react";
 import { Card } from "@/components/ui/Card";
+import { useTranslations } from "next-intl";
 import { useGate } from "@/hooks/use-gate";
+import { useIsPptEnabled } from "@/hooks/use-is-ppt-enabled";
 import { GateHeader } from "./GateHeader";
 import { GateActions } from "./GateActions";
 import { Gate1Context } from "./gates/Gate1Context";
@@ -31,8 +33,11 @@ export interface GatePanelProps {
 }
 
 export function GatePanel({ gate }: GatePanelProps) {
+  const t = useTranslations("sourceBook");
+  const isPptEnabled = useIsPptEnabled();
   const { approve, reject, isDecidingGate } = useGate();
   const [modifications, setModifications] = useState<SourceModifications | null>(null);
+  const suppressPptGateReview = !isPptEnabled && (gate.gate_number === 4 || gate.gate_number === 5);
 
   const handleApprove = useCallback(async () => {
     await approve(modifications as GateDecisionRequest["modifications"]);
@@ -68,14 +73,20 @@ export function GatePanel({ gate }: GatePanelProps) {
         />
       </div>
 
-      <div className="border-t border-sg-border bg-sg-mist/60 px-6 py-4 dark:border-slate-800 dark:bg-slate-950/70">
-        <GateActions
-          onApprove={handleApprove}
-          onReject={handleReject}
-          modifications={modifications}
-          isDeciding={isDecidingGate}
-        />
-      </div>
+      {!suppressPptGateReview ? (
+        <div className="border-t border-sg-border bg-sg-mist/60 px-6 py-4 dark:border-slate-800 dark:bg-slate-950/70">
+          <GateActions
+            onApprove={handleApprove}
+            onReject={handleReject}
+            modifications={modifications}
+            isDeciding={isDecidingGate}
+          />
+        </div>
+      ) : (
+        <div className="border-t border-sg-border bg-sg-mist/60 px-6 py-4 text-sm text-sg-slate/70 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
+          {t("pptComingSoon")}
+        </div>
+      )}
     </Card>
   );
 }
@@ -88,6 +99,9 @@ interface GateContentProps {
 }
 
 function GateContent({ gate, onModificationsChange }: GateContentProps) {
+  const t = useTranslations("sourceBook");
+  const isPptEnabled = useIsPptEnabled();
+
   switch (gate.gate_number) {
     case 1:
       return <Gate1Context gate={gate} />;
@@ -107,8 +121,10 @@ function GateContent({ gate, onModificationsChange }: GateContentProps) {
       }
       return <Gate3Research gate={gate} />;
     case 4:
+      if (!isPptEnabled) return <PptComingSoonPanel message={t("pptComingSoon")} />;
       return <Gate4Slides gate={gate} />;
     case 5:
+      if (!isPptEnabled) return <PptComingSoonPanel message={t("pptComingSoon")} />;
       return <Gate5QA gate={gate} />;
     default:
       return (
@@ -117,6 +133,17 @@ function GateContent({ gate, onModificationsChange }: GateContentProps) {
         </p>
       );
   }
+}
+
+function PptComingSoonPanel({ message }: { message: string }) {
+  return (
+    <div
+      data-testid="gate-ppt-coming-soon"
+      className="rounded-xl border border-sg-border bg-sg-mist/35 px-4 py-4 text-sm text-sg-slate/75 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-300"
+    >
+      {message}
+    </div>
+  );
 }
 
 function isSourceBookPayload(data: unknown): boolean {

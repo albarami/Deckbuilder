@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useIsPptEnabled } from "@/hooks/use-is-ppt-enabled";
 import type { GateInfo, GateRecord, PipelineStatus } from "@/lib/types/pipeline";
 
 interface PipelineProgressBarProps {
@@ -12,7 +13,7 @@ interface PipelineProgressBarProps {
   currentGate: GateInfo | null;
 }
 
-type StageId = "context" | "sources" | "report" | "slides" | "qa";
+type StageId = "context" | "sources" | "sourceBook" | "slides" | "qa";
 
 interface StageDefinition {
   id: StageId;
@@ -35,10 +36,10 @@ const STAGES: StageDefinition[] = [
     stageKeys: ["source_research", "sources"],
   },
   {
-    id: "report",
+    id: "sourceBook",
     gateNumber: 3,
-    labelKey: "stages.report",
-    stageKeys: ["report_generation", "report"],
+    labelKey: "stages.sourceBook",
+    stageKeys: ["report_generation", "report", "source_book_generation", "source_book"],
   },
   {
     id: "slides",
@@ -61,14 +62,20 @@ export function PipelineProgressBar({
   currentGate,
 }: PipelineProgressBarProps) {
   const t = useTranslations("pipeline");
+  const isPptEnabled = useIsPptEnabled();
+  const visibleStages = useMemo(
+    () => (isPptEnabled ? STAGES : STAGES.slice(0, 3)),
+    [isPptEnabled],
+  );
 
   const activeStageId = useMemo<StageId>(() => {
     if (status === "gate_pending" && currentGate) {
+      if (!isPptEnabled && currentGate.gate_number >= 3) return "sourceBook";
       return stageIdFromGate(currentGate.gate_number);
     }
 
     if (currentStage === "finalized" || status === "complete") {
-      return "qa";
+      return isPptEnabled ? "qa" : "sourceBook";
     }
 
     const matchedStage = STAGES.find((stage) =>
@@ -76,9 +83,9 @@ export function PipelineProgressBar({
     );
 
     return matchedStage?.id ?? "context";
-  }, [currentGate, currentStage, status]);
+  }, [currentGate, currentStage, isPptEnabled, status]);
 
-  const activeIndex = STAGES.findIndex((stage) => stage.id === activeStageId);
+  const activeIndex = visibleStages.findIndex((stage) => stage.id === activeStageId);
   const completedGateNumbers = new Set(completedGates.map((gate) => gate.gate_number));
 
   return (
@@ -86,8 +93,13 @@ export function PipelineProgressBar({
       aria-label={t("stageTracker")}
       className="overflow-hidden rounded-2xl border border-sg-border bg-sg-white shadow-sg-card dark:border-slate-800 dark:bg-slate-900"
     >
-      <div className="grid gap-px bg-sg-border dark:bg-slate-800 sm:grid-cols-2 xl:grid-cols-5">
-        {STAGES.map((stage, index) => {
+      <div
+        className={[
+          "grid gap-px bg-sg-border dark:bg-slate-800 sm:grid-cols-2",
+          isPptEnabled ? "xl:grid-cols-5" : "xl:grid-cols-3",
+        ].join(" ")}
+      >
+        {visibleStages.map((stage, index) => {
           const isComplete =
             completedGateNumbers.has(stage.gateNumber) ||
             status === "complete" ||
@@ -154,6 +166,11 @@ export function PipelineProgressBar({
           );
         })}
       </div>
+      {!isPptEnabled ? (
+        <div className="border-t border-sg-border bg-sg-mist/45 px-5 py-2 text-xs text-sg-slate/65 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
+          {t("sourceBook.pptComingSoon")}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -165,7 +182,7 @@ function stageIdFromGate(gateNumber: number): StageId {
     case 2:
       return "sources";
     case 3:
-      return "report";
+      return "sourceBook";
     case 4:
       return "slides";
     case 5:

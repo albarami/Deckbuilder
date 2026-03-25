@@ -7,7 +7,8 @@
   "nav": {
     "dashboard": "Dashboard",
     "newProposal": "New Proposal",
-    "history": "History"
+    "history": "History",
+    "slides": "Slides"
   },
   "common": {
     "loading": "Loading...",
@@ -129,6 +130,7 @@
     "stages": {
       "context": "Context Analysis",
       "sources": "Source Research",
+      "sourceBook": "Source Book",
       "report": "Report Generation",
       "slides": "Slide Rendering",
       "qa": "Quality Assurance"
@@ -156,8 +158,11 @@
     "timelineRenderProgress": "Rendering slide {current} of {total}",
     "journeyLegendTitle": "Workflow framing",
     "journeyLegendSummary": "This hero bar tracks the 5 human approval gates. The full DeckForge workflow spans 10 operational steps across intake, retrieval, research, deck build, QA, and final delivery.",
+    "journeyLegendSummarySourceBook": "This hero bar tracks the Source Book-first flow through 3 approval gates. Slide delivery remains available later as an optional phase.",
     "journeyLegendSteps": "10 operational steps",
+    "journeyLegendStepsSourceBook": "7 operational steps",
     "journeyLegendGates": "5 approval gates",
+    "journeyLegendGatesSourceBook": "3 approval gates",
     "journeyLegendGovernance": "Report-first, No Free Facts, human-in-the-loop",
     "metricLlmCalls": "LLM Calls",
     "metricStatus": "Status",
@@ -206,7 +211,7 @@
     "noData": "No data available for review.",
     "gate1Name": "Context Analysis",
     "gate2Name": "Source Research",
-    "gate3Name": "Report Generation",
+    "gate3Name": "Source Book Review",
     "gate4Name": "Slide Rendering",
     "gate5Name": "Quality Assurance",
     "includeSource": "Include source",
@@ -284,5 +289,13 @@
     "summaryGateTimeline": "Gate Timeline",
     "summaryGateNumber": "Gate {number}",
     "summaryStarted": "Started"
+  },
+  "sourceBook": {
+    "readyTitle": "Your Source Book is ready for use.",
+    "downloadDocxNow": "Download Source Book DOCX now",
+    "sectionPreview": "Section Preview",
+    "evidenceSummary": "Evidence Summary",
+    "blueprintCoverage": "Blueprint Coverage",
+    "pptComingSoon": "Slides and QA are coming soon. Source Book delivery is available now."
   }
 }

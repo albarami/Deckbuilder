@@ -41,6 +41,10 @@ vi.mock("@/i18n/routing", () => ({
   ),
 }));
 
+vi.mock("@/hooks/use-is-ppt-enabled", () => ({
+  useIsPptEnabled: () => false,
+}));
+
 // ── Tests ──────────────────────────────────────────────────────────────
 
 describe("Sidebar", () => {

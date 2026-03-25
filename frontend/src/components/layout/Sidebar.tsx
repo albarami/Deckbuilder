@@ -13,6 +13,7 @@ import { Clock3, GitBranch, Home, PlusCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, Link } from "@/i18n/routing";
 import { listSessions } from "@/lib/api/pipeline";
+import { useIsPptEnabled } from "@/hooks/use-is-ppt-enabled";
 
 interface NavItem {
   href: string;
@@ -23,6 +24,7 @@ interface NavItem {
 export function Sidebar() {
   const t = useTranslations();
   const pathname = usePathname();
+  const isPptEnabled = useIsPptEnabled();
   const [pipelineHref, setPipelineHref] = useState("/new");
 
   useEffect(() => {
@@ -43,31 +45,7 @@ export function Sidebar() {
           return;
         }
       } catch {
-        // Fallback to sessionStorage
-      }
-
-      if (typeof window === "undefined" || !mounted) return;
-      try {
-        const sessions: Array<{ sessionId: string; startedAt: string }> = [];
-        for (let i = 0; i < sessionStorage.length; i += 1) {
-          const key = sessionStorage.key(i);
-          if (!key?.startsWith("deckforge_session_")) continue;
-          const sessionId = key.replace("deckforge_session_", "");
-          const raw = sessionStorage.getItem(key);
-          if (!raw) continue;
-          const parsed = JSON.parse(raw) as { startedAt?: string };
-          sessions.push({ sessionId, startedAt: parsed.startedAt ?? "" });
-        }
-        sessions.sort((a, b) => {
-          const aTime = new Date(a.startedAt).getTime();
-          const bTime = new Date(b.startedAt).getTime();
-          return Number.isNaN(bTime) ? -1 : bTime - aTime;
-        });
-        if (sessions[0]?.sessionId) {
-          setPipelineHref(`/pipeline/${sessions[0].sessionId}`);
-        }
-      } catch {
-        setPipelineHref("/new");
+        // Backend unavailable — keep default /new
       }
     }
 
@@ -76,33 +54,46 @@ export function Sidebar() {
   }, [pathname]);
 
   const navItems: (NavItem & { id: string })[] = useMemo(
-    () => [
-      {
-        id: "dashboard",
-        href: "/",
-        labelKey: "nav.dashboard",
-        icon: <Home className="h-4 w-4" aria-hidden="true" />,
-      },
-      {
-        id: "new",
-        href: "/new",
-        labelKey: "nav.newProposal",
-        icon: <PlusCircle className="h-4 w-4" aria-hidden="true" />,
-      },
-      {
-        id: "pipeline",
-        href: pipelineHref,
-        labelKey: "pipeline.title",
-        icon: <GitBranch className="h-4 w-4" aria-hidden="true" />,
-      },
-      {
-        id: "history",
-        href: "/history",
-        labelKey: "nav.history",
-        icon: <Clock3 className="h-4 w-4" aria-hidden="true" />,
-      },
-    ],
-    [pipelineHref],
+    () => {
+      const items: (NavItem & { id: string })[] = [
+        {
+          id: "dashboard",
+          href: "/",
+          labelKey: "nav.dashboard",
+          icon: <Home className="h-4 w-4" aria-hidden="true" />,
+        },
+        {
+          id: "new",
+          href: "/new",
+          labelKey: "nav.newProposal",
+          icon: <PlusCircle className="h-4 w-4" aria-hidden="true" />,
+        },
+        {
+          id: "pipeline",
+          href: pipelineHref,
+          labelKey: "pipeline.title",
+          icon: <GitBranch className="h-4 w-4" aria-hidden="true" />,
+        },
+        {
+          id: "history",
+          href: "/history",
+          labelKey: "nav.history",
+          icon: <Clock3 className="h-4 w-4" aria-hidden="true" />,
+        },
+      ];
+
+      if (isPptEnabled) {
+        items.push({
+          id: "slides",
+          href: pipelineHref.startsWith("/pipeline/") ? `${pipelineHref}/slides` : "/history",
+          labelKey: "nav.slides",
+          icon: <GitBranch className="h-4 w-4" aria-hidden="true" />,
+        });
+      }
+
+      return items;
+    },
+    [isPptEnabled, pipelineHref],
   );
 
   return (

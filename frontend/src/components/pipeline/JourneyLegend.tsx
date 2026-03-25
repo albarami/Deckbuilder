@@ -3,18 +3,20 @@
 import { CheckCircle2, FileText, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/Card";
+import { useIsPptEnabled } from "@/hooks/use-is-ppt-enabled";
 
 export function JourneyLegend() {
   const t = useTranslations("pipeline");
+  const isPptEnabled = useIsPptEnabled();
 
   const items = [
     {
       icon: <FileText className="h-4 w-4" aria-hidden="true" />,
-      value: t("journeyLegendSteps"),
+      value: isPptEnabled ? t("journeyLegendSteps") : t("journeyLegendStepsSourceBook"),
     },
     {
       icon: <CheckCircle2 className="h-4 w-4" aria-hidden="true" />,
-      value: t("journeyLegendGates"),
+      value: isPptEnabled ? t("journeyLegendGates") : t("journeyLegendGatesSourceBook"),
     },
     {
       icon: <ShieldCheck className="h-4 w-4" aria-hidden="true" />,
@@ -34,7 +36,7 @@ export function JourneyLegend() {
             {t("journeyLegendTitle")}
           </p>
           <p className="mt-2 text-sm text-sg-slate/75 dark:text-slate-300">
-            {t("journeyLegendSummary")}
+            {isPptEnabled ? t("journeyLegendSummary") : t("journeyLegendSummarySourceBook")}
           </p>
         </div>
 
