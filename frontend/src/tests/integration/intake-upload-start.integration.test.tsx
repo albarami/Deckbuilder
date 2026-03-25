@@ -1,13 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { StartPipelineButton } from "@/components/intake/StartPipelineButton";
+import NewProposalPage from "@/app/[locale]/new/page";
 
+const mockUploadDocuments = vi.fn();
 const mockStart = vi.fn();
 const mockPush = vi.fn();
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
     const map: Record<string, string> = {
+      title: "New Proposal",
+      subtitle: "Start from RFP inputs",
+      uploadFiles: "Upload files",
+      dragDrop: "Drag and drop files here",
+      supportedFormats: "PDF, DOCX, TXT",
+      uploading: "Uploading...",
+      or: "or",
+      orPasteText: "Or paste text",
+      pasteHere: "Paste text here",
+      charCount: "count",
+      configuration: "Configuration",
+      language: "Language",
+      proposalMode: "Proposal mode",
+      sector: "Sector",
+      geography: "Geography",
+      selectSector: "Select sector",
+      selectGeography: "Select geography",
+      "config.languageEn": "English",
+      "config.languageAr": "Arabic",
+      "config.modeLite": "Lite",
+      "config.modeStandard": "Standard",
+      "config.modeFull": "Full",
       startPipeline: "Start Pipeline",
       starting: "Starting...",
       needInput: "Need input",
@@ -23,6 +46,16 @@ vi.mock("@/hooks/use-pipeline", () => ({
     isStarting: false,
   }),
 }));
+vi.mock("@/lib/api/upload", () => ({
+  uploadDocuments: (...args: unknown[]) => mockUploadDocuments(...args),
+}));
+vi.mock("@/stores/pipeline-store", () => ({
+  usePipelineStore: (selector: (s: { isStarting: boolean }) => unknown) =>
+    selector({ isStarting: false }),
+}));
+vi.mock("@/components/intake/PipelinePreview", () => ({
+  PipelinePreview: () => null,
+}));
 
 vi.mock("@/i18n/routing", () => ({
   useRouter: () => ({ push: (...args: unknown[]) => mockPush(...args) }),
@@ -31,39 +64,52 @@ vi.mock("@/i18n/routing", () => ({
 describe("integration: intake upload and start flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUploadDocuments.mockResolvedValue({
+      uploads: [
+        {
+          upload_id: "up-1",
+          filename: "RFP.pdf",
+          size_bytes: 1500,
+          content_type: "application/pdf",
+          extracted_text_length: 2500,
+          detected_language: "en",
+        },
+      ],
+    });
     mockStart.mockResolvedValue("session-100");
   });
 
-  it("submits upload + optional paste in start payload and routes to session", async () => {
-    render(
-      <StartPipelineButton
-        uploadedFiles={[
-          { upload_id: "up-1", filename: "RFP.pdf", size_bytes: 1500 },
-          { upload_id: "up-2", filename: "Annex.docx", size_bytes: 2800 },
-        ]}
-        pastedText={"  supplemental context from intake form  "}
-        config={{
-          language: "en",
-          proposalMode: "standard",
-          sector: "Public Sector",
-          geography: "KSA",
-        }}
-      />,
-    );
+  it("uses real intake surface: upload + optional paste + start composition", async () => {
+    const { container } = render(<NewProposalPage />);
+    const fileInput = container.querySelector("input[type='file']") as HTMLInputElement;
+    expect(fileInput).toBeTruthy();
+    const file = new File(["rfp content"], "RFP.pdf", { type: "application/pdf" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
 
+    await waitFor(() => expect(mockUploadDocuments).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId("uploaded-files")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText("Or paste text"), {
+      target: { value: "  supplemental context from intake form  " },
+    });
+    fireEvent.change(container.querySelector("#config-sector") as HTMLSelectElement, {
+      target: { value: "Government" },
+    });
+    fireEvent.change(container.querySelector("#config-geography") as HTMLSelectElement, {
+      target: { value: "Saudi Arabia" },
+    });
     fireEvent.click(screen.getByTestId("start-pipeline-btn"));
 
     await waitFor(() => expect(mockStart).toHaveBeenCalledTimes(1));
     expect(mockStart).toHaveBeenCalledWith({
       documents: [
         { upload_id: "up-1", filename: "RFP.pdf" },
-        { upload_id: "up-2", filename: "Annex.docx" },
       ],
       text_input: "supplemental context from intake form",
       language: "en",
       proposal_mode: "standard",
-      sector: "Public Sector",
-      geography: "KSA",
+      sector: "Government",
+      geography: "Saudi Arabia",
       renderer_mode: "template_v2",
     });
     expect(mockPush).toHaveBeenCalledWith("/pipeline/session-100");

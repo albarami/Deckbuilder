@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import PipelineSessionPage from "./page";
 
 const mockUsePipeline = vi.fn();
+let mockLocale: "en" | "ar" = "en";
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "session-xyz" }),
@@ -11,8 +12,12 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) => {
-    if (key === "gatePendingTitle") return `Gate ${values?.number} Pending`;
-    const map: Record<string, string> = {
+    if (key === "gatePendingTitle") {
+      return mockLocale === "ar"
+        ? `البوابة ${values?.number} معلقة`
+        : `Gate ${values?.number} Pending`;
+    }
+    const enMap: Record<string, string> = {
       loading: "Loading",
       "sourceBook.readyTitle": "Your Source Book is ready",
       "stages.context": "Context",
@@ -32,6 +37,27 @@ vi.mock("next-intl", () => ({
       wordCount: "Words",
       downloadError: "Download failed",
     };
+    const arMap: Record<string, string> = {
+      loading: "جار التحميل",
+      "sourceBook.readyTitle": "كتاب المصدر جاهز",
+      "stages.context": "السياق",
+      "stages.sources": "المصادر",
+      "stages.sourceBook": "كتاب المصدر",
+      running: "قيد التنفيذ",
+      gatePending: "بوابة معلقة",
+      metricLlmCalls: "نداءات LLM",
+      metricStatus: "الحالة",
+      metricCost: "التكلفة",
+      metricLive: "مباشر",
+      metricReview: "قيد المراجعة",
+      readyTitle: "كتاب المصدر جاهز",
+      downloadDocxNow: "نزّل ملف DOCX الآن",
+      sectionPreview: "الأقسام",
+      evidenceSummary: "الأدلة",
+      wordCount: "عدد الكلمات",
+      downloadError: "فشل التنزيل",
+    };
+    const map = mockLocale === "ar" ? arMap : enMap;
     return map[key] ?? key;
   },
 }));
@@ -105,6 +131,7 @@ const basePipeline = {
 describe("Pipeline session page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLocale = "en";
     mockUsePipeline.mockReturnValue(basePipeline);
   });
 
@@ -145,5 +172,32 @@ describe("Pipeline session page", () => {
     render(<PipelineSessionPage />);
     expect(screen.getAllByText("Your Source Book is ready").length).toBeGreaterThan(0);
     expect(screen.getByTestId("source-book-session-docx-btn")).toBeInTheDocument();
+  });
+
+  it("renders source-book pending copy in Arabic for RTL journeys", () => {
+    mockLocale = "ar";
+    mockUsePipeline.mockReturnValue({
+      ...basePipeline,
+      status: "gate_pending",
+      isSourceBookGatePending: true,
+      currentGate: {
+        gate_number: 3,
+        agent_name: "reviewer",
+        payload_type: "source_book_review",
+        gate_data: {
+          section_count: 7,
+          total_word_count: 4200,
+          sections: [],
+          quality_summary: { evidence_count: 25 },
+          evidence_summary: { evidence_ledger_entries: 25 },
+        },
+        available_actions: ["approve", "reject"],
+      },
+    });
+
+    render(<PipelineSessionPage />);
+    expect(screen.getByText("البوابة 3 معلقة")).toBeInTheDocument();
+    expect(screen.getAllByText("كتاب المصدر جاهز").length).toBeGreaterThan(0);
+    expect(screen.getByText("نزّل ملف DOCX الآن")).toBeInTheDocument();
   });
 });

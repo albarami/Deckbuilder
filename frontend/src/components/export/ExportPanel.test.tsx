@@ -17,11 +17,12 @@ import type {
 // ── Mocks ──────────────────────────────────────────────────────────────
 
 const mockUseIsPptEnabled = vi.fn(() => true);
+let mockLocale: "en" | "ar" = "en";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => {
     const t = (key: string, values?: Record<string, unknown>) => {
-      const messages: Record<string, string> = {
+      const messagesEn: Record<string, string> = {
         title: "Export Deliverables",
         downloadPptx: "Download Presentation (PPTX)",
         downloadDocx: "Download Research Report (DOCX)",
@@ -43,7 +44,32 @@ vi.mock("next-intl", () => ({
         summaryGateNumber: `Gate ${values?.number ?? ""}`,
         summaryStarted: "Started",
       };
-      return messages[key] ?? key;
+      const messagesAr: Record<string, string> = {
+        title: "تصدير المخرجات",
+        downloadPptx: "تنزيل العرض (PPTX)",
+        downloadDocx: "تنزيل التقرير (DOCX)",
+        notReady: "سيتوفر التصدير بعد اكتمال خط الأنابيب.",
+        slideCount: `${values?.count ?? 0} شرائح`,
+        downloadError: "فشل التنزيل",
+        formatPptx: "باوربوينت (.pptx)",
+        formatDocx: "مستند وورد (.docx)",
+        summaryTitle: "ملخص الجلسة",
+        summarySession: "الجلسة",
+        summaryDuration: "المدة",
+        summarySlides: "الشرائح",
+        summaryGates: "البوابات",
+        summaryLlmCalls: "نداءات LLM",
+        summaryInputTokens: "رموز الإدخال",
+        summaryOutputTokens: "رموز الإخراج",
+        summaryCost: "التكلفة",
+        summaryGateTimeline: "سجل البوابات",
+        summaryGateNumber: `البوابة ${values?.number ?? ""}`,
+        summaryStarted: "بدأ",
+        readyTitle: "كتاب المصدر جاهز",
+        downloadDocxNow: "نزّل ملف DOCX الآن",
+      };
+      const active = mockLocale === "ar" ? messagesAr : messagesEn;
+      return active[key] ?? key;
     };
     return t;
   },
@@ -51,9 +77,9 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/stores/locale-store", () => ({
   useLocaleStore: () => ({
-    locale: "en",
-    direction: "ltr",
-    isRtl: false,
+    locale: mockLocale,
+    direction: mockLocale === "ar" ? "rtl" : "ltr",
+    isRtl: mockLocale === "ar",
   }),
 }));
 
@@ -111,6 +137,7 @@ describe("ExportPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseIsPptEnabled.mockReturnValue(true);
+    mockLocale = "en";
   });
 
   it("renders the export panel with title", () => {
@@ -162,6 +189,23 @@ describe("ExportPanel", () => {
     expect(downloadButtons).toHaveLength(1);
     expect(screen.queryByText("PowerPoint (.pptx)")).not.toBeInTheDocument();
     expect(screen.getByText("Word Document (.docx)")).toBeInTheDocument();
+  });
+
+  it("renders source-book export copy in Arabic under RTL wrapper", () => {
+    mockLocale = "ar";
+    mockUseIsPptEnabled.mockReturnValue(false);
+    render(
+      <div dir="rtl">
+        <ExportPanel
+          {...defaultProps}
+          outputs={null}
+          sourceBookGatePending
+        />
+      </div>,
+    );
+    expect(screen.getByText("تصدير المخرجات")).toBeInTheDocument();
+    expect(screen.getByText("كتاب المصدر جاهز")).toBeInTheDocument();
+    expect(screen.getByText("نزّل ملف DOCX الآن")).toBeInTheDocument();
   });
 
   it("triggers PPTX download on click", async () => {
