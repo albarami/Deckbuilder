@@ -11,7 +11,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/Card";
 import { useTranslations } from "next-intl";
 import { useGate } from "@/hooks/use-gate";
@@ -38,6 +38,8 @@ export function GatePanel({ gate }: GatePanelProps) {
   const isPptEnabled = useIsPptEnabled();
   const { approve, reject, isDecidingGate } = useGate();
   const [modifications, setModifications] = useState<SourceModifications | null>(null);
+  const [autoAdvanceError, setAutoAdvanceError] = useState(false);
+  const autoAdvanceGateRef = useRef<number | null>(null);
   const suppressPptGateReview = !isPptEnabled && (gate.gate_number === 4 || gate.gate_number === 5);
 
   const handleApprove = useCallback(async () => {
@@ -57,6 +59,26 @@ export function GatePanel({ gate }: GatePanelProps) {
     },
     [],
   );
+
+  useEffect(() => {
+    if (!suppressPptGateReview) {
+      autoAdvanceGateRef.current = null;
+      setAutoAdvanceError(false);
+      return;
+    }
+
+    if (autoAdvanceGateRef.current === gate.gate_number) return;
+    autoAdvanceGateRef.current = gate.gate_number;
+
+    void (async () => {
+      try {
+        setAutoAdvanceError(false);
+        await handleApprove();
+      } catch {
+        setAutoAdvanceError(true);
+      }
+    })();
+  }, [gate.gate_number, handleApprove, suppressPptGateReview]);
 
   return (
     <Card
@@ -85,7 +107,9 @@ export function GatePanel({ gate }: GatePanelProps) {
         </div>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-sg-border bg-sg-mist/60 px-6 py-4 dark:border-slate-800 dark:bg-slate-950/70">
-          <p className="text-sm text-sg-slate/70 dark:text-slate-300">{t("pptComingSoon")}</p>
+          <p className="text-sm text-sg-slate/70 dark:text-slate-300" data-testid="gate-ppt-coming-soon-text">
+            {t("pptComingSoon")}
+          </p>
           <button
             type="button"
             onClick={handleApprove}
@@ -95,6 +119,9 @@ export function GatePanel({ gate }: GatePanelProps) {
           >
             {tCommon("next")}
           </button>
+          {autoAdvanceError ? (
+            <p className="w-full text-xs text-red-600 dark:text-red-300">{tCommon("retry")}</p>
+          ) : null}
         </div>
       )}
     </Card>

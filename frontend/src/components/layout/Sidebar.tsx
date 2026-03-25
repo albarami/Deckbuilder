@@ -55,6 +55,12 @@ export function Sidebar() {
 
   const navItems: (NavItem & { id: string })[] = useMemo(
     () => {
+      const activeSessionId =
+        extractPipelineSessionId(pathname) ?? extractPipelineSessionId(pipelineHref);
+      const slidesHref = activeSessionId
+        ? `/pipeline/${activeSessionId}/slides`
+        : null;
+
       const items: (NavItem & { id: string })[] = [
         {
           id: "dashboard",
@@ -82,11 +88,10 @@ export function Sidebar() {
         },
       ];
 
-      if (isPptEnabled) {
-        const pipelineBaseHref = extractPipelineBaseHref(pipelineHref);
+      if (isPptEnabled && slidesHref) {
         items.push({
           id: "slides",
-          href: pipelineBaseHref ? `${pipelineBaseHref}/slides` : "/history",
+          href: slidesHref,
           labelKey: "nav.slides",
           icon: <GitBranch className="h-4 w-4" aria-hidden="true" />,
         });
@@ -94,7 +99,7 @@ export function Sidebar() {
 
       return items;
     },
-    [isPptEnabled, pipelineHref],
+    [isPptEnabled, pathname, pipelineHref],
   );
 
   return (
@@ -138,7 +143,7 @@ export function Sidebar() {
   );
 }
 
-function extractPipelineBaseHref(path: string): string | null {
-  const match = path.match(/^\/pipeline\/[^/]+/);
-  return match ? match[0] : null;
+function extractPipelineSessionId(path: string): string | null {
+  const match = path.match(/^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?pipeline\/([^/]+)/i);
+  return match?.[1] ?? null;
 }

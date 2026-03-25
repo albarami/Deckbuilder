@@ -15,6 +15,7 @@ vi.mock("next-intl", () => ({
       "nav.dashboard": "Dashboard",
       "nav.newProposal": "New Proposal",
       "nav.history": "History",
+      "nav.slides": "Slides",
     };
     return messages[key] ?? key;
   },
@@ -41,8 +42,15 @@ vi.mock("@/i18n/routing", () => ({
   ),
 }));
 
+let mockPptEnabled = false;
 vi.mock("@/hooks/use-is-ppt-enabled", () => ({
-  useIsPptEnabled: () => false,
+  useIsPptEnabled: () => mockPptEnabled,
+}));
+
+vi.mock("@/lib/api/pipeline", () => ({
+  listSessions: vi.fn().mockResolvedValue({
+    sessions: [{ session_id: "sess-12345678" }],
+  }),
 }));
 
 // ── Tests ──────────────────────────────────────────────────────────────
@@ -50,6 +58,7 @@ vi.mock("@/hooks/use-is-ppt-enabled", () => ({
 describe("Sidebar", () => {
   beforeEach(() => {
     mockPathname = "/";
+    mockPptEnabled = false;
   });
 
   it("renders all navigation items", () => {
@@ -96,5 +105,29 @@ describe("Sidebar", () => {
 
     const historyLink = screen.getByText("History").closest("a");
     expect(historyLink).toHaveAttribute("href", "/history");
+  });
+
+  it("builds canonical slides href on pipeline root", () => {
+    mockPptEnabled = true;
+    mockPathname = "/pipeline/sess-abc123";
+    render(<Sidebar />);
+    const slidesLink = screen.getByText("Slides").closest("a");
+    expect(slidesLink).toHaveAttribute("href", "/pipeline/sess-abc123/slides");
+  });
+
+  it("builds canonical slides href on export page", () => {
+    mockPptEnabled = true;
+    mockPathname = "/pipeline/sess-abc123/export";
+    render(<Sidebar />);
+    const slidesLink = screen.getByText("Slides").closest("a");
+    expect(slidesLink).toHaveAttribute("href", "/pipeline/sess-abc123/slides");
+  });
+
+  it("builds canonical slides href on slides page without duplication", () => {
+    mockPptEnabled = true;
+    mockPathname = "/pipeline/sess-abc123/slides";
+    render(<Sidebar />);
+    const slidesLink = screen.getByText("Slides").closest("a");
+    expect(slidesLink).toHaveAttribute("href", "/pipeline/sess-abc123/slides");
   });
 });

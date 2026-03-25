@@ -9,6 +9,12 @@ import { render, screen } from "@testing-library/react";
 import { GatePanel } from "./GatePanel";
 import type { GateInfo } from "@/lib/types/pipeline";
 
+const { mockApprove, mockReject, mockUseIsPptEnabled } = vi.hoisted(() => ({
+  mockApprove: vi.fn().mockResolvedValue(undefined),
+  mockReject: vi.fn().mockResolvedValue(undefined),
+  mockUseIsPptEnabled: vi.fn(() => true),
+}));
+
 // ── Mocks ──────────────────────────────────────────────────────────────
 
 vi.mock("next-intl", () => ({
@@ -64,8 +70,8 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/hooks/use-gate", () => ({
   useGate: () => ({
-    approve: vi.fn().mockResolvedValue(undefined),
-    reject: vi.fn().mockResolvedValue(undefined),
+    approve: mockApprove,
+    reject: mockReject,
     isDecidingGate: false,
     currentGate: null,
     completedGates: [],
@@ -80,7 +86,6 @@ vi.mock("@/stores/locale-store", () => ({
   }),
 }));
 
-const mockUseIsPptEnabled = vi.fn(() => true);
 vi.mock("@/hooks/use-is-ppt-enabled", () => ({
   useIsPptEnabled: () => mockUseIsPptEnabled(),
 }));
@@ -103,6 +108,8 @@ describe("GatePanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseIsPptEnabled.mockReturnValue(true);
+    mockApprove.mockResolvedValue(undefined);
+    mockReject.mockResolvedValue(undefined);
   });
 
   it("renders gate panel with header and actions", () => {
@@ -330,6 +337,20 @@ describe("GatePanel", () => {
     render(<GatePanel gate={makeGate(4)} />);
     expect(screen.getByTestId("gate-ppt-coming-soon")).toBeInTheDocument();
     expect(screen.getByTestId("gate-ppt-continue-btn")).toBeInTheDocument();
+  });
+
+  it("auto-advances gate 4 when PPT is disabled", async () => {
+    mockUseIsPptEnabled.mockReturnValue(false);
+    render(<GatePanel gate={makeGate(4)} />);
+    await screen.findByTestId("gate-ppt-coming-soon");
+    expect(mockApprove).toHaveBeenCalled();
+  });
+
+  it("auto-advances gate 5 when PPT is disabled", async () => {
+    mockUseIsPptEnabled.mockReturnValue(false);
+    render(<GatePanel gate={makeGate(5)} />);
+    await screen.findByTestId("gate-ppt-coming-soon");
+    expect(mockApprove).toHaveBeenCalled();
   });
 
   it("handles empty gate data gracefully", () => {
