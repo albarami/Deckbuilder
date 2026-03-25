@@ -10,7 +10,11 @@
 "use client";
 
 import { useCallback } from "react";
-import { usePipelineStore } from "@/stores/pipeline-store";
+import {
+  isSourceBookGatePending,
+  isSourceBookReadyCheckpoint,
+  usePipelineStore,
+} from "@/stores/pipeline-store";
 import {
   startPipeline as apiStartPipeline,
   getStatus as apiGetStatus,
@@ -20,6 +24,8 @@ import { APIError } from "@/lib/types/api";
 
 export function usePipeline() {
   const store = usePipelineStore();
+  const sourceBookGatePending = isSourceBookGatePending(store);
+  const sourceBookReadyCheckpoint = isSourceBookReadyCheckpoint(store);
 
   /**
    * Start a new pipeline session.
@@ -86,6 +92,8 @@ export function usePipeline() {
     agentRuns: store.agentRuns,
     events: store.events,
     isStarting: store.isStarting,
+    isSourceBookGatePending: sourceBookGatePending,
+    isSourceBookReadyCheckpoint: sourceBookReadyCheckpoint,
 
     // Actions
     start,

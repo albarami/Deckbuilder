@@ -10,7 +10,9 @@ export type ExportFormat = "pptx" | "docx" | "source_index" | "gap_report";
 export type GatePayloadType =
   | "context_review"
   | "source_review"
+  | "source_book_review"
   | "report_review"
+  | "assembly_plan_review"
   | "slide_review"
   | "qa_review";
 export type AgentRunStatus = "waiting" | "running" | "complete" | "error";
@@ -160,6 +162,83 @@ export interface Gate3ReportReviewData {
   source_index: SourceIndexItem[];
 }
 
+export interface MethodologyPhaseSummary {
+  phase_name: string;
+  activities_count: number;
+  deliverables_count: number;
+}
+
+export interface CaseStudySummary {
+  asset_id: string;
+  score: number;
+}
+
+export interface TeamBioSummary {
+  asset_id: string;
+  score: number;
+}
+
+export interface SlideBudgetSummary {
+  a1_clone: number;
+  a2_shell: number;
+  b_variable: number;
+  pool_clone: number;
+  total: number;
+}
+
+export interface ManifestCompositionSummary {
+  total_entries: number;
+  entry_type_counts: Record<string, number>;
+}
+
+export interface Gate3AssemblyPlanData {
+  proposal_mode: string;
+  geography: string;
+  sector: string;
+  methodology_phases: MethodologyPhaseSummary[];
+  slide_budget: SlideBudgetSummary;
+  case_studies: CaseStudySummary[];
+  team_bios: TeamBioSummary[];
+  selected_service_divider: string;
+  manifest_composition: ManifestCompositionSummary;
+  win_themes: string[];
+}
+
+export interface SourceBookSectionPreview {
+  section_id: string;
+  title: string;
+  preview_paragraph: string;
+  word_count?: number;
+}
+
+export interface SourceBookQualitySummary {
+  reviewer_score?: number;
+  benchmark_passed?: boolean;
+  evidence_count?: number;
+  blueprint_count?: number;
+}
+
+export interface SourceBookEvidenceSummary {
+  evidence_ledger_entries: number;
+  external_source_count: number;
+}
+
+export interface SourceBookBlueprintSummary {
+  total_entries: number;
+  covered_sections: string[];
+}
+
+export interface Gate3SourceBookData {
+  source_book_title?: string;
+  total_word_count: number;
+  section_count: number;
+  sections: SourceBookSectionPreview[];
+  quality_summary?: SourceBookQualitySummary;
+  evidence_summary?: SourceBookEvidenceSummary;
+  blueprint_summary?: SourceBookBlueprintSummary;
+  docx_ready: boolean;
+}
+
 /**
  * Unified slide type used by both the slides API and gate-4 preview.
  *
@@ -244,7 +323,9 @@ export interface Gate5QaReviewData {
 export type GatePayload =
   | Gate1ContextData
   | Gate2SourceReviewData
+  | Gate3SourceBookData
   | Gate3ReportReviewData
+  | Gate3AssemblyPlanData
   | Gate4SlideReviewData
   | Gate5QaReviewData
   | Record<string, unknown>;

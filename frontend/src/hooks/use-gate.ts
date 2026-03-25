@@ -13,8 +13,15 @@ import { decideGate } from "@/lib/api/pipeline";
 import { APIError } from "@/lib/types/api";
 import type { GateDecisionRequest } from "@/lib/types/pipeline";
 
-export function useGate() {
+interface UseGateOptions {
+  onGate3DecisionComplete?: (
+    decision: "approved" | "rejected",
+  ) => void | Promise<void>;
+}
+
+export function useGate(options: UseGateOptions = {}) {
   const store = usePipelineStore();
+  const onGate3DecisionComplete = options.onGate3DecisionComplete;
 
   /**
    * Approve the current pending gate.
@@ -38,6 +45,10 @@ export function useGate() {
         feedback: "",
         decided_at: new Date().toISOString(),
       });
+
+      if (gateNumber === 3 && onGate3DecisionComplete) {
+        await onGate3DecisionComplete("approved");
+      }
     } catch (err) {
       // Revert to gate_pending on failure
       if (err instanceof APIError) {
@@ -47,7 +58,7 @@ export function useGate() {
     } finally {
       store.setDecidingGate(false);
     }
-  }, [store]);
+  }, [onGate3DecisionComplete, store]);
 
   /**
    * Reject the current pending gate with feedback.
@@ -73,6 +84,10 @@ export function useGate() {
           feedback,
           decided_at: new Date().toISOString(),
         });
+
+        if (gateNumber === 3 && onGate3DecisionComplete) {
+          await onGate3DecisionComplete("rejected");
+        }
       } catch (err) {
         if (err instanceof APIError) {
           store.setError({
@@ -85,7 +100,7 @@ export function useGate() {
         store.setDecidingGate(false);
       }
     },
-    [store],
+    [onGate3DecisionComplete, store],
   );
 
   return {

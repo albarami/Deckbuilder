@@ -128,6 +128,26 @@ const initialState: PipelineState = {
 
 const MAX_EVENTS = 200;
 
+type SourceBookCheckpointState = Pick<
+  PipelineState,
+  "status" | "currentGate" | "completedGates" | "outputs"
+>;
+
+const isDocxReady = (state: SourceBookCheckpointState): boolean => {
+  if (state.outputs?.docx_ready) return true;
+  return Boolean(state.outputs?.deliverables?.some((d) => d.key === "docx" && d.ready));
+};
+
+export const isSourceBookGatePending = (state: SourceBookCheckpointState): boolean =>
+  state.status === "gate_pending" && state.currentGate?.gate_number === 3;
+
+export const isSourceBookReadyCheckpoint = (state: SourceBookCheckpointState): boolean => {
+  const gate3Approved = state.completedGates.some(
+    (gate) => gate.gate_number === 3 && gate.approved,
+  );
+  return isSourceBookGatePending(state) || (gate3Approved && isDocxReady(state));
+};
+
 // ── Store ─────────────────────────────────────────────────────────────
 
 export const usePipelineStore = create<PipelineStore>((set, get) => ({
@@ -238,26 +258,26 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
                   deliverables: statusResponse.deliverables ?? [],
                 });
               } else {
-                // Fallback: mark basic outputs ready
+                // No outputs from backend — show empty state, not fake readiness
                 store.setComplete({
-                  pptx_ready: true,
-                  docx_ready: true,
+                  pptx_ready: false,
+                  docx_ready: false,
                   source_index_ready: false,
                   gap_report_ready: false,
                   slide_count: event.slide_count ?? 0,
-                  preview_ready: true,
+                  preview_ready: false,
                   deliverables: [],
                 });
               }
             } catch {
-              // Network error fallback
+              // Network error — show empty state, not fake readiness
               store.setComplete({
-                pptx_ready: true,
-                docx_ready: true,
+                pptx_ready: false,
+                docx_ready: false,
                 source_index_ready: false,
                 gap_report_ready: false,
                 slide_count: event.slide_count ?? 0,
-                preview_ready: true,
+                preview_ready: false,
                 deliverables: [],
               });
             }
