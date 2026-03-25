@@ -424,7 +424,10 @@ async def analysis_node(state: DeckForgeState) -> dict[str, Any]:
     if merged_index is not None:
         result.reference_index = merged_index
 
-    # Load knowledge graph if available (try known cache paths)
+    # Load knowledge graph ONLY from the active cache path.
+    # Never fall back to a shared global index — that would inject
+    # unrelated domain data (e.g., IT/digital-transformation consultants
+    # into an investment-promotion proposal).
     knowledge_graph = None
     try:
         from pathlib import Path as P
@@ -432,21 +435,23 @@ async def analysis_node(state: DeckForgeState) -> dict[str, Any]:
         from src.agents.indexing.entity_extractor import load_knowledge_graph
         from src.services.search import DEFAULT_CACHE_PATH
 
-        # Try the active cache path first, then default
-        for candidate in [DEFAULT_CACHE_PATH, "./state/index/"]:
-            kg_file = P(candidate) / "knowledge_graph.json"
-            if kg_file.exists():
-                knowledge_graph = load_knowledge_graph(str(kg_file))
-                if knowledge_graph and knowledge_graph.people:
-                    logger.info(
-                        "Knowledge graph loaded from %s: "
-                        "%d people, %d projects, %d clients",
-                        candidate,
-                        len(knowledge_graph.people),
-                        len(knowledge_graph.projects),
-                        len(knowledge_graph.clients),
-                    )
-                    break
+        kg_file = P(DEFAULT_CACHE_PATH) / "knowledge_graph.json"
+        if kg_file.exists():
+            knowledge_graph = load_knowledge_graph(str(kg_file))
+            if knowledge_graph and knowledge_graph.people:
+                logger.info(
+                    "Knowledge graph loaded from %s: "
+                    "%d people, %d projects, %d clients",
+                    DEFAULT_CACHE_PATH,
+                    len(knowledge_graph.people),
+                    len(knowledge_graph.projects),
+                    len(knowledge_graph.clients),
+                )
+        else:
+            logger.warning(
+                "No knowledge graph found at %s — proceeding without KG data",
+                kg_file,
+            )
     except Exception as e:
         logger.debug("Knowledge graph not loaded: %s", e)
 

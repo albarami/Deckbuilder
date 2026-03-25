@@ -169,9 +169,6 @@ async def run_source_book_only(
         uploaded_documents=uploaded_documents,
         output_language=language,
         renderer_mode=RendererMode.TEMPLATE_V2,
-        geography="ksa",
-        proposal_mode="standard",
-        sector="technology",
         session=SessionMetadata(session_id=session_id),
     )
     config = {"configurable": {"thread_id": session_id}}
