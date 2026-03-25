@@ -19,6 +19,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -47,9 +48,10 @@ from langgraph.types import Command  # noqa: E402
 # Increase retry budget for LLM calls
 import src.services.llm as _llm_mod  # noqa: E402
 from src.models.enums import RendererMode  # noqa: E402
-from src.models.state import DeckForgeState, SessionMetadata  # noqa: E402
+from src.models.state import DeckForgeState, SessionMetadata, UploadedDocument  # noqa: E402
 from src.pipeline.graph import build_graph  # noqa: E402
 from src.services.search import _ensure_local_backend  # noqa: E402
+from src.utils.extractors import extract_directory  # noqa: E402
 
 _llm_mod._RETRY_DELAYS = [10, 20, 40, 60, 90, 120]
 
@@ -69,27 +71,14 @@ def _patched_get_anthropic():
 
 _llm_mod._get_anthropic_client = _patched_get_anthropic
 
-BRIEF_POSITIVE = (
-    "Digital Transformation Consulting Services RFP -- "
-    "The Ministry of Communications and Information Technology (MCIT) of the "
-    "Kingdom of Saudi Arabia seeks a consulting firm to provide digital "
-    "transformation advisory, enterprise architecture assessment, and "
-    "automation strategy services. "
-    "Strategic Gears proposes a phased consulting engagement leveraging its "
-    "proven KSA government advisory experience, certified team, and "
-    "structured delivery methodology. "
-    "Evaluation Criteria: Technical Approach and Methodology (30%), "
-    "Team Qualifications and Experience (25%), Past Performance and "
-    "Project References (25%), Compliance and Certifications (10%), "
-    "Project Management and Governance (10%)."
-)
-
-
 async def ensure_search_index(docs_path: str) -> str:
     """Index the local knowledge source."""
     import src.services.search as _search_mod
 
-    cache_dir = "state/index_positive/"
+    docs_label = re.sub(r"[^A-Za-z0-9_-]+", "_", Path(docs_path).name).strip("_")
+    if not docs_label:
+        docs_label = "default"
+    cache_dir = f"state/index_source_book_{docs_label}/"
     _search_mod._backend = None
     _search_mod.DEFAULT_DOCS_PATH = docs_path
     _search_mod.DEFAULT_CACHE_PATH = cache_dir
@@ -110,9 +99,48 @@ def _count_words(text: str | None) -> int:
     return len(text.split()) if text else 0
 
 
+def _build_domain_agnostic_input(
+    docs_path: str,
+    language: str,
+    max_summary_chars: int = 12_000,
+) -> tuple[str, list[UploadedDocument]]:
+    """Build DeckForge input from uploaded docs (no hardcoded domain brief)."""
+    extracted_docs = extract_directory(docs_path)
+    if not extracted_docs:
+        msg = f"No supported documents found in docs path: {docs_path}"
+        raise ValueError(msg)
+
+    uploaded_documents: list[UploadedDocument] = []
+    summary_parts: list[str] = []
+    for doc in extracted_docs:
+        text = (doc.full_text or "").strip()
+        if not text:
+            continue
+
+        uploaded_documents.append(
+            UploadedDocument(
+                filename=doc.filename,
+                content_text=text,
+                language=language,
+            )
+        )
+        summary_parts.append(f"[{doc.filename}]\n{text[:max_summary_chars]}")
+
+    if not uploaded_documents:
+        msg = (
+            "Documents were found but text extraction returned empty content "
+            f"for all files in: {docs_path}"
+        )
+        raise ValueError(msg)
+
+    ai_summary = "\n\n".join(summary_parts)[:max_summary_chars]
+    return ai_summary, uploaded_documents
+
+
 async def run_source_book_only(
     language: str,
     docs_path: str = "data_positive_proof",
+    max_summary_chars: int = 12_000,
 ) -> dict[str, Any]:
     """Run pipeline through Source Book only. No PPT. No render."""
     lang_suffix = "ar" if language == "ar" else "en"
@@ -123,6 +151,11 @@ async def run_source_book_only(
     print("  NO PPTX. NO DECK. NO RENDER.")
     print(f"{'=' * 80}\n")
 
+    ai_summary, uploaded_documents = _build_domain_agnostic_input(
+        docs_path,
+        language,
+        max_summary_chars=max_summary_chars,
+    )
     await ensure_search_index(docs_path=docs_path)
 
     # Build graph
@@ -132,7 +165,8 @@ async def run_source_book_only(
 
     session_id = f"sb-{lang_suffix}-{int(time.time())}"
     state = DeckForgeState(
-        ai_assist_summary=BRIEF_POSITIVE,
+        ai_assist_summary=ai_summary,
+        uploaded_documents=uploaded_documents,
         output_language=language,
         renderer_mode=RendererMode.TEMPLATE_V2,
         geography="ksa",
@@ -531,10 +565,20 @@ if __name__ == "__main__":
         "--docs-path", default="data_positive_proof",
         help="Path to curated data directory",
     )
+    parser.add_argument(
+        "--max-summary-chars",
+        type=int,
+        default=12_000,
+        help="Max chars to include in extracted ai_assist_summary",
+    )
     args = parser.parse_args()
 
     result = asyncio.run(
-        run_source_book_only(args.language, args.docs_path),
+        run_source_book_only(
+            args.language,
+            args.docs_path,
+            max_summary_chars=args.max_summary_chars,
+        ),
     )
 
     # Write result JSON
