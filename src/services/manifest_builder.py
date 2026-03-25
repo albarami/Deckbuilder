@@ -140,7 +140,7 @@ def build_manifest_from_slides(
     language: str = "en",
     proposal_mode: str = "standard",
     geography: str = "ksa",
-    sector: str = "technology",
+    sector: str = "",
 ) -> ProposalManifest:
     """Convert a list of SlideObjects into a ProposalManifest.
 
@@ -292,12 +292,31 @@ def _add_pool_clones(
         select_team_members,
     )
 
+    # Extract services/keywords from RFP context when available.
+    # Never hardcode domain-specific defaults — the pipeline must be RFP-agnostic.
+    rfp_services: list[str] = []
+    rfp_keywords: list[str] = []
+    rfp_capabilities: list[str] = []
+    if rfp_context is not None:
+        scope_items = getattr(rfp_context, "scope_items", []) or []
+        for item in scope_items:
+            desc = getattr(item, "description", None)
+            if desc:
+                text = getattr(desc, "en", "") or ""
+                if text:
+                    rfp_capabilities.append(text.lower())
+        mandate = getattr(rfp_context, "mandate", None)
+        if mandate:
+            mandate_text = getattr(mandate, "en", "") or ""
+            if mandate_text:
+                rfp_services.append(mandate_text.lower())
+
     rfp_ctx: dict[str, Any] = {
         "sector": sector,
-        "services": ["strategy", "digital transformation", "consulting"],
+        "services": rfp_services,
         "geography": geography,
-        "technology_keywords": ["cloud", "digital", "analytics"],
-        "capability_tags": ["strategy", "advisory", "transformation"],
+        "technology_keywords": rfp_keywords,
+        "capability_tags": rfp_capabilities,
         "language": language,
     }
 
@@ -312,10 +331,10 @@ def _add_pool_clones(
                 "slide_idx": entry["slide_idx"],
                 "semantic_layout_id": entry["semantic_layout_id"],
                 "sector": sector,
-                "services": ["strategy", "consulting"],
+                "services": rfp_services,
                 "geography": geography,
-                "technology_keywords": ["digital"],
-                "capability_tags": ["advisory"],
+                "technology_keywords": rfp_keywords,
+                "capability_tags": rfp_capabilities,
                 "language": language,
             })
             cs_idx_map[sid] = entry["slide_idx"]
@@ -329,11 +348,11 @@ def _add_pool_clones(
             "asset_id": sid,
             "slide_idx": entry["slide_idx"],
             "semantic_layout_id": entry["semantic_layout_id"],
-            "sector_experience": [sector],
-            "services": ["strategy", "digital transformation"],
+            "sector_experience": [sector] if sector else [],
+            "services": rfp_services,
             "roles": ["lead", "analyst"],
-            "geography_experience": [geography],
-            "technology_keywords": ["cloud"],
+            "geography_experience": [geography] if geography else [],
+            "technology_keywords": rfp_keywords,
             "language": language,
         })
         team_idx_map[sid] = entry["slide_idx"]

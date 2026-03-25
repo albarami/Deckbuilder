@@ -71,8 +71,11 @@ def _patched_get_anthropic():
 
 _llm_mod._get_anthropic_client = _patched_get_anthropic
 
-async def ensure_search_index(docs_path: str) -> str:
-    """Index the local knowledge source."""
+async def ensure_search_index(docs_path: str) -> tuple[str, str, str]:
+    """Index the local knowledge source. Returns (cache_dir, status, reason).
+
+    Status is one of: "OK", "DEGRADED".
+    """
     import src.services.search as _search_mod
 
     docs_label = re.sub(r"[^A-Za-z0-9_-]+", "_", Path(docs_path).name).strip("_")
@@ -90,9 +93,23 @@ async def ensure_search_index(docs_path: str) -> str:
         print(f"[INDEX] Using cached index at {cache_path}")
     else:
         print(f"[INDEX] Indexing documents from {docs_path} ...")
-    await _ensure_local_backend(docs_path, str(cache_dir))
-    print(f"[INDEX] Search backend ready (docs={docs_path})")
-    return str(cache_dir)
+    try:
+        await _ensure_local_backend(docs_path, str(cache_dir))
+        print(f"[INDEX] Search backend ready (docs={docs_path})")
+        return str(cache_dir), "OK", ""
+    except Exception as exc:
+        reason = str(exc)
+        logger = logging.getLogger(__name__)
+        logger.error(
+            "INDEXING FAILED: Domain-specific index at %s could not be built. "
+            "Reason: %s. The run will be marked DEGRADED.",
+            cache_dir,
+            reason,
+        )
+        _search_mod._backend = None
+        backend = _search_mod._get_backend()
+        backend.save(cache_dir)
+        return str(cache_dir), "DEGRADED", reason
 
 
 def _count_words(text: str | None) -> int:
@@ -156,7 +173,7 @@ async def run_source_book_only(
         language,
         max_summary_chars=max_summary_chars,
     )
-    await ensure_search_index(docs_path=docs_path)
+    _cache_path, index_status, index_reason = await ensure_search_index(docs_path=docs_path)
 
     # Build graph
     print("\n[BUILD] Building production pipeline graph...")
@@ -381,6 +398,8 @@ async def run_source_book_only(
 
     # ── HARD FAIL checks ──
     failures: list[str] = []
+    if index_status == "DEGRADED":
+        failures.append(f"Indexing failed: {index_reason}")
     if ledger_count == 0:
         failures.append("Evidence ledger (Section 7) has 0 entries")
     if blueprint_count < 8:
@@ -399,7 +418,12 @@ async def run_source_book_only(
             f"{kg_people_count} internal team members"
         )
 
-    status = "FAILURE" if failures else "SUCCESS"
+    if index_status == "DEGRADED" and not source_book:
+        status = "FAILED"
+    elif failures:
+        status = "DEGRADED" if source_book else "FAILED"
+    else:
+        status = "SUCCESS"
 
     # ── Print summary ──
     total_time = sum(s[1] for s in stages)
@@ -484,6 +508,8 @@ async def run_source_book_only(
 
     return {
         "status": status,
+        "index_status": index_status,
+        "index_reason": index_reason,
         "session_id": session_id,
         "failures": failures,
         "word_count": sb_word_count,
