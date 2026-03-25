@@ -102,22 +102,42 @@
 | S01 | Proposal Shell | 1 | Proposal Cover | hybrid | required | fixed |
 | S02 | Introduction Message | 2 | Introduction Message | dynamic | required | fixed |
 | S03 | Table of Contents | 3 | ToC / Agenda | hybrid | required | fixed |
-| S04 | Introduction & Understanding | 4-8 | 01, KSA, Pillars of the Vision, Vision Realization Programs* | hybrid + dynamic | required | fixed |
-| S05 | Why Strategic Gears | 9-10 | 02, Services - Detailed Case | hybrid + dynamic | required | fixed |
-| S06 | Methodology | 11-14 | 03, Methodology overview/focused/detailed | hybrid + dynamic | required | fixed |
-| S07 | Project Timeline & Outcomes | 15-16 | 04, Heading only (deliverables table) | hybrid + dynamic | required | fixed |
-| S08 | Proposed Project Team | 17 | 05 | hybrid | required | fixed |
-| S09 | Project Governance | 18 | 06 | hybrid | required | fixed |
-| S10 | Corporate House Shells | 19-33, 80-81 | Main Cover, Overview, What Drives Us, At a Glance, Strategy, Know More, Contact | house | mostly optional; Contact required | fixed |
-| S11 | Services Case Pools | 34-40, 42-50, 52-56, 58-60, 62-63, 65-67, 69 | Services - Cases | house | optional | repeatable |
-| S12 | Leadership Bio Pool | 71-79 | two team members | house | optional | repeatable |
+| S04 | Introduction and Understanding (Divider) | 4 | 01 | hybrid | required | fixed |
+| S05 | Understanding of Project (Content Block) | 5-8 | KSA, Pillars of the Vision, Vision Realization Programs* | dynamic | required | fixed |
+| S06 | Why Strategic Gears (Divider) | 9 | 02 | hybrid | required | fixed |
+| S07 | Why Strategic Gears (Evidence Content) | 10 | Services - Detailed Case | dynamic | required | fixed |
+| S08 | Methodology (Divider) | 11 | 03 | hybrid | required | fixed |
+| S09 | Methodology (Content Block) | 12-14 | Methodology overview/focused/detailed | dynamic | required | fixed |
+| S10 | Project Timeline and Outcome (Divider) | 15 | 04 | hybrid | required | fixed |
+| S11 | Project Timeline and Outcomes (Table Content) | 16 | Heading only (deliverables table) | dynamic | required | fixed |
+| S12 | Proposed Project Team (Divider) | 17 | 05 | hybrid | required | fixed |
+| S13 | Project Governance (Divider) | 18 | 06 | hybrid | required | fixed |
+| S14 | Corporate Main Shell Sequence | 19-23 | Main Cover, Overview, What Drives Us, At a Glance, Why Strategic Gears | house | optional | fixed |
+| S15 | Deep Experience Sequence | 24-27 | Deep Experience 1/4 to 4/4 | house | optional | fixed |
+| S16 | Corporate Capability Shell Sequence | 28-33 | A House of Expertise, Vast Network, Purpose Beyond Business 1/2, Purpose Beyond Business 2/2, Our Services, Strategy | house | optional | fixed |
+| S17 | Organizational Excellence (Service Divider) | 41 | Organizational Excellence | house | optional | fixed |
+| S18 | Organizational Excellence Case Pool | 42-50 | Services - Cases | house | optional | repeatable |
+| S19 | Marketing (Service Divider) | 51 | Marketing | house | optional | fixed |
+| S20 | Marketing Case Pool | 52-56 | Services - Cases | house | optional | repeatable |
+| S21 | Digital, Cloud, and AI (Service Divider) | 57 | Digital, Cloud, and AI | house | optional | fixed |
+| S22 | Digital, Cloud, and AI Case Pool | 58-60 | Services - Cases | house | optional | repeatable |
+| S23 | People Advisory (Service Divider) | 61 | People Advisory | house | optional | fixed |
+| S24 | People Advisory Case Pool | 62-63 | Services - Cases | house | optional | repeatable |
+| S25 | Deals Advisory (Service Divider) | 64 | Deals Advisory | house | optional | fixed |
+| S26 | Deals Advisory Case Pool | 65-67 | Services - Cases | house | optional | repeatable |
+| S27 | Research (Service Divider) | 68 | Research | house | optional | fixed |
+| S28 | Research Case Pool | 69 | Services - Cases | house | optional | repeatable |
+| S29 | Our Leadership (Divider) | 70 | Our Leadership | house | optional | fixed |
+| S30 | Leadership Bio Pool | 71-79 | two team members | house | optional | repeatable |
+| S31 | Closing Shell Sequence | 80-81 | Know More Page, Contact | house | Know More optional, Contact required | fixed |
 
 ---
 
 ## 3) Ownership Classification
 
 - **House-owned (do not freely generate):**
-  - Corporate shells and brand sections (`19-33`, `80-81`)
+  - Corporate shell sections (`19-33`) and closing shells (`80-81`)
+  - Service divider shells (`41`, `51`, `57`, `61`, `64`, `68`, `70`)
   - Services case pool slides (`34-40`, `42-50`, `52-56`, `58-60`, `62-63`, `65-67`, `69`)
   - Leadership/team-bio pool (`71-79`)
 - **Dynamic (must be generated from Source Book):**
