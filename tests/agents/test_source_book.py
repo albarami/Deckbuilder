@@ -669,7 +669,11 @@ class TestDocxPathPersistence:
         """source_book_node should set report_docx_path on successful export."""
         from unittest.mock import AsyncMock, patch
 
-        from src.models.source_book import SourceBookReview, SourceBookSections67
+        from src.models.source_book import (
+            SourceBookReview,
+            SourceBookSection6,
+            SourceBookSection7,
+        )
         from src.services.llm import LLMResponse
 
         mock_book = SourceBook(
@@ -679,8 +683,10 @@ class TestDocxPathPersistence:
                 objective_and_scope="Test scope",
             ),
         )
-        mock_sections_67 = SourceBookSections67(
+        mock_s6 = SourceBookSection6(
             slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
+        )
+        mock_s7 = SourceBookSection7(
             evidence_ledger=EvidenceLedger(entries=[
                 EvidenceLedgerEntry(claim_id="CLM-0001", claim_text="Test"),
             ]),
@@ -691,26 +697,21 @@ class TestDocxPathPersistence:
             rewrite_required=False,
         )
 
-        stage1_response = LLMResponse(
-            parsed=mock_book,
-            input_tokens=5000,
-            output_tokens=3000,
-            model="claude-opus-4-20250514",
-            latency_ms=8000,
+        stage1_resp = LLMResponse(
+            parsed=mock_book, input_tokens=5000,
+            output_tokens=3000, model="claude-opus-4-20250514", latency_ms=8000,
         )
-        stage2_response = LLMResponse(
-            parsed=mock_sections_67,
-            input_tokens=3000,
-            output_tokens=2000,
-            model="claude-opus-4-20250514",
-            latency_ms=5000,
+        stage2a_resp = LLMResponse(
+            parsed=mock_s6, input_tokens=3000,
+            output_tokens=2000, model="claude-opus-4-20250514", latency_ms=5000,
+        )
+        stage2b_resp = LLMResponse(
+            parsed=mock_s7, input_tokens=3000,
+            output_tokens=1000, model="claude-opus-4-20250514", latency_ms=3000,
         )
         reviewer_response = LLMResponse(
-            parsed=mock_review,
-            input_tokens=4000,
-            output_tokens=1500,
-            model="gpt-5.4",
-            latency_ms=3000,
+            parsed=mock_review, input_tokens=4000,
+            output_tokens=1500, model="gpt-5.4", latency_ms=3000,
         )
 
         call_count = 0
@@ -719,8 +720,10 @@ class TestDocxPathPersistence:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return stage1_response
-            return stage2_response
+                return stage1_resp
+            if call_count == 2:
+                return stage2a_resp
+            return stage2b_resp
 
         with (
             patch(
@@ -753,12 +756,18 @@ class TestDocxPathPersistence:
         """If DOCX export fails, error must be in state.errors."""
         from unittest.mock import AsyncMock, patch
 
-        from src.models.source_book import SourceBookReview, SourceBookSections67
+        from src.models.source_book import (
+            SourceBookReview,
+            SourceBookSection6,
+            SourceBookSection7,
+        )
         from src.services.llm import LLMResponse
 
         mock_book = SourceBook(client_name="Test")
-        mock_sections_67 = SourceBookSections67(
+        mock_s6 = SourceBookSection6(
             slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
+        )
+        mock_s7 = SourceBookSection7(
             evidence_ledger=EvidenceLedger(entries=[
                 EvidenceLedgerEntry(claim_id="CLM-0001", claim_text="Test"),
             ]),
@@ -769,26 +778,21 @@ class TestDocxPathPersistence:
             rewrite_required=False,
         )
 
-        stage1_response = LLMResponse(
-            parsed=mock_book,
-            input_tokens=5000,
-            output_tokens=3000,
-            model="claude-opus-4-20250514",
-            latency_ms=8000,
+        stage1_resp = LLMResponse(
+            parsed=mock_book, input_tokens=5000,
+            output_tokens=3000, model="claude-opus-4-20250514", latency_ms=8000,
         )
-        stage2_response = LLMResponse(
-            parsed=mock_sections_67,
-            input_tokens=3000,
-            output_tokens=2000,
-            model="claude-opus-4-20250514",
-            latency_ms=5000,
+        stage2a_resp = LLMResponse(
+            parsed=mock_s6, input_tokens=3000,
+            output_tokens=2000, model="claude-opus-4-20250514", latency_ms=5000,
+        )
+        stage2b_resp = LLMResponse(
+            parsed=mock_s7, input_tokens=3000,
+            output_tokens=1000, model="claude-opus-4-20250514", latency_ms=3000,
         )
         reviewer_response = LLMResponse(
-            parsed=mock_review,
-            input_tokens=4000,
-            output_tokens=1500,
-            model="gpt-5.4",
-            latency_ms=3000,
+            parsed=mock_review, input_tokens=4000,
+            output_tokens=1500, model="gpt-5.4", latency_ms=3000,
         )
 
         call_count = 0
@@ -797,8 +801,10 @@ class TestDocxPathPersistence:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return stage1_response
-            return stage2_response
+                return stage1_resp
+            if call_count == 2:
+                return stage2a_resp
+            return stage2b_resp
 
         with (
             patch(
@@ -1956,39 +1962,27 @@ class TestBlueprintManifestAlignment:
 # ──────────────────────────────────────────────────────────────
 
 
-class TestTwoStageWriterArchitecture:
-    """Verify the two-stage Writer: Stage 1 (Sections 1-5), Stage 2 (Sections 6-7)."""
+class TestThreeStageWriterArchitecture:
+    """Verify the three-stage Writer: Stage 1, Stage 2a (blueprints), Stage 2b (ledger)."""
 
     @pytest.mark.asyncio
-    async def test_stage2_produces_blueprints_and_ledger(self):
-        """Stage 2 dedicated call produces non-empty blueprints + evidence ledger."""
+    async def test_stage2a_produces_blueprints(self):
+        """Stage 2a dedicated call produces non-empty blueprints."""
         from unittest.mock import AsyncMock, patch
 
-        from src.models.source_book import SourceBookSections67
+        from src.models.source_book import SourceBookSection6
         from src.services.llm import LLMResponse
 
-        mock_sections_67 = SourceBookSections67(
+        mock_s6 = SourceBookSection6(
             slide_blueprints=[
                 SlideBlueprintEntry(slide_number=i, title=f"Slide {i}")
                 for i in range(1, 21)
             ],
-            evidence_ledger=EvidenceLedger(entries=[
-                EvidenceLedgerEntry(
-                    claim_id=f"CLM-{i:04d}",
-                    claim_text=f"Claim {i}",
-                    confidence=0.9,
-                    verifiability_status="verified",
-                )
-                for i in range(1, 11)
-            ]),
         )
 
-        stage2_response = LLMResponse(
-            parsed=mock_sections_67,
-            input_tokens=3000,
-            output_tokens=5000,
-            model="claude-opus-4-20250514",
-            latency_ms=5000,
+        response = LLMResponse(
+            parsed=mock_s6, input_tokens=3000,
+            output_tokens=5000, model="test", latency_ms=5000,
         )
 
         source_book = SourceBook(
@@ -2001,21 +1995,58 @@ class TestTwoStageWriterArchitecture:
         with patch(
             "src.agents.source_book.writer.call_llm",
             new_callable=AsyncMock,
-            return_value=stage2_response,
+            return_value=response,
         ):
-            from src.agents.source_book.writer import _generate_sections_67
+            from src.agents.source_book.writer import _generate_blueprints
 
-            result = await _generate_sections_67(source_book, "test-model")
+            result = await _generate_blueprints(source_book, "test-model")
 
         assert len(result.slide_blueprints) == 20
+
+    @pytest.mark.asyncio
+    async def test_stage2b_produces_evidence_ledger(self):
+        """Stage 2b dedicated call produces non-empty evidence ledger."""
+        from unittest.mock import AsyncMock, patch
+
+        from src.models.source_book import SourceBookSection7
+        from src.services.llm import LLMResponse
+
+        mock_s7 = SourceBookSection7(
+            evidence_ledger=EvidenceLedger(entries=[
+                EvidenceLedgerEntry(
+                    claim_id=f"CLM-{i:04d}",
+                    claim_text=f"Claim {i}",
+                    confidence=0.9,
+                    verifiability_status="verified",
+                )
+                for i in range(1, 11)
+            ]),
+        )
+
+        response = LLMResponse(
+            parsed=mock_s7, input_tokens=3000,
+            output_tokens=3000, model="test", latency_ms=3000,
+        )
+
+        source_book = SourceBook(client_name="Test")
+
+        with patch(
+            "src.agents.source_book.writer.call_llm",
+            new_callable=AsyncMock,
+            return_value=response,
+        ):
+            from src.agents.source_book.writer import _generate_evidence_ledger
+
+            result = await _generate_evidence_ledger(source_book, "test-model")
+
         assert len(result.evidence_ledger.entries) == 10
 
     @pytest.mark.asyncio
-    async def test_writer_merges_stage1_and_stage2(self):
-        """Writer run() merges Stage 1 (Sections 1-5) + Stage 2 (Sections 6-7)."""
+    async def test_writer_merges_all_three_stages(self):
+        """Writer run() merges Stage 1 + Stage 2a + Stage 2b into complete SourceBook."""
         from unittest.mock import AsyncMock, patch
 
-        from src.models.source_book import SourceBookSections67
+        from src.models.source_book import SourceBookSection6, SourceBookSection7
         from src.services.llm import LLMResponse
 
         mock_book = SourceBook(
@@ -2024,29 +2055,29 @@ class TestTwoStageWriterArchitecture:
                 objective_and_scope="Test scope from Stage 1",
             ),
         )
-        mock_sections_67 = SourceBookSections67(
+        mock_s6 = SourceBookSection6(
             slide_blueprints=[
                 SlideBlueprintEntry(slide_number=1, title="Cover"),
                 SlideBlueprintEntry(slide_number=2, title="Exec Summary"),
             ],
+        )
+        mock_s7 = SourceBookSection7(
             evidence_ledger=EvidenceLedger(entries=[
                 EvidenceLedgerEntry(claim_id="CLM-0001", claim_text="Test"),
             ]),
         )
 
-        stage1_response = LLMResponse(
-            parsed=mock_book,
-            input_tokens=5000,
-            output_tokens=8000,
-            model="claude-opus-4-20250514",
-            latency_ms=8000,
+        stage1_resp = LLMResponse(
+            parsed=mock_book, input_tokens=5000,
+            output_tokens=8000, model="test", latency_ms=8000,
         )
-        stage2_response = LLMResponse(
-            parsed=mock_sections_67,
-            input_tokens=3000,
-            output_tokens=3000,
-            model="claude-opus-4-20250514",
-            latency_ms=5000,
+        stage2a_resp = LLMResponse(
+            parsed=mock_s6, input_tokens=3000,
+            output_tokens=3000, model="test", latency_ms=5000,
+        )
+        stage2b_resp = LLMResponse(
+            parsed=mock_s7, input_tokens=3000,
+            output_tokens=2000, model="test", latency_ms=3000,
         )
 
         call_count = 0
@@ -2055,8 +2086,10 @@ class TestTwoStageWriterArchitecture:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return stage1_response
-            return stage2_response
+                return stage1_resp
+            if call_count == 2:
+                return stage2a_resp
+            return stage2b_resp
 
         with patch(
             "src.agents.source_book.writer.call_llm",
@@ -2074,33 +2107,38 @@ class TestTwoStageWriterArchitecture:
         assert len(sb.evidence_ledger.entries) == 1
         assert sb.slide_blueprints[0].title == "Cover"
         assert sb.evidence_ledger.entries[0].claim_id == "CLM-0001"
+        # Verify all 3 calls were made
+        assert call_count == 3
 
     @pytest.mark.asyncio
-    async def test_stage2_success_no_fallback_used(self):
-        """When Stage 2 succeeds, fallback must NOT be triggered."""
-        import logging
+    async def test_all_stages_succeed_no_fallback_used(self):
+        """When all 3 stages succeed, fallback must NOT be triggered."""
         from unittest.mock import AsyncMock, patch
 
-        from src.models.source_book import SourceBookSections67
+        from src.models.source_book import SourceBookSection6, SourceBookSection7
         from src.services.llm import LLMResponse
 
         mock_book = SourceBook(client_name="Test")
-        mock_sections_67 = SourceBookSections67(
-            slide_blueprints=[
-                SlideBlueprintEntry(slide_number=1, title="Cover"),
-            ],
+        mock_s6 = SourceBookSection6(
+            slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
+        )
+        mock_s7 = SourceBookSection7(
             evidence_ledger=EvidenceLedger(entries=[
                 EvidenceLedgerEntry(claim_id="CLM-0001", claim_text="Test"),
             ]),
         )
 
-        stage1_response = LLMResponse(
+        stage1_resp = LLMResponse(
             parsed=mock_book, input_tokens=5000,
             output_tokens=8000, model="test", latency_ms=1000,
         )
-        stage2_response = LLMResponse(
-            parsed=mock_sections_67, input_tokens=3000,
+        stage2a_resp = LLMResponse(
+            parsed=mock_s6, input_tokens=3000,
             output_tokens=3000, model="test", latency_ms=1000,
+        )
+        stage2b_resp = LLMResponse(
+            parsed=mock_s7, input_tokens=3000,
+            output_tokens=2000, model="test", latency_ms=1000,
         )
 
         call_count = 0
@@ -2109,8 +2147,10 @@ class TestTwoStageWriterArchitecture:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return stage1_response
-            return stage2_response
+                return stage1_resp
+            if call_count == 2:
+                return stage2a_resp
+            return stage2b_resp
 
         with patch(
             "src.agents.source_book.writer.call_llm",
@@ -2126,32 +2166,37 @@ class TestTwoStageWriterArchitecture:
         sb = result["source_book"]
         assert len(sb.slide_blueprints) == 1
         assert len(sb.evidence_ledger.entries) == 1
-        # Verify no fallback log messages
         fallback_msgs = [r for r in logs if "fallback" in r.getMessage().lower()]
         assert len(fallback_msgs) == 0, (
-            f"Fallback was triggered when Stage 2 succeeded: {fallback_msgs}"
+            f"Fallback was triggered when all stages succeeded: {fallback_msgs}"
         )
 
     @pytest.mark.asyncio
-    async def test_stage2_failure_triggers_fallback_and_warns(self):
-        """When Stage 2 fails, fallback is used and warning is logged."""
+    async def test_stage2b_failure_triggers_evidence_fallback(self):
+        """When Stage 2b returns empty ledger, fallback is used and warned."""
         from unittest.mock import AsyncMock, patch
 
-        from src.models.source_book import SourceBookSections67
+        from src.models.source_book import SourceBookSection6, SourceBookSection7
         from src.services.llm import LLMResponse
 
         mock_book = SourceBook(client_name="Test")
-        mock_empty_67 = SourceBookSections67(
-            slide_blueprints=[],
+        mock_s6 = SourceBookSection6(
+            slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
+        )
+        mock_s7_empty = SourceBookSection7(
             evidence_ledger=EvidenceLedger(entries=[]),
         )
 
-        stage1_response = LLMResponse(
+        stage1_resp = LLMResponse(
             parsed=mock_book, input_tokens=5000,
             output_tokens=8000, model="test", latency_ms=1000,
         )
-        stage2_response = LLMResponse(
-            parsed=mock_empty_67, input_tokens=3000,
+        stage2a_resp = LLMResponse(
+            parsed=mock_s6, input_tokens=3000,
+            output_tokens=3000, model="test", latency_ms=1000,
+        )
+        stage2b_resp = LLMResponse(
+            parsed=mock_s7_empty, input_tokens=3000,
             output_tokens=100, model="test", latency_ms=1000,
         )
 
@@ -2161,8 +2206,10 @@ class TestTwoStageWriterArchitecture:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return stage1_response
-            return stage2_response
+                return stage1_resp
+            if call_count == 2:
+                return stage2a_resp
+            return stage2b_resp
 
         with patch(
             "src.agents.source_book.writer.call_llm",
@@ -2175,9 +2222,10 @@ class TestTwoStageWriterArchitecture:
                 state = DeckForgeState()
                 result = await run(state)
 
-        # Fallback must have been triggered
         fallback_msgs = [r for r in logs if "fallback" in r.getMessage().lower()]
-        assert len(fallback_msgs) > 0, "Fallback should be logged when Stage 2 fails"
+        assert len(fallback_msgs) > 0, (
+            "Fallback should be logged when Stage 2b produces empty ledger"
+        )
 
     @staticmethod
     @contextlib.contextmanager

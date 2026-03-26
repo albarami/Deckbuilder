@@ -214,13 +214,29 @@ class SourceBook(DeckForgeBaseModel):
 
 
 class SourceBookSections67(DeckForgeBaseModel):
-    """Stage 2 output: Sections 6 (blueprints) and 7 (evidence ledger).
+    """Combined Stage 2 output (kept for backward compatibility in tests)."""
+
+    slide_blueprints: list[SlideBlueprintEntry] = Field(default_factory=list)
+    evidence_ledger: EvidenceLedger = Field(default_factory=EvidenceLedger)
+
+
+class SourceBookSection6(DeckForgeBaseModel):
+    """Stage 2a output: Section 6 (slide blueprints only).
 
     Generated in a dedicated LLM call with Sections 1-5 as context,
     ensuring the full token budget is available for blueprint depth.
     """
 
     slide_blueprints: list[SlideBlueprintEntry] = Field(default_factory=list)
+
+
+class SourceBookSection7(DeckForgeBaseModel):
+    """Stage 2b output: Section 7 (evidence ledger only).
+
+    Generated in a dedicated LLM call with Sections 1-5 + blueprints
+    as context, ensuring full token budget for evidence coverage.
+    """
+
     evidence_ledger: EvidenceLedger = Field(default_factory=EvidenceLedger)
 
 

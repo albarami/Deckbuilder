@@ -17,12 +17,13 @@ from src.models.source_book import (
     EvidenceLedgerEntry,
     RFPInterpretation,
     SourceBook,
-    SourceBookSections67,
+    SourceBookSection6,
+    SourceBookSection7,
 )
 from src.models.state import DeckForgeState
 from src.services.llm import call_llm
 
-from .prompts import STAGE2_BLUEPRINTS_AND_LEDGER_PROMPT
+from .prompts import STAGE2A_BLUEPRINTS_PROMPT, STAGE2B_EVIDENCE_LEDGER_PROMPT
 from .prompts import WRITER_SYSTEM_PROMPT as SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
@@ -319,20 +320,9 @@ def _build_user_message(
     return json.dumps(payload, ensure_ascii=False, default=str)
 
 
-async def _generate_sections_67(
-    source_book: SourceBook,
-    model: str,
-) -> SourceBookSections67:
-    """Stage 2: Dedicated LLM call for blueprints + evidence ledger.
-
-    Args:
-        source_book: Completed Sections 1-5 from Stage 1.
-        model: LLM model identifier.
-
-    Returns:
-        SourceBookSections67 with slide_blueprints and evidence_ledger.
-    """
-    sections_15_dump = json.dumps(
+def _dump_sections_15(source_book: SourceBook) -> str:
+    """Serialize Sections 1-5 as JSON context for Stage 2a/2b."""
+    return json.dumps(
         {
             "client_name": source_book.client_name,
             "rfp_name": source_book.rfp_name,
@@ -347,35 +337,89 @@ async def _generate_sections_67(
         default=str,
     )
 
-    logger.info(
-        "Stage 2 (blueprints+ledger): input chars=%d",
-        len(sections_15_dump),
-    )
+
+async def _generate_blueprints(
+    source_book: SourceBook,
+    model: str,
+) -> SourceBookSection6:
+    """Stage 2a: Dedicated LLM call for slide blueprints only.
+
+    Args:
+        source_book: Completed Sections 1-5 from Stage 1.
+        model: LLM model identifier.
+
+    Returns:
+        SourceBookSection6 with slide_blueprints.
+    """
+    context = _dump_sections_15(source_book)
+    logger.info("Stage 2a (blueprints): input chars=%d", len(context))
 
     result = await call_llm(
         model=model,
-        system_prompt=STAGE2_BLUEPRINTS_AND_LEDGER_PROMPT,
-        user_message=sections_15_dump,
-        response_model=SourceBookSections67,
+        system_prompt=STAGE2A_BLUEPRINTS_PROMPT,
+        user_message=context,
+        response_model=SourceBookSection6,
         max_tokens=32000,
         temperature=0.1,
     )
 
-    sections_67 = result.parsed
-    logger.info(
-        "Stage 2 produced: %d blueprints, %d evidence entries",
-        len(sections_67.slide_blueprints),
-        len(sections_67.evidence_ledger.entries),
+    section6 = result.parsed
+    logger.info("Stage 2a produced: %d blueprints", len(section6.slide_blueprints))
+    return section6
+
+
+async def _generate_evidence_ledger(
+    source_book: SourceBook,
+    model: str,
+) -> SourceBookSection7:
+    """Stage 2b: Dedicated LLM call for evidence ledger only.
+
+    Args:
+        source_book: Completed Sections 1-5 from Stage 1 (with blueprints
+            already merged from Stage 2a).
+        model: LLM model identifier.
+
+    Returns:
+        SourceBookSection7 with evidence_ledger.
+    """
+    context = json.dumps(
+        {
+            "sections_1_5": json.loads(_dump_sections_15(source_book)),
+            "slide_blueprints": [
+                bp.model_dump(mode="json") for bp in source_book.slide_blueprints
+            ],
+        },
+        ensure_ascii=False,
+        default=str,
     )
-    return sections_67
+    logger.info("Stage 2b (evidence ledger): input chars=%d", len(context))
+
+    result = await call_llm(
+        model=model,
+        system_prompt=STAGE2B_EVIDENCE_LEDGER_PROMPT,
+        user_message=context,
+        response_model=SourceBookSection7,
+        max_tokens=16000,
+        temperature=0.1,
+    )
+
+    section7 = result.parsed
+    logger.info(
+        "Stage 2b produced: %d evidence entries",
+        len(section7.evidence_ledger.entries),
+    )
+    return section7
 
 
 async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
-    """Run the Source Book Writer agent (two-stage architecture).
+    """Run the Source Book Writer agent (three-stage architecture).
 
-    Stage 1: Sections 1-5 (prose content) — full token budget for depth.
-    Stage 2: Sections 6-7 (blueprints + evidence ledger) — dedicated call
-             with Sections 1-5 as context.
+    Stage 1:  Sections 1-5 (prose content) — full token budget for depth.
+    Stage 2a: Section 6 (slide blueprints) — dedicated call with Sections 1-5.
+    Stage 2b: Section 7 (evidence ledger) — dedicated call with Sections 1-6.
+
+    Each stage gets its own LLM call and token budget so Arabic output
+    never truncates before completing the section.
 
     Returns a dict with keys matching DeckForgeState fields to update.
     """
@@ -448,33 +492,36 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
             len(source_book.why_strategic_gears.capability_mapping),
         )
 
-        # ── Stage 2: Sections 6-7 (dedicated call) ───────────
-        sections_67 = await _generate_sections_67(source_book, model)
+        # ── Stage 2a: Section 6 (blueprints) ──────────────────
+        section6 = await _generate_blueprints(source_book, model)
+        source_book.slide_blueprints = section6.slide_blueprints
 
-        source_book.slide_blueprints = sections_67.slide_blueprints
-        source_book.evidence_ledger = sections_67.evidence_ledger
-
-        # ── Fallback (safety net only — primary path above) ──
+        # Fallback for blueprints (safety net only)
         if not source_book.slide_blueprints:
             if state.source_book and state.source_book.slide_blueprints:
                 source_book.slide_blueprints = (
                     state.source_book.slide_blueprints
                 )
                 logger.warning(
-                    "Stage 2 produced 0 blueprints on pass %d "
+                    "Stage 2a produced 0 blueprints on pass %d "
                     "— preserved %d from previous pass (fallback)",
                     current_pass,
                     len(source_book.slide_blueprints),
                 )
             else:
                 logger.error(
-                    "Stage 2 produced 0 slide blueprints and no "
+                    "Stage 2a produced 0 slide blueprints and no "
                     "previous pass to fall back to — hard failure"
                 )
 
+        # ── Stage 2b: Section 7 (evidence ledger) ─────────────
+        section7 = await _generate_evidence_ledger(source_book, model)
+        source_book.evidence_ledger = section7.evidence_ledger
+
+        # Fallback for evidence ledger (safety net only)
         if not source_book.evidence_ledger.entries:
             logger.warning(
-                "Stage 2 produced empty evidence ledger — "
+                "Stage 2b produced empty evidence ledger — "
                 "building from citations (fallback)"
             )
             source_book.evidence_ledger = _build_evidence_ledger_from_citations(
