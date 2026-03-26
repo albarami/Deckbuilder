@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 _PIPE_ROW_RE = re.compile(r"^\s*\|(.+\|)\s*$")
 # Separator row: |---|---|---| or | --- | --- |
 _SEPARATOR_RE = re.compile(r"^\s*\|[\s\-:|]+\|\s*$")
+# Inline pipe pattern: text with 2+ pipe chars (e.g., "COMP-001 | req | response")
+_INLINE_PIPE_RE = re.compile(r"^[^|]+\|[^|]+\|.+$")
 
 
 def _parse_pipe_table(lines: list[str]) -> list[list[str]] | None:
@@ -113,10 +115,17 @@ def _add_smart_prose(doc: Document, text: str) -> None:
 
     for line in lines:
         is_pipe = bool(_PIPE_ROW_RE.match(line) or _SEPARATOR_RE.match(line))
-        if is_pipe:
+        is_inline_pipe = bool(not is_pipe and _INLINE_PIPE_RE.match(line.strip()))
+        if is_pipe or is_inline_pipe:
+            # Normalize inline pipe lines to standard pipe format
+            normalized = line.strip()
+            if is_inline_pipe and not normalized.startswith("|"):
+                normalized = "| " + normalized
+            if is_inline_pipe and not normalized.endswith("|"):
+                normalized = normalized + " |"
             if not table_lines and buffer:
                 flush_prose()
-            table_lines.append(line)
+            table_lines.append(normalized)
         else:
             if table_lines:
                 flush_table()
@@ -177,8 +186,19 @@ def _add_section_1(doc: Document, source_book: SourceBook) -> None:
 
     if rfp.key_compliance_requirements:
         doc.add_heading("1.5 Key Compliance Requirements", level=2)
-        for req in rfp.key_compliance_requirements:
-            doc.add_paragraph(req, style="List Bullet")
+        # Check if entries contain pipe-delimited content (e.g., COMP-xxx | ... | ...)
+        pipe_entries = [r for r in rfp.key_compliance_requirements if r.count("|") >= 2]
+        if pipe_entries:
+            # Render as a table via _add_smart_prose
+            combined = "\n".join(pipe_entries)
+            _add_smart_prose(doc, combined)
+            # Render any non-pipe entries as bullets
+            for req in rfp.key_compliance_requirements:
+                if req.count("|") < 2:
+                    doc.add_paragraph(req, style="List Bullet")
+        else:
+            for req in rfp.key_compliance_requirements:
+                doc.add_paragraph(req, style="List Bullet")
 
 
 def _add_section_2(doc: Document, source_book: SourceBook) -> None:

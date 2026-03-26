@@ -125,6 +125,81 @@ def _scan_for_hedges(source_book: SourceBook) -> list[str]:
     return matches
 
 
+def _strip_dangling_ext_citations(
+    source_book: SourceBook,
+    state: DeckForgeState,
+) -> SourceBook:
+    """Remove EXT-xxx citations that don't exist in the external evidence pack.
+
+    Scans all text fields for EXT-xxx references and strips any that are not
+    in the actual evidence pack. This prevents hallucinated citations from
+    appearing in the final document.
+    """
+    valid_ext_ids: set[str] = set()
+    if state.external_evidence_pack:
+        for src in getattr(state.external_evidence_pack, "sources", []):
+            sid = getattr(src, "source_id", "")
+            if sid:
+                valid_ext_ids.add(sid)
+
+    if not valid_ext_ids:
+        # No evidence pack at all — strip ALL EXT citations
+        pass
+
+    # Serialize to find all EXT references
+    text_blob = json.dumps(
+        source_book.model_dump(mode="json"),
+        ensure_ascii=False,
+        default=str,
+    )
+    all_ext_ids = set(_EXT_PATTERN.findall(text_blob))
+    dangling = all_ext_ids - valid_ext_ids
+
+    if not dangling:
+        logger.info("EXT citation check: all %d EXT IDs are valid", len(all_ext_ids))
+        return source_book
+
+    logger.warning(
+        "EXT citation check: stripping %d dangling IDs: %s (valid: %s)",
+        len(dangling),
+        sorted(dangling),
+        sorted(valid_ext_ids),
+    )
+
+    # Strip dangling EXT-xxx references from all string fields
+    dangling_pattern = re.compile(
+        r"\s*\[?(" + "|".join(re.escape(d) for d in dangling) + r")\]?\s*"
+    )
+
+    def _clean_str(val: str) -> str:
+        return dangling_pattern.sub(" ", val).strip()
+
+    def _clean_list(items: list[str]) -> list[str]:
+        return [_clean_str(s) for s in items if _clean_str(s)]
+
+    # Clean evidence_ids in slide blueprints
+    for bp in source_book.slide_blueprints:
+        if bp.proof_points:
+            bp.proof_points = [p for p in bp.proof_points if p not in dangling]
+        if bp.must_have_evidence:
+            bp.must_have_evidence = [m for m in bp.must_have_evidence if m not in dangling]
+        if bp.bullet_logic:
+            bp.bullet_logic = _clean_list(bp.bullet_logic)
+
+    # Clean evidence ledger — remove entries for dangling IDs
+    if source_book.evidence_ledger.entries:
+        original_count = len(source_book.evidence_ledger.entries)
+        source_book.evidence_ledger.entries = [
+            e for e in source_book.evidence_ledger.entries
+            if e.claim_id not in dangling
+        ]
+        removed = original_count - len(source_book.evidence_ledger.entries)
+        if removed:
+            logger.info("Removed %d dangling EXT entries from evidence ledger", removed)
+
+    return source_book
+
+
 async def _rewrite_hedges(
     source_book: SourceBook,
     hedges_found: list[str],
@@ -315,7 +390,62 @@ def _build_user_message(
                 tr.model_dump(mode="json") for tr in state.rfp_context.team_requirements
             ]
 
+    # Build explicit constraints block so the LLM cannot ignore them
+    mandatory_constraints: list[str] = []
+    if rfp_timeline_dump:
+        dur = rfp_timeline_dump.get("total_duration", "")
+        months = rfp_timeline_dump.get("total_duration_months")
+        if dur or months:
+            constraint = (
+                f"MANDATORY TIMELINE: The RFP states the project duration is "
+                f"{dur or str(months) + ' months'}. "
+                f"You MUST use this exact duration in Section 5 timeline_logic "
+                f"and all slide blueprints. Do NOT invent a different duration."
+            )
+            mandatory_constraints.append(constraint)
+        sched = rfp_timeline_dump.get("deliverable_schedule", [])
+        if sched:
+            milestones = "; ".join(
+                f"{s.get('milestone', '?')} due {s.get('due_date', '?')}"
+                for s in sched
+            )
+            mandatory_constraints.append(
+                f"MANDATORY MILESTONES: {milestones}"
+            )
+    if rfp_team_requirements_dump:
+        roles = []
+        for req in rfp_team_requirements_dump:
+            rt = req.get("role_title", {})
+            title = rt.get("en") or rt.get("ar") or str(rt)
+            edu = req.get("education", "")
+            certs = req.get("certifications", [])
+            yrs = req.get("min_years_experience")
+            parts = [title]
+            if edu:
+                parts.append(edu)
+            if certs:
+                parts.append(", ".join(certs))
+            if yrs:
+                parts.append(f"{yrs}+ years")
+            roles.append(" / ".join(parts))
+        if roles:
+            mandatory_constraints.append(
+                "MANDATORY TEAM ROLES (from RFP): "
+                + " | ".join(roles)
+                + ". Map each RFP role to a proposed consultant."
+            )
+
+    # Build available EXT IDs so the Writer knows what exists
+    available_ext_ids: list[str] = []
+    if state.external_evidence_pack:
+        for src in getattr(state.external_evidence_pack, "sources", []):
+            sid = getattr(src, "source_id", "")
+            if sid:
+                available_ext_ids.append(sid)
+
     payload = {
+        "mandatory_constraints": mandatory_constraints or None,
+        "available_ext_ids": available_ext_ids or None,
         "rfp_context": rfp_dump,
         "rfp_project_timeline": rfp_timeline_dump,
         "rfp_team_requirements": rfp_team_requirements_dump,
@@ -546,6 +676,9 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
                     "%d entries",
                     len(source_book.evidence_ledger.entries),
                 )
+
+        # ── EXT citation coherence check ─────────────────────────
+        source_book = _strip_dangling_ext_citations(source_book, state)
 
         # ── D9: Hedge scanner ──────────────────────────────────
         hedges = _scan_for_hedges(source_book)

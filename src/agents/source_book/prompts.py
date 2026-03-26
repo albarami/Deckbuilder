@@ -237,14 +237,14 @@ confidence in SG's ability to deliver. Real winning proposals dedicate
     (project plan, issue tracker, document repository), cadence of
     internal SG team syncs (daily standup or weekly internal review)
 
-- timeline_logic: MANDATORY — use the RFP's STATED project duration.
-  Check rfp_context.project_timeline for the official duration and
-  deliverable schedule. If the RFP says "10 months" or "عشرة أشهر",
-  your timeline MUST be 10 months — do NOT invent a different duration.
-  Map each phase to the RFP's deliverable milestones (e.g., months
-  3/6/9/10). State total duration matching the RFP, phase overlaps if
-  any, and dependencies. Reference holidays/constraints if relevant.
-  NEVER fabricate a timeline — always derive from the RFP document.
+- timeline_logic: MANDATORY — check the "mandatory_constraints" field
+  in the payload for the RFP's STATED project duration. If a MANDATORY
+  TIMELINE constraint is present, you MUST use that exact duration.
+  Do NOT calculate, estimate, or invent a different duration.
+  If the RFP says 10 months, write 10 months. If it says 6 weeks,
+  write 6 weeks. Map each phase to the RFP's deliverable milestones.
+  State total duration matching the RFP, phase overlaps if any, and
+  dependencies. NEVER fabricate a timeline.
 
 - value_case_and_differentiation: What makes SG's approach unique vs
   competitors? Reference specific capabilities, partnerships (Stanford,
@@ -333,7 +333,10 @@ When working with LIMITED evidence (few CLM-xxxx IDs available):
 3. NEVER invent CLM-xxxx IDs that don't exist in the reference_index
 4. A SMALL evidence ledger with REAL citations beats a LARGE ledger with FAKE ones
 5. Populate the evidence_ledger with ALL CLM-xxxx IDs you use — the reviewer checks this
-6. For external evidence, use EXT-xxx IDs with real industry sources (Gartner, McKinsey, IDC reports)
+6. For external evidence, ONLY use EXT-xxx IDs that exist in the
+   external_evidence_pack data provided. Check the available_ext_ids
+   field in the payload — those are the ONLY valid EXT IDs. Do NOT
+   invent EXT-xxx IDs that are not in the evidence pack
 7. If the reference_index is thin, focus your content quality on:
    clear problem framing, specific methodology, realistic timeline —
    these score well even without extensive evidence

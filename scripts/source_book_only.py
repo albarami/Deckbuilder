@@ -209,6 +209,45 @@ async def run_source_book_only(
         print(f"  rfp_name: {getattr(ctx, 'rfp_name', 'N/A')}")
     stages.append(("context → gate_1", t1 - t0))
 
+    # ── DIAGNOSTIC: Print rfp_context fields ──
+    if ctx:
+        pt = getattr(ctx, "project_timeline", None)
+        tr = getattr(ctx, "team_requirements", None)
+        print("\n  [DIAG] rfp_context.project_timeline:")
+        if pt:
+            print(f"    total_duration: {getattr(pt, 'total_duration', 'N/A')}")
+            print(f"    total_duration_months: {getattr(pt, 'total_duration_months', 'N/A')}")
+            sched = getattr(pt, "deliverable_schedule", [])
+            print(f"    deliverable_schedule: {len(sched)} items")
+            for ds in sched[:5]:
+                print(f"      - {getattr(ds, 'milestone', '?')}: {getattr(ds, 'due_date', '?')}")
+            print(f"    notes: {getattr(pt, 'notes', 'N/A')}")
+        else:
+            print("    *** NOT POPULATED (None) ***")
+        print("  [DIAG] rfp_context.team_requirements:")
+        if tr:
+            print(f"    {len(tr)} requirements:")
+            for t_req in tr[:6]:
+                rt = getattr(t_req, "role_title", None)
+                title_str = ""
+                if rt:
+                    title_str = getattr(rt, "en", "") or getattr(rt, "ar", "") or str(rt)
+                print(f"      - {title_str}: edu={getattr(t_req, 'education', '?')}, "
+                      f"certs={getattr(t_req, 'certifications', [])}, "
+                      f"yrs={getattr(t_req, 'min_years_experience', '?')}")
+        else:
+            print("    *** NOT POPULATED (empty) ***")
+        # Also check scope_items for English translations
+        si = getattr(ctx, "scope_items", [])
+        print(f"  [DIAG] rfp_context.scope_items: {len(si)} items")
+        for s_item in si[:3]:
+            desc = getattr(s_item, "description", None)
+            if desc:
+                en_txt = getattr(desc, "en", "") or ""
+                ar_txt = getattr(desc, "ar", "") or ""
+                print(f"      en: {en_txt[:80]}")
+                print(f"      ar: {ar_txt[:80]}")
+
     # ── PHASE 2: gate_1 approve → retrieval → gate_2 ──
     print(f"\n{'-' * 80}")
     print("  PHASE 2: gate_1 approve → retrieval → gate_2 (interrupt)")

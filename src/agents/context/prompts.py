@@ -17,15 +17,27 @@ THE 12 REQUIRED FIELDS (canonical list):
 8. compliance_requirements
 9. key_dates
 10. submission_format
-11. project_timeline — CRITICAL: Extract the RFP's stated project duration
-    (e.g., "10 months" / "عشرة أشهر"), total_duration_months as integer,
-    and deliverable_schedule with each milestone's due date (e.g., "Month 3",
-    "Month 6"). This is used downstream to set the proposal timeline.
-    Do NOT skip this — incorrect timelines cause proposal rejection.
-12. team_requirements — Extract the RFP's team role/qualification matrix.
-    For each required role, extract: role_title (bilingual), education level,
-    certifications (e.g., PMP), min_years_experience, domain_requirements.
-    Example: PM requires Master's degree, PMP, 8+ years, investment sector.
+11. project_timeline — CRITICAL: Search the ENTIRE document for the stated
+    project duration. Look for patterns like:
+    - Arabic: "مدة المشروع", "أشهر", "أسابيع", "سنة", "سنوات"
+    - English: "project duration", "months", "weeks", "years", "timeline"
+    - Numeric patterns: "(10) أشهر", "10 months", "twelve (12) weeks"
+    Extract: total_duration as the VERBATIM text (e.g., "عشرة (10) أشهر"),
+    total_duration_months as integer, and deliverable_schedule with each
+    milestone's due date (e.g., "Month 3" / "الشهر 3").
+    This is the MOST IMPORTANT extraction — incorrect timelines cause
+    proposal rejection. If you find ANY mention of duration in the document,
+    you MUST populate this field. Only set to null if the document truly
+    does not state any project duration.
+12. team_requirements — CRITICAL: Search for the RFP's team qualification
+    table or personnel requirements section. Look for patterns like:
+    - Arabic: "فريق العمل", "المؤهلات", "الخبرة", "الشهادات", "سنوات"
+    - English: "team", "qualifications", "experience", "certifications"
+    For EACH required role, extract: role_title (bilingual), education level,
+    certifications (e.g., PMP), min_years_experience, domain_requirements,
+    and additional_requirements.
+    If the RFP has a team requirements table, extract EVERY row from it.
+    Only return empty if the document truly has no personnel requirements.
 
 RULES:
 1. Extract ALL 12 required fields. If a field is missing or ambiguous, set its value to null and add it to the "gaps" array with a clear description.
