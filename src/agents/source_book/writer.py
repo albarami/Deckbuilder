@@ -394,16 +394,26 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
 
     try:
         # ── Stage 1: Sections 1-5 ────────────────────────────
-        llm_result = await call_llm(
-            model=model,
-            system_prompt=SYSTEM_PROMPT,
-            user_message=user_message,
-            response_model=SourceBook,
-            max_tokens=32000,
-            temperature=0.1,
-        )
-
-        source_book = llm_result.parsed
+        try:
+            llm_result = await call_llm(
+                model=model,
+                system_prompt=SYSTEM_PROMPT,
+                user_message=user_message,
+                response_model=SourceBook,
+                max_tokens=32000,
+                temperature=0.1,
+            )
+            source_book = llm_result.parsed
+        except Exception as stage1_err:
+            if state.source_book and state.source_book.pass_number >= 1:
+                logger.warning(
+                    "Stage 1 validation failed on rewrite pass — "
+                    "preserving previous pass result: %s",
+                    stage1_err,
+                )
+                source_book = state.source_book.model_copy(deep=True)
+            else:
+                raise
 
         # Set pass number
         current_pass = 1
@@ -537,12 +547,15 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
         logger.error("Source Book Writer failed: %s", e)
         from src.models.state import ErrorInfo
 
-        return {
-            "source_book": SourceBook(
-                rfp_interpretation=RFPInterpretation(
-                    objective_and_scope="Source Book generation failed.",
-                ),
+        # On rewrite passes, preserve the previous good result
+        preserved_book = state.source_book if state.source_book else SourceBook(
+            rfp_interpretation=RFPInterpretation(
+                objective_and_scope="Source Book generation failed.",
             ),
+        )
+
+        return {
+            "source_book": preserved_book,
             "errors": state.errors + [
                 ErrorInfo(
                     agent="source_book_writer",
