@@ -52,49 +52,74 @@ Map SG capabilities to RFP requirements with EVIDENCE:
   Produce at least 5 rows. Each row needs: rfp_requirement, sg_capability,
   evidence_ids (CLM-xxxx), and strength rating.
 
-- named_consultants: Produce 5-8 consultant profiles from knowledge_graph.
-  CRITICAL: Use REAL names from knowledge_graph.people — do NOT invent.
+- named_consultants: INTERIM TEAM STRUCTURE — follow these steps exactly.
 
-  RFP TEAM REQUIREMENTS: Check rfp_context.team_requirements for the
-  RFP's specific role/qualification matrix. If the RFP specifies:
-  - PM: Master's, PMP, 8+ years → your PM profile MUST show these
-  - Deputy PM: Bachelor's, PMP, 5 years → match this exactly
-  - Specialist roles with specific certifications → map each one
-  For EACH RFP-required role, assign a KG consultant whose profile
-  meets or exceeds the stated qualifications. In the 'relevance' field,
-  explicitly state how this consultant meets each RFP requirement.
-  If KG data is thin, clearly state the required qualifications so a
-  human can fill in real names before submission.
+  STEP 1 — RFP ROLE MATRIX: Check rfp_context.team_requirements AND the
+  mandatory_constraints field for the RFP's required roles. For EACH
+  required role, the consultant profile's "role" field must state:
+  the RFP role name, required years, required certifications, required
+  functional expertise, required prior-project profile, and any
+  language/regional/sector requirement from the RFP.
+
+  STEP 2 — STAFFING STATUS: Every consultant MUST have one of exactly
+  three staffing_status values:
+  * "confirmed_candidate" — ONLY if an authoritative company source
+    (e.g., HR system, partner-approved staffing list) confirms this
+    person is available and approved. In practice, the knowledge_graph
+    alone is NOT sufficient for confirmed status unless the KG source
+    is explicitly an authoritative staffing roster.
+  * "recommended_candidate" — suggested fit based on knowledge_graph
+    people, prior proposals, template references, or internal docs.
+    This is the expected status for most entries.
+  * "open_role_profile" — no reliable named person found. Define the
+    exact candidate profile required instead. Set name to "Open" or
+    the RFP role title. This is BETTER than forcing a fake name.
+
+  STEP 3 — JUSTIFICATION: For every recommended_candidate, populate:
+  * justification: Why this person fits the role (2-3 sentences)
+  * source_of_recommendation: Where the name came from. Use one of:
+    "knowledge_graph internal team data", "prior company proposal archive",
+    "template leadership examples", "project evidence folder"
+  * confidence: "high" / "medium" / "low"
+  * relevance: How the person meets EACH RFP requirement for this role
+
+  STEP 4 — OPEN ROLES: If no reliable name exists for an RFP role,
+  use staffing_status="open_role_profile". Set name="" or the role title.
+  In relevance, describe the ideal candidate profile clearly:
+  required experience, certifications, project profile, and why this
+  profile is necessary for this RFP. Do NOT force a name or use
+  placeholder text like "يُحدَّد الاسم النهائي قبل التقديم".
+
+  STEP 5 — SEPARATE STRUCTURE FROM PEOPLE: The team section has two
+  layers: (a) team structure / role logic (who reports to whom, which
+  workstreams they own), and (b) candidate recommendations / profiles.
+  Do not mix them. The relevance field describes the person's fit.
+  The role field describes the structural position.
+
+  STEP 6 — NEVER BLUR RECOMMENDATION AND CONFIRMATION: A provisional
+  recommendation must never look like approved final staffing.
+  If staffing_status is "recommended_candidate", the document must
+  clearly convey this is a recommendation, not a confirmed assignment.
 
   For EACH consultant, populate ALL fields:
-  * name: Real name from KG
-  * role: Proposed role on THIS project AND which RFP workstream they own
-  * relevance: 3-4 sentences explaining:
-    (a) why this person is right for this role based on their background
-    (b) which specific RFP deliverable or workstream they will lead
-    (c) a concrete prior achievement relevant to this engagement
-  * certifications: List ALL from KG (e.g., PMP, TOGAF, CDMP, SAFe, ITIL)
+  * name: Real name from KG, or "" for open_role_profile
+  * role: RFP role name + which workstream they own
+  * staffing_status: One of the three values above
+  * relevance: 3-4 sentences — how this person meets RFP requirements
+  * certifications: List ALL from KG
   * years_experience: Integer from KG
-  * education: ALL degrees from KG (e.g., "MBA, King Saud University;
-    BSc Electrical Engineering, University of Jordan")
+  * education: ALL degrees from KG
   * domain_expertise: Areas from KG
-  * prior_employers: ALL from KG (e.g., "McKinsey", "Deloitte", "PwC")
-  Real proposals show: "Nagaraj Padmanabhan, Senior Partner, 21+ years,
-  MBA MIS, BSc EE, led SAP EA for oil/gas sector [CLM-0005]"
+  * prior_employers: ALL from KG
+  * justification: Why recommended (for recommended/confirmed only)
+  * source_of_recommendation: Where the name came from
+  * confidence: "high" / "medium" / "low"
 
-  The goal: a reviewer reading this section should feel they are
-  looking at a real bid team page, not a summary. Each profile must
-  be 100+ words with ALL fields populated. 5 exceptional profiles
-  outweigh 15 thin ones.
-
-  TEAM STRUCTURE: Produce a clear hierarchy subsection:
-  - Project Director (name) — overall engagement lead
-    - Workstream 1 Lead (name) — [phase/area they own]
-    - Workstream 2 Lead (name) — [phase/area they own]
-    - Subject Matter Experts: (names) — [specializations]
-  In each consultant's relevance field, state their reporting line
-  and WHY this person is the right fit for this specific RFP
-  requirement (1-2 sentences linking background to client need).
+  Produce one entry per RFP-required role (from team_requirements).
+  If KG has additional relevant people beyond RFP roles, add them too.
+  The goal: a downstream user (human, Manus, Claude, DeepAgent) can
+  read this section and know exactly what role is needed, who is
+  suggested, why they fit, and how certain the recommendation is.
 
 - project_experience: Produce 12-15 UNIQUE prior projects from
   knowledge_graph. Do NOT repeat the same project under different names.

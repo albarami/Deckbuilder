@@ -55,10 +55,23 @@ class CapabilityMapping(DeckForgeBaseModel):
 
 
 class ConsultantProfile(DeckForgeBaseModel):
-    """Row in Section 3.2: Named Consultants & Role Relevance."""
+    """Row in Section 3.2: Named Consultants.
+
+    evidence_ids SHOULD reference CLM-xxxx IDs when available.
+    Empty list is allowed when evidence is thin — the Reviewer
+    will flag missing evidence during the scoring pass.
+
+    staffing_status indicates the certainty level:
+    - confirmed_candidate: authoritative source confirms availability
+    - recommended_candidate: suggested fit from internal docs / prior proposals
+    - open_role_profile: no reliable named person, define ideal profile
+    """
 
     name: str = ""
     role: str = ""
+    staffing_status: Literal[
+        "confirmed_candidate", "recommended_candidate", "open_role_profile",
+    ] = "recommended_candidate"
     relevance: str = ""
     evidence_ids: list[str] = Field(default_factory=list)
     certifications: list[str] = Field(default_factory=list)
@@ -66,6 +79,9 @@ class ConsultantProfile(DeckForgeBaseModel):
     education: list[str] = Field(default_factory=list)
     domain_expertise: list[str] = Field(default_factory=list)
     prior_employers: list[str] = Field(default_factory=list)
+    justification: str = ""
+    source_of_recommendation: str = ""
+    confidence: Literal["high", "medium", "low"] = "medium"
 
 
 class ProjectExperience(DeckForgeBaseModel):

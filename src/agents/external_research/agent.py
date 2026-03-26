@@ -48,9 +48,12 @@ def _extract_bilingual_any(bt) -> str:
 
 
 def _generate_search_queries(state: DeckForgeState) -> list[str]:
-    """Generate search queries from RFP context and state fields.
+    """Generate 6-8 search queries from RFP context and state fields.
 
-    Uses real RFPContext fields: rfp_name, mandate, scope_items, deliverables.
+    Strategy: one query per RFP scope item, one per deliverable cluster,
+    plus mandate and RFP-name queries. Each query targets a specific
+    RFP scope area, not generic consulting methodology.
+
     Extracts text in any available language (English preferred, Arabic fallback)
     so queries work for non-English RFPs too.
     """
@@ -63,38 +66,29 @@ def _generate_search_queries(state: DeckForgeState) -> list[str]:
     rfp_name = _extract_bilingual_any(rfp.rfp_name)
     mandate = _extract_bilingual_any(rfp.mandate)
 
-    # Query 1: RFP name + consulting context
+    # Query 1: RFP name — broad domain context
     if rfp_name and len(rfp_name) > 5:
         queries.append(f"{rfp_name[:80]} consulting methodology")
 
-    # Query 2: Mandate-based (first 100 chars)
+    # Query 2: Mandate — the core ask
     if mandate and len(mandate) > 10:
-        mandate_short = mandate[:100].strip()
-        queries.append(f"{mandate_short} best practices")
+        queries.append(f"{mandate[:100].strip()} best practices")
 
-    # Query 3: From scope_items — these are the most domain-specific
+    # Queries 3-6: One per scope item (most domain-specific)
     if rfp.scope_items:
-        scope_texts = [
-            _extract_bilingual_any(s.description)
-            for s in rfp.scope_items[:5]
-            if _extract_bilingual_any(s.description)
-        ]
-        if scope_texts:
-            keywords = " ".join(scope_texts[:2])[:120]
-            queries.append(f"{keywords} framework methodology")
+        for scope_item in rfp.scope_items[:4]:
+            text = _extract_bilingual_any(scope_item.description)
+            if text and len(text) > 10:
+                queries.append(f"{text[:100].strip()} framework methodology")
 
-    # Query 4: From deliverables
+    # Queries 7-8: From deliverables (each individually)
     if rfp.deliverables:
-        del_texts = [
-            _extract_bilingual_any(d.description)
-            for d in rfp.deliverables[:3]
-            if _extract_bilingual_any(d.description)
-        ]
-        if del_texts:
-            keywords = " ".join(del_texts[:2])[:120]
-            queries.append(f"{keywords} best practices")
+        for deliv in rfp.deliverables[:2]:
+            text = _extract_bilingual_any(deliv.description)
+            if text and len(text) > 10:
+                queries.append(f"{text[:100].strip()} best practices")
 
-    # Query 5: Sector + geography from state if available
+    # Sector/geography if available
     sector = state.sector or ""
     geography = state.geography or ""
     if sector and geography:
@@ -119,7 +113,7 @@ def _generate_search_queries(state: DeckForgeState) -> list[str]:
             seen.add(q)
             unique.append(q)
 
-    return unique[:5]  # Cap at 5 queries
+    return unique[:8]  # Cap at 8 queries
 
 
 async def _search_semantic_scholar(queries: list[str], api_key: str) -> list[dict]:

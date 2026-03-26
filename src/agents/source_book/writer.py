@@ -579,6 +579,9 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
 
     model = MODEL_MAP.get("source_book_writer", MODEL_MAP.get("analysis_agent"))
 
+    # Track fallback usage per pass for honest reporting
+    fallback_events: list[str] = []
+
     try:
         # ── Stage 1: Sections 1-5 ────────────────────────────
         try:
@@ -599,6 +602,7 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
                     stage1_err,
                 )
                 source_book = state.source_book.model_copy(deep=True)
+                fallback_events.append("stage1_preserved_previous")
             else:
                 raise
 
@@ -645,6 +649,9 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
                 source_book.slide_blueprints = (
                     state.source_book.slide_blueprints
                 )
+                fallback_events.append(
+                    f"stage2a_blueprints_preserved_from_previous_pass"
+                )
                 logger.warning(
                     "Stage 2a produced 0 blueprints on pass %d "
                     "— preserved %d from previous pass (fallback)",
@@ -670,6 +677,7 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
             source_book.evidence_ledger = _build_evidence_ledger_from_citations(
                 source_book,
             )
+            fallback_events.append("stage2b_evidence_ledger_from_citations")
             if source_book.evidence_ledger.entries:
                 logger.info(
                     "Evidence ledger populated from citations (fallback): "
@@ -732,6 +740,7 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
         return {
             "source_book": source_book,
             "session": session,
+            "fallback_events": fallback_events,
         }
 
     except Exception as e:

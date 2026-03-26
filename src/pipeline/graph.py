@@ -616,6 +616,7 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
 
     max_passes = 5
     current_state = state
+    all_fallback_events: list[dict[str, Any]] = []
 
     # Gate 3 rejection feedback — inject into first pass if present
     gate3_feedback = _build_gate3_feedback_for_writer(state)
@@ -636,6 +637,18 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
         # Update state with writer result
         updates = dict(writer_result)
         source_book = updates.get("source_book")
+
+        # Track fallback events per pass
+        pass_fallbacks = updates.pop("fallback_events", [])
+        if pass_fallbacks:
+            all_fallback_events.append({
+                "pass": pass_num,
+                "events": pass_fallbacks,
+            })
+            logger.warning(
+                "Source Book pass %d fallback events: %s",
+                pass_num, pass_fallbacks,
+            )
 
         if not source_book or "errors" in updates:
             logger.error("Source Book Writer failed on pass %d", pass_num)
@@ -742,6 +755,7 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
         "report_markdown": report_md,
         "report_docx_path": exported_docx_path,
         "session": current_state.session,
+        "fallback_events": all_fallback_events,
     }
 
     # Surface export failure structurally

@@ -245,22 +245,29 @@ def _add_section_3(doc: Document, source_book: SourceBook) -> None:
             row[2].text = ", ".join(cm.evidence_ids) if cm.evidence_ids else "—"
             row[3].text = cm.strength
 
-    # 3.2 Named Consultants table
+    # 3.2 Named Consultants table — interim team structure
     if wsg.named_consultants:
-        doc.add_heading("3.2 Named Consultants & Role Relevance", level=2)
-        table = doc.add_table(rows=1, cols=4)
+        doc.add_heading("3.2 Proposed Team & Staffing Recommendations", level=2)
+        table = doc.add_table(rows=1, cols=6)
         table.style = "Table Grid"
         hdr = table.rows[0].cells
         hdr[0].text = "Name"
         hdr[1].text = "Role"
-        hdr[2].text = "Relevance"
-        hdr[3].text = "Evidence"
+        hdr[2].text = "Status"
+        hdr[3].text = "Relevance / Justification"
+        hdr[4].text = "Source"
+        hdr[5].text = "Confidence"
         for nc in wsg.named_consultants:
             row = table.add_row().cells
-            row[0].text = nc.name
+            status = getattr(nc, "staffing_status", "recommended_candidate")
+            status_label = status.replace("_", " ").title()
+            row[0].text = nc.name or "(Open)"
             row[1].text = nc.role
-            row[2].text = nc.relevance
-            row[3].text = ", ".join(nc.evidence_ids) if nc.evidence_ids else "—"
+            row[2].text = status_label
+            justification = getattr(nc, "justification", "")
+            row[3].text = f"{nc.relevance}\n{justification}".strip()
+            row[4].text = getattr(nc, "source_of_recommendation", "") or "—"
+            row[5].text = getattr(nc, "confidence", "medium")
 
     # 3.3 Project Experience table
     if wsg.project_experience:
@@ -310,10 +317,8 @@ def _add_section_4(doc: Document, source_book: SourceBook) -> None:
 
     if ext.coverage_assessment:
         doc.add_paragraph()
-        p = doc.add_paragraph()
-        run = p.add_run("Coverage Assessment: ")
-        run.bold = True
-        p.add_run(ext.coverage_assessment)
+        doc.add_heading("Coverage Assessment", level=3)
+        _add_smart_prose(doc, ext.coverage_assessment)
 
 
 def _add_section_5(doc: Document, source_book: SourceBook) -> None:

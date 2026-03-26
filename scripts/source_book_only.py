@@ -278,6 +278,7 @@ async def run_source_book_only(
     ext_evidence = result.get("external_evidence_pack")
     knowledge_graph = result.get("knowledge_graph")
     docx_path = result.get("report_docx_path")
+    fallback_events = result.get("fallback_events", [])
 
     # ── Persist artifacts ──
     output_dir = Path("output") / session_id
@@ -522,6 +523,13 @@ async def run_source_book_only(
     if source_book_review and source_book_review.rewrite_required:
         print(f"  Rewrite still required:          True")
 
+    print("\n  --- Fallback Usage ---")
+    if fallback_events:
+        for fe in fallback_events:
+            print(f"    Pass {fe['pass']}: {', '.join(fe['events'])}")
+    else:
+        print("    No fallbacks — all passes used primary path")
+
     print("\n  --- External Research Status ---")
     print(f"  Semantic Scholar:                {s2_status}")
     print(f"  Perplexity:                      {pplx_status}")
@@ -619,6 +627,7 @@ async def run_source_book_only(
         "reviewer_final_score": review_score,
         "reviewer_threshold_met": reviewer_threshold_met,
         "competitive_viability": competitive_viability,
+        "fallback_events": fallback_events,
         "total_time": total_time,
         "docx_path": docx_path,
         "artifacts": {k: v for k, v in artifacts},
