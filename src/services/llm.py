@@ -37,6 +37,98 @@ _NON_RETRYABLE_ERRORS = (
 _openai_client: openai.AsyncOpenAI | None = None
 _anthropic_client: anthropic.AsyncAnthropic | None = None
 
+# ── Global cost tracker ──────────────────────────────────────
+# Per-million-token pricing (USD). Update when models change.
+_MODEL_PRICING: dict[str, dict[str, float]] = {
+    # OpenAI
+    "gpt-5.4":          {"input": 2.50, "output": 10.00},
+    "gpt-4.1":          {"input": 2.00, "output": 8.00},
+    "gpt-4o":           {"input": 2.50, "output": 10.00},
+    # Anthropic
+    "claude-opus-4-6":  {"input": 15.00, "output": 75.00},
+    "claude-sonnet-4-6":{"input": 3.00, "output": 15.00},
+}
+
+
+@dataclass
+class LLMCallRecord:
+    """One recorded LLM call for cost tracking."""
+
+    model: str
+    input_tokens: int
+    output_tokens: int
+    latency_ms: float
+    cost_usd: float
+    caller: str  # response_model name (e.g. 'SourceBook')
+
+
+_call_log: list[LLMCallRecord] = []
+
+
+def _compute_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+    """Compute USD cost for a single LLM call."""
+    pricing = _MODEL_PRICING.get(model)
+    if not pricing:
+        # Fallback: match prefix
+        for key, val in _MODEL_PRICING.items():
+            if model.startswith(key.split("-")[0]):
+                pricing = val
+                break
+    if not pricing:
+        return 0.0
+    return (
+        input_tokens * pricing["input"] / 1_000_000
+        + output_tokens * pricing["output"] / 1_000_000
+    )
+
+
+def reset_cost_tracker() -> None:
+    """Clear the global call log. Call before a pipeline run."""
+    _call_log.clear()
+
+
+def get_cost_summary() -> dict:
+    """Return aggregated cost summary from the global call log."""
+    total_input = sum(r.input_tokens for r in _call_log)
+    total_output = sum(r.output_tokens for r in _call_log)
+    total_cost = sum(r.cost_usd for r in _call_log)
+    total_latency = sum(r.latency_ms for r in _call_log)
+
+    by_model: dict[str, dict] = {}
+    for r in _call_log:
+        if r.model not in by_model:
+            by_model[r.model] = {
+                "calls": 0, "input_tokens": 0,
+                "output_tokens": 0, "cost_usd": 0.0,
+            }
+        by_model[r.model]["calls"] += 1
+        by_model[r.model]["input_tokens"] += r.input_tokens
+        by_model[r.model]["output_tokens"] += r.output_tokens
+        by_model[r.model]["cost_usd"] += r.cost_usd
+
+    return {
+        "total_calls": len(_call_log),
+        "total_input_tokens": total_input,
+        "total_output_tokens": total_output,
+        "total_tokens": total_input + total_output,
+        "total_cost_usd": round(total_cost, 4),
+        "total_latency_s": round(total_latency / 1000, 1),
+        "by_model": {
+            m: {**v, "cost_usd": round(v["cost_usd"], 4)}
+            for m, v in by_model.items()
+        },
+        "calls": [
+            {
+                "model": r.model, "caller": r.caller,
+                "input_tokens": r.input_tokens,
+                "output_tokens": r.output_tokens,
+                "cost_usd": round(r.cost_usd, 4),
+                "latency_s": round(r.latency_ms / 1000, 1),
+            }
+            for r in _call_log
+        ],
+    }
+
 
 class LLMError(Exception):
     """Raised when an LLM call fails after all retry attempts."""
@@ -230,6 +322,16 @@ async def call_llm(  # noqa: UP047
                 max_tokens=max_tokens,
             )
             elapsed_ms = (time.perf_counter() - start) * 1000
+            # Record in global cost tracker
+            cost = _compute_cost(model, in_tokens, out_tokens)
+            _call_log.append(LLMCallRecord(
+                model=model,
+                input_tokens=in_tokens,
+                output_tokens=out_tokens,
+                latency_ms=elapsed_ms,
+                cost_usd=cost,
+                caller=response_model.__name__,
+            ))
             return LLMResponse(
                 parsed=parsed,
                 input_tokens=in_tokens,

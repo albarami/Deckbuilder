@@ -579,11 +579,9 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
             len(source_book.why_strategic_gears.capability_mapping),
         )
 
-        # Update session accounting
+        # Update session accounting (3 stages: Stage 1 + Stage 2a + Stage 2b)
         session = state.session.model_copy(deep=True)
-        session.total_llm_calls += 2  # Stage 1 + Stage 2
-        session.total_input_tokens += llm_result.input_tokens
-        session.total_output_tokens += llm_result.output_tokens
+        session.total_llm_calls += 3
 
         return {
             "source_book": source_book,

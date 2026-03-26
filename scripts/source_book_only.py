@@ -160,6 +160,9 @@ async def run_source_book_only(
     max_summary_chars: int = 12_000,
 ) -> dict[str, Any]:
     """Run pipeline through Source Book only. No PPT. No render."""
+    from src.services.llm import get_cost_summary, reset_cost_tracker
+
+    reset_cost_tracker()
     lang_suffix = "ar" if language == "ar" else "en"
 
     print(f"\n{'=' * 80}")
@@ -502,6 +505,36 @@ async def run_source_book_only(
         print(f"    {elapsed:7.1f}s  {label}")
     print(f"    {total_time:7.1f}s  TOTAL")
 
+    # ── API Cost Summary ──
+    cost_data = get_cost_summary()
+    print("\n  --- API Cost ---")
+    print(f"  Total LLM calls:                {cost_data['total_calls']}")
+    print(f"  Total input tokens:             {cost_data['total_input_tokens']:,}")
+    print(f"  Total output tokens:            {cost_data['total_output_tokens']:,}")
+    print(f"  Total tokens:                   {cost_data['total_tokens']:,}")
+    print(f"  Total cost (USD):               ${cost_data['total_cost_usd']:.4f}")
+    print(f"  Total LLM latency:              {cost_data['total_latency_s']:.1f}s")
+    if cost_data["by_model"]:
+        print("\n  --- Cost by Model ---")
+        for model_name, model_data in cost_data["by_model"].items():
+            print(
+                f"    {model_name}: {model_data['calls']} calls, "
+                f"{model_data['input_tokens']:,} in / "
+                f"{model_data['output_tokens']:,} out, "
+                f"${model_data['cost_usd']:.4f}"
+            )
+    if cost_data["calls"]:
+        print("\n  --- Per-Call Breakdown ---")
+        for i, call in enumerate(cost_data["calls"], 1):
+            print(
+                f"    {i:2d}. {call['caller']:30s} "
+                f"{call['model']:25s} "
+                f"{call['input_tokens']:>7,} in / "
+                f"{call['output_tokens']:>7,} out  "
+                f"${call['cost_usd']:.4f}  "
+                f"({call['latency_s']:.1f}s)"
+            )
+
     print(f"\n{'=' * 80}")
     print(f"  FINAL STATUS: {status}")
     print(f"{'=' * 80}\n")
@@ -528,6 +561,7 @@ async def run_source_book_only(
         "total_time": total_time,
         "docx_path": docx_path,
         "artifacts": {k: v for k, v in artifacts},
+        "cost": cost_data,
     }
 
 
