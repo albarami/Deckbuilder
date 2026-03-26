@@ -143,13 +143,19 @@ async def _gather_raw_evidence(queries: list[str]) -> dict:
     if api_key.strip():
         papers = await _search_semantic_scholar(queries[:3], api_key)
         for paper in papers:
+            authors_raw = paper.get("authors", []) or []
+            author_names = [
+                a.get("name", "") for a in authors_raw if isinstance(a, dict)
+            ][:10]
             scholar_results.append({
                 "title": paper.get("title", ""),
+                "authors": author_names,
                 "year": paper.get("year", 0) or 0,
                 "abstract": paper.get("abstract", "") or "",
                 "citation_count": paper.get("citationCount", 0) or 0,
                 "url": paper.get("url", "") or "",
-                "source": "semantic_scholar",
+                "provider": "semantic_scholar",
+                "selection_method": "search_hit",
                 "query": "",
             })
     else:
@@ -178,7 +184,8 @@ async def _gather_raw_evidence(queries: list[str]) -> dict:
                             {"url": c.url, "title": c.title}
                             for c in result.citations
                         ],
-                        "source": "perplexity",
+                        "provider": "perplexity",
+                        "selection_method": "perplexity_synthesis",
                         "query": query,
                     })
             except Exception as e:
@@ -261,7 +268,7 @@ async def run(state: DeckForgeState) -> dict:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=ExternalEvidencePack,
-            max_tokens=4000,
+            max_tokens=8000,
         )
         evidence_pack = llm_result.parsed
         evidence_pack.search_queries_used = queries
@@ -284,13 +291,18 @@ async def run(state: DeckForgeState) -> dict:
         for i, sr in enumerate(raw_evidence["scholar_results"][:5]):
             fallback_sources.append(ExternalSource(
                 source_id=f"EXT-{i + 1:03d}",
+                provider="semantic_scholar",
                 title=sr["title"],
+                authors=sr.get("authors", []),
                 source_type="academic_paper",
                 year=sr.get("year", 0),
                 url=sr.get("url", ""),
                 abstract=sr.get("abstract", "")[:500],
+                query_used=sr.get("query", ""),
                 relevance_score=0.5,
                 relevance_reason="Auto-included (LLM ranking unavailable)",
+                citation_count=sr.get("citation_count"),
+                selection_method=sr.get("selection_method", "search_hit"),
             ))
         return {
             "external_evidence_pack": ExternalEvidencePack(

@@ -10,24 +10,44 @@ from pydantic import Field
 from .common import DeckForgeBaseModel
 
 
+SupportsCategoryType = Literal[
+    "methodology", "market_context", "benchmark", "teaming",
+    "governance", "timeline", "service_design", "general",
+]
+
+
 class ExternalSource(DeckForgeBaseModel):
-    """A single piece of external evidence (paper, report, benchmark)."""
+    """A single piece of external evidence (paper, report, benchmark).
+
+    Rich enough that a human consultant can use it directly to write
+    proposal sections, and another AI agent can consume it downstream.
+    """
 
     source_id: str  # EXT-001, EXT-002, ...
+    provider: Literal["semantic_scholar", "perplexity", "manual"] = "manual"
     title: str
+    authors: list[str] = Field(default_factory=list)
     source_type: Literal[
         "academic_paper",
         "industry_report",
         "benchmark",
         "case_study",
         "framework",
+        "web_analysis",
     ]
     year: int = 0
     url: str = ""
     abstract: str = ""  # max ~200 words
+    query_used: str = ""  # the search query that found this source
     relevance_score: float = 0.0  # 0.0-1.0
-    relevance_reason: str = ""
+    relevance_reason: str = ""  # why this source was selected
+    mapped_rfp_theme: str = ""  # which RFP scope area this supports
     key_findings: list[str] = Field(default_factory=list)  # 3-5 bullet points
+    raw_excerpt: str = ""  # verbatim excerpt or distilled finding
+    how_to_use_in_proposal: str = ""  # actionable guidance for proposal writer
+    supports_category: list[SupportsCategoryType] = Field(default_factory=list)
+    citation_count: int | None = None  # for S2 papers
+    selection_method: str = ""  # "search_hit", "recommendation", "perplexity_synthesis"
 
 
 class ExternalEvidencePack(DeckForgeBaseModel):
