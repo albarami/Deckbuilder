@@ -213,6 +213,17 @@ class SourceBook(DeckForgeBaseModel):
     reviewer_feedback: str = ""
 
 
+class SourceBookSections67(DeckForgeBaseModel):
+    """Stage 2 output: Sections 6 (blueprints) and 7 (evidence ledger).
+
+    Generated in a dedicated LLM call with Sections 1-5 as context,
+    ensuring the full token budget is available for blueprint depth.
+    """
+
+    slide_blueprints: list[SlideBlueprintEntry] = Field(default_factory=list)
+    evidence_ledger: EvidenceLedger = Field(default_factory=EvidenceLedger)
+
+
 # ──────────────────────────────────────────────────────────────
 # Source Book Review (critique output)
 # ──────────────────────────────────────────────────────────────

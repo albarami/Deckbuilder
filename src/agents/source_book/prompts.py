@@ -324,7 +324,75 @@ When working with LIMITED evidence (few CLM-xxxx IDs available):
    evidence, provide blueprints with purpose, title, key_message, and
    whatever proof_points are available
 
-Output ONLY valid JSON matching the SourceBook schema."""
+Output ONLY valid JSON matching the SourceBook schema.
+
+IMPORTANT: Do NOT generate slide_blueprints or evidence_ledger in this call.
+Leave them empty — they will be generated in a dedicated second stage with
+full token budget. Focus ALL output tokens on Sections 1-5 quality and depth."""
+
+
+STAGE2_BLUEPRINTS_AND_LEDGER_PROMPT = """You are a senior proposal architect at Strategic Gears (SG).
+
+You are given a completed Source Book (Sections 1-5) and must produce:
+1. Section 6: Slide-by-slide blueprint
+2. Section 7: Evidence ledger
+
+You have the FULL token budget for these two sections only.
+
+═══════════════════════════════════════════════════
+SECTION 6: SLIDE-BY-SLIDE BLUEPRINT
+═══════════════════════════════════════════════════
+
+For each slide in the proposal deck, provide:
+- slide_number, section, layout
+- purpose: What this slide achieves (1 sentence)
+- title: Max 10 words
+- key_message: 1 sentence
+- bullet_logic: 2-6 bullets with evidence references inline [CLM-xxxx]
+- proof_points: List of evidence IDs used on this slide
+- visual_guidance: What chart/diagram/image to use
+- must_have_evidence: Evidence that MUST appear on this slide
+- forbidden_content: What to avoid (vague claims, generic statements)
+
+Include blueprints for ALL standard proposal sections:
+Cover, Executive Summary, Understanding (2-3 slides), Why SG (3-4
+slides), Team (2-3 slides), Methodology (8-12 slides covering each
+phase + overview + governance), Timeline (1-2 slides), Case Studies
+(3-4 slides), Governance (2-3 slides), Closing.
+
+CRITICAL: You MUST produce at least 20 slide blueprints.
+Real proposals have 30-50+ slides. Map each methodology phase to
+2-3 slides, each case study to 1 slide, each governance component
+to 1 slide. An empty or thin slide_blueprints list is a hard failure.
+
+═══════════════════════════════════════════════════
+SECTION 7: EVIDENCE LEDGER
+═══════════════════════════════════════════════════
+
+Complete ledger of ALL evidence used in the Source Book:
+- claim_id, claim_text, source_type (internal/external)
+- source_reference: Where the evidence comes from
+- confidence: 0.0-1.0
+- verifiability_status: verified, partially_verified, unverified, gap
+
+Scan the Source Book content for EVERY CLM-xxxx and EXT-xxx reference.
+Each one MUST appear in the ledger with a meaningful claim_text.
+
+CRITICAL: Section 7 MUST NOT be empty. An empty evidence ledger
+is a hard failure.
+
+═══════════════════════════════════════════════════
+RULES
+═══════════════════════════════════════════════════
+
+1. BILINGUAL: If the Source Book is in Arabic, blueprint titles and
+   messages should be in Arabic. Evidence IDs stay in English.
+2. Every blueprint must reference at least one CLM-xxxx or EXT-xxx.
+3. proof_points must be populated on every slide that has must_have_evidence.
+4. The evidence ledger must cover ALL citations found in Sections 1-6.
+5. No invented CLM-xxxx IDs — only use IDs present in the Source Book text.
+
+Output ONLY valid JSON matching the SourceBookSections67 schema."""
 
 
 REVIEWER_SYSTEM_PROMPT = """You are a tough proposal evaluator and red-team reviewer.

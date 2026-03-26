@@ -17,10 +17,12 @@ from src.models.source_book import (
     EvidenceLedgerEntry,
     RFPInterpretation,
     SourceBook,
+    SourceBookSections67,
 )
 from src.models.state import DeckForgeState
 from src.services.llm import call_llm
 
+from .prompts import STAGE2_BLUEPRINTS_AND_LEDGER_PROMPT
 from .prompts import WRITER_SYSTEM_PROMPT as SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
@@ -317,8 +319,63 @@ def _build_user_message(
     return json.dumps(payload, ensure_ascii=False, default=str)
 
 
+async def _generate_sections_67(
+    source_book: SourceBook,
+    model: str,
+) -> SourceBookSections67:
+    """Stage 2: Dedicated LLM call for blueprints + evidence ledger.
+
+    Args:
+        source_book: Completed Sections 1-5 from Stage 1.
+        model: LLM model identifier.
+
+    Returns:
+        SourceBookSections67 with slide_blueprints and evidence_ledger.
+    """
+    sections_15_dump = json.dumps(
+        {
+            "client_name": source_book.client_name,
+            "rfp_name": source_book.rfp_name,
+            "language": source_book.language,
+            "rfp_interpretation": source_book.rfp_interpretation.model_dump(mode="json"),
+            "client_problem_framing": source_book.client_problem_framing.model_dump(mode="json"),
+            "why_strategic_gears": source_book.why_strategic_gears.model_dump(mode="json"),
+            "external_evidence": source_book.external_evidence.model_dump(mode="json"),
+            "proposed_solution": source_book.proposed_solution.model_dump(mode="json"),
+        },
+        ensure_ascii=False,
+        default=str,
+    )
+
+    logger.info(
+        "Stage 2 (blueprints+ledger): input chars=%d",
+        len(sections_15_dump),
+    )
+
+    result = await call_llm(
+        model=model,
+        system_prompt=STAGE2_BLUEPRINTS_AND_LEDGER_PROMPT,
+        user_message=sections_15_dump,
+        response_model=SourceBookSections67,
+        max_tokens=32000,
+        temperature=0.1,
+    )
+
+    sections_67 = result.parsed
+    logger.info(
+        "Stage 2 produced: %d blueprints, %d evidence entries",
+        len(sections_67.slide_blueprints),
+        len(sections_67.evidence_ledger.entries),
+    )
+    return sections_67
+
+
 async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
-    """Run the Source Book Writer agent.
+    """Run the Source Book Writer agent (two-stage architecture).
+
+    Stage 1: Sections 1-5 (prose content) — full token budget for depth.
+    Stage 2: Sections 6-7 (blueprints + evidence ledger) — dedicated call
+             with Sections 1-5 as context.
 
     Returns a dict with keys matching DeckForgeState fields to update.
     """
@@ -336,6 +393,7 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
     model = MODEL_MAP.get("source_book_writer", MODEL_MAP.get("analysis_agent"))
 
     try:
+        # ── Stage 1: Sections 1-5 ────────────────────────────
         llm_result = await call_llm(
             model=model,
             system_prompt=SYSTEM_PROMPT,
@@ -374,45 +432,49 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
                 unique_projects
             )
 
-        # Validate: if no slide blueprints, preserve from previous pass
+        logger.info(
+            "Stage 1 complete: pass=%d, capabilities=%d",
+            current_pass,
+            len(source_book.why_strategic_gears.capability_mapping),
+        )
+
+        # ── Stage 2: Sections 6-7 (dedicated call) ───────────
+        sections_67 = await _generate_sections_67(source_book, model)
+
+        source_book.slide_blueprints = sections_67.slide_blueprints
+        source_book.evidence_ledger = sections_67.evidence_ledger
+
+        # ── Fallback (safety net only — primary path above) ──
         if not source_book.slide_blueprints:
             if state.source_book and state.source_book.slide_blueprints:
                 source_book.slide_blueprints = (
                     state.source_book.slide_blueprints
                 )
-                logger.info(
-                    "Source Book Writer produced 0 blueprints on pass %d "
-                    "— preserved %d from previous pass",
+                logger.warning(
+                    "Stage 2 produced 0 blueprints on pass %d "
+                    "— preserved %d from previous pass (fallback)",
                     current_pass,
                     len(source_book.slide_blueprints),
                 )
             else:
-                logger.warning(
-                    "Source Book Writer produced 0 slide blueprints — "
-                    "downstream Blueprint extraction will fail"
+                logger.error(
+                    "Stage 2 produced 0 slide blueprints and no "
+                    "previous pass to fall back to — hard failure"
                 )
 
-        # Validate: if evidence ledger is empty, try to populate from citations
         if not source_book.evidence_ledger.entries:
             logger.warning(
-                "Source Book Writer produced empty evidence ledger — "
-                "attempting to build from citations"
+                "Stage 2 produced empty evidence ledger — "
+                "building from citations (fallback)"
             )
             source_book.evidence_ledger = _build_evidence_ledger_from_citations(
                 source_book,
             )
-            # Determine max_passes from pipeline config (default 5)
-            max_passes = 5
             if source_book.evidence_ledger.entries:
                 logger.info(
-                    "Evidence ledger populated from citations: %d entries",
+                    "Evidence ledger populated from citations (fallback): "
+                    "%d entries",
                     len(source_book.evidence_ledger.entries),
-                )
-            elif current_pass >= max_passes - 1:
-                logger.error(
-                    "Evidence ledger is STILL empty on pass %d (last pass) — "
-                    "no citations found in sections 1-6",
-                    current_pass,
                 )
 
         # ── D9: Hedge scanner ──────────────────────────────────
@@ -424,7 +486,6 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
                 ", ".join(hedges),
             )
             source_book = await _rewrite_hedges(source_book, hedges)
-            # Re-scan to verify
             remaining = _scan_for_hedges(source_book)
             if remaining:
                 logger.warning(
@@ -433,7 +494,6 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
                     len(remaining),
                     ", ".join(remaining),
                 )
-                # Targeted second pass — rewrite ONLY remaining hedges
                 source_book = await _rewrite_hedges(
                     source_book, remaining,
                 )
@@ -464,7 +524,7 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
 
         # Update session accounting
         session = state.session.model_copy(deep=True)
-        session.total_llm_calls += 1
+        session.total_llm_calls += 2  # Stage 1 + Stage 2
         session.total_input_tokens += llm_result.input_tokens
         session.total_output_tokens += llm_result.output_tokens
 
