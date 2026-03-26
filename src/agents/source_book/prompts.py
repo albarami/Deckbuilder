@@ -54,6 +54,18 @@ Map SG capabilities to RFP requirements with EVIDENCE:
 
 - named_consultants: Produce 5-8 consultant profiles from knowledge_graph.
   CRITICAL: Use REAL names from knowledge_graph.people — do NOT invent.
+
+  RFP TEAM REQUIREMENTS: Check rfp_context.team_requirements for the
+  RFP's specific role/qualification matrix. If the RFP specifies:
+  - PM: Master's, PMP, 8+ years → your PM profile MUST show these
+  - Deputy PM: Bachelor's, PMP, 5 years → match this exactly
+  - Specialist roles with specific certifications → map each one
+  For EACH RFP-required role, assign a KG consultant whose profile
+  meets or exceeds the stated qualifications. In the 'relevance' field,
+  explicitly state how this consultant meets each RFP requirement.
+  If KG data is thin, clearly state the required qualifications so a
+  human can fill in real names before submission.
+
   For EACH consultant, populate ALL fields:
   * name: Real name from KG
   * role: Proposed role on THIS project AND which RFP workstream they own
@@ -225,9 +237,14 @@ confidence in SG's ability to deliver. Real winning proposals dedicate
     (project plan, issue tracker, document repository), cadence of
     internal SG team syncs (daily standup or weekly internal review)
 
-- timeline_logic: Specific timeline with month-level granularity per phase.
-  State total duration (e.g., "18 months"), phase overlaps if any, and
-  dependencies. Reference holidays/constraints if relevant.
+- timeline_logic: MANDATORY — use the RFP's STATED project duration.
+  Check rfp_context.project_timeline for the official duration and
+  deliverable schedule. If the RFP says "10 months" or "عشرة أشهر",
+  your timeline MUST be 10 months — do NOT invent a different duration.
+  Map each phase to the RFP's deliverable milestones (e.g., months
+  3/6/9/10). State total duration matching the RFP, phase overlaps if
+  any, and dependencies. Reference holidays/constraints if relevant.
+  NEVER fabricate a timeline — always derive from the RFP document.
 
 - value_case_and_differentiation: What makes SG's approach unique vs
   competitors? Reference specific capabilities, partnerships (Stanford,

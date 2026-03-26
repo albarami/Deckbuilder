@@ -84,6 +84,31 @@ class Completeness(DeckForgeBaseModel):
     detail_gap_fields: list[str] = Field(default_factory=list)
 
 
+class DeliverableSchedule(DeckForgeBaseModel):
+    """A single deliverable milestone with its due date."""
+    deliverable_id: str = ""
+    description: BilingualText = Field(default_factory=BilingualText)
+    due_at: str = ""  # e.g. "Month 3", "Week 12", "2025-06-30"
+
+
+class ProjectTimeline(DeckForgeBaseModel):
+    """RFP-stated project duration and deliverable schedule."""
+    total_duration: str = ""  # e.g. "10 أشهر" / "10 months"
+    total_duration_months: int | None = None
+    deliverable_schedule: list[DeliverableSchedule] = Field(default_factory=list)
+    notes: str = ""  # Any additional timeline constraints from the RFP
+
+
+class TeamRequirement(DeckForgeBaseModel):
+    """A single RFP-specified team role requirement."""
+    role_title: BilingualText = Field(default_factory=BilingualText)
+    education: str = ""  # e.g. "Master's degree"
+    certifications: list[str] = Field(default_factory=list)  # e.g. ["PMP"]
+    min_years_experience: int | None = None
+    domain_requirements: str = ""  # e.g. "investment sector experience"
+    additional_requirements: str = ""
+
+
 class RFPContext(DeckForgeBaseModel):
     """Full parsed RFP — output of the Context Agent."""
     rfp_name: BilingualText
@@ -96,6 +121,8 @@ class RFPContext(DeckForgeBaseModel):
     compliance_requirements: list[ComplianceRequirement] = Field(default_factory=list)
     key_dates: KeyDates | None = None
     submission_format: SubmissionFormat | None = None
+    project_timeline: ProjectTimeline | None = None
+    team_requirements: list[TeamRequirement] = Field(default_factory=list)
     gaps: list[RFPGap] = Field(default_factory=list)
     source_language: Language = Language.EN
     completeness: Completeness = Field(default_factory=Completeness)

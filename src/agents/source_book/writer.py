@@ -304,8 +304,21 @@ def _build_user_message(
             ],
         }
 
+    # Extract explicit timeline + team requirements for the Writer
+    rfp_timeline_dump = None
+    rfp_team_requirements_dump = None
+    if state.rfp_context:
+        if state.rfp_context.project_timeline:
+            rfp_timeline_dump = state.rfp_context.project_timeline.model_dump(mode="json")
+        if state.rfp_context.team_requirements:
+            rfp_team_requirements_dump = [
+                tr.model_dump(mode="json") for tr in state.rfp_context.team_requirements
+            ]
+
     payload = {
         "rfp_context": rfp_dump,
+        "rfp_project_timeline": rfp_timeline_dump,
+        "rfp_team_requirements": rfp_team_requirements_dump,
         "reference_index": ref_index_dump,
         "knowledge_graph": kg_dump,
         "external_evidence_pack": ext_evidence_dump,
