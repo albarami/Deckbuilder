@@ -155,13 +155,9 @@ class SlideBlueprintEntry(DeckForgeBaseModel):
 
     @model_validator(mode="after")
     def proof_points_required_when_must_have(self) -> SlideBlueprintEntry:
-        """Enforce: if must_have_evidence is set, proof_points must be non-empty."""
+        """Auto-populate proof_points from must_have_evidence if omitted by LLM."""
         if self.must_have_evidence and not self.proof_points:
-            msg = (
-                "proof_points cannot be empty when must_have_evidence is set: "
-                f"{self.must_have_evidence}"
-            )
-            raise ValueError(msg)
+            self.proof_points = list(self.must_have_evidence)
         return self
 
 

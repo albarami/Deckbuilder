@@ -251,15 +251,15 @@ class TestSourceBookSchema:
         )
         assert pe.evidence_ids == []
 
-    def test_slide_blueprint_proof_points_required_with_must_have(self):
-        """proof_points must be non-empty when must_have_evidence is set."""
-        with pytest.raises(Exception):
-            SlideBlueprintEntry(
-                slide_number=5,
-                title="Why SG",
-                must_have_evidence=["CLM-0001"],
-                proof_points=[],  # empty but must_have set — should fail
-            )
+    def test_slide_blueprint_proof_points_auto_populated_from_must_have(self):
+        """proof_points auto-populated from must_have_evidence when omitted by LLM."""
+        bp = SlideBlueprintEntry(
+            slide_number=5,
+            title="Why SG",
+            must_have_evidence=["CLM-0001"],
+            proof_points=[],  # empty — validator auto-populates from must_have
+        )
+        assert bp.proof_points == ["CLM-0001"]
 
     def test_slide_blueprint_proof_points_optional_without_must_have(self):
         """proof_points can be empty when must_have_evidence is empty (e.g., Cover slide)."""
@@ -1387,17 +1387,17 @@ class TestSlideBlueprintSchema:
         """SlideBlueprintEntry should reject must_have_evidence without proof_points."""
         import pytest
 
-        with pytest.raises(ValueError, match="proof_points cannot be empty"):
-            SlideBlueprintEntry(
-                slide_number=1,
-                section="section_01",
-                layout="content_heading_desc",
-                purpose="Test",
-                title="Test",
-                key_message="Test",
-                must_have_evidence=["CLM-0001"],
-                proof_points=[],  # Empty but must_have_evidence is set
-            )
+        bp = SlideBlueprintEntry(
+            slide_number=1,
+            section="section_01",
+            layout="content_heading_desc",
+            purpose="Test",
+            title="Test",
+            key_message="Test",
+            must_have_evidence=["CLM-0001"],
+            proof_points=[],  # Empty — auto-populated from must_have_evidence
+        )
+        assert bp.proof_points == ["CLM-0001"]
 
     def test_blueprint_entry_allows_must_have_with_proof_points(self):
         """SlideBlueprintEntry should accept must_have_evidence when proof_points exist."""

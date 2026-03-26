@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     # API Keys
     openai_api_key: SecretStr
     anthropic_api_key: SecretStr
+    semantic_scholar_api_key: str = ""
+    perplexity_api_key: SecretStr = SecretStr("")
 
     # Model names (overridable per env)
     openai_model_gpt54: str = "gpt-5.4"
