@@ -7,6 +7,7 @@ must cite its source (CLM-xxxx for internal, EXT-xxx for external).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -45,7 +46,6 @@ _HEDGE_PATTERNS = [
     "to be determined",
     "further analysis",
     "TBD",
-    "placeholder",
     "to be confirmed",
     "validation required",
     "could potentially",
@@ -237,14 +237,15 @@ async def _rewrite_hedges(
     )
 
     try:
-        result = await call_llm(
-            model=model,
-            system_prompt=system,
-            user_message=user_msg,
-            response_model=SourceBook,
-            max_tokens=32000,
-            temperature=0.0,
-        )
+        async with asyncio.timeout(120):
+            result = await call_llm(
+                model=model,
+                system_prompt=system,
+                user_message=user_msg,
+                response_model=SourceBook,
+                max_tokens=32000,
+                temperature=0.0,
+            )
         cleaned = result.parsed
         cleaned.pass_number = source_book.pass_number
         # Preserve blueprints and evidence ledger — hedge rewrite LLM
