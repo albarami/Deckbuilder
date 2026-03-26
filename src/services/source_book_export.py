@@ -9,15 +9,121 @@ Uses python-docx to generate a structured Word document with:
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Inches, Pt
+from docx.shared import Inches, Pt, RGBColor
 
 from src.models.source_book import SourceBook
 
 logger = logging.getLogger(__name__)
+
+# Regex for pipe-delimited table rows: | col1 | col2 | ... |
+_PIPE_ROW_RE = re.compile(r"^\s*\|(.+\|)\s*$")
+# Separator row: |---|---|---| or | --- | --- |
+_SEPARATOR_RE = re.compile(r"^\s*\|[\s\-:|]+\|\s*$")
+
+
+def _parse_pipe_table(lines: list[str]) -> list[list[str]] | None:
+    """Parse consecutive pipe-delimited lines into a list of rows.
+
+    Returns None if the lines don't form a valid table (< 2 data rows).
+    """
+    rows: list[list[str]] = []
+    for line in lines:
+        if _SEPARATOR_RE.match(line):
+            continue
+        m = _PIPE_ROW_RE.match(line)
+        if not m:
+            continue
+        cells = [c.strip() for c in m.group(1).split("|")]
+        # Remove empty leading/trailing from split artifacts
+        while cells and not cells[-1]:
+            cells.pop()
+        while cells and not cells[0]:
+            cells.pop(0)
+        if cells:
+            rows.append(cells)
+    if len(rows) < 2:
+        return None
+    return rows
+
+
+def _add_word_table(doc: Document, rows: list[list[str]]) -> None:
+    """Add a real Word table from parsed row data. First row is header."""
+    if not rows:
+        return
+    n_cols = max(len(r) for r in rows)
+    table = doc.add_table(rows=0, cols=n_cols)
+    table.style = "Table Grid"
+
+    # Header row
+    hdr_row = table.add_row()
+    for i, cell_text in enumerate(rows[0]):
+        if i < n_cols:
+            cell = hdr_row.cells[i]
+            cell.text = cell_text
+            for paragraph in cell.paragraphs:
+                for run in paragraph.runs:
+                    run.bold = True
+                    run.font.size = Pt(9)
+
+    # Data rows
+    for row_data in rows[1:]:
+        data_row = table.add_row()
+        for i, cell_text in enumerate(row_data):
+            if i < n_cols:
+                cell = data_row.cells[i]
+                cell.text = cell_text
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(9)
+
+    doc.add_paragraph()  # spacing after table
+
+
+def _add_smart_prose(doc: Document, text: str) -> None:
+    """Add prose text, converting any embedded pipe-delimited tables to real Word tables."""
+    if not text:
+        return
+
+    lines = text.split("\n")
+    buffer: list[str] = []  # non-table lines
+    table_lines: list[str] = []  # consecutive pipe lines
+
+    def flush_prose() -> None:
+        if buffer:
+            prose = "\n".join(buffer).strip()
+            if prose:
+                doc.add_paragraph(prose)
+            buffer.clear()
+
+    def flush_table() -> None:
+        if table_lines:
+            rows = _parse_pipe_table(table_lines)
+            if rows:
+                flush_prose()
+                _add_word_table(doc, rows)
+            else:
+                # Not a valid table — treat as prose
+                buffer.extend(table_lines)
+            table_lines.clear()
+
+    for line in lines:
+        is_pipe = bool(_PIPE_ROW_RE.match(line) or _SEPARATOR_RE.match(line))
+        if is_pipe:
+            if not table_lines and buffer:
+                flush_prose()
+            table_lines.append(line)
+        else:
+            if table_lines:
+                flush_table()
+            buffer.append(line)
+
+    flush_table()
+    flush_prose()
 
 
 def _add_cover_page(doc: Document, source_book: SourceBook) -> None:
@@ -55,19 +161,19 @@ def _add_section_1(doc: Document, source_book: SourceBook) -> None:
 
     if rfp.objective_and_scope:
         doc.add_heading("1.1 Objective & Scope", level=2)
-        doc.add_paragraph(rfp.objective_and_scope)
+        _add_smart_prose(doc, rfp.objective_and_scope)
 
     if rfp.constraints_and_compliance:
         doc.add_heading("1.2 Constraints & Compliance Requirements", level=2)
-        doc.add_paragraph(rfp.constraints_and_compliance)
+        _add_smart_prose(doc, rfp.constraints_and_compliance)
 
     if rfp.unstated_evaluator_priorities:
         doc.add_heading("1.3 Unstated Evaluator Priorities", level=2)
-        doc.add_paragraph(rfp.unstated_evaluator_priorities)
+        _add_smart_prose(doc, rfp.unstated_evaluator_priorities)
 
     if rfp.probable_scoring_logic:
         doc.add_heading("1.4 Probable Scoring Logic", level=2)
-        doc.add_paragraph(rfp.probable_scoring_logic)
+        _add_smart_prose(doc, rfp.probable_scoring_logic)
 
     if rfp.key_compliance_requirements:
         doc.add_heading("1.5 Key Compliance Requirements", level=2)
@@ -82,19 +188,19 @@ def _add_section_2(doc: Document, source_book: SourceBook) -> None:
 
     if cpf.current_state_challenge:
         doc.add_heading("2.1 Current-State Challenge", level=2)
-        doc.add_paragraph(cpf.current_state_challenge)
+        _add_smart_prose(doc, cpf.current_state_challenge)
 
     if cpf.why_it_matters_now:
         doc.add_heading("2.2 Why It Matters Now", level=2)
-        doc.add_paragraph(cpf.why_it_matters_now)
+        _add_smart_prose(doc, cpf.why_it_matters_now)
 
     if cpf.transformation_logic:
         doc.add_heading("2.3 Transformation Logic", level=2)
-        doc.add_paragraph(cpf.transformation_logic)
+        _add_smart_prose(doc, cpf.transformation_logic)
 
     if cpf.risk_if_unchanged:
         doc.add_heading("2.4 Risk If Unchanged", level=2)
-        doc.add_paragraph(cpf.risk_if_unchanged)
+        _add_smart_prose(doc, cpf.risk_if_unchanged)
 
 
 def _add_section_3(doc: Document, source_book: SourceBook) -> None:
@@ -197,7 +303,7 @@ def _add_section_5(doc: Document, source_book: SourceBook) -> None:
 
     if ps.methodology_overview:
         doc.add_heading("5.1 Methodology Overview", level=2)
-        doc.add_paragraph(ps.methodology_overview)
+        _add_smart_prose(doc, ps.methodology_overview)
 
     if ps.phase_details:
         doc.add_heading("5.2 Phase Details", level=2)
@@ -223,15 +329,15 @@ def _add_section_5(doc: Document, source_book: SourceBook) -> None:
 
     if ps.governance_framework:
         doc.add_heading("5.3 Governance Framework", level=2)
-        doc.add_paragraph(ps.governance_framework)
+        _add_smart_prose(doc, ps.governance_framework)
 
     if ps.timeline_logic:
         doc.add_heading("5.4 Timeline Logic", level=2)
-        doc.add_paragraph(ps.timeline_logic)
+        _add_smart_prose(doc, ps.timeline_logic)
 
     if ps.value_case_and_differentiation:
         doc.add_heading("5.5 Value Case & Differentiation", level=2)
-        doc.add_paragraph(ps.value_case_and_differentiation)
+        _add_smart_prose(doc, ps.value_case_and_differentiation)
 
 
 def _add_section_6(doc: Document, source_book: SourceBook) -> None:
