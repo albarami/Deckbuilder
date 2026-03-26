@@ -260,11 +260,17 @@ async def run_source_book_only(
         )
         print(f"  Evidence ledger: {ledger_path} ({ledger_count} entries)")
 
-    # 3. slide_blueprint_from_source_book.json
+    # 3. slide_blueprint_from_source_book.json — template-contract format
     blueprint_path = None
     blueprint_count = 0
+    blueprint_violations: list[str] = []
     if source_book:
-        bp_data = [bp.model_dump(mode="json") for bp in source_book.slide_blueprints]
+        from src.services.blueprint_transform import transform_to_contract_blueprint
+
+        contract_entries, blueprint_violations = transform_to_contract_blueprint(
+            source_book.slide_blueprints,
+        )
+        bp_data = [e.model_dump(mode="json") for e in contract_entries]
         blueprint_count = len(bp_data)
         blueprint_path = str(output_dir / "slide_blueprint_from_source_book.json")
         Path(blueprint_path).write_text(
@@ -272,6 +278,10 @@ async def run_source_book_only(
             encoding="utf-8",
         )
         print(f"  Slide blueprints: {blueprint_path} ({blueprint_count} entries)")
+        if blueprint_violations:
+            print(f"    Validator violations: {len(blueprint_violations)}")
+            for v in blueprint_violations[:5]:
+                print(f"      - {v}")
 
     # 4. external_evidence_pack.json
     ext_path = None
@@ -313,6 +323,9 @@ async def run_source_book_only(
     project_names: list[str] = []
     pass_number = 0
     review_score = 0
+    reviewer_passed = False
+    reviewer_threshold_met = False
+    competitive_viability = "unknown"
 
     if source_book:
         prose_parts = [
@@ -347,6 +360,9 @@ async def run_source_book_only(
 
     if source_book_review:
         review_score = source_book_review.overall_score
+        reviewer_threshold_met = source_book_review.pass_threshold_met
+        reviewer_passed = reviewer_threshold_met
+        competitive_viability = source_book_review.competitive_viability
 
     # ── Check Perplexity + Semantic Scholar status ──
     s2_status = "NOT CALLED"
@@ -420,6 +436,12 @@ async def run_source_book_only(
             "All named consultants are placeholders despite KG having "
             f"{kg_people_count} internal team members"
         )
+    if source_book_review and not reviewer_threshold_met:
+        failures.append(
+            f"Reviewer never passed threshold after {pass_number} passes "
+            f"(final score={review_score}/5, threshold_met={reviewer_threshold_met}, "
+            f"viability={competitive_viability})"
+        )
 
     if index_status == "DEGRADED" and not source_book:
         status = "FAILED"
@@ -455,15 +477,11 @@ async def run_source_book_only(
     print("\n  --- Writer/Reviewer ---")
     print(f"  Writer pass count:               {pass_number}")
     print(f"  Final review score:              {review_score}/5")
-    if source_book_review:
-        print(
-            f"  Competitive viability:           "
-            f"{source_book_review.competitive_viability}"
-        )
-        print(
-            f"  Pass threshold met:              "
-            f"{source_book_review.pass_threshold_met}"
-        )
+    print(f"  Reviewer threshold met:          {reviewer_threshold_met}")
+    print(f"  Reviewer passed:                 {reviewer_passed}")
+    print(f"  Competitive viability:           {competitive_viability}")
+    if source_book_review and source_book_review.rewrite_required:
+        print(f"  Rewrite still required:          True")
 
     print("\n  --- External Research Status ---")
     print(f"  Semantic Scholar:                {s2_status}")
@@ -558,6 +576,10 @@ async def run_source_book_only(
         "project_names": project_names,
         "pass_number": pass_number,
         "review_score": review_score,
+        "reviewer_passed": reviewer_passed,
+        "reviewer_final_score": review_score,
+        "reviewer_threshold_met": reviewer_threshold_met,
+        "competitive_viability": competitive_viability,
         "total_time": total_time,
         "docx_path": docx_path,
         "artifacts": {k: v for k, v in artifacts},
