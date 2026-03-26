@@ -39,8 +39,8 @@ def test_settings_defaults():
         s = Settings()
         assert s.environment == "local"
         assert s.log_level == "DEBUG"
-        assert s.local_docs_path == "data test"
-        assert s.template_dir == "PROPOSAL_TEMPLATE"
+        assert s.local_docs_path == "./test_docs"
+        assert s.template_path == "./templates/Presentation6.pptx"
         assert s.output_path == "./output"
         assert s.state_path == "./state"
         assert s.storage_backend == "local"

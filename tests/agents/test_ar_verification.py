@@ -264,6 +264,78 @@ def _build_methodology_blueprint() -> MethodologyBlueprint:
     )
 
 
+def _build_mock_filler_outputs() -> dict[str, Any]:
+    """Build a mock MethodologyOutput for quality gate R3 compliance.
+
+    The quality gate requires filler_outputs["section_03"] to be a valid
+    MethodologyOutput. This creates one matching the 4-phase AR blueprint.
+    """
+    from src.agents.section_fillers.g2_schemas import (
+        Bullets_2_4,
+        Bullets_3_5,
+        MethodologyDetailSlide,
+        MethodologyFocusedSlide,
+        MethodologyOutput,
+        MethodologyOverviewSlide,
+        PhaseContent,
+    )
+
+    phases = [
+        PhaseContent(
+            phase_number=i,
+            phase_title=name,
+            phase_activities=Bullets_3_5(items=acts),
+        )
+        for i, (name, acts) in enumerate(
+            [
+                ("الاكتشاف", ["مقابلات أصحاب المصلحة", "تقييم الوضع الحالي", "تحليل الفجوات"]),
+                ("التصميم", ["صياغة الاستراتيجية", "هندسة الحلول", "تطوير خارطة الطريق"]),
+                ("التنفيذ", ["تهيئة المنصة", "تطوير التكامل", "ترحيل البيانات"]),
+                ("الإطلاق", ["تدريب المستخدمين", "دعم الإطلاق", "نقل المعرفة"]),
+            ],
+            1,
+        )
+    ]
+
+    overview = MethodologyOverviewSlide(
+        title="منهجيتنا",
+        subtitle="نهج مثبت من أربع مراحل",
+        phases=phases,
+        cross_cutting_themes=["إدارة التغيير", "ضمان الجودة"],
+    )
+
+    focused = [
+        MethodologyFocusedSlide(
+            title=f"المرحلة {i}",
+            focused_phase_number=i,
+            subtitle=f"تفاصيل المرحلة {i}",
+            phases=phases,
+        )
+        for i in range(1, 5)
+    ]
+
+    details = [
+        MethodologyDetailSlide(
+            title=f"تفاصيل المرحلة {i}",
+            phase_number=i,
+            activities=Bullets_3_5(items=phases[i - 1].phase_activities.items),
+            deliverables=Bullets_3_5(items=["مخرج أول", "مخرج ثاني", "مخرج ثالث"]),
+            frameworks=Bullets_2_4(items=["TOGAF", "PMBOK"]),
+        )
+        for i in range(1, 5)
+    ]
+
+    meth_output = MethodologyOutput(
+        section_id="section_03",
+        language="ar",
+        overview=overview,
+        focused_slides=focused,
+        detail_slides=details,
+    )
+
+    return {"section_03": meth_output}
+
+
 def _build_case_study_candidates() -> list[dict[str, Any]]:
     """Build case study candidates from AR catalog lock pool."""
     lock_data = json.loads(CATALOG_LOCK_AR.read_text(encoding="utf-8"))
@@ -998,7 +1070,11 @@ class TestARRenderExecution:
 
         manifest = _build_ar_full_proposal_manifest()
         tm = TemplateManager(AR_POTX_PATH, CATALOG_LOCK_AR)
-        return render_v2(manifest, tm, CATALOG_LOCK_AR, output_path)
+        return render_v2(
+            manifest, tm, CATALOG_LOCK_AR, output_path,
+            filler_outputs=_build_mock_filler_outputs(),
+            language="ar",
+        )
 
     def test_render_succeeds(self, render_result):
         assert render_result.success, (
@@ -1052,7 +1128,11 @@ class TestARHardGates:
 
         manifest = _build_ar_full_proposal_manifest()
         tm = TemplateManager(AR_POTX_PATH, CATALOG_LOCK_AR)
-        return render_v2(manifest, tm, CATALOG_LOCK_AR, output_path)
+        return render_v2(
+            manifest, tm, CATALOG_LOCK_AR, output_path,
+            filler_outputs=_build_mock_filler_outputs(),
+            language="ar",
+        )
 
     @pytest.fixture(scope="class")
     def output_pptx(self, render_result) -> Path:
@@ -1329,7 +1409,11 @@ class TestARVisualGates:
 
         manifest = _build_ar_full_proposal_manifest()
         tm = TemplateManager(AR_POTX_PATH, CATALOG_LOCK_AR)
-        return render_v2(manifest, tm, CATALOG_LOCK_AR, output_path)
+        return render_v2(
+            manifest, tm, CATALOG_LOCK_AR, output_path,
+            filler_outputs=_build_mock_filler_outputs(),
+            language="ar",
+        )
 
     @pytest.fixture(scope="class")
     def output_pptx(self, render_result) -> Path:
@@ -1530,7 +1614,11 @@ class TestARIntegrationGates:
 
         manifest = _build_ar_full_proposal_manifest()
         tm = TemplateManager(AR_POTX_PATH, CATALOG_LOCK_AR)
-        result = render_v2(manifest, tm, CATALOG_LOCK_AR, output_path)
+        result = render_v2(
+            manifest, tm, CATALOG_LOCK_AR, output_path,
+            filler_outputs=_build_mock_filler_outputs(),
+            language="ar",
+        )
 
         assert result.success, (
             f"AR render failed: {result.manifest_errors + result.render_errors}"
@@ -1547,7 +1635,11 @@ class TestARIntegrationGates:
 
         manifest = _build_ar_full_proposal_manifest()
         tm = TemplateManager(AR_POTX_PATH, CATALOG_LOCK_AR)
-        return render_v2(manifest, tm, CATALOG_LOCK_AR, output_path)
+        return render_v2(
+            manifest, tm, CATALOG_LOCK_AR, output_path,
+            filler_outputs=_build_mock_filler_outputs(),
+            language="ar",
+        )
 
     def test_gate_35_ar_full_deck_renders(self, output_pptx):
         """Gate 35: Render one AR full-deck from official AR .potx."""

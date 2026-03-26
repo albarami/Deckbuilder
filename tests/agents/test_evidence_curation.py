@@ -305,12 +305,13 @@ class TestExternalResearchAgentQueries:
         assert len(queries) == 1
         assert queries[0] == "management consulting methodology best practices"
 
-    def test_gather_raw_evidence_graceful_failure(self):
+    @pytest.mark.asyncio
+    async def test_gather_raw_evidence_graceful_failure(self):
         """_gather_raw_evidence should return empty results on service failures."""
         from src.agents.external_research.agent import _gather_raw_evidence
 
         # With no API keys configured, services should fail gracefully
-        result = _gather_raw_evidence(["test query"])
+        result = await _gather_raw_evidence(["test query"])
         assert "scholar_results" in result
         assert "perplexity_results" in result
         assert isinstance(result["scholar_results"], list)

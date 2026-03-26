@@ -977,6 +977,66 @@ def _build_en_side_by_side_manifest():
     return ProposalManifest(entries=entries, inclusion_policy=inclusion_policy)
 
 
+def _build_mock_filler_outputs(language: str = "en") -> dict[str, object]:
+    """Build a mock MethodologyOutput for quality gate R3 compliance."""
+    from src.agents.section_fillers.g2_schemas import (
+        Bullets_2_4,
+        Bullets_3_5,
+        MethodologyDetailSlide,
+        MethodologyFocusedSlide,
+        MethodologyOutput,
+        MethodologyOverviewSlide,
+        PhaseContent,
+    )
+
+    phases = [
+        PhaseContent(
+            phase_number=i,
+            phase_title=name,
+            phase_activities=Bullets_3_5(items=acts),
+        )
+        for i, (name, acts) in enumerate(
+            [
+                ("Discovery", ["Interviews", "Assessment", "Gap analysis"]),
+                ("Design", ["Strategy", "Architecture", "Roadmap"]),
+                ("Build", ["Configure", "Integrate", "Migrate"]),
+                ("Launch", ["Train", "Go-live", "Handover"]),
+            ],
+            1,
+        )
+    ]
+
+    overview = MethodologyOverviewSlide(
+        title="Our Methodology",
+        subtitle="Four-phase approach",
+        phases=phases,
+        cross_cutting_themes=["Change Management", "QA"],
+    )
+    focused = [
+        MethodologyFocusedSlide(
+            title=f"Phase {i}", focused_phase_number=i,
+            subtitle=f"Phase {i} detail", phases=phases,
+        )
+        for i in range(1, 5)
+    ]
+    details = [
+        MethodologyDetailSlide(
+            title=f"Phase {i} Details", phase_number=i,
+            activities=Bullets_3_5(items=phases[i - 1].phase_activities.items),
+            deliverables=Bullets_3_5(items=["Del A", "Del B", "Del C"]),
+            frameworks=Bullets_2_4(items=["TOGAF", "PMBOK"]),
+        )
+        for i in range(1, 5)
+    ]
+
+    return {
+        "section_03": MethodologyOutput(
+            section_id="section_03", language=language,
+            overview=overview, focused_slides=focused, detail_slides=details,
+        )
+    }
+
+
 # Module-level cache for expensive render
 _en_v2_render_cache: dict[str, object] = {}
 
@@ -994,7 +1054,10 @@ def _get_en_v2_render():
 
     output_dir = Path(tempfile.mkdtemp(prefix="phase19_en_"))
     output_path = output_dir / "side_by_side_en.pptx"
-    result = render_v2(manifest, tm, CATALOG_LOCK_EN, output_path)
+    result = render_v2(
+        manifest, tm, CATALOG_LOCK_EN, output_path,
+        filler_outputs=_build_mock_filler_outputs("en"),
+    )
 
     _en_v2_render_cache["result"] = result
     _en_v2_render_cache["output_path"] = output_path
@@ -1489,7 +1552,11 @@ def _get_ar_v2_render():
 
     output_dir = Path(tempfile.mkdtemp(prefix="phase19_ar_"))
     output_path = output_dir / "side_by_side_ar.pptx"
-    result = render_v2(manifest, tm, CATALOG_LOCK_AR, output_path)
+    result = render_v2(
+        manifest, tm, CATALOG_LOCK_AR, output_path,
+        filler_outputs=_build_mock_filler_outputs("ar"),
+        language="ar",
+    )
 
     _ar_v2_render_cache["result"] = result
     _ar_v2_render_cache["output_path"] = output_path

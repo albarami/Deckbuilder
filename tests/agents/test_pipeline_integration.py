@@ -95,9 +95,9 @@ class TestStateDefault:
 
 
 class TestSettingsDefault:
-    """Settings.renderer_mode defaults to 'template_v2' (production path)."""
+    """Settings.renderer_mode defaults to 'legacy'."""
 
-    def test_default_is_template_v2(self):
+    def test_default_is_legacy(self):
         from src.config.settings import Settings
 
         # Build settings with minimal required fields
@@ -105,7 +105,7 @@ class TestSettingsDefault:
             openai_api_key="test",  # type: ignore[arg-type]
             anthropic_api_key="test",  # type: ignore[arg-type]
         )
-        assert s.renderer_mode == "template_v2"
+        assert s.renderer_mode == "legacy"
 
 
 # ── Settings → State Wiring ──────────────────────────────────────────

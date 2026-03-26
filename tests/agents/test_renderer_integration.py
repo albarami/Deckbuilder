@@ -325,11 +325,15 @@ class TestSlideRenderRecord:
 class TestMultiSlideManifest:
     """render_v2 processes all entries in manifest order."""
 
+    @patch("src.services.renderer_v2.run_quality_gate")
     @patch("src.services.renderer_v2.load_a2_allowlists", return_value={})
     @patch("src.services.renderer_v2.build_contracts_from_catalog_lock", return_value={})
     @patch("src.services.renderer_v2.load_registry")
     @patch("src.services.renderer_v2.validate_manifest", return_value=[])
-    def test_three_entries_produce_three_records(self, vm, lr, bc, la):
+    def test_three_entries_produce_three_records(self, vm, lr, bc, la, mock_qg):
+        from src.services.quality_gate import QualityGateResult
+        mock_qg.return_value = QualityGateResult(passed=True)
+
         reg = MagicMock()
         reg.template_hash = "hash_ABC"
         lr.return_value = reg
