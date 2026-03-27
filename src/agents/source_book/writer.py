@@ -292,7 +292,22 @@ def _build_shared_context(
     kg_dump = None
     if state.knowledge_graph:
         kg = state.knowledge_graph
+        internal_people = [
+            p for p in kg.people if p.person_type == "internal_team"
+        ]
         kg_dump = {
+            # Explicit counts so the LLM knows exactly what data exists
+            "_DATA_BOUNDARY": {
+                "internal_team_count": len(internal_people),
+                "project_count": len(kg.projects),
+                "client_count": len(kg.clients),
+                "WARNING": (
+                    f"You have EXACTLY {len(internal_people)} named team members "
+                    f"and {len(kg.projects)} projects in the knowledge graph. "
+                    "Do NOT invent additional names or projects beyond this data. "
+                    "Use open_role_profile for team roles without KG matches."
+                ),
+            },
             "people": [
                 {
                     "person_id": p.person_id,
@@ -304,8 +319,7 @@ def _build_shared_context(
                     "domain_expertise": p.domain_expertise,
                     "projects": p.projects,
                 }
-                for p in kg.people
-                if p.person_type == "internal_team"
+                for p in internal_people
             ],
             "projects": [
                 {

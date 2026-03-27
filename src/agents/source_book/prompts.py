@@ -14,6 +14,35 @@ Stage 2b: Section 7 (evidence ledger)
 
 _EVIDENCE_RULES = """
 EVIDENCE RULES (apply to ALL sections):
+
+*** CRITICAL — ZERO FABRICATION RULE ***
+Do NOT invent consultant names, project names, project details, client
+names, or any firm-specific data that is not present in the actual data
+inputs (knowledge_graph, reference_index, uploaded documents).
+
+CHECK THE DATA COUNTS:
+- If knowledge_graph.people is empty or missing → you have ZERO named
+  consultants. Use staffing_status="open_role_profile" for EVERY team role.
+  Do NOT fabricate Arabic or English names.
+- If knowledge_graph.projects has N entries → you have exactly N projects.
+  Do NOT invent additional projects. If N=1, reference that 1 project and
+  flag the rest as evidence gaps requiring company data.
+- If reference_index is empty or missing → you have ZERO internal claims.
+  Do NOT invent CLM-xxxx IDs. Flag all internal claims as evidence_gap.
+
+What to do when data is thin:
+- For team roles: use open_role_profile with detailed role requirements
+- For projects: describe what PROJECT EVIDENCE IS NEEDED, not fake projects
+- For capabilities: describe what SG MUST DEMONSTRATE, cite external evidence
+  where available, and flag internal proof as evidence_gap
+- For evidence: mark verifiability_status="gap" with a clear verification_note
+  stating what data source must be consulted
+
+This is Engine 1: it designs the winning proposal and identifies what proof
+is needed. Engine 2 (company backend) provides the actual proof. Engine 1
+must NEVER fabricate proof that Engine 2 should supply.
+*** END ZERO FABRICATION RULE ***
+
 1. EVERY claim MUST cite its source:
    - Internal evidence: CLM-xxxx (from reference_index)
    - External evidence: EXT-xxx (from external_evidence_pack)
@@ -24,19 +53,20 @@ EVIDENCE RULES (apply to ALL sections):
    not "Large-scale migration experience."
 4. BILINGUAL AWARENESS: If output_language is "ar", all prose in Arabic.
    Evidence IDs stay in English.
-5. EXECUTIVE TONE — MANDATORY: Write as if this IS the final submission
-   to the client's evaluation committee. ZERO hedging allowed:
+5. EXECUTIVE TONE — MANDATORY for methodology, governance, timeline,
+   and problem framing. Write with authority on APPROACH and DESIGN.
+   But do NOT fabricate firm-specific facts (names, projects, outcomes).
    * BANNED phrases: "to be confirmed", "validation required",
      "illustrative pending baseline", "subject to review",
      "placeholder", "TBD", "may be adjusted", "could potentially"
-   * Write with authority: "SG deploys a 7-member team led by
-     Nagaraj Padmanabhan" NOT "SG proposes to potentially assign
-     a team subject to availability"
-   * State timelines as commitments, outcomes as facts backed by evidence
+   * Authoritative on approach: "The engagement follows a 4-phase
+     methodology with bi-weekly steering committee reviews"
+   * Honest on staffing: use open_role_profile when KG has no people
 6. EVIDENCE PRAGMATISM: When evidence is thin, USE available CLM-xxxx IDs
    multiple times. For claims without evidence, mark as gaps. NEVER invent
    CLM-xxxx or EXT-xxx IDs. Only use IDs from reference_index or
-   available_ext_ids.
+   available_ext_ids. NEVER invent project names, client names, or
+   consultant names that are not in the knowledge_graph.
 7. If reviewer_feedback is provided, this is a REWRITE pass. Address ALL
    reviewer criticisms specifically. Do not restart from scratch — improve.
 8. If previous content is provided, IMPROVE it — add depth, not replace.
@@ -175,60 +205,76 @@ Minimum 5 rows. Cover: technical capabilities, domain expertise,
 methodology, governance, team, certifications, partnerships.
 
 ──────────────────────────────────────
-3.2 TEAM STRUCTURE — INTERIM STAFFING (100+ words per profile)
+3.2 TEAM STRUCTURE — DATA-GROUNDED STAFFING
 ──────────────────────────────────────
+
+*** ZERO FABRICATION: Check knowledge_graph.people FIRST. ***
+- If the people list is EMPTY (0 entries): EVERY role MUST use
+  staffing_status="open_role_profile". Set name="". Do NOT invent names.
+- If the people list has entries: ONLY use names that appear in the list.
+  Match KG people to RFP roles by expertise. Use "recommended_candidate"
+  for KG-sourced names, "open_role_profile" for unfilled roles.
+- NEVER use "confirmed_candidate" unless the KG source explicitly says so.
 
 STEP 1 — RFP ROLE MATRIX: Check rfp_team_requirements AND the
 mandatory_constraints for the RFP's required roles. For EACH required role,
 the profile must cover: role name, required years, required certifications,
 required expertise, required project experience, language/regional requirements.
 
-STEP 2 — STAFFING STATUS: Every entry MUST have one of exactly three values:
-* "confirmed_candidate" — ONLY if authoritative company source confirms
-* "recommended_candidate" — suggested fit from KG, proposals, internal docs
-* "open_role_profile" — no reliable person. Define ideal profile instead.
+STEP 2 — FOR EACH RFP ROLE, create one entry:
+* If a KG person matches → staffing_status="recommended_candidate",
+  name=exact KG name, populate all fields from KG data
+* If NO KG person matches → staffing_status="open_role_profile",
+  name="", describe the ideal candidate profile in detail:
+  - Required education, certifications, years of experience
+  - Required domain expertise for THIS RFP
+  - Required project experience profile
+  - Why this role is critical to the engagement
+  - What recruitment/sourcing action is needed
 
-STEP 3 — JUSTIFICATION: For every recommended_candidate:
-* justification: 3-4 sentences why this person fits
-* source_of_recommendation: "knowledge_graph internal team data",
-  "prior company proposal archive", "template leadership examples"
-* confidence: "high" / "medium" / "low"
-* relevance: How the person meets EACH RFP requirement for this role
+STEP 3 — PROFILE DEPTH: For EACH entry, populate ALL 13 fields:
+* name (from KG or "" for open roles), role, staffing_status
+* relevance: 3-4 sentences on how this role/person meets RFP requirements
+* certifications, years_experience, education, domain_expertise, prior_employers
+  (ALL from KG for recommended; ALL from RFP requirements for open roles)
+* justification (why recommended, or why this profile is needed)
+* source_of_recommendation ("knowledge_graph" or "open_role_requirement")
+* confidence, evidence_ids
 
-STEP 4 — OPEN ROLES: If no reliable name exists, use "open_role_profile".
-Set name="" or the role title. Describe the ideal candidate profile clearly.
-
-STEP 5 — PROFILE DEPTH: For EACH consultant, populate ALL 13 fields:
-* name, role, staffing_status, relevance (3-4 sentences)
-* certifications (ALL from KG), years_experience, education (ALL degrees)
-* domain_expertise, prior_employers (ALL from KG)
-* justification, source_of_recommendation, confidence, evidence_ids
-
-Produce one entry per RFP-required role PLUS additional relevant KG people.
-Goal: downstream user knows exactly what role is needed, who fits, and why.
+Goal: downstream user knows exactly what role is needed, who is suggested
+(if anyone), and what gaps must be filled from the company staffing system.
 
 ──────────────────────────────────────
-3.3 PROJECT EXPERIENCE (80+ words per project, 12-15 projects)
+3.3 PROJECT EXPERIENCE — DATA-GROUNDED ONLY
 ──────────────────────────────────────
 
-Produce 12-15 UNIQUE prior projects from knowledge_graph.
-For EACH project, populate ALL fields:
+*** ZERO FABRICATION: Check knowledge_graph.projects FIRST. ***
+- Count the actual projects in the KG data provided.
+- ONLY include projects that EXIST in knowledge_graph.projects.
+- If KG has 1 project, include that 1 project. Do NOT invent 14 more.
+- If KG has 0 projects, this section must state:
+  "No documented prior projects found in internal reference data.
+  The following project evidence is required for a competitive submission:"
+  Then list the TYPES of projects needed (based on RFP scope).
+
+For EACH real KG project, populate ALL fields:
 * project_name: Exact name from KG (no renaming or paraphrasing)
 * client: Exact client name from KG
 * sector: From KG project record
 * duration: From KG or estimate
-* methodologies: Specific frameworks used (TOGAF, ITIL, Agile, etc.)
-* outcomes: MUST follow Challenge → SG Contribution → Impact structure:
-  Challenge: 2-3 sentences describing the client's problem.
-  SG Contribution: 2-3 sentences describing what SG specifically did.
-  Impact: Quantified results with NUMBERS from KG:
-  "Documented 340+ operational processes with KPIs"
-  "Managed transformation portfolio exceeding $100M"
-  "15x increase in value chain output"
-  Do NOT write generic outcomes like "improved efficiency"
-* evidence_ids: CLM-xxxx references
+* methodologies: Specific frameworks used
+* outcomes: Challenge → SG Contribution → Impact with NUMBERS from KG
+  Do NOT invent outcomes. Use only what the KG provides.
+* evidence_ids: CLM-xxxx references (only if they exist in reference_index)
 
-VALIDATION: No two projects may share the same client AND project_name.
+After listing real projects, add an EVIDENCE GAP SUMMARY:
+* What types of additional projects are needed for this RFP
+* What sectors/domains should be represented
+* What outcomes/scale would strengthen the proposal
+* Action required: "Populate from company project database before submission"
+
+VALIDATION: Every project_name must exist in knowledge_graph.projects.
+No invented projects. No invented clients. No invented outcomes.
 
 ──────────────────────────────────────
 3.4 CERTIFICATIONS & COMPLIANCE

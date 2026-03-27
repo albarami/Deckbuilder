@@ -259,13 +259,27 @@ async def extract_evidence_ledger(
                 )
                 continue
             # Map confidence to verifiability_status (Literal field)
-            # High confidence = verified, medium = partially_verified,
-            # low = unverified. Append description to source_reference.
-            verif_map = {
-                "high": "verified",
-                "medium": "partially_verified",
-                "low": "unverified",
-            }
+            # NEVER auto-mark as "verified" — that requires cross-checking
+            # against actual reference_index data which this extractor
+            # doesn't have. Use "partially_verified" for high-confidence
+            # claims that cite real evidence IDs, "unverified" for medium,
+            # and "gap" for low-confidence claims without evidence backing.
+            has_evidence_id = bool(
+                "CLM-" in parsed.source_reference
+                or "EXT-" in parsed.source_reference
+            )
+            if has_evidence_id:
+                verif_map = {
+                    "high": "partially_verified",
+                    "medium": "partially_verified",
+                    "low": "unverified",
+                }
+            else:
+                verif_map = {
+                    "high": "unverified",
+                    "medium": "unverified",
+                    "low": "gap",
+                }
             verif_status = verif_map.get(
                 parsed.confidence_label, "unverified",
             )
