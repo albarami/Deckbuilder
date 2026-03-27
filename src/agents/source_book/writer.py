@@ -583,10 +583,13 @@ async def _generate_section_5(
 ) -> SourceBookSection5:
     """Stage 1d: Section 5 (Proposed Solution — highest weight).
 
-    This is the MOST IMPORTANT section. It gets a heavily trimmed context
-    to maximize output token budget. Only keeps: mandatory_constraints,
-    proposal_strategy scope items, rfp_project_timeline, and reviewer_feedback.
-    Drops everything else to maximize room for deep methodology output.
+    This is the MOST IMPORTANT section. It gets an RFP-rich but lean context:
+    keeps ALL fields needed for elite methodology (scope, deliverables,
+    evaluation criteria, compliance, team requirements, timeline, mandate)
+    but drops raw document text and KG data that don't inform methodology.
+
+    Quality principle: NEVER strip context that could make methodology
+    more specific, more RFP-aligned, or more evaluator-targeted.
     """
     prev_data = None
     if previous_book:
@@ -594,29 +597,41 @@ async def _generate_section_5(
             "proposed_solution": previous_book.proposed_solution.model_dump(mode="json"),
         }
 
-    # Build a MINIMAL payload for Section 5 — only what methodology needs
-    compact_rfp = None
+    # Build an RFP-RICH payload — keep everything evaluators care about
+    # for methodology, but drop knowledge_graph (team/projects not needed
+    # for methodology design) and external_evidence_pack
+    rfp_for_methodology = None
     if shared_ctx.get("rfp_context"):
         rfp = shared_ctx["rfp_context"]
-        # Extract only scope items and deliverables — not the full RFP dump
-        compact_rfp = {
+        rfp_for_methodology = {
             "rfp_name": rfp.get("rfp_name", ""),
+            "issuing_entity": rfp.get("issuing_entity", ""),
+            "mandate": rfp.get("mandate", ""),
             "scope_items": rfp.get("scope_items", []),
             "deliverables": rfp.get("deliverables", []),
+            "evaluation_criteria": rfp.get("evaluation_criteria"),
+            "compliance_requirements": rfp.get("compliance_requirements", []),
+            "team_requirements": rfp.get("team_requirements", []),
+            "project_timeline": rfp.get("project_timeline"),
         }
 
-    compact_payload = {
+    methodology_payload = {
         "mandatory_constraints": shared_ctx.get("mandatory_constraints"),
         "rfp_project_timeline": shared_ctx.get("rfp_project_timeline"),
-        "rfp_scope_summary": compact_rfp,
+        "rfp_team_requirements": shared_ctx.get("rfp_team_requirements"),
+        "rfp_context": rfp_for_methodology,
         "proposal_strategy": shared_ctx.get("proposal_strategy"),
+        "reference_index": shared_ctx.get("reference_index"),
+        "available_ext_ids": shared_ctx.get("available_ext_ids"),
         "reviewer_feedback": shared_ctx.get("reviewer_feedback"),
         "output_language": shared_ctx.get("output_language"),
+        "sector": shared_ctx.get("sector"),
+        "geography": shared_ctx.get("geography"),
     }
     if prev_data:
-        compact_payload["previous_section_content"] = prev_data
+        methodology_payload["previous_section_content"] = prev_data
 
-    payload = json.dumps(compact_payload, ensure_ascii=False, default=str)
+    payload = json.dumps(methodology_payload, ensure_ascii=False, default=str)
     logger.info("Stage 1d (Section 5): input chars=%d", len(payload))
 
     result = await call_llm(
