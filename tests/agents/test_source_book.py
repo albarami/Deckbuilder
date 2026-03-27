@@ -2234,8 +2234,8 @@ class TestThreeStageWriterArchitecture:
         )
 
     @pytest.mark.asyncio
-    async def test_stage2b_failure_triggers_evidence_fallback(self):
-        """When Stage 2b returns empty ledger, fallback is used and warned."""
+    async def test_stage2b_empty_logs_warning_no_fallback(self):
+        """When Stage 2b returns empty ledger, warning is logged (no fallback)."""
         from unittest.mock import AsyncMock, patch
 
         from src.models.source_book import (
@@ -2295,9 +2295,20 @@ class TestThreeStageWriterArchitecture:
                 state = DeckForgeState()
                 result = await run(state)
 
-        fallback_msgs = [r for r in logs if "fallback" in r.getMessage().lower()]
-        assert len(fallback_msgs) > 0, (
-            "Fallback should be logged when Stage 2b produces empty ledger"
+        # Stage 2b empty should log a warning (not a fallback)
+        import logging
+
+        warning_msgs = [
+            r for r in logs
+            if "evidence" in r.getMessage().lower()
+            and r.levelno >= logging.WARNING
+        ]
+        assert len(warning_msgs) > 0, (
+            "Warning should be logged when Stage 2b produces empty ledger"
+        )
+        # No fallback should be triggered
+        assert result.get("fallback_events", []) == [], (
+            f"No fallbacks expected but got: {result.get('fallback_events')}"
         )
 
     @staticmethod

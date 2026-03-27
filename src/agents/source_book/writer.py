@@ -629,13 +629,27 @@ async def _generate_section_5(
             "project_timeline": rfp.get("project_timeline"),
         }
 
+    # For Section 5, send ONLY framework references from reference_index
+    # (not the full 150-claim dump). Methodology needs framework names
+    # and CLM IDs for citation, not the full claim text.
+    compact_ref_index = None
+    ref_index = shared_ctx.get("reference_index")
+    if ref_index:
+        compact_ref_index = {
+            "total_claims": ref_index.get("total_claims", 0),
+            "claim_ids_available": [
+                c.get("claim_id", "") for c in ref_index.get("claims", [])
+            ],
+            "frameworks": ref_index.get("frameworks", []),
+        }
+
     methodology_payload = {
         "mandatory_constraints": shared_ctx.get("mandatory_constraints"),
         "rfp_project_timeline": shared_ctx.get("rfp_project_timeline"),
         "rfp_team_requirements": shared_ctx.get("rfp_team_requirements"),
         "rfp_context": rfp_for_methodology,
         "proposal_strategy": shared_ctx.get("proposal_strategy"),
-        "reference_index": shared_ctx.get("reference_index"),
+        "reference_index_summary": compact_ref_index,
         "available_ext_ids": shared_ctx.get("available_ext_ids"),
         "reviewer_feedback": shared_ctx.get("reviewer_feedback"),
         "output_language": shared_ctx.get("output_language"),
@@ -758,61 +772,18 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
 
     try:
         # ── Stage 1a: Sections 1-2 ────────────────────────────
-        try:
-            s12 = await _generate_sections_12(shared_ctx, model, previous_book)
-        except Exception as e:
-            if previous_book:
-                logger.warning("Stage 1a failed on rewrite — preserving previous: %s", e)
-                s12 = SourceBookSections12(
-                    client_name=previous_book.client_name,
-                    rfp_name=previous_book.rfp_name,
-                    language=previous_book.language,
-                    generation_date=previous_book.generation_date,
-                    rfp_interpretation=previous_book.rfp_interpretation,
-                    client_problem_framing=previous_book.client_problem_framing,
-                )
-                fallback_events.append("stage1a_preserved_previous")
-            else:
-                raise
+        # No per-stage fallback. If a stage fails, the whole pass fails.
+        # The graph loop handles pass-level recovery.
+        s12 = await _generate_sections_12(shared_ctx, model, previous_book)
 
         # ── Stage 1b: Section 3 ────────────────────────────────
-        try:
-            s3 = await _generate_section_3(shared_ctx, model, previous_book)
-        except Exception as e:
-            if previous_book:
-                logger.warning("Stage 1b failed on rewrite — preserving previous: %s", e)
-                s3 = SourceBookSection3(
-                    why_strategic_gears=previous_book.why_strategic_gears,
-                )
-                fallback_events.append("stage1b_preserved_previous")
-            else:
-                raise
+        s3 = await _generate_section_3(shared_ctx, model, previous_book)
 
-        # ── Stage 1c: Section 4 (can run with lighter model) ──
-        try:
-            s4 = await _generate_section_4(shared_ctx, model, previous_book)
-        except Exception as e:
-            if previous_book:
-                logger.warning("Stage 1c failed on rewrite — preserving previous: %s", e)
-                s4 = SourceBookSection4(
-                    external_evidence=previous_book.external_evidence,
-                )
-                fallback_events.append("stage1c_preserved_previous")
-            else:
-                raise
+        # ── Stage 1c: Section 4 ───────────────────────────────
+        s4 = await _generate_section_4(shared_ctx, model, previous_book)
 
         # ── Stage 1d: Section 5 ────────────────────────────────
-        try:
-            s5 = await _generate_section_5(shared_ctx, model, previous_book)
-        except Exception as e:
-            if previous_book:
-                logger.warning("Stage 1d failed on rewrite — preserving previous: %s", e)
-                s5 = SourceBookSection5(
-                    proposed_solution=previous_book.proposed_solution,
-                )
-                fallback_events.append("stage1d_preserved_previous")
-            else:
-                raise
+        s5 = await _generate_section_5(shared_ctx, model, previous_book)
 
         # ── Assemble SourceBook from split-call outputs ────────
         source_book = SourceBook(
@@ -858,25 +829,22 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
         source_book.slide_blueprints = section6.slide_blueprints
 
         if not source_book.slide_blueprints:
-            if state.source_book and state.source_book.slide_blueprints:
-                source_book.slide_blueprints = state.source_book.slide_blueprints
-                fallback_events.append("stage2a_blueprints_preserved_from_previous_pass")
-                logger.warning(
-                    "Stage 2a produced 0 blueprints on pass %d — preserved %d from previous",
-                    current_pass,
-                    len(source_book.slide_blueprints),
-                )
-            else:
-                logger.error("Stage 2a produced 0 blueprints and no previous to fall back to")
+            logger.error(
+                "Stage 2a produced 0 blueprints on pass %d — this is a hard failure. "
+                "Check max_tokens and input payload size.",
+                current_pass,
+            )
 
         # ── Stage 2b: Section 7 (evidence ledger) ─────────────
         section7 = await _generate_evidence_ledger(source_book, model)
         source_book.evidence_ledger = section7.evidence_ledger
 
         if not source_book.evidence_ledger.entries:
-            logger.warning("Stage 2b empty — building from citations (fallback)")
-            source_book.evidence_ledger = _build_evidence_ledger_from_citations(source_book)
-            fallback_events.append("stage2b_evidence_ledger_from_citations")
+            logger.warning(
+                "Stage 2b produced 0 evidence entries on pass %d — "
+                "evidence extractor will run post-loop to populate.",
+                current_pass,
+            )
 
         # ── EXT citation coherence check ─────────────────────
         source_book = _strip_dangling_ext_citations(source_book, state)
