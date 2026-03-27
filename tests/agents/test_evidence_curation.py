@@ -296,10 +296,10 @@ class TestExternalResearchAgentQueries:
     """Verify search query generation from RFP context."""
 
     def test_generate_queries_from_empty_state(self):
-        from src.agents.external_research.agent import _generate_search_queries
+        from src.agents.external_research.agent import _generate_pplx_queries
 
         state = DeckForgeState()
-        queries = _generate_search_queries(state)
+        queries = _generate_pplx_queries(state)
         assert isinstance(queries, list)
         # No RFP context = fallback query only
         assert len(queries) == 1
@@ -311,7 +311,7 @@ class TestExternalResearchAgentQueries:
         from src.agents.external_research.agent import _gather_raw_evidence
 
         # With no API keys configured, services should fail gracefully
-        result = await _gather_raw_evidence(["test query"])
+        result = await _gather_raw_evidence(["test query"], ["test query"])
         assert "scholar_results" in result
         assert "perplexity_results" in result
         assert isinstance(result["scholar_results"], list)
@@ -507,7 +507,7 @@ class TestExternalResearchRealRFPContext:
 
     def test_queries_from_full_rfp_context(self):
         """Normal RFPContext with all fields produces clean queries."""
-        from src.agents.external_research.agent import _generate_search_queries
+        from src.agents.external_research.agent import _generate_pplx_queries as _generate_search_queries
 
         state = DeckForgeState(
             rfp_context=self._make_rfp_context(),
@@ -530,7 +530,7 @@ class TestExternalResearchRealRFPContext:
 
     def test_queries_use_rfp_name(self):
         """Queries should include the RFP name text."""
-        from src.agents.external_research.agent import _generate_search_queries
+        from src.agents.external_research.agent import _generate_pplx_queries as _generate_search_queries
 
         state = DeckForgeState(
             rfp_context=self._make_rfp_context(),
@@ -544,7 +544,7 @@ class TestExternalResearchRealRFPContext:
 
     def test_queries_from_deliverables(self):
         """Deliverables-based queries extract .description.en text."""
-        from src.agents.external_research.agent import _generate_search_queries
+        from src.agents.external_research.agent import _generate_pplx_queries as _generate_search_queries
 
         state = DeckForgeState(
             rfp_context=self._make_rfp_context(),
@@ -560,7 +560,7 @@ class TestExternalResearchRealRFPContext:
 
     def test_queries_from_scope_items(self):
         """scope_items-based queries extract .description.en text."""
-        from src.agents.external_research.agent import _generate_search_queries
+        from src.agents.external_research.agent import _generate_pplx_queries as _generate_search_queries
 
         state = DeckForgeState(
             rfp_context=self._make_rfp_context(),
@@ -575,7 +575,7 @@ class TestExternalResearchRealRFPContext:
 
     def test_fallback_queries_no_repr_strings(self):
         """Fallback path with only deliverables produces clean text, no repr."""
-        from src.agents.external_research.agent import _generate_search_queries
+        from src.agents.external_research.agent import _generate_pplx_queries as _generate_search_queries
         from src.models.common import BilingualText
         from src.models.rfp import Deliverable, RFPContext
 

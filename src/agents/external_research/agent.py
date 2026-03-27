@@ -47,15 +47,12 @@ def _extract_bilingual_any(bt) -> str:
     return ""
 
 
-def _generate_search_queries(state: DeckForgeState) -> list[str]:
-    """Generate 6-8 search queries from RFP context and state fields.
+def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
+    """Generate 6-8 Perplexity queries from RFP context.
 
     Strategy: one query per RFP scope item, one per deliverable cluster,
     plus mandate and RFP-name queries. Each query targets a specific
-    RFP scope area, not generic consulting methodology.
-
-    Extracts text in any available language (English preferred, Arabic fallback)
-    so queries work for non-English RFPs too.
+    RFP scope area for web synthesis evidence.
     """
     queries: list[str] = []
 
@@ -66,29 +63,24 @@ def _generate_search_queries(state: DeckForgeState) -> list[str]:
     rfp_name = _extract_bilingual_any(rfp.rfp_name)
     mandate = _extract_bilingual_any(rfp.mandate)
 
-    # Query 1: RFP name — broad domain context
     if rfp_name and len(rfp_name) > 5:
         queries.append(f"{rfp_name[:80]} consulting methodology")
 
-    # Query 2: Mandate — the core ask
     if mandate and len(mandate) > 10:
         queries.append(f"{mandate[:100].strip()} best practices")
 
-    # Queries 3-6: One per scope item (most domain-specific)
     if rfp.scope_items:
         for scope_item in rfp.scope_items[:4]:
             text = _extract_bilingual_any(scope_item.description)
             if text and len(text) > 10:
                 queries.append(f"{text[:100].strip()} framework methodology")
 
-    # Queries 7-8: From deliverables (each individually)
     if rfp.deliverables:
         for deliv in rfp.deliverables[:2]:
             text = _extract_bilingual_any(deliv.description)
             if text and len(text) > 10:
                 queries.append(f"{text[:100].strip()} best practices")
 
-    # Sector/geography if available
     sector = state.sector or ""
     geography = state.geography or ""
     if sector and geography:
@@ -96,7 +88,6 @@ def _generate_search_queries(state: DeckForgeState) -> list[str]:
     elif sector:
         queries.append(f"{sector} consulting best practices")
 
-    # Fallback: at least one query
     if not queries:
         if rfp_name:
             queries.append(rfp_name)
@@ -105,15 +96,110 @@ def _generate_search_queries(state: DeckForgeState) -> list[str]:
         else:
             queries.append("management consulting methodology best practices")
 
-    # Deduplicate while preserving order
+    return _deduplicate(queries)[:8]
+
+
+def _generate_s2_queries(state: DeckForgeState) -> list[str]:
+    """Generate short academic-style queries for Semantic Scholar.
+
+    S2 works best with 3-5 word keyword phrases. Long natural
+    language sentences return irrelevant medical/science papers.
+    """
+    queries: list[str] = []
+    rfp = state.rfp_context
+    if not rfp:
+        return ["consulting methodology evaluation"]
+
+    sector = state.sector or ""
+
+    if rfp.scope_items:
+        for scope_item in rfp.scope_items[:4]:
+            text = _extract_bilingual_any(scope_item.description)
+            if text:
+                words = text.split()[:4]
+                phrase = " ".join(words)
+                if sector:
+                    queries.append(f"{phrase} {sector}")
+                else:
+                    queries.append(f"{phrase} framework")
+
+    if rfp.deliverables:
+        for deliv in rfp.deliverables[:2]:
+            text = _extract_bilingual_any(deliv.description)
+            if text:
+                words = text.split()[:3]
+                queries.append(" ".join(words) + " assessment")
+
+    mandate = _extract_bilingual_any(rfp.mandate)
+    if mandate:
+        words = mandate.split()[:4]
+        queries.append(" ".join(words) + " evaluation")
+
+    if not queries:
+        queries.append("consulting methodology evaluation")
+
+    return _deduplicate(queries)[:5]
+
+
+def _generate_supplementary_queries(
+    state: DeckForgeState,
+    existing_sources: list[dict],
+) -> list[str]:
+    """Generate supplementary queries for scope areas not yet covered.
+
+    Compares RFP scope items against mapped themes in existing sources.
+    Produces targeted queries for uncovered areas.
+    """
+    rfp = state.rfp_context
+    if not rfp or not rfp.scope_items:
+        return []
+
+    covered_themes: set[str] = set()
+    for src in existing_sources:
+        content = src.get("content", "") + src.get("abstract", "")
+        content_lower = content.lower()
+        for scope_item in rfp.scope_items:
+            text = _extract_bilingual_any(scope_item.description)
+            if text:
+                key_words = [w.lower() for w in text.split()[:3] if len(w) > 3]
+                if any(kw in content_lower for kw in key_words):
+                    covered_themes.add(text[:50])
+
+    supplementary: list[str] = []
+    sector = state.sector or ""
+    geography = state.geography or ""
+    geo_prefix = f"{geography} " if geography else ""
+
+    for scope_item in rfp.scope_items:
+        text = _extract_bilingual_any(scope_item.description)
+        if text and text[:50] not in covered_themes:
+            words = text.split()[:6]
+            phrase = " ".join(words)
+            supplementary.append(
+                f"{geo_prefix}{phrase} {sector} best practices".strip()
+            )
+
+    if rfp.deliverables:
+        for deliv in rfp.deliverables:
+            text = _extract_bilingual_any(deliv.description)
+            if text and text[:50] not in covered_themes:
+                words = text.split()[:5]
+                supplementary.append(
+                    " ".join(words) + " benchmarking"
+                )
+
+    return _deduplicate(supplementary)[:4]
+
+
+def _deduplicate(items: list[str]) -> list[str]:
+    """Deduplicate while preserving order."""
     seen: set[str] = set()
     unique: list[str] = []
-    for q in queries:
-        if q not in seen:
-            seen.add(q)
-            unique.append(q)
-
-    return unique[:8]  # Cap at 8 queries
+    for item in items:
+        if item not in seen:
+            seen.add(item)
+            unique.append(item)
+    return unique
 
 
 async def _search_semantic_scholar(queries: list[str], api_key: str) -> list[dict]:
@@ -143,9 +229,14 @@ async def _search_semantic_scholar(queries: list[str], api_key: str) -> list[dic
         return []
 
 
-async def _gather_raw_evidence(queries: list[str]) -> dict:
+async def _gather_raw_evidence(
+    pplx_queries: list[str],
+    s2_queries: list[str],
+) -> dict:
     """Run search queries against Semantic Scholar and Perplexity.
 
+    Uses separate query lists: short academic phrases for S2,
+    longer natural-language queries for Perplexity.
     Returns raw results for LLM ranking. Gracefully degrades on failures.
     """
     settings = get_settings()
@@ -153,8 +244,8 @@ async def _gather_raw_evidence(queries: list[str]) -> dict:
     perplexity_results: list[dict] = []
 
     api_key = settings.semantic_scholar_api_key
-    if api_key.strip():
-        papers = await _search_semantic_scholar(queries[:3], api_key)
+    if api_key.strip() and s2_queries:
+        papers = await _search_semantic_scholar(s2_queries[:5], api_key)
         for paper in papers:
             authors_raw = paper.get("authors", []) or []
             author_names = [
@@ -174,12 +265,12 @@ async def _gather_raw_evidence(queries: list[str]) -> dict:
     else:
         logger.warning("Semantic Scholar API key missing — skipping S2 external research")
 
-    # Perplexity searches (2 queries max)
+    # Perplexity searches (up to 4 queries for broader coverage)
     try:
         from src.services.perplexity import search_web
 
         api_key = settings.perplexity_api_key.get_secret_value()
-        for query in queries[:2]:
+        for query in pplx_queries[:4]:
             try:
                 result = search_web(
                     query,
@@ -213,12 +304,19 @@ async def _gather_raw_evidence(queries: list[str]) -> dict:
 
 
 async def run(state: DeckForgeState) -> dict:
-    """Run the External Research Agent.
+    """Run the External Research Agent with two-pass coverage strategy.
+
+    Pass 1: Run initial queries against S2 and Perplexity.
+    Pass 2: Evaluate coverage. If fewer than 4 usable sources or
+            major scope gaps, generate supplementary Perplexity queries.
 
     Returns a dict with keys matching DeckForgeState fields to update.
     """
-    queries = _generate_search_queries(state)
-    if not queries:
+    pplx_queries = _generate_pplx_queries(state)
+    s2_queries = _generate_s2_queries(state)
+    all_queries = _deduplicate(pplx_queries + s2_queries)
+
+    if not all_queries:
         logger.warning("No search queries generated — returning empty evidence pack")
         return {
             "external_evidence_pack": ExternalEvidencePack(
@@ -226,7 +324,38 @@ async def run(state: DeckForgeState) -> dict:
             ),
         }
 
-    raw_evidence = await _gather_raw_evidence(queries)
+    # Pass 1: initial queries
+    raw_evidence = await _gather_raw_evidence(pplx_queries, s2_queries)
+
+    # Pass 2: evaluate coverage and run supplementary queries if needed
+    total_pass1 = (
+        len(raw_evidence["scholar_results"])
+        + len(raw_evidence["perplexity_results"])
+    )
+    if total_pass1 < 4:
+        supp_queries = _generate_supplementary_queries(
+            state, raw_evidence["perplexity_results"],
+        )
+        if supp_queries:
+            logger.info(
+                "Coverage gap: %d sources from pass 1, running %d "
+                "supplementary Perplexity queries",
+                total_pass1, len(supp_queries),
+            )
+            supp_evidence = await _gather_raw_evidence(
+                pplx_queries=supp_queries, s2_queries=[],
+            )
+            raw_evidence["perplexity_results"].extend(
+                supp_evidence["perplexity_results"]
+            )
+            all_queries = _deduplicate(all_queries + supp_queries)
+            logger.info(
+                "After pass 2: %d total sources",
+                len(raw_evidence["scholar_results"])
+                + len(raw_evidence["perplexity_results"]),
+            )
+
+    queries = all_queries
 
     # If both services returned nothing, return empty pack
     total_results = (

@@ -445,15 +445,23 @@ async def run_source_book_only(
         ])
         kg_project_count = len(kg_projects)
 
-    # Placeholder detection
-    placeholder_names = [
-        n for n in consultant_names
-        if any(p in n.lower() for p in [
-            "placeholder", "[", "tbd", "tbc", "name",
-            "consultant 1", "consultant 2", "to be",
-        ])
+    # Placeholder / open-role detection
+    _OPEN_MARKERS = [
+        "placeholder", "[", "tbd", "tbc", "name",
+        "consultant 1", "consultant 2", "to be",
+        "(open)", "open role", "يُحدَّد", "يحدد لاحقاً",
     ]
-    real_names = [n for n in consultant_names if n not in placeholder_names]
+
+    def _is_real_name(name: str) -> bool:
+        """A name is real only if non-empty and not an open-role marker."""
+        stripped = name.strip()
+        if not stripped:
+            return False
+        lower = stripped.lower()
+        return not any(marker in lower for marker in _OPEN_MARKERS)
+
+    placeholder_names = [n for n in consultant_names if not _is_real_name(n)]
+    real_names = [n for n in consultant_names if _is_real_name(n)]
 
     # ── HARD FAIL checks ──
     failures: list[str] = []

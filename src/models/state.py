@@ -122,6 +122,7 @@ class DeckForgeState(DeckForgeBaseModel):
     proposal_strategy: ProposalStrategy | None = None
     source_book: SourceBook | None = None
     source_book_review: SourceBookReview | None = None
+    fallback_events: list[dict] = Field(default_factory=list)
 
     # ─── Gate 3: Research Report ───
     research_report: ResearchReport | None = None
