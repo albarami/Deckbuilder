@@ -27,6 +27,7 @@ class WinTheme(DeckForgeBaseModel):
     theme: str  # the theme statement
     supporting_evidence: list[str] = Field(default_factory=list)  # CLM-xxxx or EXT-xxx IDs
     differentiator_strength: Literal["unique", "strong", "moderate", "weak"] = "moderate"
+    strategy_note: str = ""  # how to deploy this theme in the proposal
 
 
 class ProposalStrategy(DeckForgeBaseModel):
