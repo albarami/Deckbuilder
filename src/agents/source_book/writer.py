@@ -1,8 +1,19 @@
-"""Source Book Writer agent — synthesizes evidence and strategy into Source Book.
+"""Source Book Writer agent — split-call architecture for deep content.
 
 Consumes reference_index, external_evidence_pack, proposal_strategy, and
-rfp_context to produce a structured SourceBook with 7 sections. Every claim
-must cite its source (CLM-xxxx for internal, EXT-xxx for external).
+rfp_context to produce a structured SourceBook with 7 sections.
+
+Split-call architecture:
+  Stage 1a: Sections 1-2 (RFP Interpretation + Client Problem Framing)
+  Stage 1b: Section 3 (Why Strategic Gears — team, projects, capabilities)
+  Stage 1c: Section 4 (External Evidence curation)
+  Stage 1d: Section 5 (Proposed Solution — methodology, governance, timeline)
+  Stage 2a: Section 6 (Slide blueprints)
+  Stage 2b: Section 7 (Evidence ledger)
+
+Each stage gets its own LLM call with full token budget so the model
+can produce deep prose content without JSON overhead from other sections
+competing for tokens.
 """
 
 from __future__ import annotations
@@ -18,14 +29,28 @@ from src.models.source_book import (
     EvidenceLedgerEntry,
     RFPInterpretation,
     SourceBook,
+    SourceBookSection3,
+    SourceBookSection4,
+    SourceBookSection5,
     SourceBookSection6,
     SourceBookSection7,
+    SourceBookSections12,
 )
 from src.models.state import DeckForgeState
 from src.services.llm import call_llm
 
-from .prompts import STAGE2A_BLUEPRINTS_PROMPT, STAGE2B_EVIDENCE_LEDGER_PROMPT
-from .prompts import WRITER_SYSTEM_PROMPT as SYSTEM_PROMPT
+from .prompts import (
+    STAGE1A_SECTIONS12_PROMPT,
+    STAGE1B_SECTION3_PROMPT,
+    STAGE1C_SECTION4_PROMPT,
+    STAGE1D_SECTION5_PROMPT,
+    STAGE2A_BLUEPRINTS_PROMPT,
+    STAGE2B_EVIDENCE_LEDGER_PROMPT,
+    WRITER_SYSTEM_PROMPT,
+)
+
+# Legacy alias used by tests
+SYSTEM_PROMPT = WRITER_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -54,11 +79,7 @@ _HEDGE_PATTERNS = [
 
 
 def _build_evidence_ledger_from_citations(source_book: SourceBook) -> EvidenceLedger:
-    """Scan sections 1-6 for CLM-xxxx / EXT-xxx citations and build a ledger.
-
-    Fallback when the LLM omits or truncates Section 7.
-    """
-    # Collect all text from sections 1-6 by serializing to JSON
+    """Scan sections 1-6 for CLM-xxxx / EXT-xxx citations and build a ledger."""
     sections_data = {
         "rfp_interpretation": source_book.rfp_interpretation.model_dump(mode="json"),
         "client_problem_framing": source_book.client_problem_framing.model_dump(mode="json"),
@@ -69,7 +90,6 @@ def _build_evidence_ledger_from_citations(source_book: SourceBook) -> EvidenceLe
     }
     text_blob = json.dumps(sections_data, ensure_ascii=False, default=str)
 
-    # Find unique citation IDs
     clm_ids = sorted(set(_CLM_PATTERN.findall(text_blob)))
     ext_ids = sorted(set(_EXT_PATTERN.findall(text_blob)))
 
@@ -107,11 +127,7 @@ def _build_evidence_ledger_from_citations(source_book: SourceBook) -> EvidenceLe
 
 
 def _scan_for_hedges(source_book: SourceBook) -> list[str]:
-    """Scan all text fields for banned hedge phrases. Returns matches.
-
-    Uses word-boundary regex to avoid false positives from substrings
-    (e.g., "pending" inside "spending" or "impending").
-    """
+    """Scan all text fields for banned hedge phrases."""
     text_blob = json.dumps(
         source_book.model_dump(mode="json"),
         ensure_ascii=False,
@@ -129,12 +145,7 @@ def _strip_dangling_ext_citations(
     source_book: SourceBook,
     state: DeckForgeState,
 ) -> SourceBook:
-    """Remove EXT-xxx citations that don't exist in the external evidence pack.
-
-    Scans all text fields for EXT-xxx references and strips any that are not
-    in the actual evidence pack. This prevents hallucinated citations from
-    appearing in the final document.
-    """
+    """Remove EXT-xxx citations that don't exist in the external evidence pack."""
     valid_ext_ids: set[str] = set()
     if state.external_evidence_pack:
         for src in getattr(state.external_evidence_pack, "sources", []):
@@ -142,11 +153,6 @@ def _strip_dangling_ext_citations(
             if sid:
                 valid_ext_ids.add(sid)
 
-    if not valid_ext_ids:
-        # No evidence pack at all — strip ALL EXT citations
-        pass
-
-    # Serialize to find all EXT references
     text_blob = json.dumps(
         source_book.model_dump(mode="json"),
         ensure_ascii=False,
@@ -166,7 +172,6 @@ def _strip_dangling_ext_citations(
         sorted(valid_ext_ids),
     )
 
-    # Strip dangling EXT-xxx references from all string fields
     dangling_pattern = re.compile(
         r"\s*\[?(" + "|".join(re.escape(d) for d in dangling) + r")\]?\s*"
     )
@@ -177,7 +182,6 @@ def _strip_dangling_ext_citations(
     def _clean_list(items: list[str]) -> list[str]:
         return [_clean_str(s) for s in items if _clean_str(s)]
 
-    # Clean evidence_ids in slide blueprints
     for bp in source_book.slide_blueprints:
         if bp.proof_points:
             bp.proof_points = [p for p in bp.proof_points if p not in dangling]
@@ -186,7 +190,6 @@ def _strip_dangling_ext_citations(
         if bp.bullet_logic:
             bp.bullet_logic = _clean_list(bp.bullet_logic)
 
-    # Clean evidence ledger — remove entries for dangling IDs
     if source_book.evidence_ledger.entries:
         original_count = len(source_book.evidence_ledger.entries)
         source_book.evidence_ledger.entries = [
@@ -209,20 +212,10 @@ async def _rewrite_hedges(
 
     system = (
         "You are an executive writing editor. The Source Book below "
-        "contains hedging language that must be removed. You MUST "
-        "rewrite every sentence containing a banned word. Replace "
-        "hedged language with direct, confident statements. Do NOT "
-        "preserve any instance of: "
-        f"{hedge_list}. "
-        "Example rewrites:\n"
-        '- "Timeline is pending baseline" → "The engagement delivers '
-        'across 72 weeks in five phases"\n'
-        '- "Subject to stakeholder approval" → "The steering committee '
-        'approves at each phase gate"\n'
-        '- "This could be adjusted" → "This adapts to client '
-        'requirements at each phase gate"\n'
-        "Do NOT change any other content. Output the full corrected "
-        "SourceBook JSON."
+        "contains hedging language that must be removed. Rewrite every "
+        "sentence containing a banned word with direct, confident statements. "
+        f"Remove ALL instances of: {hedge_list}. "
+        "Do NOT change any other content. Output the full corrected SourceBook JSON."
     )
 
     user_msg = json.dumps(
@@ -231,10 +224,7 @@ async def _rewrite_hedges(
         default=str,
     )
 
-    model = MODEL_MAP.get(
-        "source_book_writer",
-        MODEL_MAP.get("analysis_agent"),
-    )
+    model = MODEL_MAP.get("source_book_writer", MODEL_MAP.get("analysis_agent"))
 
     try:
         async with asyncio.timeout(120):
@@ -248,48 +238,26 @@ async def _rewrite_hedges(
             )
         cleaned = result.parsed
         cleaned.pass_number = source_book.pass_number
-        # Preserve blueprints and evidence ledger — hedge rewrite LLM
-        # often truncates these complex fields
         if not cleaned.slide_blueprints and source_book.slide_blueprints:
             cleaned.slide_blueprints = source_book.slide_blueprints
-            logger.info(
-                "Hedge rewrite: preserved %d slide blueprints",
-                len(cleaned.slide_blueprints),
-            )
-        if (
-            not cleaned.evidence_ledger.entries
-            and source_book.evidence_ledger.entries
-        ):
+        if not cleaned.evidence_ledger.entries and source_book.evidence_ledger.entries:
             cleaned.evidence_ledger = source_book.evidence_ledger
-            logger.info(
-                "Hedge rewrite: preserved %d evidence entries",
-                len(cleaned.evidence_ledger.entries),
-            )
-        logger.info(
-            "Hedge rewrite complete — removed %d hedge patterns",
-            len(hedges_found),
-        )
+        logger.info("Hedge rewrite complete — removed %d hedge patterns", len(hedges_found))
         return cleaned
     except Exception as e:
         logger.warning("Hedge rewrite failed: %s — keeping original", e)
         return source_book
 
 
-def _build_user_message(
+def _build_shared_context(
     state: DeckForgeState,
     reviewer_feedback: str = "",
-) -> str:
-    """Build the user message from state fields.
-
-    Serializes all upstream data into a JSON payload for the LLM.
-    On rewrite passes, includes reviewer feedback.
-    """
-    # RFP context
+) -> dict:
+    """Build the shared context dict that all stage calls can draw from."""
     rfp_dump = None
     if state.rfp_context:
         rfp_dump = state.rfp_context.model_dump(mode="json")
 
-    # Reference index — compact to relevant fields
     ref_index_dump = None
     if state.reference_index:
         ri = state.reference_index
@@ -304,41 +272,23 @@ def _build_user_message(
                     "confidence": c.confidence,
                     "category": c.category,
                 }
-                for c in ri.claims[:150]  # cap at 150 claims for writer
+                for c in ri.claims[:150]
             ],
-            "case_studies": [
-                cs.model_dump(mode="json") for cs in ri.case_studies[:30]
-            ],
-            "team_profiles": [
-                tp.model_dump(mode="json") for tp in ri.team_profiles[:40]
-            ],
-            "compliance_evidence": [
-                ce.model_dump(mode="json") for ce in ri.compliance_evidence[:30]
-            ],
-            "frameworks": [
-                fw.model_dump(mode="json") for fw in ri.frameworks[:15]
-            ],
-            "gaps": [
-                g.model_dump(mode="json") for g in ri.gaps[:30]
-            ],
+            "case_studies": [cs.model_dump(mode="json") for cs in ri.case_studies[:30]],
+            "team_profiles": [tp.model_dump(mode="json") for tp in ri.team_profiles[:40]],
+            "compliance_evidence": [ce.model_dump(mode="json") for ce in ri.compliance_evidence[:30]],
+            "frameworks": [fw.model_dump(mode="json") for fw in ri.frameworks[:15]],
+            "gaps": [g.model_dump(mode="json") for g in ri.gaps[:30]],
         }
 
-    # External evidence pack
     ext_evidence_dump = None
     if state.external_evidence_pack:
         ext_evidence_dump = state.external_evidence_pack.model_dump(mode="json")
 
-    # Proposal strategy
     strategy_dump = None
     if state.proposal_strategy:
         strategy_dump = state.proposal_strategy.model_dump(mode="json")
 
-    # Previous source book (for rewrite passes)
-    previous_book_dump = None
-    if state.source_book:
-        previous_book_dump = state.source_book.model_dump(mode="json")
-
-    # Knowledge graph — named people, projects, clients
     kg_dump = None
     if state.knowledge_graph:
         kg = state.knowledge_graph
@@ -380,9 +330,10 @@ def _build_user_message(
             ],
         }
 
-    # Extract explicit timeline + team requirements for the Writer
+    # Timeline and team constraints from RFP
     rfp_timeline_dump = None
     rfp_team_requirements_dump = None
+    mandatory_constraints: list[str] = []
     if state.rfp_context:
         if state.rfp_context.project_timeline:
             rfp_timeline_dump = state.rfp_context.project_timeline.model_dump(mode="json")
@@ -391,28 +342,21 @@ def _build_user_message(
                 tr.model_dump(mode="json") for tr in state.rfp_context.team_requirements
             ]
 
-    # Build explicit constraints block so the LLM cannot ignore them
-    mandatory_constraints: list[str] = []
     if rfp_timeline_dump:
         dur = rfp_timeline_dump.get("total_duration", "")
         months = rfp_timeline_dump.get("total_duration_months")
         if dur or months:
-            constraint = (
+            mandatory_constraints.append(
                 f"MANDATORY TIMELINE: The RFP states the project duration is "
-                f"{dur or str(months) + ' months'}. "
-                f"You MUST use this exact duration in Section 5 timeline_logic "
-                f"and all slide blueprints. Do NOT invent a different duration."
+                f"{dur or str(months) + ' months'}. Use this EXACT duration."
             )
-            mandatory_constraints.append(constraint)
         sched = rfp_timeline_dump.get("deliverable_schedule", [])
         if sched:
             milestones = "; ".join(
-                f"{s.get('milestone', '?')} due {s.get('due_date', '?')}"
-                for s in sched
+                f"{s.get('milestone', '?')} due {s.get('due_date', '?')}" for s in sched
             )
-            mandatory_constraints.append(
-                f"MANDATORY MILESTONES: {milestones}"
-            )
+            mandatory_constraints.append(f"MANDATORY MILESTONES: {milestones}")
+
     if rfp_team_requirements_dump:
         roles = []
         for req in rfp_team_requirements_dump:
@@ -436,7 +380,6 @@ def _build_user_message(
                 + ". Map each RFP role to a proposed consultant."
             )
 
-    # Build available EXT IDs so the Writer knows what exists
     available_ext_ids: list[str] = []
     if state.external_evidence_pack:
         for src in getattr(state.external_evidence_pack, "sources", []):
@@ -444,7 +387,7 @@ def _build_user_message(
             if sid:
                 available_ext_ids.append(sid)
 
-    payload = {
+    return {
         "mandatory_constraints": mandatory_constraints or None,
         "available_ext_ids": available_ext_ids or None,
         "rfp_context": rfp_dump,
@@ -454,13 +397,18 @@ def _build_user_message(
         "knowledge_graph": kg_dump,
         "external_evidence_pack": ext_evidence_dump,
         "proposal_strategy": strategy_dump,
-        "previous_source_book": previous_book_dump,
-        "reviewer_feedback": reviewer_feedback,
+        "reviewer_feedback": reviewer_feedback or None,
         "output_language": state.output_language,
         "sector": state.sector,
         "geography": state.geography,
     }
 
+
+def _build_stage_payload(shared_ctx: dict, previous_section_data: dict | None = None) -> str:
+    """Build a JSON payload for a stage call, optionally including previous section output."""
+    payload = dict(shared_ctx)
+    if previous_section_data:
+        payload["previous_section_content"] = previous_section_data
     return json.dumps(payload, ensure_ascii=False, default=str)
 
 
@@ -482,19 +430,140 @@ def _dump_sections_15(source_book: SourceBook) -> str:
     )
 
 
+async def _generate_sections_12(
+    shared_ctx: dict,
+    model: str,
+    previous_book: SourceBook | None = None,
+) -> SourceBookSections12:
+    """Stage 1a: Sections 1-2 (RFP Interpretation + Client Problem Framing)."""
+    prev_data = None
+    if previous_book:
+        prev_data = {
+            "rfp_interpretation": previous_book.rfp_interpretation.model_dump(mode="json"),
+            "client_problem_framing": previous_book.client_problem_framing.model_dump(mode="json"),
+        }
+    payload = _build_stage_payload(shared_ctx, prev_data)
+    logger.info("Stage 1a (Sections 1-2): input chars=%d", len(payload))
+
+    result = await call_llm(
+        model=model,
+        system_prompt=STAGE1A_SECTIONS12_PROMPT,
+        user_message=payload,
+        response_model=SourceBookSections12,
+        max_tokens=16000,
+        temperature=0.1,
+    )
+
+    s12 = result.parsed
+    logger.info(
+        "Stage 1a complete: compliance_items=%d",
+        len(s12.rfp_interpretation.key_compliance_requirements),
+    )
+    return s12
+
+
+async def _generate_section_3(
+    shared_ctx: dict,
+    model: str,
+    previous_book: SourceBook | None = None,
+) -> SourceBookSection3:
+    """Stage 1b: Section 3 (Why Strategic Gears)."""
+    prev_data = None
+    if previous_book:
+        prev_data = {
+            "why_strategic_gears": previous_book.why_strategic_gears.model_dump(mode="json"),
+        }
+    payload = _build_stage_payload(shared_ctx, prev_data)
+    logger.info("Stage 1b (Section 3): input chars=%d", len(payload))
+
+    result = await call_llm(
+        model=model,
+        system_prompt=STAGE1B_SECTION3_PROMPT,
+        user_message=payload,
+        response_model=SourceBookSection3,
+        max_tokens=16000,
+        temperature=0.1,
+    )
+
+    s3 = result.parsed
+    logger.info(
+        "Stage 1b complete: consultants=%d, projects=%d, capabilities=%d",
+        len(s3.why_strategic_gears.named_consultants),
+        len(s3.why_strategic_gears.project_experience),
+        len(s3.why_strategic_gears.capability_mapping),
+    )
+    return s3
+
+
+async def _generate_section_4(
+    shared_ctx: dict,
+    model: str,
+    previous_book: SourceBook | None = None,
+) -> SourceBookSection4:
+    """Stage 1c: Section 4 (External Evidence)."""
+    prev_data = None
+    if previous_book:
+        prev_data = {
+            "external_evidence": previous_book.external_evidence.model_dump(mode="json"),
+        }
+    payload = _build_stage_payload(shared_ctx, prev_data)
+    logger.info("Stage 1c (Section 4): input chars=%d", len(payload))
+
+    result = await call_llm(
+        model=model,
+        system_prompt=STAGE1C_SECTION4_PROMPT,
+        user_message=payload,
+        response_model=SourceBookSection4,
+        max_tokens=8000,
+        temperature=0.1,
+    )
+
+    s4 = result.parsed
+    logger.info(
+        "Stage 1c complete: evidence_entries=%d",
+        len(s4.external_evidence.entries),
+    )
+    return s4
+
+
+async def _generate_section_5(
+    shared_ctx: dict,
+    model: str,
+    previous_book: SourceBook | None = None,
+) -> SourceBookSection5:
+    """Stage 1d: Section 5 (Proposed Solution — highest weight)."""
+    prev_data = None
+    if previous_book:
+        prev_data = {
+            "proposed_solution": previous_book.proposed_solution.model_dump(mode="json"),
+        }
+    payload = _build_stage_payload(shared_ctx, prev_data)
+    logger.info("Stage 1d (Section 5): input chars=%d", len(payload))
+
+    result = await call_llm(
+        model=model,
+        system_prompt=STAGE1D_SECTION5_PROMPT,
+        user_message=payload,
+        response_model=SourceBookSection5,
+        max_tokens=24000,
+        temperature=0.1,
+    )
+
+    s5 = result.parsed
+    logger.info(
+        "Stage 1d complete: phases=%d, governance_len=%d, methodology_len=%d",
+        len(s5.proposed_solution.phase_details),
+        len(s5.proposed_solution.governance_framework),
+        len(s5.proposed_solution.methodology_overview),
+    )
+    return s5
+
+
 async def _generate_blueprints(
     source_book: SourceBook,
     model: str,
 ) -> SourceBookSection6:
-    """Stage 2a: Dedicated LLM call for slide blueprints only.
-
-    Args:
-        source_book: Completed Sections 1-5 from Stage 1.
-        model: LLM model identifier.
-
-    Returns:
-        SourceBookSection6 with slide_blueprints.
-    """
+    """Stage 2a: Dedicated LLM call for slide blueprints only."""
     context = _dump_sections_15(source_book)
     logger.info("Stage 2a (blueprints): input chars=%d", len(context))
 
@@ -503,7 +572,7 @@ async def _generate_blueprints(
         system_prompt=STAGE2A_BLUEPRINTS_PROMPT,
         user_message=context,
         response_model=SourceBookSection6,
-        max_tokens=32000,
+        max_tokens=48000,
         temperature=0.1,
     )
 
@@ -516,16 +585,7 @@ async def _generate_evidence_ledger(
     source_book: SourceBook,
     model: str,
 ) -> SourceBookSection7:
-    """Stage 2b: Dedicated LLM call for evidence ledger only.
-
-    Args:
-        source_book: Completed Sections 1-5 from Stage 1 (with blueprints
-            already merged from Stage 2a).
-        model: LLM model identifier.
-
-    Returns:
-        SourceBookSection7 with evidence_ledger.
-    """
+    """Stage 2b: Dedicated LLM call for evidence ledger only."""
     context = json.dumps(
         {
             "sections_1_5": json.loads(_dump_sections_15(source_book)),
@@ -556,62 +616,109 @@ async def _generate_evidence_ledger(
 
 
 async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
-    """Run the Source Book Writer agent (three-stage architecture).
+    """Run the Source Book Writer agent (six-stage split-call architecture).
 
-    Stage 1:  Sections 1-5 (prose content) — full token budget for depth.
-    Stage 2a: Section 6 (slide blueprints) — dedicated call with Sections 1-5.
-    Stage 2b: Section 7 (evidence ledger) — dedicated call with Sections 1-6.
+    Stage 1a: Sections 1-2 (RFP Interpretation + Problem Framing)
+    Stage 1b: Section 3 (Why Strategic Gears)
+    Stage 1c: Section 4 (External Evidence)
+    Stage 1d: Section 5 (Proposed Solution / Methodology)
+    Stage 2a: Section 6 (Slide blueprints)
+    Stage 2b: Section 7 (Evidence ledger)
 
-    Each stage gets its own LLM call and token budget so Arabic output
-    never truncates before completing the section.
-
-    Returns a dict with keys matching DeckForgeState fields to update.
+    Each stage gets its own LLM call and dedicated token budget.
     """
-    user_message = _build_user_message(state, reviewer_feedback=reviewer_feedback)
+    model = MODEL_MAP.get("source_book_writer", MODEL_MAP.get("analysis_agent"))
+
+    # Track fallback usage per pass
+    fallback_events: list[str] = []
+
+    # Determine pass number
+    current_pass = 1
+    if state.source_book:
+        current_pass = state.source_book.pass_number + 1
+
+    shared_ctx = _build_shared_context(state, reviewer_feedback=reviewer_feedback)
+    previous_book = state.source_book if state.source_book and current_pass > 1 else None
 
     logger.info(
-        "Source Book Writer payload: chars=%d, has_ref_index=%s, "
-        "has_strategy=%s, rewrite=%s",
-        len(user_message),
+        "Source Book Writer: pass=%d, has_ref_index=%s, has_strategy=%s, rewrite=%s",
+        current_pass,
         state.reference_index is not None,
         state.proposal_strategy is not None,
         bool(reviewer_feedback),
     )
 
-    model = MODEL_MAP.get("source_book_writer", MODEL_MAP.get("analysis_agent"))
-
-    # Track fallback usage per pass for honest reporting
-    fallback_events: list[str] = []
-
     try:
-        # ── Stage 1: Sections 1-5 ────────────────────────────
+        # ── Stage 1a: Sections 1-2 ────────────────────────────
         try:
-            llm_result = await call_llm(
-                model=model,
-                system_prompt=SYSTEM_PROMPT,
-                user_message=user_message,
-                response_model=SourceBook,
-                max_tokens=32000,
-                temperature=0.1,
-            )
-            source_book = llm_result.parsed
-        except Exception as stage1_err:
-            if state.source_book and state.source_book.pass_number >= 1:
-                logger.warning(
-                    "Stage 1 validation failed on rewrite pass — "
-                    "preserving previous pass result: %s",
-                    stage1_err,
+            s12 = await _generate_sections_12(shared_ctx, model, previous_book)
+        except Exception as e:
+            if previous_book:
+                logger.warning("Stage 1a failed on rewrite — preserving previous: %s", e)
+                s12 = SourceBookSections12(
+                    client_name=previous_book.client_name,
+                    rfp_name=previous_book.rfp_name,
+                    language=previous_book.language,
+                    generation_date=previous_book.generation_date,
+                    rfp_interpretation=previous_book.rfp_interpretation,
+                    client_problem_framing=previous_book.client_problem_framing,
                 )
-                source_book = state.source_book.model_copy(deep=True)
-                fallback_events.append("stage1_preserved_previous")
+                fallback_events.append("stage1a_preserved_previous")
             else:
                 raise
 
-        # Set pass number
-        current_pass = 1
-        if state.source_book:
-            current_pass = state.source_book.pass_number + 1
-        source_book.pass_number = current_pass
+        # ── Stage 1b: Section 3 ────────────────────────────────
+        try:
+            s3 = await _generate_section_3(shared_ctx, model, previous_book)
+        except Exception as e:
+            if previous_book:
+                logger.warning("Stage 1b failed on rewrite — preserving previous: %s", e)
+                s3 = SourceBookSection3(
+                    why_strategic_gears=previous_book.why_strategic_gears,
+                )
+                fallback_events.append("stage1b_preserved_previous")
+            else:
+                raise
+
+        # ── Stage 1c: Section 4 (can run with lighter model) ──
+        try:
+            s4 = await _generate_section_4(shared_ctx, model, previous_book)
+        except Exception as e:
+            if previous_book:
+                logger.warning("Stage 1c failed on rewrite — preserving previous: %s", e)
+                s4 = SourceBookSection4(
+                    external_evidence=previous_book.external_evidence,
+                )
+                fallback_events.append("stage1c_preserved_previous")
+            else:
+                raise
+
+        # ── Stage 1d: Section 5 ────────────────────────────────
+        try:
+            s5 = await _generate_section_5(shared_ctx, model, previous_book)
+        except Exception as e:
+            if previous_book:
+                logger.warning("Stage 1d failed on rewrite — preserving previous: %s", e)
+                s5 = SourceBookSection5(
+                    proposed_solution=previous_book.proposed_solution,
+                )
+                fallback_events.append("stage1d_preserved_previous")
+            else:
+                raise
+
+        # ── Assemble SourceBook from split-call outputs ────────
+        source_book = SourceBook(
+            client_name=s12.client_name,
+            rfp_name=s12.rfp_name,
+            language=s12.language,
+            generation_date=s12.generation_date,
+            rfp_interpretation=s12.rfp_interpretation,
+            client_problem_framing=s12.client_problem_framing,
+            why_strategic_gears=s3.why_strategic_gears,
+            external_evidence=s4.external_evidence,
+            proposed_solution=s5.proposed_solution,
+            pass_number=current_pass,
+        )
 
         # Deduplicate projects by case-insensitive name
         if source_book.why_strategic_gears.project_experience:
@@ -622,121 +729,73 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
                 if key not in seen:
                     seen[key] = True
                     unique_projects.append(proj)
-            if len(unique_projects) < len(
-                source_book.why_strategic_gears.project_experience
-            ):
+            if len(unique_projects) < len(source_book.why_strategic_gears.project_experience):
                 logger.info(
                     "Deduped projects: %d → %d",
                     len(source_book.why_strategic_gears.project_experience),
                     len(unique_projects),
                 )
-            source_book.why_strategic_gears.project_experience = (
-                unique_projects
-            )
+            source_book.why_strategic_gears.project_experience = unique_projects
 
         logger.info(
-            "Stage 1 complete: pass=%d, capabilities=%d",
+            "Stage 1 complete: pass=%d, capabilities=%d, consultants=%d, projects=%d",
             current_pass,
             len(source_book.why_strategic_gears.capability_mapping),
+            len(source_book.why_strategic_gears.named_consultants),
+            len(source_book.why_strategic_gears.project_experience),
         )
 
         # ── Stage 2a: Section 6 (blueprints) ──────────────────
         section6 = await _generate_blueprints(source_book, model)
         source_book.slide_blueprints = section6.slide_blueprints
 
-        # Fallback for blueprints (safety net only)
         if not source_book.slide_blueprints:
             if state.source_book and state.source_book.slide_blueprints:
-                source_book.slide_blueprints = (
-                    state.source_book.slide_blueprints
-                )
-                fallback_events.append(
-                    f"stage2a_blueprints_preserved_from_previous_pass"
-                )
+                source_book.slide_blueprints = state.source_book.slide_blueprints
+                fallback_events.append("stage2a_blueprints_preserved_from_previous_pass")
                 logger.warning(
-                    "Stage 2a produced 0 blueprints on pass %d "
-                    "— preserved %d from previous pass (fallback)",
+                    "Stage 2a produced 0 blueprints on pass %d — preserved %d from previous",
                     current_pass,
                     len(source_book.slide_blueprints),
                 )
             else:
-                logger.error(
-                    "Stage 2a produced 0 slide blueprints and no "
-                    "previous pass to fall back to — hard failure"
-                )
+                logger.error("Stage 2a produced 0 blueprints and no previous to fall back to")
 
         # ── Stage 2b: Section 7 (evidence ledger) ─────────────
         section7 = await _generate_evidence_ledger(source_book, model)
         source_book.evidence_ledger = section7.evidence_ledger
 
-        # Fallback for evidence ledger (safety net only)
         if not source_book.evidence_ledger.entries:
-            logger.warning(
-                "Stage 2b produced empty evidence ledger — "
-                "building from citations (fallback)"
-            )
-            source_book.evidence_ledger = _build_evidence_ledger_from_citations(
-                source_book,
-            )
+            logger.warning("Stage 2b empty — building from citations (fallback)")
+            source_book.evidence_ledger = _build_evidence_ledger_from_citations(source_book)
             fallback_events.append("stage2b_evidence_ledger_from_citations")
-            if source_book.evidence_ledger.entries:
-                logger.info(
-                    "Evidence ledger populated from citations (fallback): "
-                    "%d entries",
-                    len(source_book.evidence_ledger.entries),
-                )
 
-        # ── EXT citation coherence check ─────────────────────────
+        # ── EXT citation coherence check ─────────────────────
         source_book = _strip_dangling_ext_citations(source_book, state)
 
-        # ── D9: Hedge scanner ──────────────────────────────────
+        # ── Hedge scanner ──────────────────────────────────────
         hedges = _scan_for_hedges(source_book)
         if hedges:
-            logger.warning(
-                "Hedge scanner found %d banned phrases: %s",
-                len(hedges),
-                ", ".join(hedges),
-            )
+            logger.warning("Hedge scanner found %d banned phrases: %s", len(hedges), ", ".join(hedges))
             source_book = await _rewrite_hedges(source_book, hedges)
             remaining = _scan_for_hedges(source_book)
             if remaining:
-                logger.warning(
-                    "Hedge rewrite pass 1: %d phrases remain: %s — "
-                    "running targeted second pass",
-                    len(remaining),
-                    ", ".join(remaining),
-                )
-                source_book = await _rewrite_hedges(
-                    source_book, remaining,
-                )
-                final_check = _scan_for_hedges(source_book)
-                if final_check:
-                    logger.warning(
-                        "Hedge rewrite pass 2: %d still remain: %s",
-                        len(final_check),
-                        ", ".join(final_check),
-                    )
-                else:
-                    logger.info(
-                        "Hedge rewrite pass 2: all phrases removed",
-                    )
-            else:
-                logger.info("Hedge rewrite: all banned phrases removed")
+                logger.warning("Hedge rewrite: %d phrases remain — second pass", len(remaining))
+                source_book = await _rewrite_hedges(source_book, remaining)
         else:
             logger.info("Hedge scanner: zero banned phrases found")
 
         logger.info(
-            "Source Book written: pass=%d, blueprints=%d, "
-            "evidence_entries=%d, capabilities=%d",
+            "Source Book written: pass=%d, blueprints=%d, evidence=%d, capabilities=%d",
             current_pass,
             len(source_book.slide_blueprints),
             len(source_book.evidence_ledger.entries),
             len(source_book.why_strategic_gears.capability_mapping),
         )
 
-        # Update session accounting (3 stages: Stage 1 + Stage 2a + Stage 2b)
+        # Update session accounting (6 stages: 1a + 1b + 1c + 1d + 2a + 2b)
         session = state.session.model_copy(deep=True)
-        session.total_llm_calls += 3
+        session.total_llm_calls += 6
 
         return {
             "source_book": source_book,
@@ -748,7 +807,6 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
         logger.error("Source Book Writer failed: %s", e)
         from src.models.state import ErrorInfo
 
-        # On rewrite passes, preserve the previous good result
         preserved_book = state.source_book if state.source_book else SourceBook(
             rfp_interpretation=RFPInterpretation(
                 objective_and_scope="Source Book generation failed.",
@@ -770,3 +828,11 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
                 message=str(e),
             ),
         }
+
+
+# ── Legacy compatibility ──────────────────────────────────────
+# Keep _build_user_message available for any code that imports it
+def _build_user_message(state: DeckForgeState, reviewer_feedback: str = "") -> str:
+    """Build user message (legacy — used by tests)."""
+    ctx = _build_shared_context(state, reviewer_feedback)
+    return json.dumps(ctx, ensure_ascii=False, default=str)

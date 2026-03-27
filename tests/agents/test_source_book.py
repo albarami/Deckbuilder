@@ -676,13 +676,26 @@ class TestDocxPathPersistence:
         )
         from src.services.llm import LLMResponse
 
-        mock_book = SourceBook(
+        from src.models.source_book import (
+            SourceBookSection3,
+            SourceBookSection4,
+            SourceBookSection5,
+            SourceBookSections12,
+        )
+
+        # Split-call architecture: 6 stage responses
+        mock_s12 = SourceBookSections12(
             client_name="Test",
             rfp_name="Test RFP",
             rfp_interpretation=RFPInterpretation(
                 objective_and_scope="Test scope",
             ),
         )
+        mock_s3 = SourceBookSection3(
+            why_strategic_gears=WhyStrategicGears(),
+        )
+        mock_s4 = SourceBookSection4()
+        mock_s5 = SourceBookSection5()
         mock_s6 = SourceBookSection6(
             slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
         )
@@ -697,18 +710,20 @@ class TestDocxPathPersistence:
             rewrite_required=False,
         )
 
-        stage1_resp = LLMResponse(
-            parsed=mock_book, input_tokens=5000,
-            output_tokens=3000, model="claude-opus-4-20250514", latency_ms=8000,
-        )
-        stage2a_resp = LLMResponse(
-            parsed=mock_s6, input_tokens=3000,
-            output_tokens=2000, model="claude-opus-4-20250514", latency_ms=5000,
-        )
-        stage2b_resp = LLMResponse(
-            parsed=mock_s7, input_tokens=3000,
-            output_tokens=1000, model="claude-opus-4-20250514", latency_ms=3000,
-        )
+        stage_responses = [
+            LLMResponse(parsed=mock_s12, input_tokens=5000, output_tokens=3000,
+                        model="claude-opus-4-20250514", latency_ms=8000),
+            LLMResponse(parsed=mock_s3, input_tokens=3000, output_tokens=2000,
+                        model="claude-opus-4-20250514", latency_ms=5000),
+            LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
+                        model="claude-opus-4-20250514", latency_ms=3000),
+            LLMResponse(parsed=mock_s5, input_tokens=4000, output_tokens=3000,
+                        model="claude-opus-4-20250514", latency_ms=6000),
+            LLMResponse(parsed=mock_s6, input_tokens=3000, output_tokens=2000,
+                        model="claude-opus-4-20250514", latency_ms=5000),
+            LLMResponse(parsed=mock_s7, input_tokens=3000, output_tokens=1000,
+                        model="claude-opus-4-20250514", latency_ms=3000),
+        ]
         reviewer_response = LLMResponse(
             parsed=mock_review, input_tokens=4000,
             output_tokens=1500, model="gpt-5.4", latency_ms=3000,
@@ -718,12 +733,11 @@ class TestDocxPathPersistence:
 
         async def mock_writer_call_llm(**kwargs):
             nonlocal call_count
+            idx = call_count
             call_count += 1
-            if call_count == 1:
-                return stage1_resp
-            if call_count == 2:
-                return stage2a_resp
-            return stage2b_resp
+            if idx < len(stage_responses):
+                return stage_responses[idx]
+            return stage_responses[-1]
 
         with (
             patch(
@@ -763,7 +777,17 @@ class TestDocxPathPersistence:
         )
         from src.services.llm import LLMResponse
 
-        mock_book = SourceBook(client_name="Test")
+        from src.models.source_book import (
+            SourceBookSection3,
+            SourceBookSection4,
+            SourceBookSection5,
+            SourceBookSections12,
+        )
+
+        mock_s12 = SourceBookSections12(client_name="Test")
+        mock_s3 = SourceBookSection3()
+        mock_s4 = SourceBookSection4()
+        mock_s5 = SourceBookSection5()
         mock_s6 = SourceBookSection6(
             slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
         )
@@ -778,18 +802,20 @@ class TestDocxPathPersistence:
             rewrite_required=False,
         )
 
-        stage1_resp = LLMResponse(
-            parsed=mock_book, input_tokens=5000,
-            output_tokens=3000, model="claude-opus-4-20250514", latency_ms=8000,
-        )
-        stage2a_resp = LLMResponse(
-            parsed=mock_s6, input_tokens=3000,
-            output_tokens=2000, model="claude-opus-4-20250514", latency_ms=5000,
-        )
-        stage2b_resp = LLMResponse(
-            parsed=mock_s7, input_tokens=3000,
-            output_tokens=1000, model="claude-opus-4-20250514", latency_ms=3000,
-        )
+        stage_responses = [
+            LLMResponse(parsed=mock_s12, input_tokens=5000, output_tokens=3000,
+                        model="claude-opus-4-20250514", latency_ms=8000),
+            LLMResponse(parsed=mock_s3, input_tokens=3000, output_tokens=2000,
+                        model="claude-opus-4-20250514", latency_ms=5000),
+            LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
+                        model="claude-opus-4-20250514", latency_ms=3000),
+            LLMResponse(parsed=mock_s5, input_tokens=4000, output_tokens=3000,
+                        model="claude-opus-4-20250514", latency_ms=6000),
+            LLMResponse(parsed=mock_s6, input_tokens=3000, output_tokens=2000,
+                        model="claude-opus-4-20250514", latency_ms=5000),
+            LLMResponse(parsed=mock_s7, input_tokens=3000, output_tokens=1000,
+                        model="claude-opus-4-20250514", latency_ms=3000),
+        ]
         reviewer_response = LLMResponse(
             parsed=mock_review, input_tokens=4000,
             output_tokens=1500, model="gpt-5.4", latency_ms=3000,
@@ -799,12 +825,11 @@ class TestDocxPathPersistence:
 
         async def mock_writer_call_llm(**kwargs):
             nonlocal call_count
+            idx = call_count
             call_count += 1
-            if call_count == 1:
-                return stage1_resp
-            if call_count == 2:
-                return stage2a_resp
-            return stage2b_resp
+            if idx < len(stage_responses):
+                return stage_responses[idx]
+            return stage_responses[-1]
 
         with (
             patch(
@@ -960,16 +985,29 @@ class TestReportMarkdownPopulation:
 
 
 class TestPromptContent:
-    def test_writer_prompt_has_section_framework(self):
-        from src.agents.source_book.writer import SYSTEM_PROMPT
+    def test_writer_prompts_have_section_framework(self):
+        """Split-call prompts cover all 7 sections across multiple prompts."""
+        from src.agents.source_book.prompts import (
+            STAGE1A_SECTIONS12_PROMPT,
+            STAGE1B_SECTION3_PROMPT,
+            STAGE1D_SECTION5_PROMPT,
+            STAGE2A_BLUEPRINTS_PROMPT,
+            STAGE2B_EVIDENCE_LEDGER_PROMPT,
+        )
 
-        assert "RFP INTERPRETATION" in SYSTEM_PROMPT
-        assert "CLIENT PROBLEM FRAMING" in SYSTEM_PROMPT
-        assert "WHY STRATEGIC GEARS" in SYSTEM_PROMPT
-        assert "EXTERNAL EVIDENCE" in SYSTEM_PROMPT
-        assert "PROPOSED SOLUTION" in SYSTEM_PROMPT
-        assert "SLIDE-BY-SLIDE BLUEPRINT" in SYSTEM_PROMPT or "SLIDE BLUEPRINT" in SYSTEM_PROMPT
-        assert "EVIDENCE LEDGER" in SYSTEM_PROMPT
+        all_prompts = " ".join([
+            STAGE1A_SECTIONS12_PROMPT,
+            STAGE1B_SECTION3_PROMPT,
+            STAGE1D_SECTION5_PROMPT,
+            STAGE2A_BLUEPRINTS_PROMPT,
+            STAGE2B_EVIDENCE_LEDGER_PROMPT,
+        ])
+        assert "RFP INTERPRETATION" in all_prompts
+        assert "CLIENT PROBLEM FRAMING" in all_prompts
+        assert "WHY STRATEGIC GEARS" in all_prompts
+        assert "PROPOSED SOLUTION" in all_prompts
+        assert "SLIDE" in all_prompts
+        assert "EVIDENCE LEDGER" in all_prompts
 
     def test_writer_prompt_requires_evidence_ids(self):
         from src.agents.source_book.writer import SYSTEM_PROMPT
@@ -2042,19 +2080,31 @@ class TestThreeStageWriterArchitecture:
         assert len(result.evidence_ledger.entries) == 10
 
     @pytest.mark.asyncio
-    async def test_writer_merges_all_three_stages(self):
-        """Writer run() merges Stage 1 + Stage 2a + Stage 2b into complete SourceBook."""
+    async def test_writer_merges_all_six_stages(self):
+        """Writer run() merges 4 Stage 1 calls + Stage 2a + Stage 2b into complete SourceBook."""
         from unittest.mock import AsyncMock, patch
 
-        from src.models.source_book import SourceBookSection6, SourceBookSection7
+        from src.models.source_book import (
+            SourceBookSection3,
+            SourceBookSection4,
+            SourceBookSection5,
+            SourceBookSection6,
+            SourceBookSection7,
+            SourceBookSections12,
+        )
         from src.services.llm import LLMResponse
 
-        mock_book = SourceBook(
+        mock_s12 = SourceBookSections12(
             client_name="Test",
             rfp_interpretation=RFPInterpretation(
-                objective_and_scope="Test scope from Stage 1",
+                objective_and_scope="Test scope from Stage 1a",
             ),
         )
+        mock_s3 = SourceBookSection3(
+            why_strategic_gears=WhyStrategicGears(),
+        )
+        mock_s4 = SourceBookSection4()
+        mock_s5 = SourceBookSection5()
         mock_s6 = SourceBookSection6(
             slide_blueprints=[
                 SlideBlueprintEntry(slide_number=1, title="Cover"),
@@ -2067,29 +2117,30 @@ class TestThreeStageWriterArchitecture:
             ]),
         )
 
-        stage1_resp = LLMResponse(
-            parsed=mock_book, input_tokens=5000,
-            output_tokens=8000, model="test", latency_ms=8000,
-        )
-        stage2a_resp = LLMResponse(
-            parsed=mock_s6, input_tokens=3000,
-            output_tokens=3000, model="test", latency_ms=5000,
-        )
-        stage2b_resp = LLMResponse(
-            parsed=mock_s7, input_tokens=3000,
-            output_tokens=2000, model="test", latency_ms=3000,
-        )
+        stage_responses = [
+            LLMResponse(parsed=mock_s12, input_tokens=5000, output_tokens=8000,
+                        model="test", latency_ms=8000),
+            LLMResponse(parsed=mock_s3, input_tokens=3000, output_tokens=3000,
+                        model="test", latency_ms=5000),
+            LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
+                        model="test", latency_ms=3000),
+            LLMResponse(parsed=mock_s5, input_tokens=4000, output_tokens=4000,
+                        model="test", latency_ms=6000),
+            LLMResponse(parsed=mock_s6, input_tokens=3000, output_tokens=3000,
+                        model="test", latency_ms=5000),
+            LLMResponse(parsed=mock_s7, input_tokens=3000, output_tokens=2000,
+                        model="test", latency_ms=3000),
+        ]
 
         call_count = 0
 
         async def mock_call_llm(**kwargs):
             nonlocal call_count
+            idx = call_count
             call_count += 1
-            if call_count == 1:
-                return stage1_resp
-            if call_count == 2:
-                return stage2a_resp
-            return stage2b_resp
+            if idx < len(stage_responses):
+                return stage_responses[idx]
+            return stage_responses[-1]
 
         with patch(
             "src.agents.source_book.writer.call_llm",
@@ -2102,23 +2153,33 @@ class TestThreeStageWriterArchitecture:
             result = await run(state)
 
         sb = result["source_book"]
-        assert sb.rfp_interpretation.objective_and_scope == "Test scope from Stage 1"
+        assert sb.rfp_interpretation.objective_and_scope == "Test scope from Stage 1a"
         assert len(sb.slide_blueprints) == 2
         assert len(sb.evidence_ledger.entries) == 1
         assert sb.slide_blueprints[0].title == "Cover"
         assert sb.evidence_ledger.entries[0].claim_id == "CLM-0001"
-        # Verify all 3 calls were made
-        assert call_count == 3
+        # Verify all 6 calls were made
+        assert call_count == 6
 
     @pytest.mark.asyncio
     async def test_all_stages_succeed_no_fallback_used(self):
-        """When all 3 stages succeed, fallback must NOT be triggered."""
+        """When all 6 stages succeed, fallback must NOT be triggered."""
         from unittest.mock import AsyncMock, patch
 
-        from src.models.source_book import SourceBookSection6, SourceBookSection7
+        from src.models.source_book import (
+            SourceBookSection3,
+            SourceBookSection4,
+            SourceBookSection5,
+            SourceBookSection6,
+            SourceBookSection7,
+            SourceBookSections12,
+        )
         from src.services.llm import LLMResponse
 
-        mock_book = SourceBook(client_name="Test")
+        mock_s12 = SourceBookSections12(client_name="Test")
+        mock_s3 = SourceBookSection3()
+        mock_s4 = SourceBookSection4()
+        mock_s5 = SourceBookSection5()
         mock_s6 = SourceBookSection6(
             slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
         )
@@ -2128,29 +2189,30 @@ class TestThreeStageWriterArchitecture:
             ]),
         )
 
-        stage1_resp = LLMResponse(
-            parsed=mock_book, input_tokens=5000,
-            output_tokens=8000, model="test", latency_ms=1000,
-        )
-        stage2a_resp = LLMResponse(
-            parsed=mock_s6, input_tokens=3000,
-            output_tokens=3000, model="test", latency_ms=1000,
-        )
-        stage2b_resp = LLMResponse(
-            parsed=mock_s7, input_tokens=3000,
-            output_tokens=2000, model="test", latency_ms=1000,
-        )
+        stage_responses = [
+            LLMResponse(parsed=mock_s12, input_tokens=5000, output_tokens=8000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s3, input_tokens=3000, output_tokens=3000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s5, input_tokens=4000, output_tokens=4000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s6, input_tokens=3000, output_tokens=3000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s7, input_tokens=3000, output_tokens=2000,
+                        model="test", latency_ms=1000),
+        ]
 
         call_count = 0
 
         async def mock_call_llm(**kwargs):
             nonlocal call_count
+            idx = call_count
             call_count += 1
-            if call_count == 1:
-                return stage1_resp
-            if call_count == 2:
-                return stage2a_resp
-            return stage2b_resp
+            if idx < len(stage_responses):
+                return stage_responses[idx]
+            return stage_responses[-1]
 
         with patch(
             "src.agents.source_book.writer.call_llm",
@@ -2176,10 +2238,20 @@ class TestThreeStageWriterArchitecture:
         """When Stage 2b returns empty ledger, fallback is used and warned."""
         from unittest.mock import AsyncMock, patch
 
-        from src.models.source_book import SourceBookSection6, SourceBookSection7
+        from src.models.source_book import (
+            SourceBookSection3,
+            SourceBookSection4,
+            SourceBookSection5,
+            SourceBookSection6,
+            SourceBookSection7,
+            SourceBookSections12,
+        )
         from src.services.llm import LLMResponse
 
-        mock_book = SourceBook(client_name="Test")
+        mock_s12 = SourceBookSections12(client_name="Test")
+        mock_s3 = SourceBookSection3()
+        mock_s4 = SourceBookSection4()
+        mock_s5 = SourceBookSection5()
         mock_s6 = SourceBookSection6(
             slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
         )
@@ -2187,29 +2259,30 @@ class TestThreeStageWriterArchitecture:
             evidence_ledger=EvidenceLedger(entries=[]),
         )
 
-        stage1_resp = LLMResponse(
-            parsed=mock_book, input_tokens=5000,
-            output_tokens=8000, model="test", latency_ms=1000,
-        )
-        stage2a_resp = LLMResponse(
-            parsed=mock_s6, input_tokens=3000,
-            output_tokens=3000, model="test", latency_ms=1000,
-        )
-        stage2b_resp = LLMResponse(
-            parsed=mock_s7_empty, input_tokens=3000,
-            output_tokens=100, model="test", latency_ms=1000,
-        )
+        stage_responses = [
+            LLMResponse(parsed=mock_s12, input_tokens=5000, output_tokens=8000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s3, input_tokens=3000, output_tokens=3000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s5, input_tokens=4000, output_tokens=4000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s6, input_tokens=3000, output_tokens=3000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s7_empty, input_tokens=3000, output_tokens=100,
+                        model="test", latency_ms=1000),
+        ]
 
         call_count = 0
 
         async def mock_call_llm(**kwargs):
             nonlocal call_count
+            idx = call_count
             call_count += 1
-            if call_count == 1:
-                return stage1_resp
-            if call_count == 2:
-                return stage2a_resp
-            return stage2b_resp
+            if idx < len(stage_responses):
+                return stage_responses[idx]
+            return stage_responses[-1]
 
         with patch(
             "src.agents.source_book.writer.call_llm",

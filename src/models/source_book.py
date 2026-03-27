@@ -257,6 +257,55 @@ class SourceBookSection7(DeckForgeBaseModel):
 
 
 # ──────────────────────────────────────────────────────────────
+# Split-call models for deep content generation
+# ──────────────────────────────────────────────────────────────
+
+
+class SourceBookSections12(DeckForgeBaseModel):
+    """Stage 1a output: Sections 1-2 (RFP Interpretation + Problem Framing).
+
+    Generated in a dedicated LLM call so each section gets full prose depth.
+    Also captures metadata fields (client_name, rfp_name, language).
+    """
+
+    client_name: str = ""
+    rfp_name: str = ""
+    language: str = "en"
+    generation_date: str = ""
+    rfp_interpretation: RFPInterpretation = Field(default_factory=RFPInterpretation)
+    client_problem_framing: ClientProblemFraming = Field(default_factory=ClientProblemFraming)
+
+
+class SourceBookSection3(DeckForgeBaseModel):
+    """Stage 1b output: Section 3 (Why Strategic Gears).
+
+    Dedicated call with full token budget for team profiles, project
+    experience, and capability mapping.
+    """
+
+    why_strategic_gears: WhyStrategicGears = Field(default_factory=WhyStrategicGears)
+
+
+class SourceBookSection4(DeckForgeBaseModel):
+    """Stage 1c output: Section 4 (External Evidence).
+
+    Dedicated call to curate external evidence from evidence pack.
+    """
+
+    external_evidence: ExternalEvidenceSection = Field(default_factory=ExternalEvidenceSection)
+
+
+class SourceBookSection5(DeckForgeBaseModel):
+    """Stage 1d output: Section 5 (Proposed Solution / Methodology).
+
+    This is the highest-weight section. Gets its own dedicated call
+    with full token budget for deep methodology, governance, and timeline.
+    """
+
+    proposed_solution: ProposedSolution = Field(default_factory=ProposedSolution)
+
+
+# ──────────────────────────────────────────────────────────────
 # Source Book Review (critique output)
 # ──────────────────────────────────────────────────────────────
 

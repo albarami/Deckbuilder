@@ -369,24 +369,44 @@ async def run_source_book_only(
 
     if source_book:
         prose_parts = [
+            # Section 1: RFP Interpretation
             source_book.rfp_interpretation.objective_and_scope,
             source_book.rfp_interpretation.constraints_and_compliance,
             source_book.rfp_interpretation.unstated_evaluator_priorities,
             source_book.rfp_interpretation.probable_scoring_logic,
+            # Section 2: Client Problem Framing
             source_book.client_problem_framing.current_state_challenge,
             source_book.client_problem_framing.why_it_matters_now,
             source_book.client_problem_framing.transformation_logic,
             source_book.client_problem_framing.risk_if_unchanged,
+            # Section 5: Proposed Solution
             source_book.proposed_solution.methodology_overview,
             source_book.proposed_solution.governance_framework,
             source_book.proposed_solution.timeline_logic,
             source_book.proposed_solution.value_case_and_differentiation,
         ]
-        # Add certifications (now list[str])
+        # Section 3: consultant profiles, project outcomes, capability descriptions
+        for nc in source_book.why_strategic_gears.named_consultants:
+            prose_parts.extend([nc.relevance, nc.justification])
+        for pe in source_book.why_strategic_gears.project_experience:
+            prose_parts.append(pe.outcomes)
+        for cm in source_book.why_strategic_gears.capability_mapping:
+            prose_parts.append(cm.sg_capability)
+        # Section 3: certifications
         if source_book.why_strategic_gears.certifications_and_compliance:
             prose_parts.append(
                 " ".join(source_book.why_strategic_gears.certifications_and_compliance)
             )
+        # Section 4: external evidence
+        if source_book.external_evidence.coverage_assessment:
+            prose_parts.append(source_book.external_evidence.coverage_assessment)
+        for ee in source_book.external_evidence.entries:
+            prose_parts.extend([ee.relevance, ee.key_finding])
+        # Section 5: phase activities and deliverables
+        for phase in source_book.proposed_solution.phase_details:
+            prose_parts.extend(phase.activities)
+            prose_parts.extend(phase.deliverables)
+            prose_parts.append(phase.governance)
         sb_word_count = sum(_count_words(p) for p in prose_parts)
 
         cap_count = len(source_book.why_strategic_gears.capability_mapping)
