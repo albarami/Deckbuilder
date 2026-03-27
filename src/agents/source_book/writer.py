@@ -404,9 +404,29 @@ def _build_shared_context(
     }
 
 
-def _build_stage_payload(shared_ctx: dict, previous_section_data: dict | None = None) -> str:
-    """Build a JSON payload for a stage call, optionally including previous section output."""
-    payload = dict(shared_ctx)
+def _build_stage_payload(
+    shared_ctx: dict,
+    previous_section_data: dict | None = None,
+    keep_keys: list[str] | None = None,
+    drop_keys: list[str] | None = None,
+) -> str:
+    """Build a JSON payload for a stage call with context filtering.
+
+    Args:
+        shared_ctx: Full shared context from _build_shared_context.
+        previous_section_data: Previous section output for rewrite passes.
+        keep_keys: If provided, ONLY include these keys from shared_ctx.
+        drop_keys: If provided, DROP these keys from shared_ctx.
+
+    This ensures each stage receives only the context it needs, keeping
+    the input payload small enough that max_tokens isn't consumed by input.
+    """
+    if keep_keys:
+        payload = {k: shared_ctx[k] for k in keep_keys if k in shared_ctx}
+    elif drop_keys:
+        payload = {k: v for k, v in shared_ctx.items() if k not in drop_keys}
+    else:
+        payload = dict(shared_ctx)
     if previous_section_data:
         payload["previous_section_content"] = previous_section_data
     return json.dumps(payload, ensure_ascii=False, default=str)
@@ -435,14 +455,22 @@ async def _generate_sections_12(
     model: str,
     previous_book: SourceBook | None = None,
 ) -> SourceBookSections12:
-    """Stage 1a: Sections 1-2 (RFP Interpretation + Client Problem Framing)."""
+    """Stage 1a: Sections 1-2 (RFP Interpretation + Client Problem Framing).
+
+    Needs: rfp_context, proposal_strategy, reference_index (for compliance mapping),
+    mandatory_constraints, reviewer_feedback, output_language.
+    Drops: knowledge_graph, external_evidence_pack (not needed for RFP interpretation).
+    """
     prev_data = None
     if previous_book:
         prev_data = {
             "rfp_interpretation": previous_book.rfp_interpretation.model_dump(mode="json"),
             "client_problem_framing": previous_book.client_problem_framing.model_dump(mode="json"),
         }
-    payload = _build_stage_payload(shared_ctx, prev_data)
+    payload = _build_stage_payload(
+        shared_ctx, prev_data,
+        drop_keys=["knowledge_graph", "external_evidence_pack"],
+    )
     logger.info("Stage 1a (Sections 1-2): input chars=%d", len(payload))
 
     result = await call_llm(
@@ -467,13 +495,25 @@ async def _generate_section_3(
     model: str,
     previous_book: SourceBook | None = None,
 ) -> SourceBookSection3:
-    """Stage 1b: Section 3 (Why Strategic Gears)."""
+    """Stage 1b: Section 3 (Why Strategic Gears).
+
+    Needs: knowledge_graph (team, projects), reference_index, mandatory_constraints
+    (for team roles), rfp_team_requirements, proposal_strategy, available_ext_ids.
+    Drops: full rfp_context (too large), external_evidence_pack (not needed here).
+    """
     prev_data = None
     if previous_book:
         prev_data = {
             "why_strategic_gears": previous_book.why_strategic_gears.model_dump(mode="json"),
         }
-    payload = _build_stage_payload(shared_ctx, prev_data)
+    payload = _build_stage_payload(
+        shared_ctx, prev_data,
+        keep_keys=[
+            "knowledge_graph", "reference_index", "mandatory_constraints",
+            "rfp_team_requirements", "proposal_strategy", "available_ext_ids",
+            "reviewer_feedback", "output_language", "sector", "geography",
+        ],
+    )
     logger.info("Stage 1b (Section 3): input chars=%d", len(payload))
 
     result = await call_llm(
@@ -481,7 +521,7 @@ async def _generate_section_3(
         system_prompt=STAGE1B_SECTION3_PROMPT,
         user_message=payload,
         response_model=SourceBookSection3,
-        max_tokens=16000,
+        max_tokens=24000,
         temperature=0.1,
     )
 
@@ -500,13 +540,23 @@ async def _generate_section_4(
     model: str,
     previous_book: SourceBook | None = None,
 ) -> SourceBookSection4:
-    """Stage 1c: Section 4 (External Evidence)."""
+    """Stage 1c: Section 4 (External Evidence).
+
+    Needs: external_evidence_pack, available_ext_ids, proposal_strategy.
+    Drops: rfp_context, knowledge_graph, reference_index (not needed for evidence curation).
+    """
     prev_data = None
     if previous_book:
         prev_data = {
             "external_evidence": previous_book.external_evidence.model_dump(mode="json"),
         }
-    payload = _build_stage_payload(shared_ctx, prev_data)
+    payload = _build_stage_payload(
+        shared_ctx, prev_data,
+        keep_keys=[
+            "external_evidence_pack", "available_ext_ids", "proposal_strategy",
+            "reviewer_feedback", "output_language",
+        ],
+    )
     logger.info("Stage 1c (Section 4): input chars=%d", len(payload))
 
     result = await call_llm(
@@ -531,13 +581,21 @@ async def _generate_section_5(
     model: str,
     previous_book: SourceBook | None = None,
 ) -> SourceBookSection5:
-    """Stage 1d: Section 5 (Proposed Solution — highest weight)."""
+    """Stage 1d: Section 5 (Proposed Solution — highest weight).
+
+    Needs: rfp_context (for scope), mandatory_constraints (for timeline),
+    proposal_strategy, reference_index (for framework references).
+    Drops: knowledge_graph, external_evidence_pack (not needed for methodology).
+    """
     prev_data = None
     if previous_book:
         prev_data = {
             "proposed_solution": previous_book.proposed_solution.model_dump(mode="json"),
         }
-    payload = _build_stage_payload(shared_ctx, prev_data)
+    payload = _build_stage_payload(
+        shared_ctx, prev_data,
+        drop_keys=["knowledge_graph", "external_evidence_pack"],
+    )
     logger.info("Stage 1d (Section 5): input chars=%d", len(payload))
 
     result = await call_llm(
