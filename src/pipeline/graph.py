@@ -686,6 +686,25 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
             review.competitive_viability,
         )
 
+        # Surface per-section critiques for diagnostics
+        if review.section_critiques:
+            for sc in review.section_critiques:
+                issues_str = "; ".join(sc.issues[:3]) if sc.issues else "none"
+                logger.info(
+                    "  Section '%s': score=%d | issues: %s",
+                    sc.section_id,
+                    sc.score,
+                    issues_str[:200],
+                )
+                if sc.rewrite_instructions:
+                    for ri in sc.rewrite_instructions[:2]:
+                        logger.info("    rewrite: %s", ri[:150])
+        if review.coherence_issues:
+            logger.info(
+                "  Coherence issues: %s",
+                "; ".join(review.coherence_issues[:3]),
+            )
+
         # Check if we should stop
         if not orchestrator.should_continue_iteration(
             review, current_pass=pass_num, max_passes=max_passes
