@@ -267,11 +267,46 @@ async def _call_anthropic(  # noqa: UP047
 
     try:
         parsed = response_model.model_validate(tool_block.input)
-    except Exception as e:
-        raise LLMError(
-            model=model, attempts=1,
-            last_error=ValueError(f"Structured output validation failed: {e}"),
-        ) from e
+    except Exception as first_err:
+        # Retry: if any field value is a JSON string instead of a dict,
+        # try to parse it. This handles the case where Anthropic returns
+        # e.g. proposed_solution: "{...}" instead of proposed_solution: {...}
+        import json as _json
+
+        fixed_input = dict(tool_block.input) if tool_block.input else {}
+        did_fix = False
+        for key, val in fixed_input.items():
+            if isinstance(val, str) and val.strip().startswith("{"):
+                try:
+                    fixed_input[key] = _json.loads(val)
+                    did_fix = True
+                    logger.info(
+                        "LLM string-to-dict fix: parsed field '%s' from string to dict",
+                        key,
+                    )
+                except _json.JSONDecodeError:
+                    pass
+        if did_fix:
+            try:
+                parsed = response_model.model_validate(fixed_input)
+                logger.info(
+                    "LLM string-to-dict fix: validation succeeded for %s",
+                    response_model.__name__,
+                )
+            except Exception as retry_err:
+                raise LLMError(
+                    model=model, attempts=1,
+                    last_error=ValueError(
+                        f"Structured output validation failed: {retry_err}"
+                    ),
+                ) from retry_err
+        else:
+            raise LLMError(
+                model=model, attempts=1,
+                last_error=ValueError(
+                    f"Structured output validation failed: {first_err}"
+                ),
+            ) from first_err
     return parsed, response.usage.input_tokens, response.usage.output_tokens
 
 
