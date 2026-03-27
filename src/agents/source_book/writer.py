@@ -583,19 +583,40 @@ async def _generate_section_5(
 ) -> SourceBookSection5:
     """Stage 1d: Section 5 (Proposed Solution — highest weight).
 
-    Needs: rfp_context (for scope), mandatory_constraints (for timeline),
-    proposal_strategy, reference_index (for framework references).
-    Drops: knowledge_graph, external_evidence_pack (not needed for methodology).
+    This is the MOST IMPORTANT section. It gets a heavily trimmed context
+    to maximize output token budget. Only keeps: mandatory_constraints,
+    proposal_strategy scope items, rfp_project_timeline, and reviewer_feedback.
+    Drops everything else to maximize room for deep methodology output.
     """
     prev_data = None
     if previous_book:
         prev_data = {
             "proposed_solution": previous_book.proposed_solution.model_dump(mode="json"),
         }
-    payload = _build_stage_payload(
-        shared_ctx, prev_data,
-        drop_keys=["knowledge_graph", "external_evidence_pack"],
-    )
+
+    # Build a MINIMAL payload for Section 5 — only what methodology needs
+    compact_rfp = None
+    if shared_ctx.get("rfp_context"):
+        rfp = shared_ctx["rfp_context"]
+        # Extract only scope items and deliverables — not the full RFP dump
+        compact_rfp = {
+            "rfp_name": rfp.get("rfp_name", ""),
+            "scope_items": rfp.get("scope_items", []),
+            "deliverables": rfp.get("deliverables", []),
+        }
+
+    compact_payload = {
+        "mandatory_constraints": shared_ctx.get("mandatory_constraints"),
+        "rfp_project_timeline": shared_ctx.get("rfp_project_timeline"),
+        "rfp_scope_summary": compact_rfp,
+        "proposal_strategy": shared_ctx.get("proposal_strategy"),
+        "reviewer_feedback": shared_ctx.get("reviewer_feedback"),
+        "output_language": shared_ctx.get("output_language"),
+    }
+    if prev_data:
+        compact_payload["previous_section_content"] = prev_data
+
+    payload = json.dumps(compact_payload, ensure_ascii=False, default=str)
     logger.info("Stage 1d (Section 5): input chars=%d", len(payload))
 
     result = await call_llm(
@@ -603,7 +624,7 @@ async def _generate_section_5(
         system_prompt=STAGE1D_SECTION5_PROMPT,
         user_message=payload,
         response_model=SourceBookSection5,
-        max_tokens=24000,
+        max_tokens=32000,
         temperature=0.1,
     )
 

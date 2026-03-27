@@ -441,7 +441,7 @@ async def run(state: DeckForgeState) -> dict:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=ExternalEvidencePack,
-            max_tokens=8000,
+            max_tokens=16000,
         )
         evidence_pack = llm_result.parsed
         evidence_pack.search_queries_used = queries
