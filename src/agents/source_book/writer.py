@@ -203,6 +203,157 @@ def _strip_dangling_ext_citations(
     return source_book
 
 
+def _engine1_guard(
+    source_book: SourceBook,
+    state: DeckForgeState,
+) -> SourceBook:
+    """Engine 1 / Engine 2 guard — validate firm-specific data against KG.
+
+    After the Writer produces content, this guard checks every consultant
+    name and project against the actual knowledge graph. Anything the LLM
+    fabricated (not in KG) is stripped and replaced with honest placeholders.
+
+    Rules:
+    - Consultant names must exist in KG people list → recommended_candidate
+    - Consultant names NOT in KG → cleared, set to open_role_profile
+    - No consultant is ever confirmed_candidate (Engine 2 not integrated)
+    - Projects must exist in KG projects list → kept with clear sourcing
+    - Projects NOT in KG → stripped, evidence_gap added
+    - Evidence ledger: internal entries without real KG/ref backing → gap
+    """
+    wsg = source_book.why_strategic_gears
+
+    # Build KG name and project lookup sets
+    kg_names: set[str] = set()
+    kg_project_names: set[str] = set()
+    if state.knowledge_graph:
+        for p in state.knowledge_graph.people:
+            if p.person_type == "internal_team" and p.name:
+                kg_names.add(p.name.strip().lower())
+        for pr in state.knowledge_graph.projects:
+            if pr.project_name:
+                kg_project_names.add(pr.project_name.strip().lower())
+
+    # ── Guard: Consultants ────────────────────────────────
+    fabricated_names: list[str] = []
+    for nc in wsg.named_consultants:
+        # Never allow confirmed_candidate — Engine 2 not integrated
+        if nc.staffing_status == "confirmed_candidate":
+            nc.staffing_status = "recommended_candidate"
+            nc.source_of_recommendation = (
+                "indexed from data test folder — not authoritative company backend"
+            )
+            logger.info(
+                "Engine 1 guard: downgraded '%s' from confirmed → recommended",
+                nc.name,
+            )
+
+        # Check if name exists in KG
+        if nc.name and nc.name.strip():
+            name_lower = nc.name.strip().lower()
+            if kg_names and name_lower in kg_names:
+                # Name is real — keep as recommended_candidate
+                nc.staffing_status = "recommended_candidate"
+                if "indexed from" not in (nc.source_of_recommendation or ""):
+                    nc.source_of_recommendation = (
+                        "indexed from data test folder — "
+                        "not authoritative company backend"
+                    )
+            elif not kg_names:
+                # KG has 0 people — all names are fabricated
+                fabricated_names.append(nc.name)
+                nc.name = ""
+                nc.staffing_status = "open_role_profile"
+                nc.source_of_recommendation = "open_role_requirement"
+                nc.confidence = "low"
+            else:
+                # KG has people but this name is NOT in it — fabricated
+                fabricated_names.append(nc.name)
+                nc.name = ""
+                nc.staffing_status = "open_role_profile"
+                nc.source_of_recommendation = "open_role_requirement"
+                nc.confidence = "low"
+
+    if fabricated_names:
+        logger.warning(
+            "Engine 1 guard: stripped %d fabricated consultant names: %s "
+            "(KG has %d real people)",
+            len(fabricated_names),
+            fabricated_names,
+            len(kg_names),
+        )
+
+    # ── Guard: Projects ───────────────────────────────────
+    real_projects = []
+    fabricated_projects: list[str] = []
+    for pe in wsg.project_experience:
+        proj_lower = pe.project_name.strip().lower() if pe.project_name else ""
+        if kg_project_names and proj_lower in kg_project_names:
+            real_projects.append(pe)
+        elif not kg_project_names:
+            # KG has 0 projects — all are fabricated
+            fabricated_projects.append(pe.project_name)
+        else:
+            # KG has projects but this one is NOT in it
+            fabricated_projects.append(pe.project_name)
+
+    if fabricated_projects:
+        logger.warning(
+            "Engine 1 guard: stripped %d fabricated projects (KG has %d real): %s",
+            len(fabricated_projects),
+            len(kg_project_names),
+            fabricated_projects[:5],
+        )
+    wsg.project_experience = real_projects
+
+    # ── Guard: Evidence Ledger ────────────────────────────
+    # Build set of valid internal references from KG and reference_index
+    valid_internal_refs: set[str] = set()
+    if state.reference_index:
+        for c in state.reference_index.claims:
+            if c.claim_id:
+                valid_internal_refs.add(c.claim_id)
+    # KG project IDs as valid references
+    if state.knowledge_graph:
+        for pr in state.knowledge_graph.projects:
+            if pr.project_id:
+                valid_internal_refs.add(pr.project_id)
+
+    gap_count = 0
+    for entry in source_book.evidence_ledger.entries:
+        if entry.source_type == "internal" and entry.verifiability_status == "verified":
+            # Check if the referenced source actually exists
+            has_valid_ref = any(
+                ref in entry.source_reference or ref in entry.claim_id
+                for ref in valid_internal_refs
+            ) if valid_internal_refs else False
+            if not has_valid_ref:
+                entry.verifiability_status = "gap"
+                entry.verification_note = (
+                    "Engine 1 guard: no matching reference found in KG or "
+                    "reference_index. Must be populated from company backend."
+                )
+                gap_count += 1
+
+    if gap_count:
+        logger.warning(
+            "Engine 1 guard: changed %d evidence entries from 'verified' to 'gap' "
+            "(no matching KG/reference data)",
+            gap_count,
+        )
+
+    logger.info(
+        "Engine 1 guard complete: %d real consultants, %d open roles, "
+        "%d real projects, %d fabricated stripped",
+        sum(1 for nc in wsg.named_consultants if nc.name and nc.name.strip()),
+        sum(1 for nc in wsg.named_consultants if nc.staffing_status == "open_role_profile"),
+        len(real_projects),
+        len(fabricated_names) + len(fabricated_projects),
+    )
+
+    return source_book
+
+
 async def _rewrite_hedges(
     source_book: SourceBook,
     hedges_found: list[str],
@@ -823,6 +974,11 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
             len(source_book.why_strategic_gears.named_consultants),
             len(source_book.why_strategic_gears.project_experience),
         )
+
+        # ── Engine 1 / Engine 2 Guard ─────────────────────────
+        # Validate consultant names and projects against actual KG data.
+        # Strip anything the LLM fabricated that doesn't exist in the KG.
+        source_book = _engine1_guard(source_book, state)
 
         # ── Stage 2a: Section 6 (blueprints) ──────────────────
         section6 = await _generate_blueprints(source_book, model)

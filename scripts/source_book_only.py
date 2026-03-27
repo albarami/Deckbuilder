@@ -465,7 +465,11 @@ async def run_source_book_only(
         ])
         kg_project_count = len(kg_projects)
 
-    # Placeholder / open-role detection
+    # Engine 1/Engine 2 name classification:
+    # A "real" consultant name must be:
+    # 1. Non-empty and not an open-role marker
+    # 2. staffing_status == "recommended_candidate" (not open_role_profile)
+    # 3. Actually exists in the KG (the Engine 1 guard ensures this)
     _OPEN_MARKERS = [
         "placeholder", "[", "tbd", "tbc", "name",
         "consultant 1", "consultant 2", "to be",
@@ -480,8 +484,19 @@ async def run_source_book_only(
         lower = stripped.lower()
         return not any(marker in lower for marker in _OPEN_MARKERS)
 
-    placeholder_names = [n for n in consultant_names if not _is_real_name(n)]
-    real_names = [n for n in consultant_names if _is_real_name(n)]
+    # Only count names that survived the Engine 1 guard
+    # (recommended_candidate with a non-empty name = KG-verified)
+    real_names: list[str] = []
+    placeholder_names: list[str] = []
+    if source_book:
+        for nc in source_book.why_strategic_gears.named_consultants:
+            if (
+                nc.staffing_status == "recommended_candidate"
+                and _is_real_name(nc.name)
+            ):
+                real_names.append(nc.name)
+            else:
+                placeholder_names.append(nc.name or "(open)")
 
     # ── HARD FAIL checks ──
     failures: list[str] = []
