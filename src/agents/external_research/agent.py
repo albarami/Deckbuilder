@@ -23,6 +23,37 @@ from .prompts import SYSTEM_PROMPT
 logger = logging.getLogger(__name__)
 
 
+def _classify_evidence_tiers(pack: ExternalEvidencePack) -> None:
+    """Assign evidence_tier to each source based on relevance_score.
+
+    Thresholds:
+        >= 0.80 → primary (directly about the RFP domain)
+        >= 0.65 → secondary (transferable methodology from adjacent domain)
+        <  0.65 → analogical (cross-domain analogy, limited direct applicability)
+    """
+    for source in pack.sources:
+        if source.relevance_score >= 0.80:
+            source.evidence_tier = "primary"
+        elif source.relevance_score >= 0.65:
+            source.evidence_tier = "secondary"
+        else:
+            source.evidence_tier = "analogical"
+
+
+def _append_tier_counts(pack: ExternalEvidencePack) -> None:
+    """Append primary/secondary/analogical counts to coverage_assessment."""
+    counts = {"primary": 0, "secondary": 0, "analogical": 0}
+    for source in pack.sources:
+        counts[source.evidence_tier] += 1
+    tier_line = (
+        f"\n\nEvidence Tier Breakdown: "
+        f"primary_source_count: {counts['primary']}, "
+        f"secondary_source_count: {counts['secondary']}, "
+        f"analogical_source_count: {counts['analogical']}"
+    )
+    pack.coverage_assessment = (pack.coverage_assessment or "") + tier_line
+
+
 def _extract_bilingual_en(bt) -> str:
     """Extract English text from a BilingualText object safely."""
     if bt is None:
@@ -414,6 +445,8 @@ async def run(state: DeckForgeState) -> dict:
         )
         evidence_pack = llm_result.parsed
         evidence_pack.search_queries_used = queries
+        _classify_evidence_tiers(evidence_pack)
+        _append_tier_counts(evidence_pack)
 
         logger.info(
             "External research complete: %d sources from %d queries",
@@ -446,16 +479,17 @@ async def run(state: DeckForgeState) -> dict:
                 citation_count=sr.get("citation_count"),
                 selection_method=sr.get("selection_method", "search_hit"),
             ))
-        return {
-            "external_evidence_pack": ExternalEvidencePack(
-                sources=fallback_sources,
-                search_queries_used=queries,
-                coverage_assessment=(
-                    "LLM ranking failed. Sources included without relevance scoring. "
-                    f"Error: {e}"
-                ),
+        fallback_pack = ExternalEvidencePack(
+            sources=fallback_sources,
+            search_queries_used=queries,
+            coverage_assessment=(
+                "LLM ranking failed. Sources included without relevance scoring. "
+                f"Error: {e}"
             ),
-        }
+        )
+        _classify_evidence_tiers(fallback_pack)
+        _append_tier_counts(fallback_pack)
+        return {"external_evidence_pack": fallback_pack}
 
 
 def _update_session(state: DeckForgeState, llm_result) -> object:
