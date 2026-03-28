@@ -351,69 +351,58 @@ def _engine1_guard(
         )
 
     # ── Guard: Blueprint overclaim discipline ───────────
-    # If team/project data is absent, blueprint entries about team/proof
-    # must NOT use certainty language. Replace with conditional framing.
+    # When firm proof is absent, scan ALL blueprint entries for certainty
+    # language and replace with conditional framing. This is not section-specific
+    # — overclaim is overclaim regardless of which slide it appears in.
     has_real_team = bool(kg_names)
-    has_real_projects = len(real_projects) >= 3  # meaningful project evidence
+    has_real_projects = len(real_projects) >= 3
 
     if not has_real_team or not has_real_projects:
-        # Certainty patterns that should not appear when proof is absent
-        _CERTAINTY_PATTERNS_AR = [
-            "مطابقة 100%", "مطابقة كاملة", "يلبي جميع المتطلبات بالكامل",
-            "فريق مؤهل بالكامل", "خبرة مثبتة", "سجل حافل",
-            "تطابق تام", "استيفاء كامل",
-        ]
-        _CERTAINTY_PATTERNS_EN = [
-            "100% match", "fully meets", "proven track record",
-            "fully qualified team", "complete compliance",
-            "demonstrated expertise", "verified staffing",
-        ]
-        certainty_patterns = _CERTAINTY_PATTERNS_AR + _CERTAINTY_PATTERNS_EN
+        # Regex pattern matching ANY "100%" claim in Arabic or English
+        import re as _re
+        _OVERCLAIM_RE = _re.compile(
+            r"100%|بنسبة\s*100|امتثال\s*100|مطابقة\s*100|يستوفي\s+جميع|"
+            r"fully meets all|complete compliance|all requirements satisfied|"
+            r"proven track record|خبرة مثبتة|سجل حافل|"
+            r"فريق مؤهل بالكامل|fully qualified team|"
+            r"تطابق تام|استيفاء كامل|مطابقة كاملة",
+            _re.IGNORECASE,
+        )
 
-        # Sections where overclaim is dangerous
-        _PROOF_SECTIONS = [
-            "team", "فريق", "why sg", "لماذا", "case study", "دراسة حالة",
-            "compliance", "امتثال", "experience", "خبر",
-        ]
+        # Conditional replacement text
+        _COND_AR = "مصمم لتلبية المتطلبات — الأدلة الداعمة قيد الاستكمال من قبل Engine 2"
+        _COND_EN = "designed to meet requirements — supporting evidence pending from Engine 2"
 
         overclaim_count = 0
         for bp in source_book.slide_blueprints:
-            # Check if this blueprint is about team/proof/experience
-            combined = f"{bp.section} {bp.title} {bp.purpose}".lower()
-            is_proof_section = any(p in combined for p in _PROOF_SECTIONS)
-
-            if not is_proof_section:
-                continue
-
-            # Scan title, key_message, and bullet_logic for certainty claims
-            texts_to_check = [bp.title, bp.key_message] + (bp.bullet_logic or [])
-            for i, text in enumerate(texts_to_check):
+            # Scan title, key_message, and bullet_logic — ALL entries
+            fields = [
+                ("title", bp.title),
+                ("key_message", bp.key_message),
+            ] + [
+                (f"bullet_{j}", b) for j, b in enumerate(bp.bullet_logic or [])
+            ]
+            for field_name, text in fields:
                 if not text:
                     continue
-                for pattern in certainty_patterns:
-                    if pattern in text:
-                        # Replace with conditional framing
-                        if not has_real_team and ("team" in combined or "فريق" in combined):
-                            replacement = text.replace(
-                                pattern,
-                                "هيكل فريق مصمم لتلبية متطلبات المشروع — تأكيد التعيينات معلق"
-                                if any(c > "\u0600" for c in text)
-                                else "team structure designed to meet requirements — staffing confirmation pending"
-                            )
-                        else:
-                            replacement = text.replace(
-                                pattern,
-                                "مصمم لتلبية المتطلبات — الأدلة الداعمة قيد الاستكمال"
-                                if any(c > "\u0600" for c in text)
-                                else "designed to meet requirements — supporting evidence pending"
-                            )
-                        if i == 0:
-                            bp.title = replacement
-                        elif i == 1:
-                            bp.key_message = replacement
-                        else:
-                            bp.bullet_logic[i - 2] = replacement
-                        overclaim_count += 1
+                if _OVERCLAIM_RE.search(text):
+                    is_arabic = any(c > "\u0600" for c in text)
+                    replaced = _OVERCLAIM_RE.sub(
+                        _COND_AR if is_arabic else _COND_EN,
+                        text,
+                    )
+                    if field_name == "title":
+                        bp.title = replaced
+                    elif field_name == "key_message":
+                        bp.key_message = replaced
+                    elif field_name.startswith("bullet_"):
+                        idx = int(field_name.split("_")[1])
+                        bp.bullet_logic[idx] = replaced
+                    overclaim_count += 1
+                    logger.info(
+                        "Engine 1 guard: overclaim in slide %d %s: '%s' → replaced",
+                        bp.slide_number, field_name, text[:60],
+                    )
 
         if overclaim_count:
             logger.warning(
