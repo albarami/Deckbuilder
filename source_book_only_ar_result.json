@@ -1,92 +1,64 @@
 {
-  "status": "DEGRADED",
+  "status": "SUCCESS",
   "index_status": "OK",
   "index_reason": "",
-  "session_id": "sb-ar-1774638197",
-  "failures": [
-    "Reviewer never passed threshold after 5 passes (final score=3/5, threshold_met=False, viability=weak)"
-  ],
-  "word_count": 11409,
+  "session_id": "sb-ar-1774695109",
+  "failures": [],
+  "word_count": 16401,
   "evidence_ledger_entries": 25,
-  "slide_blueprint_entries": 40,
+  "slide_blueprint_entries": 41,
   "external_sources": 10,
-  "s2_status": "WORKING (6 results)",
-  "pplx_status": "WORKING (4 results)",
-  "capability_mappings": 9,
+  "s2_status": "WORKING (3 results)",
+  "pplx_status": "WORKING (6 results)",
+  "capability_mappings": 8,
   "consultant_count": 4,
-  "real_consultant_names": [
-    "أحمد الغامدي",
-    "سارة القحطاني",
-    "خالد المطيري",
-    "نورة العتيبي"
-  ],
-  "project_count": 15,
+  "real_consultant_names": [],
+  "project_count": 1,
   "project_names": [
-    "دليل باقة الخدمات التي ستقدم للشركات لدعمها في التوسع الخارجي",
-    "تطوير إطار إدارة العلاقات المؤسسية",
-    "تطوير نموذج تقييم جاهزية الشركات للتوسع الخارجي",
-    "تصميم منظومة الشراكات الاستراتيجية لترويج الاستثمار",
-    "تطوير مؤشرات أداء منظومة ترويج الاستثمار",
-    "تصميم برنامج السفراء الاستثماريين",
-    "إعداد دراسة الأسواق المستهدفة للتوسع الخارجي",
-    "تطوير إطار تصنيف الشركات الوطنية حسب القطاعات الاستثمارية",
-    "تطوير قنوات الاتصال المؤسسي مع الشركات الوطنية",
-    "تصميم نموذج خدمات المستثمرين",
-    "تحليل فجوات الخدمات الحكومية في قطاع الاستثمار",
-    "تصميم برنامج تنمية القدرات في القطاع الاستثماري",
-    "تطوير إطار حوكمة البيانات الوطنية",
-    "تطوير استراتيجية الأمن السيبراني المؤسسي",
-    "تطوير سياسات سوق العمل لدعم الاستثمار"
+    "دليل باقة الخدمات التي ستقدم للشركات لدعمها في التوسع الخارجي"
   ],
-  "pass_number": 5,
-  "review_score": 3,
-  "reviewer_passed": false,
-  "reviewer_final_score": 3,
-  "reviewer_threshold_met": false,
-  "competitive_viability": "weak",
-  "fallback_events": [
-    {
-      "pass": 2,
-      "events": [
-        "stage1d_preserved_previous"
-      ]
-    }
-  ],
-  "total_time": 9353.79564332962,
-  "docx_path": "output/sb-ar-1774638197/source_book.docx",
+  "pass_number": 1,
+  "review_score": 4,
+  "reviewer_passed": true,
+  "reviewer_final_score": 4,
+  "reviewer_threshold_met": true,
+  "competitive_viability": "adequate",
+  "fallback_events": [],
+  "total_time": 2539.1840715408325,
+  "docx_path": "output/sb-ar-1774695109/source_book.docx",
   "artifacts": {
-    "Source Book DOCX": "output/sb-ar-1774638197/source_book.docx",
-    "Evidence Ledger JSON": "output\\sb-ar-1774638197\\evidence_ledger.json",
-    "Slide Blueprint JSON": "output\\sb-ar-1774638197\\slide_blueprint_from_source_book.json",
-    "External Evidence Pack": "output\\sb-ar-1774638197\\external_evidence_pack.json",
-    "Research Query Log": "output\\sb-ar-1774638197\\research_query_log.json",
-    "Research Results Raw": "output\\sb-ar-1774638197\\research_results_raw.json"
+    "Source Book DOCX": "output/sb-ar-1774695109/source_book.docx",
+    "Evidence Ledger JSON": "output\\sb-ar-1774695109\\evidence_ledger.json",
+    "Slide Blueprint JSON": "output\\sb-ar-1774695109\\slide_blueprint_from_source_book.json",
+    "External Evidence Pack": "output\\sb-ar-1774695109\\external_evidence_pack.json",
+    "Research Query Log": "output\\sb-ar-1774695109\\research_query_log.json",
+    "Research Results Raw": "output\\sb-ar-1774695109\\research_results_raw.json"
   },
   "cost": {
-    "total_calls": 38,
-    "total_input_tokens": 1569048,
-    "total_output_tokens": 531695,
-    "total_tokens": 2100743,
-    "total_cost_usd": 56.3671,
-    "total_latency_s": 8587.9,
+    "total_calls": 14,
+    "total_input_tokens": 526111,
+    "total_output_tokens": 142383,
+    "total_tokens": 668494,
+    "total_cost_usd": 14.7186,
+    "total_latency_s": 2374.9,
     "by_model": {
       "gpt-5.4": {
-        "calls": 8,
-        "input_tokens": 386986,
-        "output_tokens": 21946,
-        "cost_usd": 1.1869
+        "calls": 4,
+        "input_tokens": 196203,
+        "output_tokens": 8281,
+        "cost_usd": 0.5733
       },
       "claude-sonnet-4-6": {
         "calls": 1,
-        "input_tokens": 26874,
-        "output_tokens": 7657,
-        "cost_usd": 0.1955
+        "input_tokens": 31710,
+        "output_tokens": 8007,
+        "cost_usd": 0.2152
       },
       "claude-opus-4-6": {
-        "calls": 29,
-        "input_tokens": 1155188,
-        "output_tokens": 502092,
-        "cost_usd": 54.9847
+        "calls": 9,
+        "input_tokens": 298198,
+        "output_tokens": 126095,
+        "cost_usd": 13.9301
       }
     },
     "calls": [
@@ -94,305 +66,113 @@
         "model": "gpt-5.4",
         "caller": "RFPContext",
         "input_tokens": 84448,
-        "output_tokens": 2990,
-        "cost_usd": 0.241,
-        "latency_s": 40.7
+        "output_tokens": 3423,
+        "cost_usd": 0.2454,
+        "latency_s": 39.3
       },
       {
         "model": "gpt-5.4",
         "caller": "RetrievalQueries",
-        "input_tokens": 11742,
-        "output_tokens": 1057,
-        "cost_usd": 0.0399,
-        "latency_s": 15.2
+        "input_tokens": 16462,
+        "output_tokens": 1188,
+        "cost_usd": 0.053,
+        "latency_s": 15.0
       },
       {
         "model": "gpt-5.4",
         "caller": "RankedSourcesOutput",
-        "input_tokens": 24072,
-        "output_tokens": 1136,
-        "cost_usd": 0.0715,
-        "latency_s": 18.3
+        "input_tokens": 29723,
+        "output_tokens": 396,
+        "cost_usd": 0.0783,
+        "latency_s": 11.4
       },
       {
         "model": "claude-sonnet-4-6",
         "caller": "ExternalEvidencePack",
-        "input_tokens": 26874,
-        "output_tokens": 7657,
-        "cost_usd": 0.1955,
-        "latency_s": 145.5
+        "input_tokens": 31710,
+        "output_tokens": 8007,
+        "cost_usd": 0.2152,
+        "latency_s": 143.6
       },
       {
         "model": "claude-opus-4-6",
-        "caller": "SourceBookSections12",
-        "input_tokens": 9751,
-        "output_tokens": 12680,
-        "cost_usd": 1.0973,
-        "latency_s": 218.8
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection3",
-        "input_tokens": 6467,
-        "output_tokens": 12683,
-        "cost_usd": 1.0482,
-        "latency_s": 161.0
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection4",
-        "input_tokens": 9558,
-        "output_tokens": 5835,
-        "cost_usd": 0.581,
-        "latency_s": 100.3
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection5",
-        "input_tokens": 9528,
-        "output_tokens": 22637,
-        "cost_usd": 1.8407,
-        "latency_s": 362.7
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection6",
-        "input_tokens": 54389,
-        "output_tokens": 30708,
-        "cost_usd": 3.1189,
-        "latency_s": 479.4
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection7",
-        "input_tokens": 83292,
-        "output_tokens": 8125,
-        "cost_usd": 1.8588,
-        "latency_s": 133.3
-      },
-      {
-        "model": "gpt-5.4",
-        "caller": "SourceBookReview",
-        "input_tokens": 52213,
-        "output_tokens": 3992,
-        "cost_usd": 0.1705,
-        "latency_s": 74.1
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSections12",
-        "input_tokens": 30228,
-        "output_tokens": 16000,
-        "cost_usd": 1.6534,
-        "latency_s": 278.0
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection3",
-        "input_tokens": 26598,
-        "output_tokens": 16647,
-        "cost_usd": 1.6475,
-        "latency_s": 234.2
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection4",
-        "input_tokens": 23218,
-        "output_tokens": 7441,
-        "cost_usd": 0.9063,
-        "latency_s": 116.9
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection6",
-        "input_tokens": 57706,
-        "output_tokens": 29499,
-        "cost_usd": 3.078,
-        "latency_s": 464.7
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection7",
-        "input_tokens": 85460,
-        "output_tokens": 10811,
-        "cost_usd": 2.0927,
-        "latency_s": 168.7
-      },
-      {
-        "model": "gpt-5.4",
-        "caller": "SourceBookReview",
-        "input_tokens": 55253,
-        "output_tokens": 3735,
-        "cost_usd": 0.1755,
-        "latency_s": 70.3
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSections12",
-        "input_tokens": 27264,
-        "output_tokens": 16000,
-        "cost_usd": 1.609,
-        "latency_s": 274.3
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection3",
-        "input_tokens": 29927,
-        "output_tokens": 18008,
-        "cost_usd": 1.7995,
-        "latency_s": 251.4
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection4",
-        "input_tokens": 24151,
-        "output_tokens": 7664,
-        "cost_usd": 0.9371,
-        "latency_s": 119.0
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection5",
-        "input_tokens": 39243,
-        "output_tokens": 31231,
-        "cost_usd": 2.931,
-        "latency_s": 533.7
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection6",
-        "input_tokens": 70742,
-        "output_tokens": 29970,
-        "cost_usd": 3.3089,
-        "latency_s": 460.3
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection7",
-        "input_tokens": 98985,
-        "output_tokens": 11728,
-        "cost_usd": 2.3644,
-        "latency_s": 185.5
-      },
-      {
-        "model": "gpt-5.4",
-        "caller": "SourceBookReview",
-        "input_tokens": 63029,
-        "output_tokens": 2820,
-        "cost_usd": 0.1858,
-        "latency_s": 51.9
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSections12",
-        "input_tokens": 26176,
-        "output_tokens": 16000,
-        "cost_usd": 1.5926,
-        "latency_s": 282.4
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection3",
-        "input_tokens": 27708,
-        "output_tokens": 17883,
-        "cost_usd": 1.7568,
-        "latency_s": 254.0
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection4",
-        "input_tokens": 21007,
-        "output_tokens": 7757,
-        "cost_usd": 0.8969,
-        "latency_s": 126.4
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection5",
-        "input_tokens": 44542,
-        "output_tokens": 32000,
-        "cost_usd": 3.0681,
-        "latency_s": 537.6
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection6",
-        "input_tokens": 38831,
-        "output_tokens": 32020,
-        "cost_usd": 2.984,
-        "latency_s": 512.3
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection7",
-        "input_tokens": 69113,
-        "output_tokens": 6000,
-        "cost_usd": 1.4867,
-        "latency_s": 113.2
-      },
-      {
-        "model": "gpt-5.4",
-        "caller": "SourceBookReview",
-        "input_tokens": 44547,
-        "output_tokens": 3299,
-        "cost_usd": 0.1444,
-        "latency_s": 58.3
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSections12",
-        "input_tokens": 27998,
-        "output_tokens": 16000,
-        "cost_usd": 1.62,
-        "latency_s": 282.1
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection3",
-        "input_tokens": 30088,
-        "output_tokens": 18693,
-        "cost_usd": 1.8533,
-        "latency_s": 266.0
-      },
-      {
-        "model": "claude-opus-4-6",
-        "caller": "SourceBookSection4",
-        "input_tokens": 23622,
+        "caller": "ProposalStrategy",
+        "input_tokens": 15542,
         "output_tokens": 8000,
-        "cost_usd": 0.9543,
-        "latency_s": 144.5
+        "cost_usd": 0.8331,
+        "latency_s": 145.6
       },
       {
         "model": "claude-opus-4-6",
-        "caller": "SourceBookSection5",
-        "input_tokens": 15903,
-        "output_tokens": 27156,
-        "cost_usd": 2.2752,
-        "latency_s": 452.0
+        "caller": "SourceBookSection1",
+        "input_tokens": 17844,
+        "output_tokens": 11966,
+        "cost_usd": 1.1651,
+        "latency_s": 207.5
+      },
+      {
+        "model": "claude-opus-4-6",
+        "caller": "SourceBookSection2",
+        "input_tokens": 16145,
+        "output_tokens": 6176,
+        "cost_usd": 0.7054,
+        "latency_s": 110.8
+      },
+      {
+        "model": "claude-opus-4-6",
+        "caller": "SourceBookSection3",
+        "input_tokens": 14212,
+        "output_tokens": 10015,
+        "cost_usd": 0.9643,
+        "latency_s": 144.9
+      },
+      {
+        "model": "claude-opus-4-6",
+        "caller": "SourceBookSection4",
+        "input_tokens": 17400,
+        "output_tokens": 7047,
+        "cost_usd": 0.7895,
+        "latency_s": 125.9
+      },
+      {
+        "model": "claude-opus-4-6",
+        "caller": "_Section5Methodology",
+        "input_tokens": 16841,
+        "output_tokens": 24816,
+        "cost_usd": 2.1138,
+        "latency_s": 400.6
+      },
+      {
+        "model": "claude-opus-4-6",
+        "caller": "_Section5Governance",
+        "input_tokens": 16761,
+        "output_tokens": 17130,
+        "cost_usd": 1.5362,
+        "latency_s": 292.9
       },
       {
         "model": "claude-opus-4-6",
         "caller": "SourceBookSection6",
-        "input_tokens": 58848,
-        "output_tokens": 27621,
-        "cost_usd": 2.9543,
-        "latency_s": 442.9
+        "input_tokens": 77589,
+        "output_tokens": 30046,
+        "cost_usd": 3.4173,
+        "latency_s": 477.8
       },
       {
         "model": "claude-opus-4-6",
         "caller": "SourceBookSection7",
-        "input_tokens": 84845,
-        "output_tokens": 5295,
-        "cost_usd": 1.6698,
-        "latency_s": 91.8
+        "input_tokens": 105864,
+        "output_tokens": 10899,
+        "cost_usd": 2.4054,
+        "latency_s": 193.1
       },
       {
         "model": "gpt-5.4",
         "caller": "SourceBookReview",
-        "input_tokens": 51682,
-        "output_tokens": 2917,
-        "cost_usd": 0.1584,
-        "latency_s": 66.2
+        "input_tokens": 65570,
+        "output_tokens": 3274,
+        "cost_usd": 0.1967,
+        "latency_s": 66.4
       }
     ]
   }
