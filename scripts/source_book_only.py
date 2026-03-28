@@ -309,6 +309,7 @@ async def run_source_book_only(
 
         contract_entries, blueprint_violations = transform_to_contract_blueprint(
             source_book.slide_blueprints,
+            team_profiles=list(source_book.why_strategic_gears.named_consultants),
         )
         bp_data = [e.model_dump(mode="json") for e in contract_entries]
         blueprint_count = len(bp_data)

@@ -195,16 +195,44 @@ _CASE_STUDY_POOL_SPECS: dict[str, str] = {
     ),
 }
 
-# Bio pool specification — Engine 1 tells Engine 2 what team profiles to find
-_BIO_POOL_SPEC = (
-    "bio_specification — Engine 2 action: retrieve from consultant profile database "
-    "leadership bios for proposed team members. Each bio must include: name, title, "
-    "years of experience, education, certifications, domain expertise, 2-3 key project "
-    "highlights. Retrieve bios matching the open_role_profiles defined in Section 3."
-)
+def _build_bio_pool_spec(team_profiles: list | None = None) -> str:
+    """Build bio pool specification from team profiles.
+
+    If team_profiles are provided, creates one spec per role.
+    Otherwise, returns a generic spec.
+    """
+    if team_profiles:
+        specs = []
+        for nc in team_profiles:
+            role = getattr(nc, "role", "Unknown Role")
+            certs = ", ".join(getattr(nc, "certifications", []) or []) or "none specified"
+            yrs = getattr(nc, "years_experience", None) or "unspecified"
+            edu = ", ".join(getattr(nc, "education", []) or []) or "unspecified"
+            domain = ", ".join(getattr(nc, "domain_expertise", []) or []) or "unspecified"
+            specs.append(
+                f"Role: {role} | Education: {edu} | Certifications: {certs} | "
+                f"Experience: {yrs}+ years | Domain: {domain}"
+            )
+        role_list = "\n".join(f"  {i+1}. {s}" for i, s in enumerate(specs))
+        return (
+            f"bio_specification — Engine 2 action: retrieve from consultant profile "
+            f"database {len(specs)} leadership bios matching these role specifications:\n"
+            f"{role_list}\n"
+            f"Each bio must include: name, title, years of experience, education, "
+            f"certifications, domain expertise, 2-3 key project highlights."
+        )
+    return (
+        "bio_specification — Engine 2 action: retrieve from consultant profile database "
+        "leadership bios for proposed team members. Each bio must include: name, title, "
+        "years of experience, education, certifications, domain expertise, 2-3 key project "
+        "highlights. Retrieve bios matching the open_role_profiles defined in Section 3."
+    )
 
 
-def _ensure_all_sections(entries: list[ContractEntry]) -> list[ContractEntry]:
+def _ensure_all_sections(
+    entries: list[ContractEntry],
+    team_profiles: list | None = None,
+) -> list[ContractEntry]:
     """Add missing sections from the template contract with appropriate defaults.
 
     For hybrid divider sections: proper proposal-grade divider content.
@@ -221,7 +249,7 @@ def _ensure_all_sections(entries: list[ContractEntry]) -> list[ContractEntry]:
             # Check if this is a case study pool or bio pool
             pool_spec = _CASE_STUDY_POOL_SPECS.get(spec.section_id)
             if spec.section_id == "S30":
-                pool_spec = _BIO_POOL_SPEC
+                pool_spec = _build_bio_pool_spec(team_profiles)
 
             additions.append(ContractEntry(
                 section_id=spec.section_id,
@@ -271,11 +299,14 @@ def _sort_by_template_order(entries: list[ContractEntry]) -> list[ContractEntry]
 
 def transform_to_contract_blueprint(
     legacy_blueprints: list[LegacyEntry],
+    team_profiles: list | None = None,
 ) -> tuple[list[ContractEntry], list[str]]:
     """Transform legacy Source Book blueprints to template-contract schema.
 
     Args:
         legacy_blueprints: Source Book's slide_blueprints (legacy format).
+        team_profiles: Optional list of ConsultantProfile objects from
+            Section 3. Used to generate per-role bio pool specifications.
 
     Returns:
         Tuple of (contract_entries, validation_violations).
@@ -318,7 +349,7 @@ def transform_to_contract_blueprint(
                 logger.warning("Failed to convert blueprint: %s", e)
 
     # Phase 3: Ensure all 31 sections are present
-    contract_entries = _ensure_all_sections(contract_entries)
+    contract_entries = _ensure_all_sections(contract_entries, team_profiles)
 
     # Phase 3b: Deduplicate by section_id — keep first occurrence
     seen_ids: dict[str, bool] = {}
