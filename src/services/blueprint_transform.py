@@ -248,8 +248,35 @@ def _ensure_all_sections(
         if spec.ownership == "house":
             # Check if this is a case study pool or bio pool
             pool_spec = _CASE_STUDY_POOL_SPECS.get(spec.section_id)
-            if spec.section_id == "S30":
-                pool_spec = _build_bio_pool_spec(team_profiles)
+
+            if spec.section_id == "S30" and team_profiles:
+                # Create one S30 entry PER team role for bio pool
+                for nc in team_profiles:
+                    role = getattr(nc, "role", "Unknown Role")
+                    certs = ", ".join(getattr(nc, "certifications", []) or []) or "—"
+                    edu = ", ".join(getattr(nc, "education", []) or []) or "—"
+                    yrs = getattr(nc, "years_experience", None) or "unspecified"
+                    domain = ", ".join(getattr(nc, "domain_expertise", []) or []) or "—"
+                    bio_spec = (
+                        f"bio_specification — Engine 2 action: retrieve leadership bio for:\n"
+                        f"Role: {role}\n"
+                        f"Education: {edu}\n"
+                        f"Certifications: {certs}\n"
+                        f"Experience: {yrs}+ years\n"
+                        f"Domain: {domain}\n"
+                        f"Required: name, CV, project highlights matching this profile."
+                    )
+                    additions.append(ContractEntry(
+                        section_id="S30",
+                        section_name=spec.section_name,
+                        ownership="house",
+                        house_action="select_from_pool",
+                        pool_selection_criteria=bio_spec,
+                    ))
+                continue  # Skip the default addition below
+            elif spec.section_id == "S30":
+                # No team profiles — use generic spec
+                pool_spec = _build_bio_pool_spec(None)
 
             additions.append(ContractEntry(
                 section_id=spec.section_id,
@@ -352,10 +379,17 @@ def transform_to_contract_blueprint(
     contract_entries = _ensure_all_sections(contract_entries, team_profiles)
 
     # Phase 3b: Deduplicate by section_id — keep first occurrence
+    # EXCEPT for repeatable pool sections (case studies S18-S28, bios S30)
+    _REPEATABLE_POOL_IDS = {
+        "S18", "S20", "S22", "S24", "S26", "S28", "S30",
+    }
     seen_ids: dict[str, bool] = {}
     deduped: list[ContractEntry] = []
     for entry in contract_entries:
-        if entry.section_id not in seen_ids:
+        if entry.section_id in _REPEATABLE_POOL_IDS:
+            # Allow multiple entries for pool sections
+            deduped.append(entry)
+        elif entry.section_id not in seen_ids:
             seen_ids[entry.section_id] = True
             deduped.append(entry)
         else:
