@@ -110,16 +110,17 @@ will actually use — even if the RFP doesn't state it explicitly.
 - constraints_and_compliance: (3-4 paragraphs)
   * Budget constraints (stated or implied)
   * Timeline constraints (exact dates from RFP if stated)
-  * Regulatory constraints: Vision 2030, DGA, NDMO, NCA, ZATCA, local regulations
+  * Regulatory constraints: reference jurisdiction-specific regulations from
+    pack_context.regulatory_references if available, otherwise extract from RFP
   * Technical constraints: systems, platforms, integration requirements
-  * Staffing constraints: Saudization, certifications, clearance levels
+  * Staffing constraints: nationalization requirements (from RFP), certifications
   * Procurement constraints: evaluation committee composition, stages
 
 - unstated_evaluator_priorities: (3-4 paragraphs)
   What evaluators care about but did NOT write explicitly:
-  * Saudization percentage and local content expectations
-  * National framework alignment (NCA ECC, DGA standards, NDMO)
-  * Past performance with similar government entities
+  * Nationalization/local content expectations (from RFP or pack_context)
+  * National framework alignment (from pack_context.regulatory_references)
+  * Past performance with similar entities in the same jurisdiction
   * Change management and adoption capability
   * Knowledge transfer and capacity building
   * Risk mitigation and continuity planning
@@ -394,7 +395,8 @@ will do, but WHY this approach wins over alternatives:
 
 * Reference recognized frameworks: TOGAF, ITIL, PMBOK, COBIT, Agile,
   Lean Six Sigma, ISO standards — tied to SPECIFIC engagement activities
-* National methodology alignment: DGA, NORA, NDMO, NCA where applicable
+* National methodology alignment: reference jurisdiction-specific frameworks
+    from pack_context.methodology_patterns if available
 * How the methodology adapts to this SPECIFIC client's context
 * WHY this approach over alternatives:
   - What alternative approaches exist for this type of engagement?
@@ -514,8 +516,8 @@ this firm over the other 5 bidders?" Build a PERSUASIVE case:
   specific relevance to THIS RFP, not just name-dropping
 * Scale evidence (270+ projects, 140+ clients, 21 sectors) — mapped to
   how that scale creates value for THIS specific engagement
-* Local market positioning — Saudi presence, Vision 2030 alignment,
-  understanding of regulatory landscape
+* Local market positioning — regional presence, national vision alignment
+  (from pack_context), understanding of regulatory landscape
 * Knowledge transfer commitment — how the client becomes self-sufficient
   after the engagement ends
 
@@ -551,7 +553,8 @@ will do, but WHY this approach wins over alternatives:
 
 * Reference recognized frameworks: TOGAF, ITIL, PMBOK, COBIT, Agile,
   Lean Six Sigma, ISO standards — tied to SPECIFIC engagement activities
-* National methodology alignment: DGA, NORA, NDMO, NCA where applicable
+* National methodology alignment: reference jurisdiction-specific frameworks
+    from pack_context.methodology_patterns if available
 * How the methodology adapts to this SPECIFIC client's context
 * WHY this approach over alternatives:
   - What alternative approaches exist for this type of engagement?

@@ -137,7 +137,7 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
     Query categories:
     - Per scope item: what does the best practice look like for THIS deliverable?
     - Institutional context: comparable organizations, regulatory frameworks
-    - Benchmarks: KOTRA, Enterprise Singapore, Business France models
+    - Benchmarks: from pack_context.benchmark_references (pack-driven, not hardcoded)
     """
     queries: list[str] = []
 
@@ -178,30 +178,21 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
             if en_text and len(en_text) > 10:
                 queries.append(en_text[:200])
 
-    # 5. Institutional/geographic context — specific benchmarks
+    # 5. Institutional/geographic context
     if geography:
         queries.append(
             f"{geography} government consulting services framework"
         )
-        queries.append(f"{geography} Vision 2030 consulting advisory")
     if sector and geography:
         queries.append(
             f"{geography} {sector} operating model benchmarks"
         )
 
-    # 6. Comparable international models (domain-specific)
-    if mandate:
-        mandate_lower = mandate.lower()
-        if any(kw in mandate_lower for kw in ["export", "expansion", "international", "خارجي", "توسع"]):
-            queries.extend([
-                "KOTRA service portfolio for outbound expansion support",
-                "Enterprise Singapore SME internationalization model",
-            ])
-        if any(kw in mandate_lower for kw in ["investment", "استثمار", "شركات"]):
-            queries.extend([
-                "investment promotion agency service design framework",
-                "Business France export support operating model",
-            ])
+    # 6. Pack-driven queries (replaces hardcoded KOTRA/Enterprise Singapore/etc.)
+    pack_ctx = getattr(state, "pack_context", None) or {}
+    pack_search = pack_ctx.get("recommended_search_queries", [])
+    for pq in pack_search[:4]:
+        queries.append(pq)
 
     if not queries:
         queries.append("management consulting methodology best practices")
@@ -248,20 +239,13 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
                 if clean:
                     queries.append(clean)
 
-    # Domain-specific academic queries based on mandate keywords
-    if mandate:
-        mandate_lower = mandate.lower()
-        if any(kw in mandate_lower for kw in ["export", "expansion", "international", "خارجي", "توسع"]):
-            queries.extend([
-                "investment promotion agency service design",
-                "SME internationalization readiness assessment",
-                "export support program evaluation",
-            ])
-        if any(kw in mandate_lower for kw in ["service", "خدم"]):
-            queries.extend([
-                "government service portfolio design framework",
-                "public service delivery optimization",
-            ])
+    # Pack-driven S2 queries (replaces hardcoded domain keywords)
+    pack_ctx = getattr(state, "pack_context", None) or {}
+    pack_s2 = pack_ctx.get("recommended_s2_queries", [])
+    for pq in pack_s2[:3]:
+        clean = _validate_query(pq, max_len=60)
+        if clean:
+            queries.append(clean)
 
     # Sector + geography queries
     if sector:

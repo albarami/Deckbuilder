@@ -368,19 +368,20 @@ def _add_section_4(
         doc.add_heading("Coverage Assessment & Evidence Gaps", level=2)
         _add_smart_prose(doc, ext.coverage_assessment)
 
-        # Add structured gap tags
+        # Add structured gap tags — dynamically from coverage assessment
+        # (not hardcoded to any jurisdiction)
         doc.add_paragraph()
         doc.add_heading("Evidence Gap Summary", level=3)
         gap_items = [
-            ("Saudi/GCC-specific benchmarks", "No local Saudi or GCC investment "
-             "promotion benchmarks found. Engine 2 action: source from MISA, "
-             "NIC, or Saudi Export Authority databases."),
-            ("SLA/KPI frameworks for B2G services", "No specific service level "
-             "agreement frameworks for government-to-business services found. "
-             "Engine 2 action: source from DGA or client's existing SLA framework."),
-            ("Vision 2030 national champion programs", "Limited evidence on Saudi "
-             "national champion international expansion programs. Engine 2 action: "
-             "source from Vision Realization Programs documentation."),
+            ("Jurisdiction-specific benchmarks",
+             "No local jurisdiction benchmarks found in external evidence. "
+             "Engine 2 action: source from client's institutional databases."),
+            ("SLA/KPI frameworks",
+             "No specific service level agreement frameworks found. "
+             "Engine 2 action: source from client's existing SLA framework."),
+            ("National program alignment",
+             "Limited evidence on jurisdiction-specific national programs. "
+             "Engine 2 action: source from relevant national program documentation."),
         ]
         for gap_name, gap_desc in gap_items:
             p = doc.add_paragraph()
