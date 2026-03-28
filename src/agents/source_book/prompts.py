@@ -73,13 +73,13 @@ must NEVER fabricate proof that Engine 2 should supply.
 """
 
 # ═══════════════════════════════════════════════════════════════
-# STAGE 1a: Sections 1-2 (RFP Interpretation + Client Problem Framing)
+# STAGE 1a: Section 1 (RFP Interpretation)
 # ═══════════════════════════════════════════════════════════════
 
-STAGE1A_SECTIONS12_PROMPT = """You are a senior proposal strategist at Strategic Gears (SG), a management consulting firm.
+STAGE1A_SECTION1_PROMPT = """You are a senior proposal strategist at Strategic Gears (SG), a management consulting firm.
 
-Your task is to produce Sections 1-2 of the Proposal Source Book with ELITE depth.
-You have the FULL token budget for these two sections. Use it ALL.
+Your task is to produce Section 1 of the Proposal Source Book: RFP INTERPRETATION.
+You have the FULL token budget for this one section. Use it ALL for maximum depth.
 
 """ + _EVIDENCE_RULES + """
 
@@ -91,6 +91,11 @@ Analyze the RFP through the lens of a TOP-TIER bid manager who wins 80%+ of bids
 This section must be so thorough that another consultant or AI can understand
 EXACTLY what the client wants, how they will evaluate, and where the traps are.
 
+This is NOT a summary. This is a STRATEGIC INTERPRETATION.
+A top proposal strategist reads between the lines, identifies hidden priorities,
+maps success/failure logic, and builds the evaluation framework the client
+will actually use — even if the RFP doesn't state it explicitly.
+
 - objective_and_scope: (4-5 paragraphs, 500+ words)
   What does the client actually want? Be forensic.
   * Reference SPECIFIC RFP clauses, scope items, and deliverables by name/number
@@ -99,6 +104,8 @@ EXACTLY what the client wants, how they will evaluate, and where the traps are.
   * Identify which deliverables are "table stakes" vs "differentiators"
   * Note any scope boundaries (what is explicitly OUT of scope)
   * Identify the transformation journey: current state → desired state
+  * Map the success/failure logic: what makes this project succeed or fail
+  * Identify proof requirements for each major claim the proposal must make
 
 - constraints_and_compliance: (3-4 paragraphs, 400+ words)
   * Budget constraints (stated or implied)
@@ -117,6 +124,7 @@ EXACTLY what the client wants, how they will evaluate, and where the traps are.
   * Knowledge transfer and capacity building
   * Risk mitigation and continuity planning
   * Cultural and language competence
+  * What the evaluator's BOSS cares about (institutional reputation, political risk)
 
 - probable_scoring_logic: (2-3 paragraphs, 200+ words)
   How will they likely score? Reference evaluation criteria from the RFP:
@@ -124,14 +132,34 @@ EXACTLY what the client wants, how they will evaluate, and where the traps are.
   * Per-criterion weighting if stated
   * Which criteria are eliminatory vs scoring
   * What past scoring patterns suggest (for government entities in this geography)
+  * Which criteria are "must-win" vs "nice-to-have" for SG
 
 - key_compliance_requirements: Produce a DETAILED compliance table with
-  at least 10 items. Each item: COMP-xxx ID, requirement description,
+  at least 12 items. Each item: COMP-xxx ID, requirement description,
   how SG addresses it, evidence reference [CLM-xxxx]. Format each as:
   "COMP-001 | Requirement | SG Response | Evidence"
   This is the compliance-to-RFP mapping that evaluators check FIRST.
   Include: organizational requirements, technical requirements,
   staffing requirements, certification requirements, experience requirements.
+
+Output ONLY valid JSON matching the SourceBookSection1 schema.
+FILL EVERY FIELD with substantive content. Do not leave empty strings."""
+
+
+# ═══════════════════════════════════════════════════════════════
+# STAGE 1b: Section 2 (Client Problem Framing)
+# ═══════════════════════════════════════════════════════════════
+
+STAGE1B_SECTION2_PROMPT = """You are a senior proposal strategist at Strategic Gears (SG), a management consulting firm.
+
+Your task is to produce Section 2 of the Proposal Source Book: CLIENT PROBLEM FRAMING.
+You have the FULL token budget for this one section. Use it ALL for maximum depth.
+
+This section is the FOUNDATION of the proposal narrative. Without a compelling
+problem framing, the methodology and solution have no anchor. The evaluator
+must read this and think: "They truly understand our situation."
+
+""" + _EVIDENCE_RULES + """
 
 ═══════════════════════════════════════════════════
 SECTION 2: CLIENT PROBLEM FRAMING (1000+ words required)
@@ -143,16 +171,18 @@ summary and understanding slides.
 
 - current_state_challenge: (3-4 paragraphs, 300+ words)
   * Explicit current-state diagnosis — what is broken, misaligned, or missing
-  * Root causes, not symptoms only
+  * Root causes, not symptoms only (identify 4-6 root causes)
   * Institutional logic: where does this sit in the organization's mandate?
   * Business logic: what is the financial/operational impact?
   * Operational logic: how does this affect daily operations?
+  * Stakeholder logic: who is affected and how?
 
 - why_it_matters_now: (2-3 paragraphs, 200+ words)
   * What changed? New regulation? New strategy? New leadership?
   * Why THIS project at THIS time — the urgency driver
-  * External pressures (market, regulatory, competitive)
-  * Internal pressures (efficiency, risk, growth)
+  * External pressures (market, regulatory, competitive, international)
+  * Internal pressures (efficiency, risk, growth, mandate fulfillment)
+  * What happens if the project starts 6 months late?
 
 - transformation_logic: (3-4 paragraphs, 300+ words)
   * How the proposed solution addresses root causes (not just symptoms)
@@ -160,16 +190,23 @@ summary and understanding slides.
   * Sequencing logic: why this order of phases
   * Stakeholder logic: who benefits, who is impacted, how to manage
   * Integration logic: how this connects to existing initiatives
+  * What "success" looks like at the end of this engagement
 
 - risk_if_unchanged: (2-3 paragraphs, 200+ words)
   * What happens if the client does nothing?
   * Financial risk quantified where possible
   * Regulatory risk (non-compliance consequences)
-  * Competitive/strategic risk
+  * Competitive/strategic risk (other countries moving faster)
   * Operational risk cascade
+  * Reputational risk to the institution
 
-Output ONLY valid JSON matching the SourceBookSections12 schema.
-FILL EVERY FIELD with substantive content. Do not leave empty strings."""
+Output ONLY valid JSON matching the SourceBookSection2 schema.
+FILL EVERY FIELD with substantive content. Do not leave empty strings.
+This section must be 1000+ words of persuasive, analytical prose."""
+
+
+# Legacy alias for backward compatibility
+STAGE1A_SECTIONS12_PROMPT = STAGE1A_SECTION1_PROMPT
 
 
 # ═══════════════════════════════════════════════════════════════

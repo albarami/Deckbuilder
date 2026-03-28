@@ -266,6 +266,9 @@ class SourceBookSections12(DeckForgeBaseModel):
 
     Generated in a dedicated LLM call so each section gets full prose depth.
     Also captures metadata fields (client_name, rfp_name, language).
+
+    DEPRECATED: Kept for backward compatibility. New runs use
+    SourceBookSection1 + SourceBookSection2 separately.
     """
 
     client_name: str = ""
@@ -273,6 +276,30 @@ class SourceBookSections12(DeckForgeBaseModel):
     language: str = "en"
     generation_date: str = ""
     rfp_interpretation: RFPInterpretation = Field(default_factory=RFPInterpretation)
+    client_problem_framing: ClientProblemFraming = Field(default_factory=ClientProblemFraming)
+
+
+class SourceBookSection1(DeckForgeBaseModel):
+    """Stage 1a output: Section 1 (RFP Interpretation) + metadata.
+
+    Dedicated call so Section 1 gets full token budget for deep
+    RFP analysis, compliance mapping, and evaluator logic.
+    """
+
+    client_name: str = ""
+    rfp_name: str = ""
+    language: str = "en"
+    generation_date: str = ""
+    rfp_interpretation: RFPInterpretation = Field(default_factory=RFPInterpretation)
+
+
+class SourceBookSection2(DeckForgeBaseModel):
+    """Stage 1b output: Section 2 (Client Problem Framing).
+
+    Dedicated call so Section 2 gets full token budget for deep
+    problem diagnosis, urgency drivers, and transformation logic.
+    """
+
     client_problem_framing: ClientProblemFraming = Field(default_factory=ClientProblemFraming)
 
 

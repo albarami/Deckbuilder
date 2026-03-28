@@ -677,20 +677,21 @@ class TestDocxPathPersistence:
         from src.services.llm import LLMResponse
 
         from src.models.source_book import (
+            SourceBookSection1,
+            SourceBookSection2,
             SourceBookSection3,
             SourceBookSection4,
             SourceBookSection5,
-            SourceBookSections12,
         )
 
-        # Split-call architecture: 6 stage responses
-        mock_s12 = SourceBookSections12(
+        # Split-call architecture: 7 stage responses
+        mock_s1 = SourceBookSection1(
             client_name="Test",
-            rfp_name="Test RFP",
             rfp_interpretation=RFPInterpretation(
                 objective_and_scope="Test scope",
             ),
         )
+        mock_s2 = SourceBookSection2()
         mock_s3 = SourceBookSection3(
             why_strategic_gears=WhyStrategicGears(),
         )
@@ -711,8 +712,10 @@ class TestDocxPathPersistence:
         )
 
         stage_responses = [
-            LLMResponse(parsed=mock_s12, input_tokens=5000, output_tokens=3000,
+            LLMResponse(parsed=mock_s1, input_tokens=5000, output_tokens=3000,
                         model="claude-opus-4-20250514", latency_ms=8000),
+            LLMResponse(parsed=mock_s2, input_tokens=3000, output_tokens=2000,
+                        model="claude-opus-4-20250514", latency_ms=5000),
             LLMResponse(parsed=mock_s3, input_tokens=3000, output_tokens=2000,
                         model="claude-opus-4-20250514", latency_ms=5000),
             LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
@@ -778,13 +781,15 @@ class TestDocxPathPersistence:
         from src.services.llm import LLMResponse
 
         from src.models.source_book import (
+            SourceBookSection1,
+            SourceBookSection2,
             SourceBookSection3,
             SourceBookSection4,
             SourceBookSection5,
-            SourceBookSections12,
         )
 
-        mock_s12 = SourceBookSections12(client_name="Test")
+        mock_s1 = SourceBookSection1(client_name="Test", rfp_interpretation=RFPInterpretation(objective_and_scope="Test scope"))
+        mock_s2 = SourceBookSection2()
         mock_s3 = SourceBookSection3()
         mock_s4 = SourceBookSection4()
         mock_s5 = SourceBookSection5()
@@ -803,8 +808,10 @@ class TestDocxPathPersistence:
         )
 
         stage_responses = [
-            LLMResponse(parsed=mock_s12, input_tokens=5000, output_tokens=3000,
+            LLMResponse(parsed=mock_s1, input_tokens=5000, output_tokens=3000,
                         model="claude-opus-4-20250514", latency_ms=8000),
+            LLMResponse(parsed=mock_s2, input_tokens=3000, output_tokens=2000,
+                        model="claude-opus-4-20250514", latency_ms=5000),
             LLMResponse(parsed=mock_s3, input_tokens=3000, output_tokens=2000,
                         model="claude-opus-4-20250514", latency_ms=5000),
             LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
@@ -988,7 +995,8 @@ class TestPromptContent:
     def test_writer_prompts_have_section_framework(self):
         """Split-call prompts cover all 7 sections across multiple prompts."""
         from src.agents.source_book.prompts import (
-            STAGE1A_SECTIONS12_PROMPT,
+            STAGE1A_SECTION1_PROMPT,
+            STAGE1B_SECTION2_PROMPT,
             STAGE1B_SECTION3_PROMPT,
             STAGE1D_SECTION5_PROMPT,
             STAGE2A_BLUEPRINTS_PROMPT,
@@ -996,7 +1004,8 @@ class TestPromptContent:
         )
 
         all_prompts = " ".join([
-            STAGE1A_SECTIONS12_PROMPT,
+            STAGE1A_SECTION1_PROMPT,
+            STAGE1B_SECTION2_PROMPT,
             STAGE1B_SECTION3_PROMPT,
             STAGE1D_SECTION5_PROMPT,
             STAGE2A_BLUEPRINTS_PROMPT,
@@ -2080,26 +2089,28 @@ class TestThreeStageWriterArchitecture:
         assert len(result.evidence_ledger.entries) == 10
 
     @pytest.mark.asyncio
-    async def test_writer_merges_all_six_stages(self):
-        """Writer run() merges 4 Stage 1 calls + Stage 2a + Stage 2b into complete SourceBook."""
+    async def test_writer_merges_all_seven_stages(self):
+        """Writer run() merges 7 stage calls into complete SourceBook."""
         from unittest.mock import AsyncMock, patch
 
         from src.models.source_book import (
+            SourceBookSection1,
+            SourceBookSection2,
             SourceBookSection3,
             SourceBookSection4,
             SourceBookSection5,
             SourceBookSection6,
             SourceBookSection7,
-            SourceBookSections12,
         )
         from src.services.llm import LLMResponse
 
-        mock_s12 = SourceBookSections12(
+        mock_s1 = SourceBookSection1(
             client_name="Test",
             rfp_interpretation=RFPInterpretation(
-                objective_and_scope="Test scope from Stage 1a",
+                objective_and_scope="Test scope from Stage 1",
             ),
         )
+        mock_s2 = SourceBookSection2()
         mock_s3 = SourceBookSection3(
             why_strategic_gears=WhyStrategicGears(),
         )
@@ -2118,8 +2129,10 @@ class TestThreeStageWriterArchitecture:
         )
 
         stage_responses = [
-            LLMResponse(parsed=mock_s12, input_tokens=5000, output_tokens=8000,
+            LLMResponse(parsed=mock_s1, input_tokens=5000, output_tokens=8000,
                         model="test", latency_ms=8000),
+            LLMResponse(parsed=mock_s2, input_tokens=3000, output_tokens=3000,
+                        model="test", latency_ms=5000),
             LLMResponse(parsed=mock_s3, input_tokens=3000, output_tokens=3000,
                         model="test", latency_ms=5000),
             LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
@@ -2153,30 +2166,32 @@ class TestThreeStageWriterArchitecture:
             result = await run(state)
 
         sb = result["source_book"]
-        assert sb.rfp_interpretation.objective_and_scope == "Test scope from Stage 1a"
+        assert sb.rfp_interpretation.objective_and_scope == "Test scope from Stage 1"
         assert len(sb.slide_blueprints) == 2
         assert len(sb.evidence_ledger.entries) == 1
         assert sb.slide_blueprints[0].title == "Cover"
         assert sb.evidence_ledger.entries[0].claim_id == "CLM-0001"
-        # Verify all 6 calls were made
-        assert call_count == 6
+        # Verify all 7 calls were made
+        assert call_count == 7
 
     @pytest.mark.asyncio
     async def test_all_stages_succeed_no_fallback_used(self):
-        """When all 6 stages succeed, fallback must NOT be triggered."""
+        """When all 7 stages succeed, fallback must NOT be triggered."""
         from unittest.mock import AsyncMock, patch
 
         from src.models.source_book import (
+            SourceBookSection1,
+            SourceBookSection2,
             SourceBookSection3,
             SourceBookSection4,
             SourceBookSection5,
             SourceBookSection6,
             SourceBookSection7,
-            SourceBookSections12,
         )
         from src.services.llm import LLMResponse
 
-        mock_s12 = SourceBookSections12(client_name="Test")
+        mock_s1 = SourceBookSection1(client_name="Test", rfp_interpretation=RFPInterpretation(objective_and_scope="Test scope"))
+        mock_s2 = SourceBookSection2()
         mock_s3 = SourceBookSection3()
         mock_s4 = SourceBookSection4()
         mock_s5 = SourceBookSection5()
@@ -2190,7 +2205,9 @@ class TestThreeStageWriterArchitecture:
         )
 
         stage_responses = [
-            LLMResponse(parsed=mock_s12, input_tokens=5000, output_tokens=8000,
+            LLMResponse(parsed=mock_s1, input_tokens=5000, output_tokens=8000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s2, input_tokens=3000, output_tokens=3000,
                         model="test", latency_ms=1000),
             LLMResponse(parsed=mock_s3, input_tokens=3000, output_tokens=3000,
                         model="test", latency_ms=1000),
@@ -2239,16 +2256,18 @@ class TestThreeStageWriterArchitecture:
         from unittest.mock import AsyncMock, patch
 
         from src.models.source_book import (
+            SourceBookSection1,
+            SourceBookSection2,
             SourceBookSection3,
             SourceBookSection4,
             SourceBookSection5,
             SourceBookSection6,
             SourceBookSection7,
-            SourceBookSections12,
         )
         from src.services.llm import LLMResponse
 
-        mock_s12 = SourceBookSections12(client_name="Test")
+        mock_s1 = SourceBookSection1(client_name="Test", rfp_interpretation=RFPInterpretation(objective_and_scope="Test scope"))
+        mock_s2 = SourceBookSection2()
         mock_s3 = SourceBookSection3()
         mock_s4 = SourceBookSection4()
         mock_s5 = SourceBookSection5()
@@ -2260,7 +2279,9 @@ class TestThreeStageWriterArchitecture:
         )
 
         stage_responses = [
-            LLMResponse(parsed=mock_s12, input_tokens=5000, output_tokens=8000,
+            LLMResponse(parsed=mock_s1, input_tokens=5000, output_tokens=8000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s2, input_tokens=3000, output_tokens=3000,
                         model="test", latency_ms=1000),
             LLMResponse(parsed=mock_s3, input_tokens=3000, output_tokens=3000,
                         model="test", latency_ms=1000),

@@ -29,6 +29,8 @@ from src.models.source_book import (
     EvidenceLedgerEntry,
     RFPInterpretation,
     SourceBook,
+    SourceBookSection1,
+    SourceBookSection2,
     SourceBookSection3,
     SourceBookSection4,
     SourceBookSection5,
@@ -40,7 +42,8 @@ from src.models.state import DeckForgeState
 from src.services.llm import call_llm
 
 from .prompts import (
-    STAGE1A_SECTIONS12_PROMPT,
+    STAGE1A_SECTION1_PROMPT,
+    STAGE1B_SECTION2_PROMPT,
     STAGE1B_SECTION3_PROMPT,
     STAGE1C_SECTION4_PROMPT,
     STAGE1D_SECTION5_PROMPT,
@@ -615,44 +618,91 @@ def _dump_sections_15(source_book: SourceBook) -> str:
     )
 
 
-async def _generate_sections_12(
+async def _generate_section_1(
     shared_ctx: dict,
     model: str,
     previous_book: SourceBook | None = None,
-) -> SourceBookSections12:
-    """Stage 1a: Sections 1-2 (RFP Interpretation + Client Problem Framing).
+) -> SourceBookSection1:
+    """Stage 1a: Section 1 (RFP Interpretation) + metadata.
 
-    Needs: rfp_context, proposal_strategy, reference_index (for compliance mapping),
-    mandatory_constraints, reviewer_feedback, output_language.
+    Dedicated call so Section 1 gets full token budget for deep RFP analysis.
     Drops: knowledge_graph, external_evidence_pack (not needed for RFP interpretation).
     """
     prev_data = None
     if previous_book:
         prev_data = {
             "rfp_interpretation": previous_book.rfp_interpretation.model_dump(mode="json"),
-            "client_problem_framing": previous_book.client_problem_framing.model_dump(mode="json"),
         }
     payload = _build_stage_payload(
         shared_ctx, prev_data,
         drop_keys=["knowledge_graph", "external_evidence_pack"],
     )
-    logger.info("Stage 1a (Sections 1-2): input chars=%d", len(payload))
+    logger.info("Stage 1a (Section 1 — RFP Interpretation): input chars=%d", len(payload))
 
     result = await call_llm(
         model=model,
-        system_prompt=STAGE1A_SECTIONS12_PROMPT,
+        system_prompt=STAGE1A_SECTION1_PROMPT,
         user_message=payload,
-        response_model=SourceBookSections12,
+        response_model=SourceBookSection1,
         max_tokens=16000,
         temperature=0.1,
     )
 
-    s12 = result.parsed
+    s1 = result.parsed
     logger.info(
-        "Stage 1a complete: compliance_items=%d",
-        len(s12.rfp_interpretation.key_compliance_requirements),
+        "Stage 1a complete: compliance_items=%d, scope_words=%d",
+        len(s1.rfp_interpretation.key_compliance_requirements),
+        len(s1.rfp_interpretation.objective_and_scope.split()),
     )
-    return s12
+    return s1
+
+
+async def _generate_section_2(
+    shared_ctx: dict,
+    model: str,
+    previous_book: SourceBook | None = None,
+) -> SourceBookSection2:
+    """Stage 1b: Section 2 (Client Problem Framing).
+
+    Dedicated call so Section 2 gets full token budget for deep problem diagnosis.
+    Drops: knowledge_graph, external_evidence_pack, reference_index (not needed
+    for problem framing — this section is about the client's situation).
+    """
+    prev_data = None
+    if previous_book:
+        prev_data = {
+            "client_problem_framing": previous_book.client_problem_framing.model_dump(mode="json"),
+        }
+    payload = _build_stage_payload(
+        shared_ctx, prev_data,
+        keep_keys=[
+            "rfp_context", "proposal_strategy", "mandatory_constraints",
+            "reviewer_feedback", "output_language", "sector", "geography",
+        ],
+    )
+    logger.info("Stage 1b (Section 2 — Problem Framing): input chars=%d", len(payload))
+
+    result = await call_llm(
+        model=model,
+        system_prompt=STAGE1B_SECTION2_PROMPT,
+        user_message=payload,
+        response_model=SourceBookSection2,
+        max_tokens=12000,
+        temperature=0.1,
+    )
+
+    s2 = result.parsed
+    cpf = s2.client_problem_framing
+    total_words = sum(
+        len(getattr(cpf, f, "").split())
+        for f in ["current_state_challenge", "why_it_matters_now",
+                   "transformation_logic", "risk_if_unchanged"]
+    )
+    logger.info(
+        "Stage 1b complete: problem_framing_words=%d",
+        total_words,
+    )
+    return s2
 
 
 async def _generate_section_3(
@@ -889,12 +939,13 @@ async def _generate_evidence_ledger(
 
 
 async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
-    """Run the Source Book Writer agent (six-stage split-call architecture).
+    """Run the Source Book Writer agent (seven-stage split-call architecture).
 
-    Stage 1a: Sections 1-2 (RFP Interpretation + Problem Framing)
-    Stage 1b: Section 3 (Why Strategic Gears)
-    Stage 1c: Section 4 (External Evidence)
-    Stage 1d: Section 5 (Proposed Solution / Methodology)
+    Stage 1a: Section 1 (RFP Interpretation)
+    Stage 1b: Section 2 (Client Problem Framing)
+    Stage 1c: Section 3 (Why Strategic Gears)
+    Stage 1d: Section 4 (External Evidence)
+    Stage 1e: Section 5 (Proposed Solution / Methodology)
     Stage 2a: Section 6 (Slide blueprints)
     Stage 2b: Section 7 (Evidence ledger)
 
@@ -922,28 +973,30 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
     )
 
     try:
-        # ── Stage 1a: Sections 1-2 ────────────────────────────
+        # ── Stage 1a: Section 1 (RFP Interpretation) ──────────
         # No per-stage fallback. If a stage fails, the whole pass fails.
-        # The graph loop handles pass-level recovery.
-        s12 = await _generate_sections_12(shared_ctx, model, previous_book)
+        s1 = await _generate_section_1(shared_ctx, model, previous_book)
 
-        # ── Stage 1b: Section 3 ────────────────────────────────
+        # ── Stage 1b: Section 2 (Client Problem Framing) ──────
+        s2 = await _generate_section_2(shared_ctx, model, previous_book)
+
+        # ── Stage 1c: Section 3 (Why Strategic Gears) ─────────
         s3 = await _generate_section_3(shared_ctx, model, previous_book)
 
-        # ── Stage 1c: Section 4 ───────────────────────────────
+        # ── Stage 1d: Section 4 (External Evidence) ───────────
         s4 = await _generate_section_4(shared_ctx, model, previous_book)
 
-        # ── Stage 1d: Section 5 ────────────────────────────────
+        # ── Stage 1e: Section 5 (Proposed Solution) ───────────
         s5 = await _generate_section_5(shared_ctx, model, previous_book)
 
         # ── Assemble SourceBook from split-call outputs ────────
         source_book = SourceBook(
-            client_name=s12.client_name,
-            rfp_name=s12.rfp_name,
-            language=s12.language,
-            generation_date=s12.generation_date,
-            rfp_interpretation=s12.rfp_interpretation,
-            client_problem_framing=s12.client_problem_framing,
+            client_name=s1.client_name,
+            rfp_name=s1.rfp_name,
+            language=s1.language,
+            generation_date=s1.generation_date,
+            rfp_interpretation=s1.rfp_interpretation,
+            client_problem_framing=s2.client_problem_framing,
             why_strategic_gears=s3.why_strategic_gears,
             external_evidence=s4.external_evidence,
             proposed_solution=s5.proposed_solution,
@@ -1025,9 +1078,9 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
             len(source_book.why_strategic_gears.capability_mapping),
         )
 
-        # Update session accounting (6 stages: 1a + 1b + 1c + 1d + 2a + 2b)
+        # Update session accounting (7 stages: 1a + 1b + 1c + 1d + 1e + 2a + 2b)
         session = state.session.model_copy(deep=True)
-        session.total_llm_calls += 6
+        session.total_llm_calls += 7
 
         return {
             "source_book": source_book,
