@@ -114,6 +114,10 @@ class DeckForgeState(DeckForgeBaseModel):
     approved_source_ids: list[str] = Field(default_factory=list)  # DOC-NNN ids user approved
     gate_2: GateDecision | None = None
 
+    # ─── Routing ───
+    routing_report: dict | None = None  # RoutingReport as dict
+    pack_context: dict | None = None  # Merged pack context
+
     # ─── Analysis / Evidence Curation ───
     reference_index: ReferenceIndex | None = None
     external_evidence_pack: ExternalEvidencePack | None = None

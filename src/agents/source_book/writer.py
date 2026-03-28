@@ -1182,7 +1182,11 @@ async def _generate_evidence_ledger(
     return section7
 
 
-async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
+async def run(
+    state: DeckForgeState,
+    reviewer_feedback: str = "",
+    pack_context: dict | None = None,
+) -> dict:
     """Run the Source Book Writer agent (seven-stage split-call architecture).
 
     Stage 1a: Section 1 (RFP Interpretation)
@@ -1194,6 +1198,7 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
     Stage 2b: Section 7 (Evidence ledger)
 
     Each stage gets its own LLM call and dedicated token budget.
+    pack_context: merged context packs from routing (if available).
     """
     model = MODEL_MAP.get("source_book_writer", MODEL_MAP.get("analysis_agent"))
 
@@ -1206,6 +1211,15 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
         current_pass = state.source_book.pass_number + 1
 
     shared_ctx = _build_shared_context(state, reviewer_feedback=reviewer_feedback)
+
+    # Inject pack context into shared context if available
+    if pack_context:
+        shared_ctx["pack_context"] = pack_context
+        logger.info(
+            "Writer received pack context: %d packs, %d search queries",
+            len(pack_context.get("active_packs", [])),
+            len(pack_context.get("recommended_search_queries", [])),
+        )
     previous_book = state.source_book if state.source_book and current_pass > 1 else None
 
     logger.info(

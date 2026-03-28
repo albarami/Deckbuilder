@@ -279,6 +279,23 @@ async def run_source_book_only(
     knowledge_graph = result.get("knowledge_graph")
     docx_path = result.get("report_docx_path")
     fallback_events = result.get("fallback_events", [])
+    routing_report = result.get("routing_report", {})
+
+    # Print routing report
+    if routing_report:
+        cls = routing_report.get("classification", {})
+        print(f"\n  --- Routing Report ---")
+        print(f"  Jurisdiction:     {cls.get('jurisdiction', 'unknown')}")
+        print(f"  Sector:           {cls.get('sector', 'unknown')}")
+        print(f"  Domain:           {cls.get('domain', '')}")
+        print(f"  Client type:      {cls.get('client_type', '')}")
+        print(f"  Confidence:       {routing_report.get('routing_confidence', 0):.2f}")
+        print(f"  Selected packs:   {routing_report.get('selected_packs', [])}")
+        print(f"  Fallback packs:   {routing_report.get('fallback_packs_used', [])}")
+        warnings = routing_report.get("warnings", [])
+        if warnings:
+            for w in warnings:
+                print(f"  ⚠ {w}")
 
     # ── Persist artifacts ──
     output_dir = Path("output") / session_id

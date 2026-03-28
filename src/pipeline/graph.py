@@ -612,7 +612,19 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     priority labeling so the writer addresses it first.
     """
     from src.agents.source_book import orchestrator, reviewer, writer
+    from src.services.routing import route_rfp
     from src.services.source_book_export import export_source_book_docx
+
+    # ── Routing: classify RFP and select context packs ──
+    routing_report, pack_context = route_rfp(state)
+    logger.info(
+        "Routing: packs=%s, fallbacks=%s, confidence=%.2f",
+        routing_report.selected_packs,
+        routing_report.fallback_packs_used,
+        routing_report.routing_confidence,
+    )
+    for w in routing_report.warnings:
+        logger.warning("Routing warning: %s", w)
 
     max_passes = 5
     current_state = state
@@ -632,7 +644,11 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
                 current_state.source_book_review
             )
 
-        writer_result = await writer.run(current_state, reviewer_feedback=reviewer_feedback)
+        writer_result = await writer.run(
+            current_state,
+            reviewer_feedback=reviewer_feedback,
+            pack_context=pack_context,
+        )
 
         # Update state with writer result
         updates = dict(writer_result)
@@ -788,6 +804,8 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
         "report_docx_path": exported_docx_path,
         "session": current_state.session,
         "fallback_events": all_fallback_events,
+        "routing_report": routing_report.model_dump(mode="json"),
+        "pack_context": pack_context,
     }
 
     # Surface export failure structurally
