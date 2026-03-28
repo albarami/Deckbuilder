@@ -78,34 +78,52 @@ def _extract_bilingual_any(bt) -> str:
     return ""
 
 
-def _validate_query(query: str) -> str | None:
+def _validate_query(query: str, max_len: int = 120) -> str | None:
     """Validate and clean a search query. Returns None if invalid.
 
-    Fixes truncation (queries ending mid-word or with "including"),
-    drops queries that are too short or too long.
+    Ensures queries end at complete word boundaries, removes dangling
+    prepositions/conjunctions, and caps length at max_len characters.
     """
     q = query.strip()
     if not q or len(q) < 8:
         return None
 
-    # Fix truncation: remove trailing incomplete words/prepositions
+    # Step 1: Truncate to max_len at the LAST word boundary
+    if len(q) > max_len:
+        truncated = q[:max_len]
+        # Find last space to avoid cutting mid-word
+        last_space = truncated.rfind(" ")
+        if last_space > 20:
+            q = truncated[:last_space].strip()
+        else:
+            q = truncated.strip()
+
+    # Step 2: Remove trailing prepositions/conjunctions/fragments
     _TRAILING_JUNK = [
-        " including", " supportin", " such as", " with",
-        " and", " or", " for", " in", " of", " to",
-        " بما", " مع", " من", " في", " إلى",
+        " including", " supportin", " such as", " with", " without",
+        " and", " or", " for", " in", " of", " to", " from",
+        " the", " a", " an", " their", " its",
+        " بما", " مع", " من", " في", " إلى", " على", " عن",
+        " و", " أو", " ال",
     ]
-    for junk in _TRAILING_JUNK:
-        if q.endswith(junk):
-            q = q[: -len(junk)].strip()
+    changed = True
+    while changed:
+        changed = False
+        for junk in _TRAILING_JUNK:
+            if q.lower().endswith(junk):
+                q = q[: -len(junk)].strip()
+                changed = True
 
-    # If still ends mid-word (no space in last 3 chars of a 50+ char query),
+    # Step 3: If query still ends mid-word (no common ending char),
     # truncate to last complete word
-    if len(q) > 50:
+    if q and q[-1].isalpha() and len(q) > 40:
         words = q.split()
-        if words:
-            q = " ".join(words)  # re-join removes double spaces
+        if len(words) > 3:
+            # Check if last word looks like a fragment (< 3 chars)
+            if len(words[-1]) < 3:
+                q = " ".join(words[:-1])
 
-    if len(q) < 8:
+    if not q or len(q) < 8:
         return None
     return q
 
@@ -134,11 +152,11 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
 
     # 1. RFP-name query — targeted, not generic
     if rfp_name and len(rfp_name) > 5:
-        queries.append(rfp_name[:100])
+        queries.append(rfp_name[:200])
 
     # 2. Mandate query — what is the RFP trying to achieve?
     if mandate and len(mandate) > 10:
-        queries.append(mandate[:150])
+        queries.append(mandate[:200])
 
     # 3. Per scope item — use ENGLISH text for better web results
     if rfp.scope_items:
@@ -148,7 +166,7 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
             if not en_text:
                 en_text = _extract_bilingual_any(desc) or ""
             if en_text and len(en_text) > 10:
-                queries.append(en_text[:150])
+                queries.append(en_text[:200])
 
     # 4. Per deliverable — targeted evidence
     if rfp.deliverables:
@@ -158,7 +176,7 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
             if not en_text:
                 en_text = _extract_bilingual_any(desc) or ""
             if en_text and len(en_text) > 10:
-                queries.append(en_text[:120])
+                queries.append(en_text[:200])
 
     # 5. Institutional/geographic context — specific benchmarks
     if geography:
