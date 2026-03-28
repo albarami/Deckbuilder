@@ -350,6 +350,80 @@ def _engine1_guard(
             gap_count,
         )
 
+    # ── Guard: Blueprint overclaim discipline ───────────
+    # If team/project data is absent, blueprint entries about team/proof
+    # must NOT use certainty language. Replace with conditional framing.
+    has_real_team = bool(kg_names)
+    has_real_projects = len(real_projects) >= 3  # meaningful project evidence
+
+    if not has_real_team or not has_real_projects:
+        # Certainty patterns that should not appear when proof is absent
+        _CERTAINTY_PATTERNS_AR = [
+            "مطابقة 100%", "مطابقة كاملة", "يلبي جميع المتطلبات بالكامل",
+            "فريق مؤهل بالكامل", "خبرة مثبتة", "سجل حافل",
+            "تطابق تام", "استيفاء كامل",
+        ]
+        _CERTAINTY_PATTERNS_EN = [
+            "100% match", "fully meets", "proven track record",
+            "fully qualified team", "complete compliance",
+            "demonstrated expertise", "verified staffing",
+        ]
+        certainty_patterns = _CERTAINTY_PATTERNS_AR + _CERTAINTY_PATTERNS_EN
+
+        # Sections where overclaim is dangerous
+        _PROOF_SECTIONS = [
+            "team", "فريق", "why sg", "لماذا", "case study", "دراسة حالة",
+            "compliance", "امتثال", "experience", "خبر",
+        ]
+
+        overclaim_count = 0
+        for bp in source_book.slide_blueprints:
+            # Check if this blueprint is about team/proof/experience
+            combined = f"{bp.section} {bp.title} {bp.purpose}".lower()
+            is_proof_section = any(p in combined for p in _PROOF_SECTIONS)
+
+            if not is_proof_section:
+                continue
+
+            # Scan title, key_message, and bullet_logic for certainty claims
+            texts_to_check = [bp.title, bp.key_message] + (bp.bullet_logic or [])
+            for i, text in enumerate(texts_to_check):
+                if not text:
+                    continue
+                for pattern in certainty_patterns:
+                    if pattern in text:
+                        # Replace with conditional framing
+                        if not has_real_team and ("team" in combined or "فريق" in combined):
+                            replacement = text.replace(
+                                pattern,
+                                "هيكل فريق مصمم لتلبية متطلبات المشروع — تأكيد التعيينات معلق"
+                                if any(c > "\u0600" for c in text)
+                                else "team structure designed to meet requirements — staffing confirmation pending"
+                            )
+                        else:
+                            replacement = text.replace(
+                                pattern,
+                                "مصمم لتلبية المتطلبات — الأدلة الداعمة قيد الاستكمال"
+                                if any(c > "\u0600" for c in text)
+                                else "designed to meet requirements — supporting evidence pending"
+                            )
+                        if i == 0:
+                            bp.title = replacement
+                        elif i == 1:
+                            bp.key_message = replacement
+                        else:
+                            bp.bullet_logic[i - 2] = replacement
+                        overclaim_count += 1
+
+        if overclaim_count:
+            logger.warning(
+                "Engine 1 guard: replaced %d certainty overclaims in blueprints "
+                "(team=%s, projects=%d)",
+                overclaim_count,
+                "present" if has_real_team else "absent",
+                len(real_projects),
+            )
+
     logger.info(
         "Engine 1 guard complete: %d real consultants, %d open roles, "
         "%d real projects, %d fabricated stripped",
