@@ -320,6 +320,20 @@ def transform_to_contract_blueprint(
     # Phase 3: Ensure all 31 sections are present
     contract_entries = _ensure_all_sections(contract_entries)
 
+    # Phase 3b: Deduplicate by section_id — keep first occurrence
+    seen_ids: dict[str, bool] = {}
+    deduped: list[ContractEntry] = []
+    for entry in contract_entries:
+        if entry.section_id not in seen_ids:
+            seen_ids[entry.section_id] = True
+            deduped.append(entry)
+        else:
+            logger.info(
+                "Blueprint dedup: removed duplicate %s (%s)",
+                entry.section_id, entry.section_name,
+            )
+    contract_entries = deduped
+
     # Phase 4: Sort by template order
     contract_entries = _sort_by_template_order(contract_entries)
 
