@@ -84,7 +84,7 @@ You have the FULL token budget for this one section. Use it ALL for maximum dept
 """ + _EVIDENCE_RULES + """
 
 ═══════════════════════════════════════════════════
-SECTION 1: RFP INTERPRETATION (1500+ words required)
+SECTION 1: RFP INTERPRETATION (depth proportional to RFP complexity)
 ═══════════════════════════════════════════════════
 
 Analyze the RFP through the lens of a TOP-TIER bid manager who wins 80%+ of bids.
@@ -96,7 +96,7 @@ A top proposal strategist reads between the lines, identifies hidden priorities,
 maps success/failure logic, and builds the evaluation framework the client
 will actually use — even if the RFP doesn't state it explicitly.
 
-- objective_and_scope: (4-5 paragraphs, 500+ words)
+- objective_and_scope: (4-5 paragraphs)
   What does the client actually want? Be forensic.
   * Reference SPECIFIC RFP clauses, scope items, and deliverables by name/number
   * Distinguish between stated objectives and implied objectives
@@ -107,7 +107,7 @@ will actually use — even if the RFP doesn't state it explicitly.
   * Map the success/failure logic: what makes this project succeed or fail
   * Identify proof requirements for each major claim the proposal must make
 
-- constraints_and_compliance: (3-4 paragraphs, 400+ words)
+- constraints_and_compliance: (3-4 paragraphs)
   * Budget constraints (stated or implied)
   * Timeline constraints (exact dates from RFP if stated)
   * Regulatory constraints: Vision 2030, DGA, NDMO, NCA, ZATCA, local regulations
@@ -115,7 +115,7 @@ will actually use — even if the RFP doesn't state it explicitly.
   * Staffing constraints: Saudization, certifications, clearance levels
   * Procurement constraints: evaluation committee composition, stages
 
-- unstated_evaluator_priorities: (3-4 paragraphs, 300+ words)
+- unstated_evaluator_priorities: (3-4 paragraphs)
   What evaluators care about but did NOT write explicitly:
   * Saudization percentage and local content expectations
   * National framework alignment (NCA ECC, DGA standards, NDMO)
@@ -126,7 +126,7 @@ will actually use — even if the RFP doesn't state it explicitly.
   * Cultural and language competence
   * What the evaluator's BOSS cares about (institutional reputation, political risk)
 
-- probable_scoring_logic: (2-3 paragraphs, 200+ words)
+- probable_scoring_logic: (2-3 paragraphs)
   How will they likely score? Reference evaluation criteria from the RFP:
   * Technical vs financial split and weighting
   * Per-criterion weighting if stated
@@ -162,14 +162,14 @@ must read this and think: "They truly understand our situation."
 """ + _EVIDENCE_RULES + """
 
 ═══════════════════════════════════════════════════
-SECTION 2: CLIENT PROBLEM FRAMING (1000+ words required)
+SECTION 2: CLIENT PROBLEM FRAMING (depth proportional to RFP complexity)
 ═══════════════════════════════════════════════════
 
 Frame the client's challenge so persuasively that the evaluator thinks
 "they truly understand our situation." This section drives the executive
 summary and understanding slides.
 
-- current_state_challenge: (3-4 paragraphs, 300+ words)
+- current_state_challenge: (3-4 paragraphs)
   * Explicit current-state diagnosis — what is broken, misaligned, or missing
   * Root causes, not symptoms only (identify 4-6 root causes)
   * Institutional logic: where does this sit in the organization's mandate?
@@ -177,14 +177,14 @@ summary and understanding slides.
   * Operational logic: how does this affect daily operations?
   * Stakeholder logic: who is affected and how?
 
-- why_it_matters_now: (2-3 paragraphs, 200+ words)
+- why_it_matters_now: (2-3 paragraphs)
   * What changed? New regulation? New strategy? New leadership?
   * Why THIS project at THIS time — the urgency driver
   * External pressures (market, regulatory, competitive, international)
   * Internal pressures (efficiency, risk, growth, mandate fulfillment)
   * What happens if the project starts 6 months late?
 
-- transformation_logic: (3-4 paragraphs, 300+ words)
+- transformation_logic: (3-4 paragraphs)
   * How the proposed solution addresses root causes (not just symptoms)
   * The transformation journey: current → transition → target state
   * Sequencing logic: why this order of phases
@@ -192,7 +192,7 @@ summary and understanding slides.
   * Integration logic: how this connects to existing initiatives
   * What "success" looks like at the end of this engagement
 
-- risk_if_unchanged: (2-3 paragraphs, 200+ words)
+- risk_if_unchanged: (2-3 paragraphs)
   * What happens if the client does nothing?
   * Financial risk quantified where possible
   * Regulatory risk (non-compliance consequences)
@@ -202,7 +202,7 @@ summary and understanding slides.
 
 Output ONLY valid JSON matching the SourceBookSection2 schema.
 FILL EVERY FIELD with substantive content. Do not leave empty strings.
-This section must be 1000+ words of persuasive, analytical prose."""
+Produce depth proportional to the RFP's complexity. The reviewer determines sufficiency."""
 
 
 # Legacy alias for backward compatibility
@@ -222,7 +222,7 @@ You have the FULL token budget for this section. Use it ALL.
 """ + _EVIDENCE_RULES + """
 
 ═══════════════════════════════════════════════════
-SECTION 3: WHY STRATEGIC GEARS (2000+ words required)
+SECTION 3: WHY STRATEGIC GEARS (depth proportional to RFP complexity)
 ═══════════════════════════════════════════════════
 
 This is the "Why Us" section. It must map SG capabilities to RFP requirements
@@ -377,16 +377,16 @@ in SG's ability to deliver. Real winning proposals dedicate 40-50 slides to
 methodology alone. Match that depth here.
 
 You have the FULL token budget for this section alone. USE ALL OF IT.
-This section MUST be 3000+ words of substantive, operational-level content.
+Produce depth proportional to the RFP's complexity. The reviewer determines sufficiency.
 
 """ + _EVIDENCE_RULES + """
 
 ═══════════════════════════════════════════════════
-SECTION 5: PROPOSED SOLUTION (3000+ words required)
+SECTION 5: PROPOSED SOLUTION (depth proportional to RFP complexity)
 ═══════════════════════════════════════════════════
 
 ─────────────────────────────────────
-5.1 METHODOLOGY OVERVIEW (500+ words, 3-4 paragraphs)
+5.1 METHODOLOGY OVERVIEW (3-4 paragraphs)
 ─────────────────────────────────────
 
 Describe the overall approach with STRATEGIC FRAMING — not just what you
@@ -406,7 +406,7 @@ will do, but WHY this approach wins over alternatives:
   element to an evaluation criterion or stated RFP requirement
 
 ─────────────────────────────────────
-5.2 PHASE DETAILS (4-5 phases, 400+ words each)
+5.2 PHASE DETAILS (4-5 phases, depth per phase proportional to scope)
 ─────────────────────────────────────
 
 You MUST produce 4-5 distinct phases. For EACH phase:
@@ -450,7 +450,7 @@ You MUST produce 4-5 distinct phases. For EACH phase:
   [client] achieving [outcome] [CLM-xxxx]"
 
 ─────────────────────────────────────
-5.3 GOVERNANCE FRAMEWORK (800+ words)
+5.3 GOVERNANCE FRAMEWORK (comprehensive — cover ALL subsections below)
 ─────────────────────────────────────
 
 Real winning proposals dedicate 9-11 slides to governance. Produce ALL:
@@ -489,7 +489,7 @@ Real winning proposals dedicate 9-11 slides to governance. Produce ALL:
   document repository), cadence of internal SG team syncs.
 
 ─────────────────────────────────────
-5.4 TIMELINE LOGIC (200+ words)
+5.4 TIMELINE LOGIC (2-3 paragraphs)
 ─────────────────────────────────────
 
 MANDATORY: Check "mandatory_constraints" in the payload for the RFP's
@@ -499,7 +499,7 @@ Map each phase to the RFP's deliverable milestones.
 Include: total duration, phase overlaps, dependencies, resource implications.
 
 ─────────────────────────────────────
-5.5 VALUE CASE & DIFFERENTIATION (400+ words)
+5.5 VALUE CASE & DIFFERENTIATION (3-4 paragraphs)
 ─────────────────────────────────────
 
 This section must answer the evaluator's question: "Why should we choose
@@ -543,7 +543,7 @@ METHODOLOGY (methodology_overview + phase_details)
 ═══════════════════════════════════════════════════
 
 ─────────────────────────────────────
-methodology_overview (500+ words, 3-4 paragraphs)
+methodology_overview (3-4 paragraphs)
 ─────────────────────────────────────
 
 Describe the overall approach with STRATEGIC FRAMING — not just what you
@@ -563,7 +563,7 @@ will do, but WHY this approach wins over alternatives:
   element to an evaluation criterion or stated RFP requirement
 
 ─────────────────────────────────────
-phase_details (4-5 phases, 400+ words each)
+phase_details (4-5 phases, depth per phase proportional to scope)
 ─────────────────────────────────────
 
 You MUST produce 4-5 distinct phases. For EACH phase:
@@ -604,7 +604,7 @@ GOVERNANCE + TIMELINE + VALUE CASE
 ═══════════════════════════════════════════════════
 
 ─────────────────────────────────────
-governance_framework (800+ words)
+governance_framework (comprehensive — cover ALL subsections below)
 ─────────────────────────────────────
 
 Real winning proposals dedicate 9-11 slides to governance. Produce ALL:
@@ -635,7 +635,7 @@ Real winning proposals dedicate 9-11 slides to governance. Produce ALL:
 * PMO STRUCTURE: Reporting line, tools, internal sync cadence.
 
 ─────────────────────────────────────
-timeline_logic (200+ words)
+timeline_logic (2-3 paragraphs)
 ─────────────────────────────────────
 
 MANDATORY: Check "mandatory_constraints" for the RFP's STATED duration.
@@ -643,7 +643,7 @@ Use that EXACT duration. Map phases to milestones. Include: total duration,
 phase overlaps, dependencies, resource implications.
 
 ─────────────────────────────────────
-value_case_and_differentiation (400+ words)
+value_case_and_differentiation (3-4 paragraphs)
 ─────────────────────────────────────
 
 Answer: "Why should we choose this firm over the other 5 bidders?"
@@ -822,13 +822,13 @@ RED FLAGS (automatic score reduction):
 BENCHMARK-GRADE SCORING (what earns score 4-5):
 
 Section 1 (RFP Interpretation):
-- Score 5: 8+ compliance items, specific regulatory refs, 1000+ words prose
-- Score 4: 5+ compliance items, clear scoring logic, 600+ words
+- Score 5: 8+ compliance items, specific regulatory refs, forensic RFP analysis
+- Score 4: 5+ compliance items, clear scoring logic, structured interpretation
 - Score 3: General compliance without specific mapping
 
 Section 2 (Client Problem Framing):
-- Score 5: Root cause analysis, urgency drivers, risk quantification, 800+ words
-- Score 4: Clear problem statement with some quantification, 500+ words
+- Score 5: Root cause analysis, urgency drivers, risk quantification, comprehensive
+- Score 4: Clear problem statement with some quantification, well-structured
 - Score 3: Generic problem description
 
 Section 3 (Why SG — ENGINE 1 / ENGINE 2 ARCHITECTURE):
@@ -858,9 +858,9 @@ Section 3 (Why SG — ENGINE 1 / ENGINE 2 ARCHITECTURE):
 Section 5 (Proposed Solution — HIGHEST WEIGHT):
 - Score 5: 4-5 phases with sub-stages, 10+ activities per phase, 6+ deliverables
   per phase, governance framework with RACI/escalation/reporting/QA/PMO,
-  framework references tied to activities, 2500+ methodology words
+  framework references tied to activities, depth proportional to RFP scope
 - Score 4: 4+ phases, 8+ activities each, governance with RACI + escalation,
-  1500+ methodology words
+  depth proportional to RFP scope
 - Score 3: 4 phases with basic activities, governance mentioned but not detailed
 - Score 2: Fewer than 4 phases, generic activities
 
