@@ -452,6 +452,107 @@ def _engine1_guard(
     return source_book
 
 
+def _engine1_blueprint_overclaim_scan(
+    source_book: SourceBook,
+    state: DeckForgeState,
+) -> SourceBook:
+    """Scan blueprints for semantic overclaims AFTER Stage 2a generates them.
+
+    When KG data is absent (no real team, few projects), replace certainty
+    language in ALL blueprint entries with conditional framing.
+    """
+    import re as _re
+
+    # Determine data availability
+    kg_people_count = 0
+    kg_project_count = 0
+    if state.knowledge_graph:
+        kg_people_count = sum(
+            1 for p in state.knowledge_graph.people
+            if p.person_type == "internal_team"
+        )
+        kg_project_count = len(state.knowledge_graph.projects)
+
+    has_real_team = kg_people_count > 0
+    has_real_projects = kg_project_count >= 3
+
+    if has_real_team and has_real_projects:
+        return source_book  # No overclaim risk
+
+    # Arabic semantic certainty patterns
+    _OVERCLAIM_RE = _re.compile(
+        r"100%|بنسبة\s*100|"
+        r"يستوفي\s+جميع|يستوفون\s+جميع|"
+        r"كل\s+متطلب|جميع\s+متطلبات|جميع\s+المتطلبات|"
+        r"مُثبتة|مثبتة|مُغطّى|مغطى|"
+        r"امتثال\s+كامل|مطابقة\s+كاملة|تطابق\s+تام|استيفاء\s+كامل|"
+        r"فريق\s+مؤهل\s+بالكامل|خبرة\s+مثبتة|سجل\s+حافل|"
+        r"fully meets|complete compliance|proven track record|"
+        r"fully qualified|100% match|100% compliance",
+        _re.IGNORECASE,
+    )
+
+    _AR_REPLACEMENTS = [
+        (r"يستوفي\s+جميع", "مُصمَّم لاستيفاء"),
+        (r"يستوفون\s+جميع", "مُصمَّمون لاستيفاء"),
+        (r"كل\s+متطلب\s+مُغطّى", "كل متطلب محدَّد"),
+        (r"كل\s+متطلب\s+مغطى", "كل متطلب محدَّد"),
+        (r"مُثبتة", "مطلوبة"),
+        (r"مثبتة", "مطلوبة"),
+        (r"مُغطّى", "محدَّد"),
+        (r"مغطى", "محدَّد"),
+        (r"جميع\s+متطلبات", "متطلبات"),
+        (r"جميع\s+المتطلبات", "المتطلبات"),
+        (r"امتثال\s+كامل", "امتثال مُصمَّم"),
+        (r"مطابقة\s+كاملة", "مطابقة مُصمَّمة"),
+    ]
+
+    def _soften(text: str) -> str:
+        result = text
+        for pattern, replacement in _AR_REPLACEMENTS:
+            result = _re.sub(pattern, replacement, result)
+        result = _re.sub(r"100%|بنسبة\s*100", "مُصمَّم لتلبية المتطلبات", result)
+        return result
+
+    overclaim_count = 0
+    for bp in source_book.slide_blueprints:
+        fields = [
+            ("title", bp.title),
+            ("key_message", bp.key_message),
+        ] + [
+            (f"bullet_{j}", b) for j, b in enumerate(bp.bullet_logic or [])
+        ]
+        for field_name, text in fields:
+            if not text:
+                continue
+            if _OVERCLAIM_RE.search(text):
+                replaced = _soften(text)
+                if replaced != text:
+                    if field_name == "title":
+                        bp.title = replaced
+                    elif field_name == "key_message":
+                        bp.key_message = replaced
+                    elif field_name.startswith("bullet_"):
+                        idx = int(field_name.split("_")[1])
+                        bp.bullet_logic[idx] = replaced
+                    overclaim_count += 1
+                    logger.info(
+                        "Blueprint overclaim scan: softened slide %d %s",
+                        bp.slide_number, field_name,
+                    )
+
+    if overclaim_count:
+        logger.warning(
+            "Blueprint overclaim scan: replaced %d certainty claims "
+            "(team=%d, projects=%d)",
+            overclaim_count, kg_people_count, kg_project_count,
+        )
+    else:
+        logger.info("Blueprint overclaim scan: 0 overclaims found")
+
+    return source_book
+
+
 async def _rewrite_hedges(
     source_book: SourceBook,
     hedges_found: list[str],
@@ -1186,6 +1287,11 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
                 "Check max_tokens and input payload size.",
                 current_pass,
             )
+
+        # ── Post-blueprint overclaim scan ─────────────────────
+        # Must run AFTER Stage 2a so the newly generated blueprints
+        # are scanned for certainty language about team/proof.
+        source_book = _engine1_blueprint_overclaim_scan(source_book, state)
 
         # ── Stage 2b: Section 7 (evidence ledger) ─────────────
         section7 = await _generate_evidence_ledger(source_book, model)
