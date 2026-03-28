@@ -434,6 +434,79 @@ def _add_section_7(doc: Document, source_book: SourceBook) -> None:
         row[5].text = entry.verifiability_status
 
 
+def _add_engine2_requirements(doc: Document, source_book: SourceBook) -> None:
+    """Appendix: Engine 2 Requirements — proof gaps and action items.
+
+    Surfaces all evidence_gap entries from the evidence ledger as a
+    structured proof shopping list. Also lists open_role_profile team
+    entries and their required qualifications.
+    """
+    # Collect gaps from evidence ledger
+    evidence_gaps = [
+        e for e in source_book.evidence_ledger.entries
+        if e.verifiability_status == "gap"
+    ]
+
+    # Collect open roles from team
+    open_roles = [
+        nc for nc in source_book.why_strategic_gears.named_consultants
+        if nc.staffing_status == "open_role_profile"
+    ]
+
+    if not evidence_gaps and not open_roles:
+        return  # No gaps — Engine 2 not needed
+
+    doc.add_page_break()
+    doc.add_heading("Appendix: Engine 2 Requirements", level=1)
+    doc.add_paragraph(
+        "This appendix lists proof gaps that Engine 2 (company backend) "
+        "must fill before the proposal is submission-ready. Each item "
+        "specifies what evidence is needed and where it should come from."
+    )
+
+    # Evidence gaps table
+    if evidence_gaps:
+        doc.add_heading("A. Evidence Gaps — Proof Shopping List", level=2)
+        table = doc.add_table(rows=1, cols=4)
+        table.style = "Table Grid"
+        hdr = table.rows[0].cells
+        hdr[0].text = "Claim ID"
+        hdr[1].text = "Claim"
+        hdr[2].text = "Source Needed"
+        hdr[3].text = "Action Required"
+        for entry in evidence_gaps:
+            row = table.add_row().cells
+            row[0].text = entry.claim_id
+            row[1].text = entry.claim_text
+            row[2].text = entry.source_reference or "Company backend"
+            row[3].text = entry.verification_note or "Retrieve from company database"
+
+    # Open roles table
+    if open_roles:
+        doc.add_heading("B. Open Team Roles — Staffing Requirements", level=2)
+        table = doc.add_table(rows=1, cols=4)
+        table.style = "Table Grid"
+        hdr = table.rows[0].cells
+        hdr[0].text = "Role"
+        hdr[1].text = "Required Qualifications"
+        hdr[2].text = "Domain Expertise"
+        hdr[3].text = "Action Required"
+        for nc in open_roles:
+            row = table.add_row().cells
+            row[0].text = nc.role
+            certs = ", ".join(nc.certifications) if nc.certifications else "—"
+            edu = ", ".join(nc.education) if nc.education else "—"
+            yrs = f"{nc.years_experience}+ years" if nc.years_experience else "—"
+            row[1].text = f"Education: {edu}\nCertifications: {certs}\nExperience: {yrs}"
+            row[2].text = ", ".join(nc.domain_expertise) if nc.domain_expertise else "—"
+            row[3].text = (
+                "Engine 2: retrieve matching consultant from staffing database "
+                "and populate name, CV, and project history"
+            )
+
+    doc.add_paragraph()
+
+
 async def export_source_book_docx(
     source_book: SourceBook,
     output_path: str,
@@ -458,6 +531,9 @@ async def export_source_book_docx(
     _add_section_5(doc, source_book)
     _add_section_6(doc, source_book)
     _add_section_7(doc, source_book)
+
+    # Appendix: Engine 2 Requirements (proof gaps)
+    _add_engine2_requirements(doc, source_book)
 
     # Save
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
