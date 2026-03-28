@@ -79,11 +79,17 @@ def _extract_bilingual_any(bt) -> str:
 
 
 def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
-    """Generate 6-8 Perplexity queries from RFP context.
+    """Generate 6-10 Perplexity queries from RFP context.
 
-    Strategy: one query per RFP scope item, one per deliverable cluster,
-    plus mandate and RFP-name queries. Each query targets a specific
-    RFP scope area for web synthesis evidence.
+    Strategy: domain-specific queries targeting the actual RFP subject matter.
+    Each query must be specific enough to return proposal-usable intelligence,
+    not just "methodology best practices."
+
+    Query categories:
+    - Per scope item: what does the best practice look like for THIS deliverable?
+    - Per evaluation criterion: what evidence do evaluators look for?
+    - Institutional context: comparable institutions, regulatory frameworks
+    - Benchmarks: what do leading organizations do in this domain?
     """
     queries: list[str] = []
 
@@ -93,48 +99,66 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
 
     rfp_name = _extract_bilingual_any(rfp.rfp_name)
     mandate = _extract_bilingual_any(rfp.mandate)
+    sector = state.sector or ""
+    geography = state.geography or ""
 
+    # 1. RFP-name query — targeted, not generic
     if rfp_name and len(rfp_name) > 5:
-        queries.append(f"{rfp_name[:80]} consulting methodology")
+        queries.append(rfp_name[:80])
 
+    # 2. Mandate query — what is the RFP trying to achieve?
     if mandate and len(mandate) > 10:
-        queries.append(f"{mandate[:100].strip()} best practices")
+        queries.append(mandate[:120].strip())
 
+    # 3. Per scope item — ask for the specific deliverable's best practice
     if rfp.scope_items:
         for scope_item in rfp.scope_items[:4]:
             text = _extract_bilingual_any(scope_item.description)
             if text and len(text) > 10:
-                queries.append(f"{text[:100].strip()} framework methodology")
+                # Use the full scope description, not just "framework methodology"
+                queries.append(text[:120].strip())
 
+    # 4. Per deliverable — targeted evidence for what the client expects
     if rfp.deliverables:
-        for deliv in rfp.deliverables[:2]:
+        for deliv in rfp.deliverables[:3]:
             text = _extract_bilingual_any(deliv.description)
             if text and len(text) > 10:
-                queries.append(f"{text[:100].strip()} best practices")
+                queries.append(text[:100].strip())
 
-    sector = state.sector or ""
-    geography = state.geography or ""
+    # 5. Institutional/geographic context
+    if geography:
+        queries.append(
+            f"{geography} government consulting services framework"
+        )
     if sector and geography:
-        queries.append(f"{geography} {sector} consulting framework")
-    elif sector:
-        queries.append(f"{sector} consulting best practices")
+        queries.append(
+            f"{geography} {sector} operating model benchmarks"
+        )
+
+    # 6. Evaluation criteria — what do evaluators prioritize?
+    if rfp.evaluation_criteria:
+        ec = rfp.evaluation_criteria
+        tech_criteria = getattr(ec, "technical_criteria", [])
+        for criterion in tech_criteria[:2]:
+            crit_text = getattr(criterion, "criterion", "")
+            if isinstance(crit_text, str) and len(crit_text) > 5:
+                queries.append(f"{crit_text[:80]} evaluation methodology")
 
     if not queries:
-        if rfp_name:
-            queries.append(rfp_name)
-        elif mandate:
-            queries.append(mandate[:100])
-        else:
-            queries.append("management consulting methodology best practices")
+        queries.append("management consulting methodology best practices")
 
-    return _deduplicate(queries)[:8]
+    return _deduplicate(queries)[:10]
 
 
 def _generate_s2_queries(state: DeckForgeState) -> list[str]:
     """Generate short academic-style queries for Semantic Scholar.
 
-    S2 works best with 3-5 word keyword phrases. Long natural
-    language sentences return irrelevant medical/science papers.
+    S2 works best with 3-8 word ENGLISH keyword phrases.
+    Long sentences and Arabic text return irrelevant papers.
+
+    Strategy: extract the DOMAIN CONCEPTS from the RFP and build
+    short English academic queries. Use English field names since
+    S2 indexes English-language papers primarily.
     """
     queries: list[str] = []
     rfp = state.rfp_context
@@ -142,29 +166,36 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
         return ["consulting methodology evaluation"]
 
     sector = state.sector or ""
+    geography = state.geography or ""
 
+    # Use the ENGLISH version of scope items for S2 queries
     if rfp.scope_items:
         for scope_item in rfp.scope_items[:4]:
-            text = _extract_bilingual_any(scope_item.description)
-            if text:
-                words = text.split()[:4]
+            # Prefer English text for S2 — Arabic returns irrelevant papers
+            desc = scope_item.description
+            en_text = getattr(desc, "en", "") if desc else ""
+            if not en_text:
+                en_text = _extract_bilingual_any(desc) or ""
+            if en_text and len(en_text) > 5:
+                # Take key nouns, not the full sentence
+                words = en_text.split()[:6]
                 phrase = " ".join(words)
-                if sector:
-                    queries.append(f"{phrase} {sector}")
-                else:
-                    queries.append(f"{phrase} framework")
+                queries.append(phrase)
 
-    if rfp.deliverables:
-        for deliv in rfp.deliverables[:2]:
-            text = _extract_bilingual_any(deliv.description)
-            if text:
-                words = text.split()[:3]
-                queries.append(" ".join(words) + " assessment")
-
+    # Add domain-specific academic queries
     mandate = _extract_bilingual_any(rfp.mandate)
     if mandate:
-        words = mandate.split()[:4]
-        queries.append(" ".join(words) + " evaluation")
+        # Extract key English concepts
+        en_mandate = getattr(rfp.mandate, "en", "") if rfp.mandate else ""
+        if en_mandate:
+            words = en_mandate.split()[:5]
+            queries.append(" ".join(words))
+
+    # Add sector + geography academic queries
+    if sector:
+        queries.append(f"{sector} service design framework")
+    if geography and sector:
+        queries.append(f"{geography} {sector} policy evaluation")
 
     if not queries:
         queries.append("consulting methodology evaluation")
