@@ -259,22 +259,33 @@ async def extract_evidence_ledger(
                 )
                 continue
             # Map confidence to verifiability_status (Literal field)
-            # NEVER auto-mark as "verified" — that requires cross-checking
-            # against actual reference_index data which this extractor
-            # doesn't have. Use "partially_verified" for high-confidence
-            # claims that cite real evidence IDs, "unverified" for medium,
-            # and "gap" for low-confidence claims without evidence backing.
+            # Engine 1 architecture:
+            # - "verified" = NEVER auto-assigned (requires Engine 2 cross-check)
+            # - "partially_verified" = has real CLM/EXT evidence ID
+            # - "unverified" = external claim without strong backing
+            # - "gap" = internal claim without evidence ID — Engine 2 must fill
             has_evidence_id = bool(
                 "CLM-" in parsed.source_reference
                 or "EXT-" in parsed.source_reference
             )
+            is_internal = parsed.source_type == "internal"
+
             if has_evidence_id:
                 verif_map = {
                     "high": "partially_verified",
                     "medium": "partially_verified",
                     "low": "unverified",
                 }
+            elif is_internal:
+                # Internal claims without evidence IDs are GAPS — Engine 2
+                # must provide the proof (project records, CVs, certificates)
+                verif_map = {
+                    "high": "gap",
+                    "medium": "gap",
+                    "low": "gap",
+                }
             else:
+                # External claims without specific IDs
                 verif_map = {
                     "high": "unverified",
                     "medium": "unverified",
