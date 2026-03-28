@@ -332,6 +332,35 @@ class SourceBookSection5(DeckForgeBaseModel):
     proposed_solution: ProposedSolution = Field(default_factory=ProposedSolution)
 
 
+# ── Internal writer sub-models for Section 5 split generation ─────
+# These are NOT part of the Source Book schema. They are used only
+# inside the writer to split generation into two calls so each gets
+# full 32K token budget. The outputs are merged into ProposedSolution.
+
+
+class _Section5Methodology(DeckForgeBaseModel):
+    """Internal: Call 1 of Section 5 split — methodology + phases.
+
+    Owns: methodology_overview, phase_details.
+    Does NOT generate governance, timeline, or value case.
+    """
+
+    methodology_overview: str = ""
+    phase_details: list[PhaseDetail] = Field(default_factory=list)
+
+
+class _Section5Governance(DeckForgeBaseModel):
+    """Internal: Call 2 of Section 5 split — governance + timeline + value.
+
+    Owns: governance_framework, timeline_logic, value_case_and_differentiation.
+    Does NOT generate methodology or phases.
+    """
+
+    governance_framework: str = ""
+    timeline_logic: str = ""
+    value_case_and_differentiation: str = ""
+
+
 # ──────────────────────────────────────────────────────────────
 # Source Book Review (critique output)
 # ──────────────────────────────────────────────────────────────

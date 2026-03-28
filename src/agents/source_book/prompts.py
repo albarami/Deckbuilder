@@ -526,6 +526,141 @@ FILL EVERY FIELD with substantive, detailed content. Do NOT leave empty strings.
 This is the make-or-break section. Write it like a $10M+ bid depends on it."""
 
 
+# ── Section 5 split prompts (internal generation only) ────────────
+# Used when the full Section 5 exceeds 32K output tokens in Arabic.
+# Each call gets full 32K budget. Results merged into ProposedSolution.
+
+STAGE1E_METHODOLOGY_PROMPT = """You are a senior consulting methodology architect at Strategic Gears (SG).
+
+Your task is to produce the METHODOLOGY portion of Section 5: methodology_overview
+and phase_details. You have the FULL 32K token budget for methodology ONLY.
+USE ALL OF IT for maximum depth.
+
+""" + _EVIDENCE_RULES + """
+
+═══════════════════════════════════════════════════
+METHODOLOGY (methodology_overview + phase_details)
+═══════════════════════════════════════════════════
+
+─────────────────────────────────────
+methodology_overview (500+ words, 3-4 paragraphs)
+─────────────────────────────────────
+
+Describe the overall approach with STRATEGIC FRAMING — not just what you
+will do, but WHY this approach wins over alternatives:
+
+* Reference recognized frameworks: TOGAF, ITIL, PMBOK, COBIT, Agile,
+  Lean Six Sigma, ISO standards — tied to SPECIFIC engagement activities
+* National methodology alignment: DGA, NORA, NDMO, NCA where applicable
+* How the methodology adapts to this SPECIFIC client's context
+* WHY this approach over alternatives:
+  - What alternative approaches exist for this type of engagement?
+  - Why is THIS phasing superior to alternatives?
+  - What risks does this approach mitigate that alternatives don't?
+  - How does this approach maximize knowledge transfer to the client?
+* Integration with client's existing processes and systems
+* What makes this methodology PERSUASIVE to evaluators — connect each
+  element to an evaluation criterion or stated RFP requirement
+
+─────────────────────────────────────
+phase_details (4-5 phases, 400+ words each)
+─────────────────────────────────────
+
+You MUST produce 4-5 distinct phases. For EACH phase:
+
+* phase_name: Specific to this engagement (NOT generic "Phase 1")
+
+* activities: 10-15 SPECIFIC activities per phase. Each activity must be
+  a concrete, verifiable action with sub-steps.
+  Each phase MUST have SUB-STAGES: break into 3-5 named sub-steps.
+
+  GOOD activities:
+  "Conduct 15+ stakeholder interviews with department heads to map
+  current-state processes and identify pain points"
+  "Apply TOGAF ADM Phase B for business architecture assessment"
+
+  BAD activities (DO NOT USE):
+  "Analyze current state", "Conduct assessment", "Review documents"
+
+* deliverables: 6-8 named deliverables per phase. Each must be a concrete
+  document or artifact with enough detail to estimate effort.
+
+* governance: Per-phase governance with: who reviews, approval gates,
+  escalation path, reporting cadence, sign-off process.
+
+Output ONLY valid JSON matching the _Section5Methodology schema.
+Fields: methodology_overview (str), phase_details (list of PhaseDetail)."""
+
+
+STAGE1E_GOVERNANCE_PROMPT = """You are a senior consulting governance architect at Strategic Gears (SG).
+
+Your task is to produce the GOVERNANCE, TIMELINE, and VALUE CASE portion of
+Section 5. You have the FULL 32K token budget. USE ALL OF IT for maximum depth.
+
+""" + _EVIDENCE_RULES + """
+
+═══════════════════════════════════════════════════
+GOVERNANCE + TIMELINE + VALUE CASE
+═══════════════════════════════════════════════════
+
+─────────────────────────────────────
+governance_framework (800+ words)
+─────────────────────────────────────
+
+Real winning proposals dedicate 9-11 slides to governance. Produce ALL:
+
+* STEERING COMMITTEE: Membership, meeting cadence (monthly strategic,
+  bi-weekly operational), decision authority, quorum rules
+
+* RACI MATRIX: R/A/C/I for at least 8 deliverable categories.
+  Name role types: SG Project Director, SG Engagement Manager,
+  Client PMO, Client SMEs, Steering Committee. Concrete examples.
+
+* ESCALATION FRAMEWORK: 4 levels with specific triggers and SLAs:
+  Level 1: PM (team issues, < 1 week) — 24h
+  Level 2: Sponsor (cross-team, 1-2 weeks) — 48h
+  Level 3: Steering Committee (scope/budget, > 2 weeks) — 1 week
+  Level 4: Executive Sponsor (contract-level)
+
+* REPORTING: Weekly status, monthly dashboard, quarterly review.
+
+* RISK MANAGEMENT: Risk register, severity matrix, weekly review,
+  top 5 mitigation plans, contingency budget approach.
+
+* QUALITY ASSURANCE: Review cycle (draft → QA → client → revision → sign-off).
+  Acceptance criteria. Peer review process.
+
+* CHANGE REQUEST PROCESS: CR submission, impact assessment, approval workflow.
+
+* PMO STRUCTURE: Reporting line, tools, internal sync cadence.
+
+─────────────────────────────────────
+timeline_logic (200+ words)
+─────────────────────────────────────
+
+MANDATORY: Check "mandatory_constraints" for the RFP's STATED duration.
+Use that EXACT duration. Map phases to milestones. Include: total duration,
+phase overlaps, dependencies, resource implications.
+
+─────────────────────────────────────
+value_case_and_differentiation (400+ words)
+─────────────────────────────────────
+
+Answer: "Why should we choose this firm over the other 5 bidders?"
+* WHY US: capabilities mapped to RFP requirements
+* WHY THIS APPROACH: methodology superiority for THIS engagement
+* WHY NOW: alignment with client's current window
+* Partnerships with specific RFP relevance
+* Scale evidence mapped to THIS engagement's value
+* Knowledge transfer commitment
+
+Write as a closing argument to the evaluation committee.
+
+Output ONLY valid JSON matching the _Section5Governance schema.
+Fields: governance_framework (str), timeline_logic (str),
+value_case_and_differentiation (str)."""
+
+
 # ═══════════════════════════════════════════════════════════════
 # LEGACY WRITER PROMPT (for backward compatibility — used only
 # if split-call architecture is disabled)

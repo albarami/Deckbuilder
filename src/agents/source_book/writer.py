@@ -27,6 +27,7 @@ from src.config.models import MODEL_MAP
 from src.models.source_book import (
     EvidenceLedger,
     EvidenceLedgerEntry,
+    ProposedSolution,
     RFPInterpretation,
     SourceBook,
     SourceBookSection1,
@@ -37,6 +38,8 @@ from src.models.source_book import (
     SourceBookSection6,
     SourceBookSection7,
     SourceBookSections12,
+    _Section5Governance,
+    _Section5Methodology,
 )
 from src.models.state import DeckForgeState
 from src.services.llm import call_llm
@@ -47,6 +50,8 @@ from .prompts import (
     STAGE1B_SECTION3_PROMPT,
     STAGE1C_SECTION4_PROMPT,
     STAGE1D_SECTION5_PROMPT,
+    STAGE1E_GOVERNANCE_PROMPT,
+    STAGE1E_METHODOLOGY_PROMPT,
     STAGE2A_BLUEPRINTS_PROMPT,
     STAGE2B_EVIDENCE_LEDGER_PROMPT,
     WRITER_SYSTEM_PROMPT,
@@ -791,30 +796,13 @@ async def _generate_section_4(
     return s4
 
 
-async def _generate_section_5(
-    shared_ctx: dict,
-    model: str,
-    previous_book: SourceBook | None = None,
-) -> SourceBookSection5:
-    """Stage 1d: Section 5 (Proposed Solution — highest weight).
+def _build_section5_payload(shared_ctx: dict, prev_fields: dict | None = None) -> str:
+    """Build the RFP-rich payload for Section 5 calls.
 
-    This is the MOST IMPORTANT section. It gets an RFP-rich but lean context:
-    keeps ALL fields needed for elite methodology (scope, deliverables,
+    Keeps ALL fields needed for elite methodology (scope, deliverables,
     evaluation criteria, compliance, team requirements, timeline, mandate)
     but drops raw document text and KG data that don't inform methodology.
-
-    Quality principle: NEVER strip context that could make methodology
-    more specific, more RFP-aligned, or more evaluator-targeted.
     """
-    prev_data = None
-    if previous_book:
-        prev_data = {
-            "proposed_solution": previous_book.proposed_solution.model_dump(mode="json"),
-        }
-
-    # Build an RFP-RICH payload — keep everything evaluators care about
-    # for methodology, but drop knowledge_graph (team/projects not needed
-    # for methodology design) and external_evidence_pack
     rfp_for_methodology = None
     if shared_ctx.get("rfp_context"):
         rfp = shared_ctx["rfp_context"]
@@ -830,9 +818,6 @@ async def _generate_section_5(
             "project_timeline": rfp.get("project_timeline"),
         }
 
-    # For Section 5, send ONLY framework references from reference_index
-    # (not the full 150-claim dump). Methodology needs framework names
-    # and CLM IDs for citation, not the full claim text.
     compact_ref_index = None
     ref_index = shared_ctx.get("reference_index")
     if ref_index:
@@ -844,7 +829,7 @@ async def _generate_section_5(
             "frameworks": ref_index.get("frameworks", []),
         }
 
-    methodology_payload = {
+    payload_dict = {
         "mandatory_constraints": shared_ctx.get("mandatory_constraints"),
         "rfp_project_timeline": shared_ctx.get("rfp_project_timeline"),
         "rfp_team_requirements": shared_ctx.get("rfp_team_requirements"),
@@ -857,29 +842,97 @@ async def _generate_section_5(
         "sector": shared_ctx.get("sector"),
         "geography": shared_ctx.get("geography"),
     }
-    if prev_data:
-        methodology_payload["previous_section_content"] = prev_data
+    if prev_fields:
+        payload_dict["previous_section_content"] = prev_fields
 
-    payload = json.dumps(methodology_payload, ensure_ascii=False, default=str)
-    logger.info("Stage 1d (Section 5): input chars=%d", len(payload))
+    return json.dumps(payload_dict, ensure_ascii=False, default=str)
 
-    result = await call_llm(
+
+async def _generate_section_5(
+    shared_ctx: dict,
+    model: str,
+    previous_book: SourceBook | None = None,
+) -> SourceBookSection5:
+    """Stage 1e: Section 5 (Proposed Solution — highest weight).
+
+    Split into two calls so each gets the full 32K token budget:
+    - Call 1: methodology_overview + phase_details
+    - Call 2: governance_framework + timeline_logic + value_case_and_differentiation
+
+    Results are deterministically merged into a single ProposedSolution.
+    If either call fails, the entire stage fails (no partial results).
+    """
+    # Previous data for rewrite passes — split by ownership
+    prev_methodology = None
+    prev_governance = None
+    if previous_book:
+        ps = previous_book.proposed_solution
+        prev_methodology = {
+            "methodology_overview": ps.methodology_overview,
+            "phase_details": [p.model_dump(mode="json") for p in ps.phase_details],
+        }
+        prev_governance = {
+            "governance_framework": ps.governance_framework,
+            "timeline_logic": ps.timeline_logic,
+            "value_case_and_differentiation": ps.value_case_and_differentiation,
+        }
+
+    # ── Call 1: Methodology + Phases ──────────────────────
+    payload_1 = _build_section5_payload(shared_ctx, prev_methodology)
+    logger.info("Stage 1e-i (Section 5 methodology): input chars=%d", len(payload_1))
+
+    result_1 = await call_llm(
         model=model,
-        system_prompt=STAGE1D_SECTION5_PROMPT,
-        user_message=payload,
-        response_model=SourceBookSection5,
+        system_prompt=STAGE1E_METHODOLOGY_PROMPT,
+        user_message=payload_1,
+        response_model=_Section5Methodology,
         max_tokens=32000,
         temperature=0.1,
     )
-
-    s5 = result.parsed
+    meth = result_1.parsed
     logger.info(
-        "Stage 1d complete: phases=%d, governance_len=%d, methodology_len=%d",
-        len(s5.proposed_solution.phase_details),
-        len(s5.proposed_solution.governance_framework),
-        len(s5.proposed_solution.methodology_overview),
+        "Stage 1e-i complete: methodology_words=%d, phases=%d",
+        len(meth.methodology_overview.split()),
+        len(meth.phase_details),
     )
-    return s5
+
+    # ── Call 2: Governance + Timeline + Value Case ────────
+    payload_2 = _build_section5_payload(shared_ctx, prev_governance)
+    logger.info("Stage 1e-ii (Section 5 governance): input chars=%d", len(payload_2))
+
+    result_2 = await call_llm(
+        model=model,
+        system_prompt=STAGE1E_GOVERNANCE_PROMPT,
+        user_message=payload_2,
+        response_model=_Section5Governance,
+        max_tokens=32000,
+        temperature=0.1,
+    )
+    gov = result_2.parsed
+    logger.info(
+        "Stage 1e-ii complete: governance_len=%d, timeline_len=%d, value_len=%d",
+        len(gov.governance_framework),
+        len(gov.timeline_logic),
+        len(gov.value_case_and_differentiation),
+    )
+
+    # ── Deterministic merge into ProposedSolution ─────────
+    merged = ProposedSolution(
+        methodology_overview=meth.methodology_overview,
+        phase_details=meth.phase_details,
+        governance_framework=gov.governance_framework,
+        timeline_logic=gov.timeline_logic,
+        value_case_and_differentiation=gov.value_case_and_differentiation,
+    )
+
+    logger.info(
+        "Stage 1e merge complete: phases=%d, governance_len=%d, methodology_len=%d",
+        len(merged.phase_details),
+        len(merged.governance_framework),
+        len(merged.methodology_overview),
+    )
+
+    return SourceBookSection5(proposed_solution=merged)
 
 
 async def _generate_blueprints(
@@ -1078,9 +1131,9 @@ async def run(state: DeckForgeState, reviewer_feedback: str = "") -> dict:
             len(source_book.why_strategic_gears.capability_mapping),
         )
 
-        # Update session accounting (7 stages: 1a + 1b + 1c + 1d + 1e + 2a + 2b)
+        # Update session accounting (8 stages: 1a + 1b + 1c + 1d + 1e-i + 1e-ii + 2a + 2b)
         session = state.session.model_copy(deep=True)
-        session.total_llm_calls += 7
+        session.total_llm_calls += 8
 
         return {
             "source_book": source_book,

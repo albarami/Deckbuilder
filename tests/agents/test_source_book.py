@@ -1,12 +1,12 @@
 """Tests for Phase 3: Source Book Generation.
 
 Verifies:
-1. SourceBook and SourceBookReview schemas validate correctly (7 sections)
+1. SourceBook and SourceBookReview schemas validate correctly (8 stages)
 2. DeckForgeState has source_book field
 3. Source Book Writer agent builds user message from real state
 4. Source Book Reviewer agent builds user message from Source Book
 5. Orchestrator iteration logic (converge within max passes)
-6. DOCX export produces valid file with all 7 sections
+6. DOCX export produces valid file with all 8 stages
 7. source_book_node is wired into graph between proposal_strategy and gate_3
 8. MODEL_MAP has source_book_writer and source_book_reviewer keys
 9. report_markdown populated from Source Book content
@@ -681,10 +681,11 @@ class TestDocxPathPersistence:
             SourceBookSection2,
             SourceBookSection3,
             SourceBookSection4,
-            SourceBookSection5,
+            _Section5Methodology,
+            _Section5Governance,
         )
 
-        # Split-call architecture: 7 stage responses
+        # Split-call architecture: 8 stage responses
         mock_s1 = SourceBookSection1(
             client_name="Test",
             rfp_interpretation=RFPInterpretation(
@@ -696,7 +697,8 @@ class TestDocxPathPersistence:
             why_strategic_gears=WhyStrategicGears(),
         )
         mock_s4 = SourceBookSection4()
-        mock_s5 = SourceBookSection5()
+        mock_s5m = _Section5Methodology()
+        mock_s5g = _Section5Governance()
         mock_s6 = SourceBookSection6(
             slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
         )
@@ -720,7 +722,9 @@ class TestDocxPathPersistence:
                         model="claude-opus-4-20250514", latency_ms=5000),
             LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
                         model="claude-opus-4-20250514", latency_ms=3000),
-            LLMResponse(parsed=mock_s5, input_tokens=4000, output_tokens=3000,
+            LLMResponse(parsed=mock_s5m, input_tokens=4000, output_tokens=3000,
+                        model="claude-opus-4-20250514", latency_ms=6000),
+            LLMResponse(parsed=mock_s5g, input_tokens=4000, output_tokens=3000,
                         model="claude-opus-4-20250514", latency_ms=6000),
             LLMResponse(parsed=mock_s6, input_tokens=3000, output_tokens=2000,
                         model="claude-opus-4-20250514", latency_ms=5000),
@@ -785,14 +789,16 @@ class TestDocxPathPersistence:
             SourceBookSection2,
             SourceBookSection3,
             SourceBookSection4,
-            SourceBookSection5,
+            _Section5Methodology,
+            _Section5Governance,
         )
 
         mock_s1 = SourceBookSection1(client_name="Test", rfp_interpretation=RFPInterpretation(objective_and_scope="Test scope"))
         mock_s2 = SourceBookSection2()
         mock_s3 = SourceBookSection3()
         mock_s4 = SourceBookSection4()
-        mock_s5 = SourceBookSection5()
+        mock_s5m = _Section5Methodology()
+        mock_s5g = _Section5Governance()
         mock_s6 = SourceBookSection6(
             slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
         )
@@ -816,7 +822,9 @@ class TestDocxPathPersistence:
                         model="claude-opus-4-20250514", latency_ms=5000),
             LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
                         model="claude-opus-4-20250514", latency_ms=3000),
-            LLMResponse(parsed=mock_s5, input_tokens=4000, output_tokens=3000,
+            LLMResponse(parsed=mock_s5m, input_tokens=4000, output_tokens=3000,
+                        model="claude-opus-4-20250514", latency_ms=6000),
+            LLMResponse(parsed=mock_s5g, input_tokens=4000, output_tokens=3000,
                         model="claude-opus-4-20250514", latency_ms=6000),
             LLMResponse(parsed=mock_s6, input_tokens=3000, output_tokens=2000,
                         model="claude-opus-4-20250514", latency_ms=5000),
@@ -2089,8 +2097,8 @@ class TestThreeStageWriterArchitecture:
         assert len(result.evidence_ledger.entries) == 10
 
     @pytest.mark.asyncio
-    async def test_writer_merges_all_seven_stages(self):
-        """Writer run() merges 7 stage calls into complete SourceBook."""
+    async def test_writer_merges_all_eight_stages(self):
+        """Writer run() merges 8 stage calls into complete SourceBook."""
         from unittest.mock import AsyncMock, patch
 
         from src.models.source_book import (
@@ -2098,7 +2106,8 @@ class TestThreeStageWriterArchitecture:
             SourceBookSection2,
             SourceBookSection3,
             SourceBookSection4,
-            SourceBookSection5,
+            _Section5Methodology,
+            _Section5Governance,
             SourceBookSection6,
             SourceBookSection7,
         )
@@ -2115,7 +2124,8 @@ class TestThreeStageWriterArchitecture:
             why_strategic_gears=WhyStrategicGears(),
         )
         mock_s4 = SourceBookSection4()
-        mock_s5 = SourceBookSection5()
+        mock_s5m = _Section5Methodology()
+        mock_s5g = _Section5Governance()
         mock_s6 = SourceBookSection6(
             slide_blueprints=[
                 SlideBlueprintEntry(slide_number=1, title="Cover"),
@@ -2137,7 +2147,9 @@ class TestThreeStageWriterArchitecture:
                         model="test", latency_ms=5000),
             LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
                         model="test", latency_ms=3000),
-            LLMResponse(parsed=mock_s5, input_tokens=4000, output_tokens=4000,
+            LLMResponse(parsed=mock_s5m, input_tokens=4000, output_tokens=4000,
+                        model="test", latency_ms=6000),
+            LLMResponse(parsed=mock_s5g, input_tokens=4000, output_tokens=4000,
                         model="test", latency_ms=6000),
             LLMResponse(parsed=mock_s6, input_tokens=3000, output_tokens=3000,
                         model="test", latency_ms=5000),
@@ -2171,12 +2183,12 @@ class TestThreeStageWriterArchitecture:
         assert len(sb.evidence_ledger.entries) == 1
         assert sb.slide_blueprints[0].title == "Cover"
         assert sb.evidence_ledger.entries[0].claim_id == "CLM-0001"
-        # Verify all 7 calls were made
-        assert call_count == 7
+        # Verify all 8 calls were made
+        assert call_count == 8
 
     @pytest.mark.asyncio
     async def test_all_stages_succeed_no_fallback_used(self):
-        """When all 7 stages succeed, fallback must NOT be triggered."""
+        """When all 8 stages succeed, fallback must NOT be triggered."""
         from unittest.mock import AsyncMock, patch
 
         from src.models.source_book import (
@@ -2184,7 +2196,8 @@ class TestThreeStageWriterArchitecture:
             SourceBookSection2,
             SourceBookSection3,
             SourceBookSection4,
-            SourceBookSection5,
+            _Section5Methodology,
+            _Section5Governance,
             SourceBookSection6,
             SourceBookSection7,
         )
@@ -2194,7 +2207,8 @@ class TestThreeStageWriterArchitecture:
         mock_s2 = SourceBookSection2()
         mock_s3 = SourceBookSection3()
         mock_s4 = SourceBookSection4()
-        mock_s5 = SourceBookSection5()
+        mock_s5m = _Section5Methodology()
+        mock_s5g = _Section5Governance()
         mock_s6 = SourceBookSection6(
             slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
         )
@@ -2213,7 +2227,9 @@ class TestThreeStageWriterArchitecture:
                         model="test", latency_ms=1000),
             LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
                         model="test", latency_ms=1000),
-            LLMResponse(parsed=mock_s5, input_tokens=4000, output_tokens=4000,
+            LLMResponse(parsed=mock_s5m, input_tokens=4000, output_tokens=4000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s5g, input_tokens=4000, output_tokens=4000,
                         model="test", latency_ms=1000),
             LLMResponse(parsed=mock_s6, input_tokens=3000, output_tokens=3000,
                         model="test", latency_ms=1000),
@@ -2260,7 +2276,8 @@ class TestThreeStageWriterArchitecture:
             SourceBookSection2,
             SourceBookSection3,
             SourceBookSection4,
-            SourceBookSection5,
+            _Section5Methodology,
+            _Section5Governance,
             SourceBookSection6,
             SourceBookSection7,
         )
@@ -2270,7 +2287,8 @@ class TestThreeStageWriterArchitecture:
         mock_s2 = SourceBookSection2()
         mock_s3 = SourceBookSection3()
         mock_s4 = SourceBookSection4()
-        mock_s5 = SourceBookSection5()
+        mock_s5m = _Section5Methodology()
+        mock_s5g = _Section5Governance()
         mock_s6 = SourceBookSection6(
             slide_blueprints=[SlideBlueprintEntry(slide_number=1, title="Cover")],
         )
@@ -2287,7 +2305,9 @@ class TestThreeStageWriterArchitecture:
                         model="test", latency_ms=1000),
             LLMResponse(parsed=mock_s4, input_tokens=2000, output_tokens=1000,
                         model="test", latency_ms=1000),
-            LLMResponse(parsed=mock_s5, input_tokens=4000, output_tokens=4000,
+            LLMResponse(parsed=mock_s5m, input_tokens=4000, output_tokens=4000,
+                        model="test", latency_ms=1000),
+            LLMResponse(parsed=mock_s5g, input_tokens=4000, output_tokens=4000,
                         model="test", latency_ms=1000),
             LLMResponse(parsed=mock_s6, input_tokens=3000, output_tokens=3000,
                         model="test", latency_ms=1000),
