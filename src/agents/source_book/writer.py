@@ -779,7 +779,7 @@ async def _generate_section_4(
         system_prompt=STAGE1C_SECTION4_PROMPT,
         user_message=payload,
         response_model=SourceBookSection4,
-        max_tokens=8000,
+        max_tokens=16000,
         temperature=0.1,
     )
 
