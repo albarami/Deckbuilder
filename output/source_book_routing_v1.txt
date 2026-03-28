@@ -1,0 +1,326 @@
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+src.agents.external_research.agent INFO: S2: 5 short queries from 4 raw queries
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=Analyze%20priorities%20and%20identify%20needs&fields=paperId%2Ctitle%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: S2 GET 200: https://api.semanticscholar.org/graph/v1/paper/search/bulk params={'query': 'Analyze priorities and identify needs', 'fields': 'paperId,title,year,abstract,citationCount,url', 'year': '2020-'}
+src.services.semantic_scholar INFO: S2 search: query='Analyze priorities and identify needs' total=2063 returned=1000
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=including%20assessment&fields=paperId%2Ctitle%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: S2 GET 200: https://api.semanticscholar.org/graph/v1/paper/search/bulk params={'query': 'including assessment', 'fields': 'paperId,title,year,abstract,citationCount,url', 'year': '2020-'}
+src.services.semantic_scholar INFO: S2 search: query='including assessment' total=328477 returned=1000
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=Design%20a%20supporting%20service%20ecosystem&fields=paperId%2Ctitle%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: S2 GET 200: https://api.semanticscholar.org/graph/v1/paper/search/bulk params={'query': 'Design a supporting service ecosystem', 'fields': 'paperId,title,year,abstract,citationCount,url', 'year': '2020-'}
+src.services.semantic_scholar INFO: S2 search: query='Design a supporting service ecosystem' total=2642 returned=1000
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=Establish%20an%20institutional%20framework%20for&fields=paperId%2Ctitle%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: S2 GET 200: https://api.semanticscholar.org/graph/v1/paper/search/bulk params={'query': 'Establish an institutional framework for', 'fields': 'paperId,title,year,abstract,citationCount,url', 'year': '2020-'}
+src.services.semantic_scholar INFO: S2 search: query='Establish an institutional framework for' total=15542 returned=1000
+httpx INFO: HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search/bulk?query=Provide%20strategic%20support%20for%20business&fields=paperId%2Ctitle%2Cyear%2Cabstract%2CcitationCount%2Curl&year=2020- "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: S2 GET 200: https://api.semanticscholar.org/graph/v1/paper/search/bulk params={'query': 'Provide strategic support for business', 'fields': 'paperId,title,year,abstract,citationCount,url', 'year': '2020-'}
+src.services.semantic_scholar INFO: S2 search: query='Provide strategic support for business' total=4582 returned=1000
+src.services.semantic_scholar INFO: S2: using 5 seed papers for recommendations
+httpx INFO: HTTP Request: POST https://api.semanticscholar.org/recommendations/v1/papers?fields=paperId%2Ctitle%2Cyear%2Cabstract%2CcitationCount%2Curl&limit=20 "HTTP/1.1 200 OK"
+src.services.semantic_scholar INFO: S2 POST 200: https://api.semanticscholar.org/recommendations/v1/papers
+src.services.semantic_scholar INFO: S2 recommendations: seeds=5 returned=20
+src.services.semantic_scholar INFO: S2 total: 45 unique papers (search + recommendations)
+httpx INFO: HTTP Request: POST https://api.perplexity.ai/chat/completions "HTTP/1.1 200 OK"
+src.services.perplexity INFO: Perplexity API 200: model=sonar, query='Guide to the package of services to be provided to companies'
+src.services.perplexity INFO: Perplexity: query='Guide to the package of services to be provided to companies' returned 4074 chars, 10 citations
+httpx INFO: HTTP Request: POST https://api.perplexity.ai/chat/completions "HTTP/1.1 200 OK"
+src.services.perplexity INFO: Perplexity API 200: model=sonar, query='Design, develop, and produce an integrated guide that clarif'
+src.services.perplexity INFO: Perplexity: query='Design, develop, and produce an integrated guide that clarif' returned 4807 chars, 9 citations
+httpx INFO: HTTP Request: POST https://api.perplexity.ai/chat/completions "HTTP/1.1 200 OK"
+src.services.perplexity INFO: Perplexity API 200: model=sonar, query='Analyze priorities and identify needs, including assessment '
+src.services.perplexity INFO: Perplexity: query='Analyze priorities and identify needs, including assessment ' returned 2764 chars, 9 citations
+httpx INFO: HTTP Request: POST https://api.perplexity.ai/chat/completions "HTTP/1.1 200 OK"
+src.services.perplexity INFO: Perplexity API 200: model=sonar, query='Design a supporting service ecosystem for international expa'
+src.services.perplexity INFO: Perplexity: query='Design a supporting service ecosystem for international expa' returned 4018 chars, 7 citations
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.external_research.agent INFO: External research complete: 15 sources from 13 queries
+src.agents.proposal_strategy.agent INFO: Proposal Strategist payload: chars=67808, has_ref_index=False, has_ext_evidence=True
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.proposal_strategy.agent INFO: Proposal strategy complete: 5 win themes, 6 evaluator priorities, 9 evidence gaps
+src.services.routing INFO: RFP classified: jurisdiction=saudi_arabia, sector=public_sector, domain=investment_promotion, client_type=authority, confidence=0.80
+src.services.routing INFO: Merged 2 packs: 7 regulatory refs, 3 compliance patterns, 6 evaluator insights, 5 methodology patterns, 5 benchmarks, 9 search queries, 7 forbidden assumptions
+src.services.routing INFO: Routing complete: packs=['saudi_public_sector', 'investment_promotion'], fallbacks=[], confidence=0.80, warnings=0
+src.pipeline.graph INFO: Routing: packs=['saudi_public_sector', 'investment_promotion'], fallbacks=[], confidence=0.80
+src.agents.source_book.writer INFO: Writer received pack context: 2 packs, 9 search queries
+src.agents.source_book.writer INFO: Source Book Writer: pass=1, has_ref_index=False, has_strategy=True, rewrite=False
+src.agents.source_book.writer INFO: Stage 1a (Section 1 — RFP Interpretation): input chars=40076
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer INFO: Stage 1a complete: compliance_items=15, scope_words=596
+src.agents.source_book.writer INFO: Stage 1b (Section 2 — Problem Framing): input chars=28478
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer INFO: Stage 1b complete: problem_framing_words=1674
+src.agents.source_book.writer INFO: Stage 1b (Section 3): input chars=17124
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer INFO: Stage 1b complete: consultants=4, projects=2, capabilities=9
+src.agents.source_book.writer INFO: Stage 1c (Section 4): input chars=63618
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer INFO: Stage 1c complete: evidence_entries=15
+src.agents.source_book.writer INFO: Stage 1e-i (Section 5 methodology): input chars=29522
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer INFO: Stage 1e-i complete: methodology_words=555, phases=4
+src.agents.source_book.writer INFO: Stage 1e-ii (Section 5 governance): input chars=29522
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer INFO: Stage 1e-ii complete: governance_len=23004, timeline_len=3746, value_len=4599
+src.agents.source_book.writer INFO: Stage 1e merge complete: phases=4, governance_len=23004, methodology_len=3581
+src.agents.source_book.writer INFO: Stage 1 complete: pass=1, capabilities=9, consultants=4, projects=2
+src.agents.source_book.writer WARNING: Engine 1 guard: stripped 1 fabricated projects (KG has 1 real): ['[فجوة أدلة] مشاريع إضافية مطلوبة لتعزيز العرض التنافسي']
+src.agents.source_book.writer INFO: Engine 1 guard complete: 0 real consultants, 4 open roles, 1 real projects, 1 fabricated stripped
+src.agents.source_book.writer INFO: Stage 2a (blueprints): input chars=131751
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer INFO: Stage 2a produced: 39 blueprints
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 2 bullet_2
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 4 key_message
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 4 bullet_3
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 9 title
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 13 title
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 13 key_message
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 29 bullet_0
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 36 bullet_2
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 38 title
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 38 key_message
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 39 key_message
+src.agents.source_book.writer INFO: Blueprint overclaim scan: softened slide 39 bullet_0
+src.agents.source_book.writer WARNING: Blueprint overclaim scan: replaced 12 certainty claims (team=0, projects=1)
+src.agents.source_book.writer INFO: Stage 2b (evidence ledger): input chars=184163
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.writer INFO: Stage 2b produced: 30 evidence entries
+src.agents.source_book.writer INFO: EXT citation check: all 15 EXT IDs are valid
+src.agents.source_book.writer INFO: Hedge scanner: zero banned phrases found
+src.agents.source_book.writer INFO: Source Book written: pass=1, blueprints=39, evidence=30, capabilities=9
+src.agents.source_book.reviewer INFO: Source Book Reviewer payload: chars=219162, pass=1
+httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+src.agents.source_book.reviewer INFO: Source Book review: overall=4, viability=adequate, threshold_met=True, sections_critiqued=5
+src.pipeline.graph INFO: Source Book pass 1: score=4, threshold=True, viability=adequate
+src.pipeline.graph INFO:   Section 'Section 1 - RFP Interpretation': score=4 | issues: Strong forensic reading of scope and scoring logic, but compliance mapping is not presented as a concise requirement-to-response matrix at the front of the section.; Several claims about current-state
+src.pipeline.graph INFO:     rewrite: Add a one-page compliance-to-RFP matrix with columns: RFP clause/SOW item, requirement summary, SG response, planned artifact, evidence ID, owner, and
+src.pipeline.graph INFO:     rewrite: Convert the narrative on evaluator priorities into a scored win-theme table tied to the four technical criteria and their exact point implications.
+src.pipeline.graph INFO:   Section 'Section 2 - Client Problem Framing': score=4 | issues: Problem framing is well structured and rooted in causes, but quantification is still thin and often analogical rather than client-specific.; Several urgency and risk statements rely on international a
+src.pipeline.graph INFO:     rewrite: Add a root-cause table with columns: symptom, root cause, affected stakeholder, operational consequence, strategic consequence, evidence ID.
+src.pipeline.graph INFO:     rewrite: Quantify the problem using at least 6 measurable proxies: number of company segments, expected service categories, response-time gaps, capability gaps
+src.pipeline.graph INFO:   Section 'Section 3 - Why SG': score=3 | issues: Good Engine 1 role design, but capability mapping includes rows with empty evidence_ids, triggering unsupported-claim weakness.; Project experience is effectively a single thin example and appears cir
+src.pipeline.graph INFO:     rewrite: For each capability-mapping row, add at least one evidence ID; if unavailable, replace the claim with 'evidence_gap' and specify exactly what Engine 2
+src.pipeline.graph INFO:     rewrite: Replace the single project experience paragraph with 3-5 structured project sheets, each including client, dates, scope, deliverables, outcomes, team 
+src.pipeline.graph INFO:   Section 'Section 5 - Proposed Solution': score=4 | issues: Methodology depth is strong and exceeds minimum phase requirements, but some activities are overly verbose and read like narrative rather than execution controls.; Governance is comprehensive, yet som
+src.pipeline.graph INFO:     rewrite: Add a methodology traceability matrix linking S1-S4, D1-D10, evaluation criteria, compliance items C1-C14, phase activities, and deliverables.
+src.pipeline.graph INFO:     rewrite: Convert each phase into a tighter execution table with columns: sub-stage, activity, owner, duration, input, output, dependency, evidence/framework re
+src.pipeline.graph INFO:   Section 'Section 6 - Slide Blueprint': score=5 | issues: Coverage is broad and blueprint count is strong, but several slides depend on proof that is currently missing from Engine 2.; Some blueprint titles repeat the same transformation story across adjacent
+src.pipeline.graph INFO:     rewrite: For every slide that references team, prior experience, samples, or compliance certificates, add a 'proof dependency' note naming the exact artifact r
+src.pipeline.graph INFO:     rewrite: Merge or tighten overlapping slides on transformation/problem framing to reduce repetition across slides 3, 5, 6, and 7.
+src.pipeline.graph INFO:   Coherence issues: Sections 1 and 2 repeat the same transformation narrative, urgency case, and ecosystem-orchestrator framing.; Section 3 claims some firm capabilities as established while the evidence ledger correctly marks them as gaps, creating internal tension.; Governance content is duplicated between phase-level governance, governance framework, and timeline logic.
+src.agents.source_book.orchestrator INFO: Stopping iteration: threshold met (score=4, pass=1)
+src.agents.source_book.evidence_extractor INFO: Evidence extractor: serialized 129697 chars from Source Book
+httpx INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+src.agents.source_book.evidence_extractor INFO: Evidence extractor: LLM returned 25 raw entries
+src.agents.source_book.evidence_extractor INFO: Evidence extractor: produced 25 valid entries
+src.pipeline.graph INFO: Evidence extractor produced 25 entries
+src.services.source_book_export INFO: Source Book DOCX exported to output/sb-ar-1774721861/source_book.docx
+src.pipeline.graph INFO: Source Book DOCX exported: output/sb-ar-1774721861/source_book.docx
+src.services.blueprint_transform INFO: Blueprint classification: 39 legacy entries -> 11 sections: S01(1), S03(1), S05(8), S07(7), S09(8), S11(3), S12(3), S13(3), S14(1), S18(3), S31(1)
+src.services.blueprint_transform INFO: Blueprint dedup: removed duplicate S05 (Understanding of Project (Content Block))
+src.services.blueprint_transform INFO: Blueprint dedup: removed duplicate S05 (Understanding of Project (Content Block))
+src.services.blueprint_transform INFO: Blueprint dedup: removed duplicate S05 (Understanding of Project (Content Block))
+src.services.blueprint_transform INFO: Blueprint dedup: removed duplicate S07 (Why Strategic Gears (Evidence Content))
+src.services.blueprint_transform INFO: Blueprint dedup: removed duplicate S07 (Why Strategic Gears (Evidence Content))
+src.services.blueprint_transform INFO: Blueprint dedup: removed duplicate S09 (Methodology (Content Block))
+src.services.blueprint_transform INFO: Blueprint dedup: removed duplicate S09 (Methodology (Content Block))
+src.services.blueprint_transform INFO: Blueprint dedup: removed duplicate S11 (Project Timeline and Outcomes (Table Content))
+src.services.template_validator WARNING: Template alignment warning: methodology has fewer than 3 slides (found 1).
+src.services.blueprint_transform INFO: Blueprint validation: PASSED (0 violations)
+
+================================================================================
+  SOURCE BOOK ONLY: language=ar
+  Stops at: source_book (before assembly_plan)
+  NO PPTX. NO DECK. NO RENDER.
+================================================================================
+
+[INDEX] Overriding search defaults: docs=data_domain_test
+[INDEX] Using cached index at state\index_source_book_data_domain_test
+[INDEX] Search backend ready (docs=data_domain_test)
+
+[BUILD] Building production pipeline graph...
+[BUILD] Graph ready
+[SESSION] ID: sb-ar-1774721861
+
+--------------------------------------------------------------------------------
+  PHASE 1: START → context → gate_1 (interrupt)
+--------------------------------------------------------------------------------
+  Time: 44.5s | Stage: context_review
+  rfp_name: en='Guide to the package of services to be provided to companies to support their international expansion' ar='دليل باقة الخدمات التي ستقدم للشركات لدعمها في التوسع الخارجي'
+
+  [DIAG] rfp_context.project_timeline:
+    total_duration: 10 شهر
+    total_duration_months: 10
+    deliverable_schedule: 7 items
+      - ?: ?
+      - ?: ?
+      - ?: ?
+      - ?: ?
+      - ?: ?
+    notes: مدة المشروع مذكورة كـ 10 شهر، وبداية المشروع من تاريخ توقيع العقد. جدول التسليم يذكر: الشهر الثالث، السادس، التاسع، والعاشر.
+  [DIAG] rfp_context.team_requirements:
+    4 requirements:
+      - Project Manager: edu=ماجستير, certs=['PMP أو ما يعادلها'], yrs=8
+      - Deputy Project Manager: edu=بكالوريوس, certs=['PMP أو ما يعادلها'], yrs=5
+      - Service Design Consultant: edu=بكالوريوس, certs=[], yrs=4
+      - Business Analyst: edu=بكالوريوس, certs=[], yrs=3
+  [DIAG] rfp_context.scope_items: 4 items
+      en: Analyze priorities and identify needs, including assessment of current services,
+      ar: تحليل الأولويات وتحديد الاحتياج، بما يشمل تحليل الوضع الراهن للخدمات الحالية، وت
+      en: Design a supporting service ecosystem for international expansion, including ser
+      ar: تصميم منظومة خدمات داعمة للتوسع الخارجي، بما يشمل تطوير محفظة الخدمات، وتصميم نم
+      en: Establish an institutional framework for managing relationships with national co
+      ar: إطار مؤسسي لإدارة العلاقة مع الشركات الوطنية، بما يشمل تصميم إطار مؤسسي لإدارة ا
+
+--------------------------------------------------------------------------------
+  PHASE 2: gate_1 approve → retrieval → gate_2 (interrupt)
+--------------------------------------------------------------------------------
+  Time: 48.1s | Sources: 11
+
+--------------------------------------------------------------------------------
+  PHASE 3: gate_2 approve → evidence_curation →
+           proposal_strategy → source_book → gate_3
+--------------------------------------------------------------------------------
+  Time: 2614.1s | Stage: source_review
+
+  --- Routing Report ---
+  Jurisdiction:     saudi_arabia
+  Sector:           public_sector
+  Domain:           investment_promotion
+  Client type:      authority
+  Confidence:       0.80
+  Selected packs:   ['saudi_public_sector', 'investment_promotion']
+  Fallback packs:   []
+
+  Source Book DOCX: output/sb-ar-1774721861/source_book.docx
+  Evidence ledger: output\sb-ar-1774721861\evidence_ledger.json (25 entries)
+  Slide blueprints: output\sb-ar-1774721861\slide_blueprint_from_source_book.json (36 entries)
+  External evidence: output\sb-ar-1774721861\external_evidence_pack.json (15 sources)
+  Research query log: output\sb-ar-1774721861\research_query_log.json
+  Research results raw: output\sb-ar-1774721861\research_results_raw.json
+
+================================================================================
+  SOURCE BOOK SUMMARY — Session: sb-ar-1774721861
+================================================================================
+
+  Status: SUCCESS
+
+  --- Content Metrics ---
+  Word count (prose sections):     17714
+  Evidence ledger entries:         25
+  Slide blueprint entries:         36
+  External evidence sources:       15
+    Semantic Scholar:              5
+    Perplexity:                    8
+  Capability mappings:             9
+  Named consultants:               4
+    Real names:                    0
+    Placeholder names:             4
+  Prior projects:                  1
+
+  --- Writer/Reviewer ---
+  Writer pass count:               1
+  Final review score:              4/5
+  Reviewer threshold met:          True
+  Reviewer passed:                 True
+  Competitive viability:           adequate
+
+  --- Fallback Usage ---
+    No fallbacks — all passes used primary path
+
+  --- External Research Status ---
+  Semantic Scholar:                WORKING (5 results)
+  Perplexity:                      WORKING (8 results)
+
+  --- Knowledge Graph ---
+  KG internal team members:        0
+  KG projects:                     1
+
+  --- Named Consultants ---
+    ✗ PLACEHOLDER  
+    ✗ PLACEHOLDER  
+    ✗ PLACEHOLDER  
+    ✗ PLACEHOLDER  
+
+  --- Prior Projects ---
+    • دليل باقة الخدمات التي ستقدم للشركات لدعمها في التوسع الخارجي
+
+  --- Artifacts ---
+    Source Book DOCX: output/sb-ar-1774721861/source_book.docx (121,033 bytes)
+    Evidence Ledger JSON: output\sb-ar-1774721861\evidence_ledger.json (15,202 bytes)
+    Slide Blueprint JSON: output\sb-ar-1774721861\slide_blueprint_from_source_book.json (24,042 bytes)
+    External Evidence Pack: output\sb-ar-1774721861\external_evidence_pack.json (55,418 bytes)
+    Research Query Log: output\sb-ar-1774721861\research_query_log.json (5,297 bytes)
+    Research Results Raw: output\sb-ar-1774721861\research_results_raw.json (9,259 bytes)
+
+  --- Timing ---
+       44.5s  context → gate_1
+       48.1s  retrieval → gate_2
+     2614.1s  evidence → strategy → source_book → gate_3
+     2706.8s  TOTAL
+
+  --- API Cost ---
+  Total LLM calls:                14
+  Total input tokens:             550,348
+  Total output tokens:            152,844
+  Total tokens:                   703,192
+  Total cost (USD):               $15.6078
+  Total LLM latency:              2556.0s
+
+  --- Cost by Model ---
+    gpt-5.4: 4 calls, 200,060 in / 8,108 out, $0.5812
+    claude-sonnet-4-6: 1 calls, 32,405 in / 11,568 out, $0.2707
+    claude-opus-4-6: 9 calls, 317,883 in / 133,168 out, $14.7558
+
+  --- Per-Call Breakdown ---
+     1. RFPContext                     gpt-5.4                    84,448 in /   3,593 out  $0.2470  (44.5s)
+     2. RetrievalQueries               gpt-5.4                    16,420 in /   1,060 out  $0.0517  (12.5s)
+     3. RankedSourcesOutput            gpt-5.4                    29,626 in /   1,248 out  $0.0865  (16.0s)
+     4. ExternalEvidencePack           claude-sonnet-4-6          32,405 in /  11,568 out  $0.2707  (196.3s)
+     5. ProposalStrategy               claude-opus-4-6            18,998 in /   8,000 out  $0.8850  (148.2s)
+     6. SourceBookSection1             claude-opus-4-6            19,305 in /  13,058 out  $1.2689  (227.9s)
+     7. SourceBookSection2             claude-opus-4-6            15,635 in /   7,084 out  $0.7658  (123.9s)
+     8. SourceBookSection3             claude-opus-4-6            13,585 in /   8,458 out  $0.8381  (121.9s)
+     9. SourceBookSection4             claude-opus-4-6            20,057 in /   8,257 out  $0.9201  (144.0s)
+    10. _Section5Methodology           claude-opus-4-6            16,511 in /  26,549 out  $2.2388  (440.9s)
+    11. _Section5Governance            claude-opus-4-6            16,444 in /  19,658 out  $1.7210  (346.5s)
+    12. SourceBookSection6             claude-opus-4-6            83,260 in /  32,446 out  $3.6824  (523.3s)
+    13. SourceBookSection7             claude-opus-4-6           114,088 in /   9,658 out  $2.4357  (172.0s)
+    14. SourceBookReview               gpt-5.4                    69,566 in /   2,207 out  $0.1960  (38.1s)
+
+================================================================================
+  FINAL STATUS: SUCCESS
+================================================================================
+
+Results written to: source_book_only_ar_result.json
