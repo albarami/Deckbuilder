@@ -268,24 +268,43 @@ async def _call_anthropic(  # noqa: UP047
     try:
         parsed = response_model.model_validate(tool_block.input)
     except Exception as first_err:
-        # Retry: if any field value is a JSON string instead of a dict,
-        # try to parse it. This handles the case where Anthropic returns
-        # e.g. proposed_solution: "{...}" instead of proposed_solution: {...}
+        # Retry: if any field value is a JSON string instead of a dict/list,
+        # recursively parse it. This handles Anthropic returning e.g.
+        # external_evidence: '{"entries": [...]}' instead of a dict.
         import json as _json
 
-        fixed_input = dict(tool_block.input) if tool_block.input else {}
-        did_fix = False
-        for key, val in fixed_input.items():
-            if isinstance(val, str) and val.strip().startswith("{"):
-                try:
-                    fixed_input[key] = _json.loads(val)
-                    did_fix = True
-                    logger.info(
-                        "LLM string-to-dict fix: parsed field '%s' from string to dict",
-                        key,
-                    )
-                except _json.JSONDecodeError:
-                    pass
+        def _fix_string_json(obj: object) -> tuple[object, bool]:
+            """Recursively parse JSON strings in dicts/lists."""
+            changed = False
+            if isinstance(obj, dict):
+                fixed = {}
+                for k, v in obj.items():
+                    if isinstance(v, str) and v.strip()[:1] in ("{", "["):
+                        try:
+                            fixed[k] = _json.loads(v)
+                            changed = True
+                            logger.info(
+                                "LLM string-to-dict fix: parsed field '%s'", k,
+                            )
+                        except _json.JSONDecodeError:
+                            fixed[k] = v
+                    else:
+                        inner, inner_changed = _fix_string_json(v)
+                        fixed[k] = inner
+                        changed = changed or inner_changed
+                return fixed, changed
+            if isinstance(obj, list):
+                fixed_list = []
+                for item in obj:
+                    inner, inner_changed = _fix_string_json(item)
+                    fixed_list.append(inner)
+                    changed = changed or inner_changed
+                return fixed_list, changed
+            return obj, False
+
+        raw_input = tool_block.input if tool_block.input else {}
+        fixed_input, did_fix = _fix_string_json(raw_input)
+
         if did_fix:
             try:
                 parsed = response_model.model_validate(fixed_input)
@@ -297,7 +316,8 @@ async def _call_anthropic(  # noqa: UP047
                 raise LLMError(
                     model=model, attempts=1,
                     last_error=ValueError(
-                        f"Structured output validation failed: {retry_err}"
+                        f"Structured output validation failed after "
+                        f"string-to-dict fix: {retry_err}"
                     ),
                 ) from retry_err
         else:

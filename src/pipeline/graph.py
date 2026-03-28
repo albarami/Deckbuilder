@@ -652,6 +652,15 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
 
         if not source_book or "errors" in updates:
             logger.error("Source Book Writer failed on pass %d", pass_num)
+            if pass_num > 1 and current_state.source_book:
+                # Rewrite pass failed — keep the previous good result
+                # and continue to DOCX export instead of returning errors
+                logger.warning(
+                    "Keeping pass %d result (the last successful pass) "
+                    "and proceeding to DOCX export.",
+                    pass_num - 1,
+                )
+                break
             return updates
 
         # Temporarily update state for reviewer
