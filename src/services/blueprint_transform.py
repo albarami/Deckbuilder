@@ -132,8 +132,38 @@ def _to_contract_entry(legacy: LegacyEntry, section_id: str) -> ContractEntry:
     )
 
 
+# Divider section content — proper proposal-grade titles and framing
+# for hybrid divider sections. Keyed by section_id.
+_DIVIDER_CONTENT: dict[str, dict[str, str]] = {
+    "S04": {
+        "slide_title": "فهم المشروع والسياق المؤسسي",
+        "key_message": "تحليل شامل للوضع الراهن والاحتياجات والتحديات التي تواجه العميل",
+        "visual_guidance": "Section divider with client logo and engagement context visual",
+    },
+    "S06": {
+        "slide_title": "لماذا ستراتيجيك غيرز",
+        "key_message": "القدرات والخبرات والفريق الذي يضمن نجاح المشروع",
+        "visual_guidance": "Section divider with SG brand identity and capability highlights",
+    },
+    "S08": {
+        "slide_title": "المنهجية والنهج المقترح",
+        "key_message": "إطار منهجي متكامل مصمم خصيصاً لتحقيق أهداف المشروع",
+        "visual_guidance": "Section divider with methodology overview icon or phase diagram",
+    },
+    "S10": {
+        "slide_title": "الجدول الزمني والمخرجات",
+        "key_message": "خارطة طريق واضحة بمراحل محددة ومخرجات قابلة للقياس",
+        "visual_guidance": "Section divider with timeline preview or milestone markers",
+    },
+}
+
+
 def _ensure_all_sections(entries: list[ContractEntry]) -> list[ContractEntry]:
-    """Add missing sections from the template contract with appropriate defaults."""
+    """Add missing sections from the template contract with appropriate defaults.
+
+    For hybrid divider sections (S04, S06, S08, S10), generates proper
+    proposal-grade content instead of echoing the section name as a shell.
+    """
     seen = {e.section_id for e in entries}
     additions: list[ContractEntry] = []
 
@@ -148,12 +178,15 @@ def _ensure_all_sections(entries: list[ContractEntry]) -> list[ContractEntry]:
                 house_action="skip",
             ))
         elif spec.ownership == "hybrid":
+            # Use proper divider content if available
+            divider = _DIVIDER_CONTENT.get(spec.section_id, {})
             additions.append(ContractEntry(
                 section_id=spec.section_id,
                 section_name=spec.section_name,
                 ownership="hybrid",
-                slide_title=spec.section_name,
-                key_message=f"{spec.section_name} shell",
+                slide_title=divider.get("slide_title", spec.section_name),
+                key_message=divider.get("key_message", f"Transition to {spec.section_name}"),
+                visual_guidance=divider.get("visual_guidance"),
                 house_action="include_as_is",
             ))
         else:
