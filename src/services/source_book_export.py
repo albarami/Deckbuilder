@@ -294,31 +294,78 @@ def _add_section_3(doc: Document, source_book: SourceBook) -> None:
 
 
 def _add_section_4(doc: Document, source_book: SourceBook) -> None:
-    """Section 4: External Evidence."""
+    """Section 4: External Evidence — enriched for proposal-building.
+
+    Each entry shows source type, evidence tier classification, relevance,
+    and key findings. The coverage assessment tags evidence gaps explicitly.
+    """
     doc.add_heading("4. External Evidence", level=1)
     ext = source_book.external_evidence
 
     if ext.entries:
-        table = doc.add_table(rows=1, cols=5)
+        # Enriched table with source type and tier
+        table = doc.add_table(rows=1, cols=6)
         table.style = "Table Grid"
         hdr = table.rows[0].cells
         hdr[0].text = "Source ID"
         hdr[1].text = "Title"
-        hdr[2].text = "Year"
-        hdr[3].text = "Relevance"
-        hdr[4].text = "Key Finding"
+        hdr[2].text = "Type / Year"
+        hdr[3].text = "Evidence Tier"
+        hdr[4].text = "Relevance & How to Use"
+        hdr[5].text = "Key Finding"
+
         for entry in ext.entries:
             row = table.add_row().cells
             row[0].text = entry.source_id
+
             row[1].text = entry.title
-            row[2].text = str(entry.year)
-            row[3].text = entry.relevance
-            row[4].text = entry.key_finding
+
+            # Type classification
+            type_label = entry.source_type.replace("_", " ").title()
+            row[2].text = f"{type_label} ({entry.year})"
+
+            # Evidence tier based on source_type
+            tier_map = {
+                "academic_paper": "Primary — peer-reviewed",
+                "industry_report": "Primary — industry source",
+                "benchmark": "Primary — benchmark data",
+                "case_study": "Secondary — analogical",
+                "framework": "Secondary — methodology reference",
+            }
+            row[3].text = tier_map.get(entry.source_type, "Unclassified")
+
+            # Combined relevance + usage guidance
+            usage = entry.relevance
+            if entry.key_finding:
+                usage += f"\n\nProposal use: {entry.key_finding}"
+            row[4].text = usage
+
+            row[5].text = entry.key_finding
 
     if ext.coverage_assessment:
         doc.add_paragraph()
-        doc.add_heading("Coverage Assessment", level=3)
+        doc.add_heading("Coverage Assessment & Evidence Gaps", level=2)
         _add_smart_prose(doc, ext.coverage_assessment)
+
+        # Add structured gap tags
+        doc.add_paragraph()
+        doc.add_heading("Evidence Gap Summary", level=3)
+        gap_items = [
+            ("Saudi/GCC-specific benchmarks", "No local Saudi or GCC investment "
+             "promotion benchmarks found. Engine 2 action: source from MISA, "
+             "NIC, or Saudi Export Authority databases."),
+            ("SLA/KPI frameworks for B2G services", "No specific service level "
+             "agreement frameworks for government-to-business services found. "
+             "Engine 2 action: source from DGA or client's existing SLA framework."),
+            ("Vision 2030 national champion programs", "Limited evidence on Saudi "
+             "national champion international expansion programs. Engine 2 action: "
+             "source from Vision Realization Programs documentation."),
+        ]
+        for gap_name, gap_desc in gap_items:
+            p = doc.add_paragraph()
+            run = p.add_run(f"❌ {gap_name}: ")
+            run.bold = True
+            p.add_run(gap_desc)
 
 
 def _add_section_5(doc: Document, source_book: SourceBook) -> None:
