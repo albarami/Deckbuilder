@@ -158,11 +158,58 @@ _DIVIDER_CONTENT: dict[str, dict[str, str]] = {
 }
 
 
+# Case-study pool specifications — Engine 1 tells Engine 2 what to find.
+# Keyed by section_id. Each entry describes what type of case study is needed.
+_CASE_STUDY_POOL_SPECS: dict[str, str] = {
+    "S18": (
+        "case_study_specification — Engine 2 action: retrieve from company case study "
+        "database 2-3 organizational excellence case studies demonstrating: institutional "
+        "framework design, governance model implementation, operational process optimization. "
+        "Preferred sectors: government advisory, public sector transformation, investment "
+        "promotion. Each case must include: challenge, SG contribution, quantified outcomes."
+    ),
+    "S20": (
+        "case_study_specification — Engine 2 action: retrieve 1-2 marketing/service design "
+        "case studies showing: service portfolio development, client relationship management, "
+        "market analysis methodology. Preferred: B2B or B2G service models."
+    ),
+    "S22": (
+        "case_study_specification — Engine 2 action: retrieve 1-2 digital transformation "
+        "case studies showing: digital service platforms, data-driven decision systems, "
+        "technology-enabled service delivery. Preferred: government digital transformation."
+    ),
+    "S24": (
+        "case_study_specification — Engine 2 action: retrieve 1-2 people advisory case "
+        "studies showing: capacity building programs, training delivery, knowledge transfer "
+        "frameworks. Preferred: government sector capability development."
+    ),
+    "S26": (
+        "case_study_specification — Engine 2 action: retrieve 1-2 deals/investment advisory "
+        "case studies showing: investment attraction strategies, due diligence frameworks, "
+        "international partnership facilitation. Preferred: FDI or outbound investment."
+    ),
+    "S28": (
+        "case_study_specification — Engine 2 action: retrieve 1 research case study showing: "
+        "market research methodology, benchmarking studies, evidence-based policy advisory. "
+        "Preferred: economic research or sector analysis."
+    ),
+}
+
+# Bio pool specification — Engine 1 tells Engine 2 what team profiles to find
+_BIO_POOL_SPEC = (
+    "bio_specification — Engine 2 action: retrieve from consultant profile database "
+    "leadership bios for proposed team members. Each bio must include: name, title, "
+    "years of experience, education, certifications, domain expertise, 2-3 key project "
+    "highlights. Retrieve bios matching the open_role_profiles defined in Section 3."
+)
+
+
 def _ensure_all_sections(entries: list[ContractEntry]) -> list[ContractEntry]:
     """Add missing sections from the template contract with appropriate defaults.
 
-    For hybrid divider sections (S04, S06, S08, S10), generates proper
-    proposal-grade content instead of echoing the section name as a shell.
+    For hybrid divider sections: proper proposal-grade divider content.
+    For house case-study pools: Engine 1 specifications for Engine 2.
+    For house bio pools: Engine 1 staffing specifications for Engine 2.
     """
     seen = {e.section_id for e in entries}
     additions: list[ContractEntry] = []
@@ -171,11 +218,17 @@ def _ensure_all_sections(entries: list[ContractEntry]) -> list[ContractEntry]:
         if spec.section_id in seen:
             continue
         if spec.ownership == "house":
+            # Check if this is a case study pool or bio pool
+            pool_spec = _CASE_STUDY_POOL_SPECS.get(spec.section_id)
+            if spec.section_id == "S30":
+                pool_spec = _BIO_POOL_SPEC
+
             additions.append(ContractEntry(
                 section_id=spec.section_id,
                 section_name=spec.section_name,
                 ownership="house",
-                house_action="skip",
+                house_action="select_from_pool" if pool_spec else "skip",
+                pool_selection_criteria=pool_spec,
             ))
         elif spec.ownership == "hybrid":
             # Use proper divider content if available.
