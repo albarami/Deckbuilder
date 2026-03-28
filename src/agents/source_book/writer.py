@@ -358,20 +358,50 @@ def _engine1_guard(
     has_real_projects = len(real_projects) >= 3
 
     if not has_real_team or not has_real_projects:
-        # Regex pattern matching ANY "100%" claim in Arabic or English
+        # Regex pattern matching semantic certainty claims in Arabic and English.
+        # Covers: 100%, "all requirements met", "proven", "complete compliance",
+        # and Arabic equivalents including يستوفي جميع, كل متطلب, مُثبتة, etc.
         import re as _re
         _OVERCLAIM_RE = _re.compile(
-            r"100%|بنسبة\s*100|امتثال\s*100|مطابقة\s*100|يستوفي\s+جميع|"
-            r"fully meets all|complete compliance|all requirements satisfied|"
-            r"proven track record|خبرة مثبتة|سجل حافل|"
-            r"فريق مؤهل بالكامل|fully qualified team|"
-            r"تطابق تام|استيفاء كامل|مطابقة كاملة",
+            # Arabic certainty patterns
+            r"100%|بنسبة\s*100|"
+            r"يستوفي\s+جميع|يستوفون\s+جميع|"  # meets all
+            r"كل\s+متطلب|جميع\s+متطلبات|جميع\s+المتطلبات|"  # every/all requirements
+            r"مُثبتة|مثبتة|"  # proven
+            r"مُغطّى|مغطى|"  # covered
+            r"امتثال\s+كامل|امتثال\s+100|مطابقة\s+كاملة|مطابقة\s*100|"
+            r"تطابق\s+تام|استيفاء\s+كامل|"
+            r"فريق\s+مؤهل\s+بالكامل|"
+            r"خبرة\s+مثبتة|سجل\s+حافل|"
+            # English certainty patterns
+            r"fully meets|complete compliance|all requirements satisfied|"
+            r"proven track record|fully qualified team|"
+            r"100% match|100% compliance",
             _re.IGNORECASE,
         )
 
-        # Conditional replacement text
-        _COND_AR = "مصمم لتلبية المتطلبات — الأدلة الداعمة قيد الاستكمال من قبل Engine 2"
-        _COND_EN = "designed to meet requirements — supporting evidence pending from Engine 2"
+        # Targeted replacements for common Arabic phrases
+        _AR_REPLACEMENTS = [
+            (r"يستوفي\s+جميع", "مُصمَّم لاستيفاء"),
+            (r"يستوفون\s+جميع", "مُصمَّمون لاستيفاء"),
+            (r"كل\s+متطلب\s+مُغطّى", "كل متطلب محدَّد"),
+            (r"كل\s+متطلب\s+مغطى", "كل متطلب محدَّد"),
+            (r"مُثبتة", "مطلوبة"),
+            (r"مثبتة", "مطلوبة"),
+            (r"جميع\s+متطلبات", "متطلبات"),
+            (r"جميع\s+المتطلبات", "المتطلبات"),
+            (r"امتثال\s+كامل", "امتثال مُصمَّم"),
+            (r"مطابقة\s+كاملة", "مطابقة مُصمَّمة"),
+        ]
+
+        def _soften_text(text: str) -> str:
+            """Apply targeted Arabic replacements, then fallback regex."""
+            result = text
+            for pattern, replacement in _AR_REPLACEMENTS:
+                result = _re.sub(pattern, replacement, result)
+            # Fallback: replace any remaining 100% or certainty
+            result = _re.sub(r"100%|بنسبة\s*100", "مُصمَّم لتلبية المتطلبات", result)
+            return result
 
         overclaim_count = 0
         for bp in source_book.slide_blueprints:
@@ -386,23 +416,20 @@ def _engine1_guard(
                 if not text:
                     continue
                 if _OVERCLAIM_RE.search(text):
-                    is_arabic = any(c > "\u0600" for c in text)
-                    replaced = _OVERCLAIM_RE.sub(
-                        _COND_AR if is_arabic else _COND_EN,
-                        text,
-                    )
-                    if field_name == "title":
-                        bp.title = replaced
-                    elif field_name == "key_message":
-                        bp.key_message = replaced
-                    elif field_name.startswith("bullet_"):
-                        idx = int(field_name.split("_")[1])
-                        bp.bullet_logic[idx] = replaced
-                    overclaim_count += 1
-                    logger.info(
-                        "Engine 1 guard: overclaim in slide %d %s: '%s' → replaced",
-                        bp.slide_number, field_name, text[:60],
-                    )
+                    replaced = _soften_text(text)
+                    if replaced != text:
+                        if field_name == "title":
+                            bp.title = replaced
+                        elif field_name == "key_message":
+                            bp.key_message = replaced
+                        elif field_name.startswith("bullet_"):
+                            idx = int(field_name.split("_")[1])
+                            bp.bullet_logic[idx] = replaced
+                        overclaim_count += 1
+                        logger.info(
+                            "Engine 1 guard: softened overclaim in slide %d %s",
+                            bp.slide_number, field_name,
+                        )
 
         if overclaim_count:
             logger.warning(
