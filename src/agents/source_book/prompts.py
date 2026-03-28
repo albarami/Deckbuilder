@@ -389,13 +389,21 @@ SECTION 5: PROPOSED SOLUTION (3000+ words required)
 5.1 METHODOLOGY OVERVIEW (500+ words, 3-4 paragraphs)
 ─────────────────────────────────────
 
-Describe the overall approach with precision:
+Describe the overall approach with STRATEGIC FRAMING — not just what you
+will do, but WHY this approach wins over alternatives:
+
 * Reference recognized frameworks: TOGAF, ITIL, PMBOK, COBIT, Agile,
   Lean Six Sigma, ISO standards — tied to SPECIFIC engagement activities
 * National methodology alignment: DGA, NORA, NDMO, NCA where applicable
-* How the methodology adapts to this specific client's context
-* Why this approach vs alternatives
+* How the methodology adapts to this SPECIFIC client's context
+* WHY this approach over alternatives:
+  - What alternative approaches exist for this type of engagement?
+  - Why is THIS phasing superior to alternatives?
+  - What risks does this approach mitigate that alternatives don't?
+  - How does this approach maximize knowledge transfer to the client?
 * Integration with client's existing processes and systems
+* What makes this methodology PERSUASIVE to evaluators — connect each
+  element to an evaluation criterion or stated RFP requirement
 
 ─────────────────────────────────────
 5.2 PHASE DETAILS (4-5 phases, 400+ words each)
@@ -491,15 +499,27 @@ Map each phase to the RFP's deliverable milestones.
 Include: total duration, phase overlaps, dependencies, resource implications.
 
 ─────────────────────────────────────
-5.5 VALUE CASE & DIFFERENTIATION (300+ words)
+5.5 VALUE CASE & DIFFERENTIATION (400+ words)
 ─────────────────────────────────────
 
-What makes SG's approach unique vs competitors?
-* Specific capabilities mapped to RFP requirements
-* Partnership advantages (Stanford, George Washington University)
-* Methodology differentiation
-* Scale evidence (270+ projects, 140+ clients, 21 sectors)
-* Local market positioning
+This section must answer the evaluator's question: "Why should we choose
+this firm over the other 5 bidders?" Build a PERSUASIVE case:
+
+* WHY US: Specific capabilities mapped to each RFP requirement
+* WHY THIS APPROACH: What makes our methodology superior for THIS engagement?
+  - Not generic "we have experience" — specific "our phased approach with
+    bi-weekly steering reviews ensures..." and cite WHY that matters
+* WHY NOW: How does our approach align with the client's current window?
+* Partnership advantages (Stanford, George Washington University) — with
+  specific relevance to THIS RFP, not just name-dropping
+* Scale evidence (270+ projects, 140+ clients, 21 sectors) — mapped to
+  how that scale creates value for THIS specific engagement
+* Local market positioning — Saudi presence, Vision 2030 alignment,
+  understanding of regulatory landscape
+* Knowledge transfer commitment — how the client becomes self-sufficient
+  after the engagement ends
+
+Write this as a closing argument to the evaluation committee.
 
 Output ONLY valid JSON matching the SourceBookSection5 schema.
 FILL EVERY FIELD with substantive, detailed content. Do NOT leave empty strings.
