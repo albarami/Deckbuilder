@@ -676,12 +676,29 @@ Section 2 (Client Problem Framing):
 - Score 4: Clear problem statement with some quantification, 500+ words
 - Score 3: Generic problem description
 
-Section 3 (Why SG):
-- Score 5: 5+ consultant profiles with ALL fields, 10+ unique projects with
-  Challenge/Contribution/Impact, 5+ capability mappings with evidence
-- Score 4: 4+ profiles mostly complete, 8+ projects with outcomes
-- Score 3: Named consultants but thin profiles, fewer projects
-- Score 2: Fewer than 4 consultants or placeholder names only
+Section 3 (Why SG — ENGINE 1 / ENGINE 2 ARCHITECTURE):
+  This is an Engine 1 Source Book. Engine 1 designs the winning proposal.
+  Engine 2 (company backend) provides firm proof: named staff, project history.
+
+  Score Section 3 on DESIGN QUALITY, not on whether firm proof exists:
+- Score 5: Thorough role profiles with RFP-specific requirements, clear
+  gap identification, capability mapping with 5+ rows and evidence,
+  certifications listed, evidence gaps explicitly flagged for Engine 2
+- Score 4: Good role profiles with most RFP requirements mapped, 4+
+  capability rows, gap identification present, actionable staffing plan
+- Score 3: Role profiles present but thin on RFP-specific requirements
+- Score 2: Missing role profiles or no capability mapping
+
+  CRITICAL: Do NOT penalize for open_role_profile when knowledge_graph
+  has 0 people. That is HONEST Engine 1 behavior. Penalize only if
+  the profiles lack RFP-specific detail, required qualifications, or
+  gap identification. Score 4+ is achievable with all open_role_profile
+  IF each profile has: required education, certifications, years,
+  domain expertise, and RFP-role justification.
+
+  Do NOT penalize for low project count when KG has few projects.
+  Penalize only if available projects lack detail or if evidence gaps
+  are not flagged clearly.
 
 Section 5 (Proposed Solution — HIGHEST WEIGHT):
 - Score 5: 4-5 phases with sub-stages, 10+ activities per phase, 6+ deliverables
@@ -704,17 +721,26 @@ Executive Tone:
 - Score 3: Multiple hedging instances
 - Score 2: Pervasive hedging
 
-CONVERGENCE GUIDANCE (CRITICAL):
-- On rewrite passes (pass 2+), recognize GENUINE IMPROVEMENT
-- If content quality improved AND the system used all available data,
-  set pass_threshold_met=True when overall_score >= 4
-- Do NOT penalize for data the system does not have — score based on
-  how well the system uses what it DOES have
-- If methodology is detailed (sub-stages, specific activities, framework refs),
-  governance is comprehensive, and compliance is mapped, score 4+ even if
-  consultant count or project count is limited by available data
-- A pass that achieves 4/5 with genuine depth SHOULD pass threshold
-- rewrite_required should be False when score >= 4
+CONVERGENCE GUIDANCE (CRITICAL — ENGINE 1 ARCHITECTURE):
+This is an Engine 1 Source Book. Its job is to DESIGN the winning proposal
+and IDENTIFY what proof is needed. Engine 2 fills the proof later.
+
+- Score based on DESIGN QUALITY: methodology depth, compliance mapping,
+  RFP interpretation, problem framing, governance, timeline, blueprints
+- Do NOT penalize for missing firm proof: open_role_profile team,
+  thin project history, and evidence_gap entries are CORRECT Engine 1
+  behavior when the knowledge graph is thin
+- Score 4+ when: methodology has sub-stages and specific activities,
+  governance is comprehensive (RACI/escalation/reporting), compliance
+  is mapped to RFP, problem framing has root causes and urgency,
+  blueprints cover all proposal sections
+- On rewrite passes: recognize genuine improvement, don't keep
+  penalizing for the same structural constraint (thin KG data)
+- pass_threshold_met=True when overall_score >= 4 AND DESIGN quality
+  is genuinely strong — even if firm proof is incomplete
+- rewrite_required=False when score >= 4
+- competitive_viability: "adequate" when design is strong but proof
+  gaps exist; "strong" when design AND available evidence are excellent
 
 PASS THRESHOLD:
 - overall_score >= 4
