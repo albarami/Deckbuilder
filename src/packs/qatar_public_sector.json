@@ -1,0 +1,44 @@
+{
+  "pack_id": "qatar_public_sector",
+  "pack_type": "jurisdiction",
+  "pack_name": "Qatar — Public Sector",
+  "version": "1.0",
+  "regulatory_references": [
+    {"name": "NDS 2030", "full_name": "Qatar National Development Strategy 2030", "relevance": "National development framework — projects should align with NDS pillars", "url": ""},
+    {"name": "QNV 2030", "full_name": "Qatar National Vision 2030", "relevance": "Long-term national vision with four pillars: human, social, economic, environmental", "url": ""},
+    {"name": "MOTC", "full_name": "Ministry of Transport and Communications", "relevance": "ICT and digital government regulations in Qatar", "url": ""},
+    {"name": "QCB", "full_name": "Qatar Central Bank", "relevance": "Financial sector regulations and fintech compliance", "url": ""}
+  ],
+  "compliance_patterns": [
+    {"pattern_name": "Qatarization requirements", "description": "Government projects may require minimum Qatari national content", "typical_requirements": ["Qatari team members where specified", "Knowledge transfer to Qatari counterparts", "Qatarization plan"], "evidence_needed": ["Team nationality breakdown", "Knowledge transfer plan"]},
+    {"pattern_name": "Arabic/English bilingual deliverables", "description": "Qatar government typically requires bilingual deliverables", "typical_requirements": ["All deliverables in Arabic and English", "Bilingual presentation materials"], "evidence_needed": ["Sample bilingual deliverables", "Translation capability evidence"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "Qatar public sector values international best practices adapted to local context", "implication": "Proposals should reference international benchmarks with clear localization strategy", "recommended_action": "Include international case studies with explicit Qatar adaptation plan"},
+    {"insight": "World Cup 2022 legacy projects influence procurement priorities", "implication": "Post-mega-event institutional capacity building is a common theme", "recommended_action": "Reference institutional sustainability and legacy planning where relevant"},
+    {"insight": "Technical excellence and innovation valued alongside compliance", "implication": "Methodology should demonstrate cutting-edge approaches, not just standard consulting", "recommended_action": "Include innovation elements: AI/analytics, digital tools, design thinking"}
+  ],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "Qatar government consulting advisory",
+    "Qatar National Vision 2030 implementation",
+    "Qatar public sector transformation advisory",
+    "GCC government consulting evaluation criteria"
+  ],
+  "recommended_s2_queries": [
+    "Qatar government transformation",
+    "GCC public sector modernization",
+    "Qatar national development strategy"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume Saudi regulations apply to Qatar — different regulatory framework",
+    "Do NOT reference Vision 2030 (Saudi) — Qatar uses QNV 2030 and NDS 2030",
+    "Do NOT assume Saudization — Qatar has Qatarization with different rules",
+    "Do NOT assume Arabic-only — Qatar often uses English as working language in government"
+  ],
+  "local_terminology": {
+    "procurement": "مشتريات",
+    "evaluation committee": "لجنة التقييم"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "pack_id": "saudi_public_sector",
+  "pack_type": "jurisdiction",
+  "pack_name": "Saudi Arabia — Public Sector",
+  "version": "1.0",
+  "regulatory_references": [
+    {"name": "DGA", "full_name": "Digital Government Authority", "relevance": "Digital government standards and compliance for public sector IT/digital projects", "url": "https://dga.gov.sa"},
+    {"name": "NDMO", "full_name": "National Data Management Office", "relevance": "Data governance, classification, and sharing standards for government entities", "url": "https://ndmo.gov.sa"},
+    {"name": "NCA", "full_name": "National Cybersecurity Authority", "relevance": "Cybersecurity controls (ECC) mandatory for government systems", "url": "https://nca.gov.sa"},
+    {"name": "ZATCA", "full_name": "Zakat, Tax and Customs Authority", "relevance": "Tax compliance and e-invoicing requirements", "url": "https://zatca.gov.sa"},
+    {"name": "Vision 2030", "full_name": "Saudi Vision 2030", "relevance": "National transformation framework — all public sector projects must align", "url": "https://vision2030.gov.sa"},
+    {"name": "NUPCO", "full_name": "National Unified Procurement Company", "relevance": "Centralized procurement standards for government", "url": ""},
+    {"name": "GTPL", "full_name": "Government Tenders and Procurement Law", "relevance": "Mandatory procurement regulations for all government tenders", "url": ""}
+  ],
+  "compliance_patterns": [
+    {"pattern_name": "Saudization requirements", "description": "Government contracts typically require minimum Saudi national content in consulting teams", "typical_requirements": ["Minimum percentage of Saudi nationals on team", "Saudization plan for knowledge transfer", "Local content reporting"], "evidence_needed": ["Team nationality breakdown", "Saudization plan document", "Local content commitment letter"]},
+    {"pattern_name": "Vision 2030 alignment", "description": "All public sector projects must demonstrate alignment with Vision 2030 objectives and VRPs", "typical_requirements": ["Map deliverables to VRP objectives", "Reference relevant NTP programs", "Show contribution to national KPIs"], "evidence_needed": ["VRP alignment matrix", "NTP program mapping"]},
+    {"pattern_name": "Arabic language requirements", "description": "Government deliverables typically required in Arabic with English as secondary", "typical_requirements": ["All deliverables in Arabic", "Bilingual executive summaries", "Arabic-fluent team members"], "evidence_needed": ["Team language capabilities", "Sample Arabic deliverables"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "Saudi public sector evaluators prioritize local content and Saudization", "implication": "Team composition and knowledge transfer plan heavily weighted", "recommended_action": "Emphasize Saudi team members, knowledge transfer methodology, and capacity building"},
+    {"insight": "Past performance with Saudi government entities is highly valued", "implication": "Case studies from Saudi ministries/authorities significantly strengthen bids", "recommended_action": "Lead with Saudi government case studies, reference specific entities by name"},
+    {"insight": "Technical evaluation typically 60-70% weight vs financial 30-40%", "implication": "Methodology depth and team qualifications are the primary differentiators", "recommended_action": "Invest heavily in methodology detail and consultant qualification documentation"},
+    {"insight": "Compliance is often eliminatory — non-compliant bids are rejected before scoring", "implication": "Every compliance requirement must be explicitly addressed", "recommended_action": "Build a compliance matrix mapping every RFP requirement to a response"}
+  ],
+  "methodology_patterns": [
+    {"framework": "DGA Standards", "when_to_use": "Any digital government or IT project for Saudi public sector", "typical_activities": ["DGA compliance assessment", "Digital maturity evaluation", "Government interoperability alignment"]},
+    {"framework": "NCA ECC", "when_to_use": "Any project involving government data or systems", "typical_activities": ["ECC gap assessment", "Cybersecurity controls mapping", "Risk assessment per NCA guidelines"]}
+  ],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "Saudi government consulting procurement best practices",
+    "Vision 2030 program management advisory",
+    "Saudi public sector digital transformation advisory",
+    "Kingdom of Saudi Arabia government tender evaluation criteria"
+  ],
+  "recommended_s2_queries": [
+    "Saudi government digital transformation",
+    "public sector consulting evaluation",
+    "Vision 2030 implementation assessment",
+    "government procurement advisory services"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume Vision 2030 alignment is required unless the RFP explicitly references it",
+    "Do NOT assume DGA/NDMO/NCA compliance is needed unless the project involves digital/data/cyber",
+    "Do NOT assume Saudization percentages — check the specific RFP requirements",
+    "Do NOT reference specific Saudi regulations unless extracted from the RFP or clearly applicable to the domain"
+  ],
+  "local_terminology": {
+    "procurement": "مشتريات",
+    "evaluation committee": "لجنة التقييم",
+    "technical proposal": "العرض الفني",
+    "financial proposal": "العرض المالي",
+    "scope of work": "نطاق العمل",
+    "terms of reference": "كراسة الشروط والمواصفات"
+  }
+}

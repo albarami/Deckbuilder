@@ -1,0 +1,39 @@
+{
+  "pack_id": "saudi_private_sector",
+  "pack_type": "jurisdiction",
+  "pack_name": "Saudi Arabia — Private Sector",
+  "version": "1.0",
+  "regulatory_references": [
+    {"name": "ZATCA", "full_name": "Zakat, Tax and Customs Authority", "relevance": "Tax compliance, VAT, and e-invoicing for private enterprises", "url": "https://zatca.gov.sa"},
+    {"name": "CMA", "full_name": "Capital Market Authority", "relevance": "Relevant for listed companies or capital market activities", "url": "https://cma.org.sa"},
+    {"name": "MHRSD", "full_name": "Ministry of Human Resources and Social Development", "relevance": "Labor regulations, Saudization (Nitaqat), and workforce compliance", "url": "https://hrsd.gov.sa"}
+  ],
+  "compliance_patterns": [
+    {"pattern_name": "Nitaqat Saudization", "description": "Private sector companies must meet Nitaqat Saudization targets", "typical_requirements": ["Saudization ratio compliance", "Training and development plans for Saudi nationals"], "evidence_needed": ["Nitaqat classification evidence", "Saudization plan"]},
+    {"pattern_name": "Commercial registration", "description": "Bidding companies must have valid Saudi commercial registration (CR)", "typical_requirements": ["Valid CR", "GOSI certificate", "Zakat certificate"], "evidence_needed": ["CR copy", "GOSI clearance", "Zakat clearance"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "Private sector evaluators focus more on ROI and business impact", "implication": "Methodology must demonstrate clear business value and measurable outcomes", "recommended_action": "Quantify expected ROI, efficiency gains, and cost savings in the proposal"},
+    {"insight": "Speed of delivery and agility valued over bureaucratic governance", "implication": "Lighter governance framework may be preferred over heavy steering committee structures", "recommended_action": "Propose agile delivery with sprint-based milestones and rapid decision cycles"},
+    {"insight": "Past performance with similar private sector clients is key", "implication": "Industry-specific case studies carry more weight than government project references", "recommended_action": "Lead with private sector case studies in the same industry vertical"}
+  ],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "Saudi private sector consulting advisory",
+    "Saudi Arabia business transformation consulting",
+    "private sector digital transformation Middle East"
+  ],
+  "recommended_s2_queries": [
+    "private sector consulting methodology",
+    "business transformation Saudi Arabia",
+    "corporate advisory services evaluation"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume government procurement regulations apply to private sector tenders",
+    "Do NOT reference Vision 2030 VRPs unless the client explicitly aligns with them",
+    "Do NOT assume Arabic-only deliverables — many private sector clients prefer English",
+    "Do NOT assume heavy governance structures — private sector often prefers agile delivery"
+  ],
+  "local_terminology": {}
+}

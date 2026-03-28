@@ -1,0 +1,43 @@
+{
+  "pack_id": "investment_promotion",
+  "pack_type": "domain",
+  "pack_name": "Investment Promotion & Export Support",
+  "version": "1.0",
+  "regulatory_references": [],
+  "compliance_patterns": [],
+  "evaluator_insights": [
+    {"insight": "Investment promotion RFPs value international benchmarking heavily", "implication": "Proposals must reference leading IPAs and export promotion agencies", "recommended_action": "Include KOTRA, Enterprise Singapore, Business France, UKTI as benchmark models"},
+    {"insight": "Service portfolio design is the core deliverable", "implication": "Methodology must demonstrate service design expertise, not just strategy", "recommended_action": "Include service design frameworks: service blueprinting, journey mapping, SLA design"}
+  ],
+  "methodology_patterns": [
+    {"framework": "Service Design Thinking", "when_to_use": "Service portfolio development and client journey design", "typical_activities": ["Service blueprinting", "Client journey mapping", "SLA framework design", "Service catalog development"]},
+    {"framework": "Institutional Framework Design", "when_to_use": "Relationship management and governance design", "typical_activities": ["Stakeholder mapping", "Governance model design", "RACI development", "Communication channel design"]},
+    {"framework": "International Benchmarking", "when_to_use": "Learning from leading IPAs worldwide", "typical_activities": ["Benchmark selection", "Comparative analysis", "Adaptation methodology", "Localization framework"]}
+  ],
+  "benchmark_references": [
+    {"organization": "KOTRA", "country": "South Korea", "relevance": "127 offices in 84 countries, comprehensive export support model", "key_metrics": ["127 overseas offices", "84 countries covered", "Full-spectrum export support"]},
+    {"organization": "Enterprise Singapore", "country": "Singapore", "relevance": "SME internationalization readiness model with staged support", "key_metrics": ["Readiness assessment framework", "Staged internationalization pathway", "Government-to-business SLA model"]},
+    {"organization": "Business France", "country": "France", "relevance": "Export insurance + advisory + market intelligence model", "key_metrics": ["Team France Export ecosystem", "VIE program for young professionals", "Market intelligence platform"]},
+    {"organization": "UKTI/DIT", "country": "United Kingdom", "relevance": "Digital-first export support with GREAT campaign branding", "key_metrics": ["Export readiness diagnostic", "Sector-specific advisory", "Digital marketplace platform"]},
+    {"organization": "JETRO", "country": "Japan", "relevance": "Comprehensive trade and investment promotion with strong research arm", "key_metrics": ["76 overseas offices", "Sector-specialized advisors", "Research-driven market intelligence"]}
+  ],
+  "recommended_search_queries": [
+    "investment promotion agency service design framework",
+    "export support program evaluation methodology",
+    "SME internationalization readiness assessment",
+    "trade promotion organization operating model",
+    "government B2B service portfolio design"
+  ],
+  "recommended_s2_queries": [
+    "investment promotion agency effectiveness",
+    "export promotion program evaluation",
+    "SME internationalization support services",
+    "trade facilitation service design"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume all companies need the same level of support — segmentation is critical",
+    "Do NOT assume export readiness — assessment must come before service design",
+    "Do NOT conflate inbound investment promotion with outbound export support"
+  ],
+  "local_terminology": {}
+}

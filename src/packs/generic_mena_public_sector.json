@@ -1,0 +1,34 @@
+{
+  "pack_id": "generic_mena_public_sector",
+  "pack_type": "generic_fallback",
+  "pack_name": "Generic MENA Public Sector (Fallback)",
+  "version": "1.0",
+  "regulatory_references": [],
+  "compliance_patterns": [
+    {"pattern_name": "General government procurement compliance", "description": "MENA government tenders typically require commercial registration, tax clearance, and insurance certificates", "typical_requirements": ["Valid commercial registration", "Tax/zakat clearance", "Professional liability insurance", "Bank guarantee capability"], "evidence_needed": ["CR copy", "Tax clearance certificate", "Insurance certificate"]},
+    {"pattern_name": "Bilingual deliverables", "description": "Most MENA government entities require Arabic deliverables", "typical_requirements": ["Arabic primary deliverables", "English secondary where requested"], "evidence_needed": ["Team Arabic capability", "Sample Arabic deliverables"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "MENA public sector evaluators generally weight technical proposals 60-70%", "implication": "Methodology depth and team qualifications are primary differentiators", "recommended_action": "Invest in detailed methodology and comprehensive team profiles"},
+    {"insight": "Local presence and regional experience are valued across GCC", "implication": "Proposals should emphasize regional office, local team, and GCC project history", "recommended_action": "Lead with GCC-specific case studies and highlight local team members"}
+  ],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "GCC government consulting advisory best practices",
+    "MENA public sector transformation methodology",
+    "Gulf Cooperation Council government procurement evaluation"
+  ],
+  "recommended_s2_queries": [
+    "GCC government transformation",
+    "MENA public sector modernization",
+    "Gulf state consulting evaluation"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume any specific country's regulations without RFP evidence",
+    "Do NOT reference Vision 2030 / QNV 2030 / other national visions unless the RFP mentions them",
+    "Do NOT assume specific nationalization requirements (Saudization/Qatarization/Emiratization) without RFP evidence",
+    "IMPORTANT: This is a FALLBACK pack — jurisdiction-specific compliance requires manual review"
+  ],
+  "local_terminology": {}
+}
