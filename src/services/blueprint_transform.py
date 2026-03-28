@@ -178,15 +178,21 @@ def _ensure_all_sections(entries: list[ContractEntry]) -> list[ContractEntry]:
                 house_action="skip",
             ))
         elif spec.ownership == "hybrid":
-            # Use proper divider content if available
+            # Use proper divider content if available.
+            # Note: hybrid entries only allow slide_title + key_message
+            # (the model validator rejects visual_guidance on hybrid).
+            # Visual guidance is embedded in key_message for dividers.
             divider = _DIVIDER_CONTENT.get(spec.section_id, {})
+            visual_hint = divider.get("visual_guidance", "")
+            key_msg = divider.get("key_message", f"Transition to {spec.section_name}")
+            if visual_hint:
+                key_msg = f"{key_msg} | Visual: {visual_hint}"
             additions.append(ContractEntry(
                 section_id=spec.section_id,
                 section_name=spec.section_name,
                 ownership="hybrid",
                 slide_title=divider.get("slide_title", spec.section_name),
-                key_message=divider.get("key_message", f"Transition to {spec.section_name}"),
-                visual_guidance=divider.get("visual_guidance"),
+                key_message=key_msg,
                 house_action="include_as_is",
             ))
         else:
