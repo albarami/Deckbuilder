@@ -293,32 +293,46 @@ def _add_section_3(doc: Document, source_book: SourceBook) -> None:
             doc.add_paragraph(cert, style="List Bullet")
 
 
-def _add_section_4(doc: Document, source_book: SourceBook) -> None:
+def _add_section_4(
+    doc: Document,
+    source_book: SourceBook,
+    evidence_enrichment: dict[str, dict] | None = None,
+) -> None:
     """Section 4: External Evidence — enriched for proposal-building.
 
-    Each entry shows source type, evidence tier classification, relevance,
-    and key findings. The coverage assessment tags evidence gaps explicitly.
+    Each entry shows source type, evidence tier, provider, URL, RFP theme,
+    relevance, and key findings. The coverage assessment tags evidence gaps.
     """
     doc.add_heading("4. External Evidence", level=1)
     ext = source_book.external_evidence
+    enrichment = evidence_enrichment or {}
 
     if ext.entries:
-        # Enriched table with source type and tier
+        # Enriched table with provider, URL, RFP theme
         table = doc.add_table(rows=1, cols=6)
         table.style = "Table Grid"
         hdr = table.rows[0].cells
         hdr[0].text = "Source ID"
-        hdr[1].text = "Title"
+        hdr[1].text = "Title / Provider / URL"
         hdr[2].text = "Type / Year"
         hdr[3].text = "Evidence Tier"
-        hdr[4].text = "Relevance & How to Use"
+        hdr[4].text = "RFP Theme & How to Use"
         hdr[5].text = "Key Finding"
 
         for entry in ext.entries:
             row = table.add_row().cells
             row[0].text = entry.source_id
 
-            row[1].text = entry.title
+            # Title + Provider + URL (enriched from evidence pack)
+            enrich = enrichment.get(entry.source_id, {})
+            provider = enrich.get("provider", "").replace("_", " ").title()
+            url = enrich.get("url", "")
+            title_parts = [entry.title]
+            if provider:
+                title_parts.append(f"Provider: {provider}")
+            if url:
+                title_parts.append(f"URL: {url}")
+            row[1].text = "\n".join(title_parts)
 
             # Type classification
             type_label = entry.source_type.replace("_", " ").title()
@@ -334,11 +348,18 @@ def _add_section_4(doc: Document, source_book: SourceBook) -> None:
             }
             row[3].text = tier_map.get(entry.source_type, "Unclassified")
 
-            # Combined relevance + usage guidance
-            usage = entry.relevance
-            if entry.key_finding:
-                usage += f"\n\nProposal use: {entry.key_finding}"
-            row[4].text = usage
+            # RFP theme + relevance + usage (enriched)
+            rfp_theme = enrich.get("mapped_rfp_theme", "")
+            how_to_use = enrich.get("how_to_use", "")
+            usage_parts = []
+            if rfp_theme:
+                usage_parts.append(f"RFP Theme: {rfp_theme}")
+            usage_parts.append(entry.relevance)
+            if how_to_use:
+                usage_parts.append(f"How to use: {how_to_use}")
+            elif entry.key_finding:
+                usage_parts.append(f"Proposal use: {entry.key_finding}")
+            row[4].text = "\n".join(usage_parts)
 
             row[5].text = entry.key_finding
 
@@ -557,15 +578,35 @@ def _add_engine2_requirements(doc: Document, source_book: SourceBook) -> None:
 async def export_source_book_docx(
     source_book: SourceBook,
     output_path: str,
+    external_evidence_pack: object | None = None,
 ) -> str:
     """Export a SourceBook as a .docx file.
 
     Produces a structured Word document with cover page, 7 sections,
     and appropriate tables/prose formatting.
 
+    Args:
+        source_book: The SourceBook to export.
+        output_path: Path to write the .docx file.
+        external_evidence_pack: Optional ExternalEvidencePack with rich
+            metadata (provider, url, mapped_rfp_theme) to enrich Section 4.
+
     Returns the output path.
     """
     doc = Document()
+
+    # Build evidence enrichment lookup from pack (if available)
+    _evidence_enrichment: dict[str, dict] = {}
+    if external_evidence_pack:
+        for src in getattr(external_evidence_pack, "sources", []):
+            sid = getattr(src, "source_id", "")
+            if sid:
+                _evidence_enrichment[sid] = {
+                    "provider": getattr(src, "provider", ""),
+                    "url": getattr(src, "url", ""),
+                    "mapped_rfp_theme": getattr(src, "mapped_rfp_theme", ""),
+                    "how_to_use": getattr(src, "how_to_use_in_proposal", ""),
+                }
 
     # Cover page
     _add_cover_page(doc, source_book)
@@ -574,7 +615,7 @@ async def export_source_book_docx(
     _add_section_1(doc, source_book)
     _add_section_2(doc, source_book)
     _add_section_3(doc, source_book)
-    _add_section_4(doc, source_book)
+    _add_section_4(doc, source_book, _evidence_enrichment)
     _add_section_5(doc, source_book)
     _add_section_6(doc, source_book)
     _add_section_7(doc, source_book)

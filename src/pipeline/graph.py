@@ -763,7 +763,11 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     export_error: ErrorInfo | None = None
 
     try:
-        await export_source_book_docx(current_state.source_book, docx_path)
+        await export_source_book_docx(
+            current_state.source_book,
+            docx_path,
+            external_evidence_pack=current_state.external_evidence_pack,
+        )
         exported_docx_path = docx_path
         logger.info("Source Book DOCX exported: %s", docx_path)
     except Exception as e:
