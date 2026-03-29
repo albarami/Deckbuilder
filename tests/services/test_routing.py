@@ -315,10 +315,11 @@ class TestPackDrivenKeywords:
         assert "investment_promotion" in _DOMAIN_KEYWORDS
         assert "investment" in _DOMAIN_KEYWORDS["investment_promotion"]
 
-    def test_fallback_uae_still_present(self):
-        """UAE has no pack file but should still exist from hardcoded fallback."""
-        assert "uae" in _JURISDICTION_KEYWORDS
-        assert "dubai" in _JURISDICTION_KEYWORDS["uae"]
+    def test_uae_not_present_without_pack(self):
+        """UAE has no pack file — should NOT be in keywords (no hardcoded fallbacks)."""
+        # UAE would need a pack file to be recognized.
+        # This verifies no hardcoded fallback keywords leak in.
+        assert "uae" not in _JURISDICTION_KEYWORDS
 
     def test_temp_pack_picked_up_after_reload(self):
         """Write a temporary pack JSON with classification_keywords,

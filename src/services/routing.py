@@ -92,89 +92,15 @@ _PACK_FILES, _PACK_JURISDICTION_KW, _PACK_SECTOR_KW, _PACK_DOMAIN_KW = (
 )
 
 # ──────────────────────────────────────────────────────────────
-# Classification keywords: built dynamically from pack JSON files,
-# with hardcoded fallbacks for jurisdictions/sectors/domains that
-# don't yet have a pack file with classification_keywords.
+# Classification keywords: built ENTIRELY from pack JSON files.
+# No hardcoded jurisdiction/sector/domain keywords in this file.
+# All keywords come from classification_keywords in pack files.
 # ──────────────────────────────────────────────────────────────
 
-# Hardcoded FALLBACK keywords (used when packs don't provide them)
-_FALLBACK_JURISDICTION_KEYWORDS: dict[str, list[str]] = {
-    "saudi_arabia": [
-        "المملكة العربية السعودية", "السعودية", "الرياض", "جدة", "الدمام",
-        "saudi", "riyadh", "jeddah", "ksa",
-        "رؤية 2030", "vision 2030",
-        "وزارة", "هيئة", "مؤسسة",  # ministry/authority/institution
-    ],
-    "qatar": [
-        "قطر", "الدوحة", "qatar", "doha",
-        "qnv 2030", "nds",
-    ],
-    "uae": [
-        "الإمارات", "أبوظبي", "دبي", "uae", "abu dhabi", "dubai",
-    ],
-}
-
-_FALLBACK_SECTOR_KEYWORDS: dict[str, list[str]] = {
-    "public_sector": [
-        "حكومي", "وزارة", "هيئة", "مؤسسة عامة", "government", "ministry",
-        "authority", "public", "كراسة الشروط",
-    ],
-    "private_sector": [
-        "شركة", "مؤسسة خاصة", "company", "private", "corporate",
-        "enterprise", "مجموعة",
-    ],
-}
-
-_FALLBACK_DOMAIN_KEYWORDS: dict[str, list[str]] = {
-    "investment_promotion": [
-        "استثمار", "توسع خارجي", "تصدير", "شركات وطنية",
-        "investment", "export", "internationalization", "outbound",
-        "trade promotion", "خدمات داعمة",
-    ],
-    "digital_transformation": [
-        "تحول رقمي", "رقمنة", "digital", "cloud", "ai",
-        "تقنية المعلومات", "it",
-    ],
-    "pmo_operating_model": [
-        "مكتب إدارة المشاريع", "pmo", "operating model", "نموذج تشغيلي",
-    ],
-    "strategy_advisory": [
-        "استراتيجي", "strategy", "advisory", "استشار",
-    ],
-    "service_design": [
-        "تصميم خدمات", "service design", "خدمات", "محفظة خدمات",
-        "service portfolio",
-    ],
-}
-
-
-def _merge_keyword_dicts(
-    pack_kw: dict[str, list[str]],
-    fallback_kw: dict[str, list[str]],
-) -> dict[str, list[str]]:
-    """Merge pack-discovered keywords with hardcoded fallbacks.
-
-    Pack keywords take priority; fallback entries are added only for
-    categories not covered by any pack.
-    """
-    merged = {}
-    all_keys = set(pack_kw) | set(fallback_kw)
-    for key in all_keys:
-        combined = list(pack_kw.get(key, [])) + list(fallback_kw.get(key, []))
-        merged[key] = list(dict.fromkeys(combined))  # deduplicate, preserve order
-    return merged
-
-
-# Final keyword dicts: pack-driven + fallback
-_JURISDICTION_KEYWORDS: dict[str, list[str]] = _merge_keyword_dicts(
-    _PACK_JURISDICTION_KW, _FALLBACK_JURISDICTION_KEYWORDS,
-)
-_SECTOR_KEYWORDS: dict[str, list[str]] = _merge_keyword_dicts(
-    _PACK_SECTOR_KW, _FALLBACK_SECTOR_KEYWORDS,
-)
-_DOMAIN_KEYWORDS: dict[str, list[str]] = _merge_keyword_dicts(
-    _PACK_DOMAIN_KW, _FALLBACK_DOMAIN_KEYWORDS,
-)
+# Final keyword dicts: pack-driven ONLY (no hardcoded fallbacks)
+_JURISDICTION_KEYWORDS: dict[str, list[str]] = dict(_PACK_JURISDICTION_KW)
+_SECTOR_KEYWORDS: dict[str, list[str]] = dict(_PACK_SECTOR_KW)
+_DOMAIN_KEYWORDS: dict[str, list[str]] = dict(_PACK_DOMAIN_KW)
 
 
 def _reload_pack_keywords() -> None:
@@ -190,17 +116,11 @@ def _reload_pack_keywords() -> None:
         _discover_pack_files()
     )
     _JURISDICTION_KEYWORDS.clear()
-    _JURISDICTION_KEYWORDS.update(
-        _merge_keyword_dicts(_PACK_JURISDICTION_KW, _FALLBACK_JURISDICTION_KEYWORDS)
-    )
+    _JURISDICTION_KEYWORDS.update(_PACK_JURISDICTION_KW)
     _SECTOR_KEYWORDS.clear()
-    _SECTOR_KEYWORDS.update(
-        _merge_keyword_dicts(_PACK_SECTOR_KW, _FALLBACK_SECTOR_KEYWORDS)
-    )
+    _SECTOR_KEYWORDS.update(_PACK_SECTOR_KW)
     _DOMAIN_KEYWORDS.clear()
-    _DOMAIN_KEYWORDS.update(
-        _merge_keyword_dicts(_PACK_DOMAIN_KW, _FALLBACK_DOMAIN_KEYWORDS)
-    )
+    _DOMAIN_KEYWORDS.update(_PACK_DOMAIN_KW)
 
 
 # Subdomain keywords mapped from scope text
@@ -215,20 +135,63 @@ _SUBDOMAIN_KEYWORDS: dict[str, list[str]] = {
     "investment_attraction": ["fdi", "foreign direct investment", "استثمار أجنبي"],
 }
 
-# Jurisdiction → pack_id mapping (explicit, not auto-discovered)
-_JURISDICTION_PACK_MAP: dict[str, dict[str, str]] = {
-    "saudi_arabia": {
-        "public_sector": "saudi_public_sector",
-        "private_sector": "saudi_private_sector",
-        "semi_government": "saudi_public_sector",
-        "unknown": "saudi_public_sector",
-    },
-    "qatar": {
-        "public_sector": "qatar_public_sector",
-        "private_sector": "qatar_public_sector",  # fallback
-        "unknown": "qatar_public_sector",
-    },
-}
+def _build_jurisdiction_pack_map() -> dict[str, dict[str, str]]:
+    """Build jurisdiction→sector→pack_id map dynamically from pack files.
+
+    Scans all jurisdiction packs and maps their jurisdiction keywords
+    to pack_ids. No hardcoded jurisdiction names.
+    """
+    jur_map: dict[str, dict[str, str]] = {}
+    for pack_path in sorted(_PACKS_DIR.glob("*.json")):
+        try:
+            data = json.loads(pack_path.read_text(encoding="utf-8"))
+            if data.get("pack_type") != "jurisdiction":
+                continue
+            pack_id = data.get("pack_id", "")
+            ck = data.get("classification_keywords", {})
+            # Find which jurisdiction(s) this pack serves
+            for jur_name in ck.get("jurisdiction", {}):
+                if jur_name not in jur_map:
+                    jur_map[jur_name] = {}
+                # Find which sector(s) this pack serves
+                sectors = list(ck.get("sector", {}).keys())
+                if sectors:
+                    for sec in sectors:
+                        jur_map[jur_name][sec] = pack_id
+                # Also set as default for unknown sector
+                jur_map[jur_name]["unknown"] = pack_id
+        except Exception:
+            pass
+    return jur_map
+
+
+_JURISDICTION_PACK_MAP: dict[str, dict[str, str]] = _build_jurisdiction_pack_map()
+
+
+def _build_regulatory_frame_patterns() -> list[tuple[str, str]]:
+    """Build regulatory frame detection patterns from pack files.
+
+    Scans all pack files for regulatory_references and builds
+    (search_text, frame_name) pairs. No hardcoded jurisdiction-specific
+    regulatory keywords.
+    """
+    patterns: list[tuple[str, str]] = []
+    for pack_path in sorted(_PACKS_DIR.glob("*.json")):
+        try:
+            data = json.loads(pack_path.read_text(encoding="utf-8"))
+            for ref in data.get("regulatory_references", []):
+                name = ref.get("name", "")
+                full_name = ref.get("full_name", "")
+                if name and len(name) > 3:
+                    frame = name.lower().replace(" ", "_")
+                    patterns.append((name.lower(), frame))
+                if full_name and len(full_name) > 5:
+                    frame = name.lower().replace(" ", "_")
+                    patterns.append((full_name.lower(), frame))
+        except Exception:
+            pass
+    return patterns
+
 
 # B.2: Client-type pack map
 _CLIENT_TYPE_PACK_MAP: dict[str, str] = {
@@ -345,12 +308,14 @@ def classify_rfp(state: DeckForgeState) -> RFPClassification:
     elif "شركة" in search_text or "company" in search_text:
         client_type = "private_enterprise"
 
-    # Detect regulatory frame
+    # Detect regulatory frame dynamically from pack regulatory references
+    # No hardcoded jurisdiction-specific keywords
     regulatory_frame = "none_identified"
-    if "رؤية 2030" in search_text or "vision 2030" in search_text:
-        regulatory_frame = "vision_2030"
-    elif "qnv 2030" in search_text or "nds 2030" in search_text:
-        regulatory_frame = "nds_2030"
+    _reg_frame_patterns = _build_regulatory_frame_patterns()
+    for pattern_text, frame_name in _reg_frame_patterns:
+        if pattern_text.lower() in search_text:
+            regulatory_frame = frame_name
+            break
 
     # B.5: Detect evaluator pattern from evaluation_criteria
     evaluator_pattern = ""
