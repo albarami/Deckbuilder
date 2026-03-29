@@ -389,6 +389,63 @@ def _add_section_4(
             run.bold = True
             p.add_run(gap_desc)
 
+    # ── Search Strategy Summary ──────────────────────────────
+    doc.add_paragraph()
+    doc.add_heading("Search Strategy Summary", level=2)
+
+    # Compute statistics from entries
+    total_sources = len(ext.entries) if ext.entries else 0
+    type_counts: dict[str, int] = {}
+    for entry in (ext.entries or []):
+        label = entry.source_type.replace("_", " ").title()
+        type_counts[label] = type_counts.get(label, 0) + 1
+
+    # Query strategy paragraph
+    doc.add_paragraph(
+        f"The external evidence search yielded {total_sources} retained "
+        f"source(s) across {len(type_counts)} evidence class(es). "
+        "Queries were constructed from RFP themes, sector keywords, and "
+        "compliance requirements to maximise coverage of the proposal's "
+        "argument structure."
+    )
+
+    # Evidence class distribution
+    if type_counts:
+        p = doc.add_paragraph()
+        run = p.add_run("Evidence class distribution: ")
+        run.bold = True
+        distribution_parts = [f"{cls} ({cnt})" for cls, cnt in type_counts.items()]
+        p.add_run(", ".join(distribution_parts) + ".")
+
+    # Coverage note
+    tier_map_labels = {
+        "Academic Paper": "Primary — peer-reviewed",
+        "Industry Report": "Primary — industry source",
+        "Benchmark": "Primary — benchmark data",
+        "Case Study": "Secondary — analogical",
+        "Framework": "Secondary — methodology reference",
+    }
+    primary_count = sum(
+        cnt for cls, cnt in type_counts.items()
+        if tier_map_labels.get(cls, "").startswith("Primary")
+    )
+    secondary_count = total_sources - primary_count
+    doc.add_paragraph(
+        f"Tier breakdown: {primary_count} primary source(s), "
+        f"{secondary_count} secondary source(s). "
+        "Coverage gaps are tagged in the Evidence Gap Summary above and "
+        "flagged for Engine 2 retrieval from company backend databases."
+    )
+
+    # Provider / URL availability note
+    doc.add_paragraph(
+        "Provider and URL metadata for each source are recorded in the "
+        "external_evidence_pack.json artifact produced during the research "
+        "phase. Consult that JSON file for full Provider identifiers, "
+        "URL links, author lists, query_used strings, and "
+        "mapped_rfp_theme annotations."
+    )
+
 
 def _add_section_5(doc: Document, source_book: SourceBook) -> None:
     """Section 5: Proposed Solution."""
