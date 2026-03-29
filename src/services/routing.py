@@ -27,15 +27,32 @@ _PACKS_DIR = Path(__file__).resolve().parent.parent / "packs"
 # ──────────────────────────────────────────────────────────────
 
 
-def _discover_pack_files() -> dict[str, str]:
-    """Scan the packs directory for *.json files and build pack_id → filename map.
+def _discover_pack_files() -> tuple[
+    dict[str, str],
+    dict[str, list[str]],
+    dict[str, list[str]],
+    dict[str, list[str]],
+]:
+    """Scan the packs directory for *.json files.
 
-    Each JSON file must have a "pack_id" field. Files without it are skipped.
+    Returns:
+        Tuple of (pack_registry, jurisdiction_kw, sector_kw, domain_kw).
+        - pack_registry: pack_id → filename
+        - jurisdiction_kw: jurisdiction_name → keyword list
+        - sector_kw: sector_name → keyword list
+        - domain_kw: domain_name → keyword list
+
+    Keywords are extracted from the optional "classification_keywords" field
+    in each pack JSON file.
     """
     registry: dict[str, str] = {}
+    jurisdiction_kw: dict[str, list[str]] = {}
+    sector_kw: dict[str, list[str]] = {}
+    domain_kw: dict[str, list[str]] = {}
+
     if not _PACKS_DIR.is_dir():
         logger.warning("Packs directory not found: %s", _PACKS_DIR)
-        return registry
+        return registry, jurisdiction_kw, sector_kw, domain_kw
 
     for pack_path in sorted(_PACKS_DIR.glob("*.json")):
         try:
@@ -47,17 +64,41 @@ def _discover_pack_files() -> dict[str, str]:
                 logger.warning(
                     "Pack file %s has no pack_id field — skipping", pack_path.name,
                 )
+                continue
+
+            # Extract classification_keywords if present
+            ck = data.get("classification_keywords", {})
+            for jur_name, kw_list in ck.get("jurisdiction", {}).items():
+                jurisdiction_kw.setdefault(jur_name, []).extend(kw_list)
+            for sec_name, kw_list in ck.get("sector", {}).items():
+                sector_kw.setdefault(sec_name, []).extend(kw_list)
+            for dom_name, kw_list in ck.get("domain", {}).items():
+                domain_kw.setdefault(dom_name, []).extend(kw_list)
+
         except Exception as e:
             logger.error("Failed to read pack file %s: %s", pack_path.name, e)
 
-    return registry
+    # Deduplicate keyword lists while preserving order
+    for d in (jurisdiction_kw, sector_kw, domain_kw):
+        for key in d:
+            d[key] = list(dict.fromkeys(d[key]))
+
+    return registry, jurisdiction_kw, sector_kw, domain_kw
 
 
 # Auto-discovered pack registry (built at import time)
-_PACK_FILES: dict[str, str] = _discover_pack_files()
+_PACK_FILES, _PACK_JURISDICTION_KW, _PACK_SECTOR_KW, _PACK_DOMAIN_KW = (
+    _discover_pack_files()
+)
 
-# Jurisdiction keywords for rule-based classification
-_JURISDICTION_KEYWORDS: dict[str, list[str]] = {
+# ──────────────────────────────────────────────────────────────
+# Classification keywords: built dynamically from pack JSON files,
+# with hardcoded fallbacks for jurisdictions/sectors/domains that
+# don't yet have a pack file with classification_keywords.
+# ──────────────────────────────────────────────────────────────
+
+# Hardcoded FALLBACK keywords (used when packs don't provide them)
+_FALLBACK_JURISDICTION_KEYWORDS: dict[str, list[str]] = {
     "saudi_arabia": [
         "المملكة العربية السعودية", "السعودية", "الرياض", "جدة", "الدمام",
         "saudi", "riyadh", "jeddah", "ksa",
@@ -73,7 +114,7 @@ _JURISDICTION_KEYWORDS: dict[str, list[str]] = {
     ],
 }
 
-_SECTOR_KEYWORDS: dict[str, list[str]] = {
+_FALLBACK_SECTOR_KEYWORDS: dict[str, list[str]] = {
     "public_sector": [
         "حكومي", "وزارة", "هيئة", "مؤسسة عامة", "government", "ministry",
         "authority", "public", "كراسة الشروط",
@@ -84,7 +125,7 @@ _SECTOR_KEYWORDS: dict[str, list[str]] = {
     ],
 }
 
-_DOMAIN_KEYWORDS: dict[str, list[str]] = {
+_FALLBACK_DOMAIN_KEYWORDS: dict[str, list[str]] = {
     "investment_promotion": [
         "استثمار", "توسع خارجي", "تصدير", "شركات وطنية",
         "investment", "export", "internationalization", "outbound",
@@ -105,6 +146,62 @@ _DOMAIN_KEYWORDS: dict[str, list[str]] = {
         "service portfolio",
     ],
 }
+
+
+def _merge_keyword_dicts(
+    pack_kw: dict[str, list[str]],
+    fallback_kw: dict[str, list[str]],
+) -> dict[str, list[str]]:
+    """Merge pack-discovered keywords with hardcoded fallbacks.
+
+    Pack keywords take priority; fallback entries are added only for
+    categories not covered by any pack.
+    """
+    merged = {}
+    all_keys = set(pack_kw) | set(fallback_kw)
+    for key in all_keys:
+        combined = list(pack_kw.get(key, [])) + list(fallback_kw.get(key, []))
+        merged[key] = list(dict.fromkeys(combined))  # deduplicate, preserve order
+    return merged
+
+
+# Final keyword dicts: pack-driven + fallback
+_JURISDICTION_KEYWORDS: dict[str, list[str]] = _merge_keyword_dicts(
+    _PACK_JURISDICTION_KW, _FALLBACK_JURISDICTION_KEYWORDS,
+)
+_SECTOR_KEYWORDS: dict[str, list[str]] = _merge_keyword_dicts(
+    _PACK_SECTOR_KW, _FALLBACK_SECTOR_KEYWORDS,
+)
+_DOMAIN_KEYWORDS: dict[str, list[str]] = _merge_keyword_dicts(
+    _PACK_DOMAIN_KW, _FALLBACK_DOMAIN_KEYWORDS,
+)
+
+
+def _reload_pack_keywords() -> None:
+    """Re-scan packs directory and rebuild all keyword dicts.
+
+    Useful for testing: write a temporary pack JSON, call this function,
+    and verify the classifier picks up the new keywords.
+    """
+    global _PACK_FILES, _PACK_JURISDICTION_KW, _PACK_SECTOR_KW, _PACK_DOMAIN_KW
+    global _JURISDICTION_KEYWORDS, _SECTOR_KEYWORDS, _DOMAIN_KEYWORDS
+
+    _PACK_FILES, _PACK_JURISDICTION_KW, _PACK_SECTOR_KW, _PACK_DOMAIN_KW = (
+        _discover_pack_files()
+    )
+    _JURISDICTION_KEYWORDS.clear()
+    _JURISDICTION_KEYWORDS.update(
+        _merge_keyword_dicts(_PACK_JURISDICTION_KW, _FALLBACK_JURISDICTION_KEYWORDS)
+    )
+    _SECTOR_KEYWORDS.clear()
+    _SECTOR_KEYWORDS.update(
+        _merge_keyword_dicts(_PACK_SECTOR_KW, _FALLBACK_SECTOR_KEYWORDS)
+    )
+    _DOMAIN_KEYWORDS.clear()
+    _DOMAIN_KEYWORDS.update(
+        _merge_keyword_dicts(_PACK_DOMAIN_KW, _FALLBACK_DOMAIN_KEYWORDS)
+    )
+
 
 # Subdomain keywords mapped from scope text
 _SUBDOMAIN_KEYWORDS: dict[str, list[str]] = {

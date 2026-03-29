@@ -3,6 +3,14 @@
   "pack_type": "domain",
   "pack_name": "Digital Transformation",
   "version": "1.0",
+  "classification_keywords": {
+    "domain": {
+      "digital_transformation": [
+        "تحول رقمي", "رقمنة", "digital", "cloud", "ai",
+        "تقنية المعلومات", "it"
+      ]
+    }
+  },
   "regulatory_references": [
     {"name": "ISO 27001", "full_name": "Information Security Management", "relevance": "Required for cloud and data-related transformation projects", "url": ""},
     {"name": "TOGAF", "full_name": "The Open Group Architecture Framework", "relevance": "Enterprise architecture standard for transformation programs", "url": ""},

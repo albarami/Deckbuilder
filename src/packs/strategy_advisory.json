@@ -3,6 +3,13 @@
   "pack_type": "domain",
   "pack_name": "Strategy Advisory",
   "version": "1.0",
+  "classification_keywords": {
+    "domain": {
+      "strategy_advisory": [
+        "استراتيجي", "strategy", "advisory", "استشار"
+      ]
+    }
+  },
   "regulatory_references": [
     {"name": "Balanced Scorecard", "full_name": "Kaplan & Norton Balanced Scorecard", "relevance": "Strategy execution and performance measurement framework", "url": ""},
     {"name": "Blue Ocean Strategy", "full_name": "Blue Ocean Strategy Framework", "relevance": "Market creation and strategic differentiation methodology", "url": ""}

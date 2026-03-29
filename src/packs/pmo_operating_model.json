@@ -3,6 +3,13 @@
   "pack_type": "domain",
   "pack_name": "PMO & Operating Model Design",
   "version": "1.0",
+  "classification_keywords": {
+    "domain": {
+      "pmo_operating_model": [
+        "مكتب إدارة المشاريع", "pmo", "operating model", "نموذج تشغيلي"
+      ]
+    }
+  },
   "regulatory_references": [
     {"name": "PMI PMBOK", "full_name": "Project Management Body of Knowledge", "relevance": "Standard framework for project management office design", "url": ""},
     {"name": "P3O", "full_name": "Portfolio, Programme and Project Offices", "relevance": "AXELOS framework for PMO design and governance", "url": ""},

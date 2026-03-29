@@ -3,6 +3,14 @@
   "pack_type": "domain",
   "pack_name": "Service Design",
   "version": "1.0",
+  "classification_keywords": {
+    "domain": {
+      "service_design": [
+        "تصميم خدمات", "service design", "خدمات", "محفظة خدمات",
+        "service portfolio"
+      ]
+    }
+  },
   "regulatory_references": [
     {"name": "ISO 20000", "full_name": "IT Service Management", "relevance": "International standard for service management systems", "url": ""},
     {"name": "ITIL v4", "full_name": "Information Technology Infrastructure Library", "relevance": "Service lifecycle management framework", "url": ""}

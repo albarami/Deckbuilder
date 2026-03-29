@@ -3,6 +3,15 @@
   "pack_type": "domain",
   "pack_name": "Investment Promotion & Export Support",
   "version": "1.0",
+  "classification_keywords": {
+    "domain": {
+      "investment_promotion": [
+        "استثمار", "توسع خارجي", "تصدير", "شركات وطنية",
+        "investment", "export", "internationalization", "outbound",
+        "trade promotion", "خدمات داعمة"
+      ]
+    }
+  },
   "regulatory_references": [],
   "compliance_patterns": [],
   "evaluator_insights": [

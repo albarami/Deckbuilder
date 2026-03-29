@@ -221,15 +221,45 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
     return _deduplicate(validated)[:10]
 
 
+def _extract_domain_nouns(text: str, max_words: int = 8) -> str:
+    """Extract domain-concept nouns from English text for academic queries.
+
+    Filters out verbs, articles, prepositions, and conjunctions to keep
+    only meaningful nouns/adjectives that form academic keyword phrases.
+    Returns a phrase of up to *max_words* words.
+    """
+    # Common non-noun words to strip (verbs, articles, prepositions, etc.)
+    _STOP_WORDS = {
+        "a", "an", "the", "and", "or", "of", "for", "in", "on", "to",
+        "with", "by", "at", "from", "into", "through", "is", "are",
+        "was", "were", "be", "been", "being", "have", "has", "had",
+        "do", "does", "did", "will", "shall", "should", "would",
+        "could", "may", "might", "must", "can", "need", "their",
+        "its", "this", "that", "these", "those", "it", "as", "not",
+        "all", "each", "every", "both", "such", "than", "also",
+        "very", "just", "about", "which", "who", "whom", "what",
+        "how", "when", "where", "while", "if", "so", "then",
+        # Common RFP verbs
+        "analyze", "analyse", "identify", "develop", "design", "assess",
+        "evaluate", "review", "prepare", "provide", "support", "ensure",
+        "establish", "implement", "define", "determine", "conduct",
+        "create", "build", "deliver", "manage", "including", "include",
+    }
+    words = text.split()
+    nouns = [w for w in words if w.lower().strip(",.;:()") not in _STOP_WORDS and len(w) > 2]
+    return " ".join(nouns[:max_words])
+
+
 def _generate_s2_queries(state: DeckForgeState) -> list[str]:
     """Generate short academic-style queries for Semantic Scholar.
 
-    S2 works best with 5-8 word ENGLISH keyword phrases.
+    S2 works best with 4-8 word ENGLISH keyword phrases.
     Long sentences and Arabic text return irrelevant papers.
 
-    Strategy: build SHORT domain-specific English academic queries
-    like "investment promotion agency service design" instead of
-    clipping scope item text.
+    Strategy:
+    1. Use pack_context.recommended_s2_queries as PRIMARY source
+    2. Extract DOMAIN CONCEPT nouns from English scope text (not full sentences)
+    3. Keep all queries to 4-8 words, max 60 characters
     """
     queries: list[str] = []
     rfp = state.rfp_context
@@ -238,28 +268,25 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
 
     sector = state.sector or ""
     geography = state.geography or ""
-    mandate = _extract_bilingual_any(rfp.mandate)
 
-    # Extract ENGLISH key concepts from scope items (5-8 words max)
+    # PRIMARY: Pack-driven S2 queries (curated academic phrases)
+    pack_ctx = getattr(state, "pack_context", None) or {}
+    pack_s2 = pack_ctx.get("recommended_s2_queries", [])
+    for pq in pack_s2[:5]:
+        clean = _validate_query(pq, max_len=60)
+        if clean:
+            queries.append(clean)
+
+    # SECONDARY: Extract domain concept nouns from scope items (4-8 words)
     if rfp.scope_items:
         for scope_item in rfp.scope_items[:4]:
             desc = scope_item.description
             en_text = getattr(desc, "en", "") if desc else ""
             if en_text and len(en_text) > 5:
-                # Extract meaningful noun phrases (5-8 words)
-                words = en_text.split()[:7]
-                phrase = " ".join(words)
-                clean = _validate_query(phrase)
+                phrase = _extract_domain_nouns(en_text, max_words=8)
+                clean = _validate_query(phrase, max_len=60)
                 if clean:
                     queries.append(clean)
-
-    # Pack-driven S2 queries (replaces hardcoded domain keywords)
-    pack_ctx = getattr(state, "pack_context", None) or {}
-    pack_s2 = pack_ctx.get("recommended_s2_queries", [])
-    for pq in pack_s2[:3]:
-        clean = _validate_query(pq, max_len=60)
-        if clean:
-            queries.append(clean)
 
     # Sector + geography queries
     if sector:

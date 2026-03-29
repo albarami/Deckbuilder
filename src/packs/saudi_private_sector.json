@@ -3,6 +3,22 @@
   "pack_type": "jurisdiction",
   "pack_name": "Saudi Arabia — Private Sector",
   "version": "1.0",
+  "classification_keywords": {
+    "jurisdiction": {
+      "saudi_arabia": [
+        "المملكة العربية السعودية", "السعودية", "الرياض", "جدة", "الدمام",
+        "saudi", "riyadh", "jeddah", "ksa",
+        "رؤية 2030", "vision 2030",
+        "وزارة", "هيئة", "مؤسسة"
+      ]
+    },
+    "sector": {
+      "private_sector": [
+        "شركة", "مؤسسة خاصة", "company", "private", "corporate",
+        "enterprise", "مجموعة"
+      ]
+    }
+  },
   "regulatory_references": [
     {"name": "ZATCA", "full_name": "Zakat, Tax and Customs Authority", "relevance": "Tax compliance, VAT, and e-invoicing for private enterprises", "url": "https://zatca.gov.sa"},
     {"name": "CMA", "full_name": "Capital Market Authority", "relevance": "Relevant for listed companies or capital market activities", "url": "https://cma.org.sa"},

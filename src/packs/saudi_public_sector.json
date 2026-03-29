@@ -3,6 +3,22 @@
   "pack_type": "jurisdiction",
   "pack_name": "Saudi Arabia — Public Sector",
   "version": "1.0",
+  "classification_keywords": {
+    "jurisdiction": {
+      "saudi_arabia": [
+        "المملكة العربية السعودية", "السعودية", "الرياض", "جدة", "الدمام",
+        "saudi", "riyadh", "jeddah", "ksa",
+        "رؤية 2030", "vision 2030",
+        "وزارة", "هيئة", "مؤسسة"
+      ]
+    },
+    "sector": {
+      "public_sector": [
+        "حكومي", "وزارة", "هيئة", "مؤسسة عامة", "government", "ministry",
+        "authority", "public", "كراسة الشروط"
+      ]
+    }
+  },
   "regulatory_references": [
     {"name": "DGA", "full_name": "Digital Government Authority", "relevance": "Digital government standards and compliance for public sector IT/digital projects", "url": "https://dga.gov.sa"},
     {"name": "NDMO", "full_name": "National Data Management Office", "relevance": "Data governance, classification, and sharing standards for government entities", "url": "https://ndmo.gov.sa"},

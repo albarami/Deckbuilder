@@ -120,6 +120,11 @@ class ContextPack(DeckForgeBaseModel):
     # Forbidden assumptions — things NOT to assume for this context
     forbidden_assumptions: list[str] = Field(default_factory=list)
 
+    # Classification keywords for routing (B.2: pack-driven classifier)
+    classification_keywords: dict[str, dict[str, list[str]]] = Field(
+        default_factory=dict,
+    )
+
     # Localization
     local_terminology: dict[str, str] = Field(default_factory=dict)
     # e.g. {"procurement": "مشتريات", "evaluation committee": "لجنة التقييم"}

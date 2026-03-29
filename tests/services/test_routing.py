@@ -1,11 +1,17 @@
 """Tests for RFP routing — classifier, pack selection, and merge."""
 
+import json
 import pytest
 
 from src.models.routing import ContextPack, RFPClassification, RoutingReport
 from src.models.state import DeckForgeState
 from src.services.routing import (
+    _DOMAIN_KEYWORDS,
+    _JURISDICTION_KEYWORDS,
+    _PACKS_DIR,
+    _SECTOR_KEYWORDS,
     _load_pack,
+    _reload_pack_keywords,
     classify_rfp,
     merge_packs,
     route_rfp,
@@ -288,3 +294,72 @@ class TestFullRouting:
         assert hasattr(report, "fallback_packs_used")
         assert hasattr(report, "warnings")
         assert hasattr(report, "routing_confidence")
+
+
+# ──────────────────────────────────────────────────────────────
+# 6. Pack-driven classification keywords (B.2)
+# ──────────────────────────────────────────────────────────────
+
+
+class TestPackDrivenKeywords:
+    """Verify that classification_keywords from pack JSONs are loaded dynamically."""
+
+    def test_existing_packs_populate_jurisdiction_keywords(self):
+        """saudi_public_sector.json should contribute to _JURISDICTION_KEYWORDS."""
+        assert "saudi_arabia" in _JURISDICTION_KEYWORDS
+        assert "saudi" in _JURISDICTION_KEYWORDS["saudi_arabia"]
+
+    def test_existing_packs_populate_domain_keywords(self):
+        """investment_promotion.json should contribute to _DOMAIN_KEYWORDS."""
+        assert "investment_promotion" in _DOMAIN_KEYWORDS
+        assert "investment" in _DOMAIN_KEYWORDS["investment_promotion"]
+
+    def test_fallback_uae_still_present(self):
+        """UAE has no pack file but should still exist from hardcoded fallback."""
+        assert "uae" in _JURISDICTION_KEYWORDS
+        assert "dubai" in _JURISDICTION_KEYWORDS["uae"]
+
+    def test_temp_pack_picked_up_after_reload(self):
+        """Write a temporary pack JSON with classification_keywords,
+        reload, verify the classifier picks it up, then clean up."""
+        temp_pack = {
+            "pack_id": "_test_temp_bahrain",
+            "pack_type": "jurisdiction",
+            "pack_name": "Test — Bahrain",
+            "version": "1.0",
+            "classification_keywords": {
+                "jurisdiction": {
+                    "bahrain": ["bahrain", "manama", "البحرين"]
+                }
+            },
+            "regulatory_references": [],
+            "compliance_patterns": [],
+            "evaluator_insights": [],
+            "methodology_patterns": [],
+            "benchmark_references": [],
+            "recommended_search_queries": [],
+            "recommended_s2_queries": [],
+            "forbidden_assumptions": [],
+            "local_terminology": {},
+        }
+        temp_path = _PACKS_DIR / "_test_temp_bahrain.json"
+        try:
+            temp_path.write_text(json.dumps(temp_pack), encoding="utf-8")
+            _reload_pack_keywords()
+
+            # New jurisdiction should now appear in keyword dict
+            assert "bahrain" in _JURISDICTION_KEYWORDS
+            assert "manama" in _JURISDICTION_KEYWORDS["bahrain"]
+
+            # Classifier should detect it
+            state = _make_state_with_rfp(
+                rfp_name_en="Government advisory for Bahrain Manama project",
+                mandate_en="Advisory services for Bahrain government in Manama",
+            )
+            cls = classify_rfp(state)
+            assert cls.jurisdiction == "bahrain"
+        finally:
+            # Clean up temp file and reload to restore original state
+            if temp_path.exists():
+                temp_path.unlink()
+            _reload_pack_keywords()

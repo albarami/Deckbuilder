@@ -3,6 +3,20 @@
   "pack_type": "jurisdiction",
   "pack_name": "Qatar — Public Sector",
   "version": "1.0",
+  "classification_keywords": {
+    "jurisdiction": {
+      "qatar": [
+        "قطر", "الدوحة", "qatar", "doha",
+        "qnv 2030", "nds"
+      ]
+    },
+    "sector": {
+      "public_sector": [
+        "حكومي", "وزارة", "هيئة", "مؤسسة عامة", "government", "ministry",
+        "authority", "public", "كراسة الشروط"
+      ]
+    }
+  },
   "regulatory_references": [
     {"name": "NDS 2030", "full_name": "Qatar National Development Strategy 2030", "relevance": "National development framework — projects should align with NDS pillars", "url": ""},
     {"name": "QNV 2030", "full_name": "Qatar National Vision 2030", "relevance": "Long-term national vision with four pillars: human, social, economic, environmental", "url": ""},
