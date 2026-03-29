@@ -446,21 +446,30 @@ def _engine1_guard(
         # Layer 2: SEMANTIC check on team/capability sections (S07, S12, S13, S14)
         # Even after regex cleanup, append Engine 2 conditional language if missing
         _TEAM_SECTIONS = {"S07", "S12", "S13", "S14"}
-        _TEAM_SECTION_KEYWORDS = [
+        # Sections that make claims about SG capability, team, or proof
+        _PROOF_SECTION_KEYWORDS = [
             "فريق", "team", "capability", "قدرات", "تطابق", "match",
             "compliance", "امتثال", "خبرة", "experience",
+            "why sg", "لماذا", "sg", "strategic gears", "ستراتيجيك",
+            "مطابقة", "مؤهل", "qualified",
         ]
         _ENGINE2_AR_SUFFIX = " — يتطلب تأكيد التعيينات من المحرك الثاني"
         _ENGINE2_EN_SUFFIX = " — requires staffing confirmation from Engine 2"
         _PROJECT_AR_SUFFIX = " — يتطلب إثبات من سجل المشاريع"
 
-        # Map legacy section keywords to template section IDs for matching
+        # Project-claim keywords (broader than just "track record")
+        _PROJECT_CLAIM_KW = [
+            "خبرة مباشرة", "سجل حافل", "مشاريع سابقة", "نفّذت", "نفذت",
+            "أنجزت", "مشروع مع", "مشروعاً مع", "delivered", "executed",
+            "track record", "proven delivery", "prior project",
+            "الوحيدة التي", "the only",  # uniqueness claims
+        ]
+
         semantic_fixes = 0
         for bp in source_book.slide_blueprints:
             combined = f"{bp.section} {bp.title} {bp.purpose}".lower()
-            # Check if this is a team/capability section
-            is_team_section = any(kw in combined for kw in _TEAM_SECTION_KEYWORDS)
-            if not is_team_section:
+            is_proof_section = any(kw in combined for kw in _PROOF_SECTION_KEYWORDS)
+            if not is_proof_section:
                 continue
 
             km = bp.key_message or ""
@@ -468,24 +477,28 @@ def _engine1_guard(
                 continue
 
             is_arabic = any(c > "\u0600" for c in km)
+            already_conditional = "المحرك الثاني" in km or "Engine 2" in km
 
-            # If no team proof and key_message doesn't already have conditional
-            if not has_real_team and "المحرك الثاني" not in km and "Engine 2" not in km:
+            # If no team proof and not already conditional
+            if not has_real_team and not already_conditional:
                 suffix = _ENGINE2_AR_SUFFIX if is_arabic else _ENGINE2_EN_SUFFIX
                 bp.key_message = km + suffix
                 semantic_fixes += 1
                 logger.info(
-                    "Engine 1 guard: appended Engine 2 condition to slide %d",
+                    "Engine 1 guard: appended Engine 2 team condition to slide %d",
                     bp.slide_number,
                 )
+                km = bp.key_message  # update for next check
 
-            # If no project proof and claims track record
+            # If limited projects and claims project execution/uniqueness
             if not has_real_projects and "سجل المشاريع" not in km:
-                track_record_kw = ["خبرة مباشرة", "سجل حافل", "مشاريع سابقة",
-                                   "track record", "proven delivery"]
-                if any(kw in km for kw in track_record_kw):
+                if any(kw in km for kw in _PROJECT_CLAIM_KW):
                     bp.key_message = km + _PROJECT_AR_SUFFIX
                     semantic_fixes += 1
+                    logger.info(
+                        "Engine 1 guard: appended project proof condition to slide %d",
+                        bp.slide_number,
+                    )
 
         if semantic_fixes:
             logger.warning(
