@@ -544,11 +544,53 @@ def _engine1_blueprint_overclaim_scan(
                         bp.slide_number, field_name,
                     )
 
-    if overclaim_count:
+    # ── FINAL PASS: targeted S07/S12/S13/S14 sweep ──────────
+    # The LLM generates different phrasings every run. The regex above
+    # catches known patterns. This final pass catches ANY remaining
+    # كامل/جميع/استيفاء in team/capability sections specifically.
+    _TEAM_SECTIONS = {"S07", "S12", "S13", "S14"}
+    _FINAL_PATTERNS = [
+        (_re.compile(r"كامل"), "مُستهدَف"),  # complete → targeted
+        (_re.compile(r"استيفاء\s+كامل"), "تصميم يستهدف استيفاء"),
+        (_re.compile(r"كل\s+متطلب"), "كل متطلب مُحدَّد"),
+        (_re.compile(r"جميع\s+المتطلبات"), "المتطلبات المُحدَّدة"),
+        (_re.compile(r"جميع\s+متطلبات"), "متطلبات"),
+    ]
+
+    # Map legacy slide sections to contract section IDs for matching
+    _TEAM_KEYWORDS = ["team", "فريق", "why sg", "لماذا", "capability", "قدرات", "compliance", "امتثال"]
+
+    final_fixes = 0
+    for bp in source_book.slide_blueprints:
+        combined = f"{bp.section} {bp.title} {bp.purpose}".lower()
+        is_team_section = any(kw in combined for kw in _TEAM_KEYWORDS)
+        if not is_team_section:
+            continue
+
+        for field_name, text in [("title", bp.title), ("key_message", bp.key_message)]:
+            if not text:
+                continue
+            fixed = text
+            for pat, repl in _FINAL_PATTERNS:
+                if pat.search(fixed):
+                    fixed = pat.sub(repl, fixed)
+            if fixed != text:
+                if field_name == "title":
+                    bp.title = fixed
+                else:
+                    bp.key_message = fixed
+                final_fixes += 1
+                logger.info(
+                    "Blueprint FINAL pass: softened slide %d %s: '%s' → '%s'",
+                    bp.slide_number, field_name, text[:50], fixed[:50],
+                )
+
+    total = overclaim_count + final_fixes
+    if total:
         logger.warning(
-            "Blueprint overclaim scan: replaced %d certainty claims "
+            "Blueprint overclaim scan: replaced %d claims (%d regex + %d final pass) "
             "(team=%d, projects=%d)",
-            overclaim_count, kg_people_count, kg_project_count,
+            total, overclaim_count, final_fixes, kg_people_count, kg_project_count,
         )
     else:
         logger.info("Blueprint overclaim scan: 0 overclaims found")

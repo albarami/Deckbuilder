@@ -98,13 +98,27 @@ def _validate_query(query: str, max_len: int = 120) -> str | None:
         else:
             q = truncated.strip()
 
-    # Step 2: Remove trailing prepositions/conjunctions/fragments
+    # Step 2: If there's a comma followed by fewer than 3 words, truncate at comma
+    if "," in q:
+        last_comma = q.rfind(",")
+        after_comma = q[last_comma + 1:].strip()
+        if after_comma and len(after_comma.split()) < 3:
+            q = q[:last_comma].strip()
+
+    # Step 3: Remove trailing clause-starters and prepositions
+    # These are words that indicate an incomplete sentence when at the end
     _TRAILING_JUNK = [
-        " including", " supportin", " such as", " with", " without",
-        " and", " or", " for", " in", " of", " to", " from",
-        " the", " a", " an", " their", " its",
+        # Clause starters (the sentence continues after these)
+        " including", " especially", " particularly", " specifically",
+        " such as", " through", " via", " across", " along",
+        " regarding", " concerning", " involving",
+        # Prepositions and conjunctions
+        " with", " without", " and", " or", " for", " in", " of",
+        " to", " from", " the", " a", " an", " their", " its",
+        " by", " at", " on", " as",
+        # Arabic prepositions and conjunctions
         " بما", " مع", " من", " في", " إلى", " على", " عن",
-        " و", " أو", " ال",
+        " و", " أو", " ال", " يشمل",
     ]
     changed = True
     while changed:
@@ -114,7 +128,7 @@ def _validate_query(query: str, max_len: int = 120) -> str | None:
                 q = q[: -len(junk)].strip()
                 changed = True
 
-    # Step 3: If query still ends mid-word (no common ending char),
+    # Step 4: If query still ends mid-word (no common ending char),
     # truncate to last complete word
     if q and q[-1].isalpha() and len(q) > 40:
         words = q.split()
