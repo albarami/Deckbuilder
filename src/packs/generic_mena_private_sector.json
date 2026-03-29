@@ -1,0 +1,34 @@
+{
+  "pack_id": "generic_mena_private_sector",
+  "pack_type": "generic_fallback",
+  "pack_name": "Generic MENA Private Sector (Fallback)",
+  "version": "1.0",
+  "regulatory_references": [],
+  "compliance_patterns": [
+    {"pattern_name": "General corporate procurement compliance", "description": "MENA private sector tenders typically require vendor registration, financial statements, and references", "typical_requirements": ["Commercial registration", "Audited financial statements", "Client references", "Professional liability insurance"], "evidence_needed": ["CR copy", "Financial statements", "Reference letters", "Insurance certificate"]},
+    {"pattern_name": "Bilingual capability", "description": "Many MENA private enterprises operate bilingually (Arabic/English)", "typical_requirements": ["Bilingual deliverable capability", "Arabic executive summaries"], "evidence_needed": ["Bilingual team members", "Sample bilingual deliverables"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "MENA private sector clients value regional presence and cultural understanding", "implication": "Proposals should emphasize local team, regional offices, and cultural competence", "recommended_action": "Highlight regional client portfolio and local team expertise"},
+    {"insight": "Private sector evaluators in MENA prioritize speed and commercial pragmatism", "implication": "Proposals must demonstrate ability to deliver value quickly with lean governance", "recommended_action": "Include quick-win deliverables within the first phase and lean project governance"}
+  ],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "MENA private sector consulting best practices",
+    "Gulf corporate advisory engagement",
+    "Middle East private sector transformation"
+  ],
+  "recommended_s2_queries": [
+    "MENA private sector consulting",
+    "Gulf corporate transformation",
+    "Middle East private enterprise advisory"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume any specific country's regulations without RFP evidence",
+    "Do NOT assume corporate governance maturity level — assess during discovery",
+    "Do NOT reference country-specific programs or visions unless the RFP explicitly mentions them",
+    "IMPORTANT: This is a FALLBACK pack — jurisdiction-specific compliance requires manual review"
+  ],
+  "local_terminology": {}
+}

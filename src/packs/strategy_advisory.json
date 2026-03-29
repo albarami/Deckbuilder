@@ -1,0 +1,43 @@
+{
+  "pack_id": "strategy_advisory",
+  "pack_type": "domain",
+  "pack_name": "Strategy Advisory",
+  "version": "1.0",
+  "regulatory_references": [
+    {"name": "Balanced Scorecard", "full_name": "Kaplan & Norton Balanced Scorecard", "relevance": "Strategy execution and performance measurement framework", "url": ""},
+    {"name": "Blue Ocean Strategy", "full_name": "Blue Ocean Strategy Framework", "relevance": "Market creation and strategic differentiation methodology", "url": ""}
+  ],
+  "compliance_patterns": [
+    {"pattern_name": "Strategic planning documentation", "description": "Strategy engagements require structured documentation of strategic choices and supporting analysis", "typical_requirements": ["Environmental scan documentation", "Strategic options analysis", "Implementation roadmap", "KPI framework"], "evidence_needed": ["Strategy document template", "KPI dashboard samples", "Roadmap samples"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "Strategy RFPs demand thought leadership and original insight, not generic frameworks", "implication": "Proposals must demonstrate sector-specific strategic thinking, not just process descriptions", "recommended_action": "Include sector trend analysis and original strategic hypotheses in methodology"},
+    {"insight": "Evaluators value the caliber and experience of the lead strategist", "implication": "Senior partner or director involvement is expected and must be explicit", "recommended_action": "Name the lead strategist with detailed credentials and relevant experience"},
+    {"insight": "Strategy engagements are judged on the quality of analytical frameworks proposed", "implication": "Generic SWOT/PESTEL alone is insufficient — proprietary or advanced frameworks differentiate", "recommended_action": "Propose a tailored analytical framework specific to the client's strategic challenge"}
+  ],
+  "methodology_patterns": [
+    {"framework": "Strategic Planning Lifecycle", "when_to_use": "End-to-end strategy development from diagnosis to execution planning", "typical_activities": ["Strategic diagnosis", "Vision and ambition setting", "Strategic option generation", "Strategic choice evaluation", "Implementation roadmap", "Governance and monitoring"]},
+    {"framework": "Scenario Planning", "when_to_use": "Long-term strategy under uncertainty", "typical_activities": ["Driver identification", "Scenario construction", "Implications analysis", "Strategic hedging", "Monitoring framework"]},
+    {"framework": "Growth Strategy Framework", "when_to_use": "Market expansion and revenue growth strategy", "typical_activities": ["Market sizing", "Competitive analysis", "Growth option identification", "Business case development", "Go-to-market planning"]}
+  ],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "strategy consulting methodology",
+    "strategic planning advisory approach",
+    "corporate strategy development framework",
+    "sector strategy transformation",
+    "strategic advisory engagement model"
+  ],
+  "recommended_s2_queries": [
+    "strategic planning effectiveness",
+    "corporate strategy consulting outcomes",
+    "strategy implementation success factors",
+    "strategic advisory methodology"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume the client lacks a current strategy — position the engagement as strategy refresh or enhancement",
+    "Do NOT propose only analysis without actionable recommendations — strategy must lead to implementation",
+    "Do NOT assume one strategic framework fits all — tailor the analytical approach to the specific challenge"
+  ],
+  "local_terminology": {}
+}

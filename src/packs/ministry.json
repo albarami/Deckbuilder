@@ -1,0 +1,36 @@
+{
+  "pack_id": "ministry",
+  "pack_type": "client_type",
+  "pack_name": "Ministry / Government Ministry",
+  "version": "1.0",
+  "regulatory_references": [],
+  "compliance_patterns": [
+    {"pattern_name": "Government procurement compliance", "description": "Ministries follow formal government procurement regulations with strict evaluation criteria", "typical_requirements": ["Formal bid submission format", "Commercial registration", "Financial statements", "Tax/zakat clearance", "Insurance certificates"], "evidence_needed": ["Valid registration documents", "Audited financial statements", "Tax clearance certificate", "Professional liability insurance"]},
+    {"pattern_name": "Ministerial approval process", "description": "Deliverables require formal ministerial review and approval chains", "typical_requirements": ["Formal deliverable acceptance process", "Ministerial committee review", "Document classification compliance"], "evidence_needed": ["Approval workflow samples", "Document classification policy compliance"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "Ministry evaluators are typically senior civil servants who value formality and protocol", "implication": "Proposal tone must be formal and demonstrate respect for institutional hierarchy", "recommended_action": "Use formal language, include proper titles, and show understanding of ministerial governance structures"},
+    {"insight": "Ministries prioritize alignment with national development agendas and policy objectives", "implication": "Proposals must explicitly connect deliverables to the ministry's policy mandate", "recommended_action": "Map proposal outcomes to the ministry's stated strategic objectives and national priorities"},
+    {"insight": "Ministry evaluation committees often include both technical and administrative members", "implication": "Technical proposals must be accessible to non-technical evaluators", "recommended_action": "Include executive summaries and visual aids that communicate technical approaches clearly"},
+    {"insight": "Knowledge transfer and capacity building are critical evaluation criteria for ministries", "implication": "Proposals that only deliver reports without building internal capability score lower", "recommended_action": "Include dedicated knowledge transfer phase with training workshops and capability handover"}
+  ],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "government ministry consulting engagement",
+    "public sector advisory proposal",
+    "ministry capacity building program",
+    "government transformation consulting"
+  ],
+  "recommended_s2_queries": [
+    "government ministry consulting effectiveness",
+    "public sector capacity building",
+    "ministerial transformation program"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume ministry decision-makers are purely technical — administrative and political considerations matter",
+    "Do NOT assume the ministry has no prior consulting experience — they may have strong opinions on methodology",
+    "Do NOT assume one ministry contact speaks for the entire institution — stakeholder mapping is essential"
+  ],
+  "local_terminology": {}
+}

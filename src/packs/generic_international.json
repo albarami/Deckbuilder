@@ -1,0 +1,34 @@
+{
+  "pack_id": "generic_international",
+  "pack_type": "generic_fallback",
+  "pack_name": "Generic International (Fallback)",
+  "version": "1.0",
+  "regulatory_references": [],
+  "compliance_patterns": [
+    {"pattern_name": "International procurement compliance", "description": "International tenders vary widely but generally require company credentials and financial health documentation", "typical_requirements": ["Company registration", "Financial statements", "Professional references", "Insurance documentation"], "evidence_needed": ["Company registration", "Audited accounts", "Client references"]},
+    {"pattern_name": "International standards alignment", "description": "International clients often expect alignment with globally recognized standards", "typical_requirements": ["ISO certification where applicable", "Industry-standard methodology references", "International best practice alignment"], "evidence_needed": ["ISO certificates", "Methodology certifications", "International project references"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "International clients value demonstrated cross-border delivery capability", "implication": "Proposals must show experience delivering across multiple geographies and cultures", "recommended_action": "Highlight international project portfolio and multi-geography team capabilities"},
+    {"insight": "International evaluators expect methodology aligned with global standards", "implication": "Proprietary-only methodologies without recognized framework underpinning score lower", "recommended_action": "Ground methodology in internationally recognized frameworks (PMBOK, TOGAF, ITIL, etc.)"}
+  ],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "international consulting advisory methodology",
+    "cross-border consulting engagement",
+    "global management consulting best practices"
+  ],
+  "recommended_s2_queries": [
+    "international consulting effectiveness",
+    "cross-border advisory engagement",
+    "global consulting delivery model"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume MENA-specific regulations apply to international clients",
+    "Do NOT assume Arabic language capability is required unless explicitly stated",
+    "Do NOT reference any country-specific national vision or program unless the RFP mentions it",
+    "IMPORTANT: This is a FALLBACK pack — jurisdiction-specific compliance requires manual review"
+  ],
+  "local_terminology": {}
+}

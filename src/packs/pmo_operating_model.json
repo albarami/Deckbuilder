@@ -1,0 +1,44 @@
+{
+  "pack_id": "pmo_operating_model",
+  "pack_type": "domain",
+  "pack_name": "PMO & Operating Model Design",
+  "version": "1.0",
+  "regulatory_references": [
+    {"name": "PMI PMBOK", "full_name": "Project Management Body of Knowledge", "relevance": "Standard framework for project management office design", "url": ""},
+    {"name": "P3O", "full_name": "Portfolio, Programme and Project Offices", "relevance": "AXELOS framework for PMO design and governance", "url": ""},
+    {"name": "MSP", "full_name": "Managing Successful Programmes", "relevance": "Programme management framework for operating model transformation", "url": ""}
+  ],
+  "compliance_patterns": [
+    {"pattern_name": "PMO governance compliance", "description": "PMO design must align with organizational governance and decision-making frameworks", "typical_requirements": ["Governance structure alignment", "Decision authority matrix", "Reporting framework", "Escalation procedures"], "evidence_needed": ["Governance charter template", "RACI matrix", "Reporting dashboard samples"]},
+    {"pattern_name": "Operating model documentation", "description": "Operating model changes require comprehensive documentation and stakeholder sign-off", "typical_requirements": ["As-is operating model documentation", "To-be operating model design", "Transition roadmap", "Stakeholder approval process"], "evidence_needed": ["Operating model canvas", "Transition plan", "Stakeholder analysis"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "PMO RFPs value practical implementation experience over theoretical models", "implication": "Proposals must demonstrate PMO setups that achieved measurable project delivery improvement", "recommended_action": "Include PMO maturity metrics: on-time delivery %, budget variance reduction, resource utilization improvement"},
+    {"insight": "Operating model RFPs require deep understanding of organizational culture", "implication": "Cookie-cutter operating models score poorly — customization signals are critical", "recommended_action": "Include organizational assessment phase and show adaptable model variants"}
+  ],
+  "methodology_patterns": [
+    {"framework": "P3O Framework", "when_to_use": "Enterprise PMO design and implementation", "typical_activities": ["PMO maturity assessment", "PMO vision and charter", "Process design", "Tool selection", "Capability building", "Transition and embedding"]},
+    {"framework": "Operating Model Canvas", "when_to_use": "Holistic operating model design covering all organizational dimensions", "typical_activities": ["Value chain analysis", "Organization design", "Process architecture", "Technology enablement", "Governance design", "Performance management"]},
+    {"framework": "McKinsey 7S", "when_to_use": "Organizational alignment assessment during operating model transformation", "typical_activities": ["Strategy alignment", "Structure assessment", "Systems evaluation", "Skills gap analysis", "Style assessment", "Staff planning", "Shared values alignment"]}
+  ],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "PMO setup consulting methodology",
+    "operating model design framework",
+    "project management office maturity assessment",
+    "organizational design consulting approach",
+    "PMO governance framework best practices"
+  ],
+  "recommended_s2_queries": [
+    "PMO maturity model effectiveness",
+    "operating model design transformation",
+    "project management office governance",
+    "organizational design consulting"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume the client wants a centralized PMO — assess which PMO model fits their culture",
+    "Do NOT assume existing project management processes are absent — assess maturity first",
+    "Do NOT propose a one-size-fits-all operating model — customization based on organizational context is essential"
+  ],
+  "local_terminology": {}
+}

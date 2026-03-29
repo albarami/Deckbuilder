@@ -689,6 +689,7 @@ async def run_source_book_only(
         "reviewer_threshold_met": reviewer_threshold_met,
         "competitive_viability": competitive_viability,
         "fallback_events": fallback_events,
+        "routing_report": routing_report,
         "total_time": total_time,
         "docx_path": docx_path,
         "artifacts": {k: v for k, v in artifacts},

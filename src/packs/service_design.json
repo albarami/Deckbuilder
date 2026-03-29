@@ -1,0 +1,43 @@
+{
+  "pack_id": "service_design",
+  "pack_type": "domain",
+  "pack_name": "Service Design",
+  "version": "1.0",
+  "regulatory_references": [
+    {"name": "ISO 20000", "full_name": "IT Service Management", "relevance": "International standard for service management systems", "url": ""},
+    {"name": "ITIL v4", "full_name": "Information Technology Infrastructure Library", "relevance": "Service lifecycle management framework", "url": ""}
+  ],
+  "compliance_patterns": [
+    {"pattern_name": "Service level agreement compliance", "description": "Service design engagements must define measurable SLAs with monitoring mechanisms", "typical_requirements": ["SLA definition framework", "Service catalog structure", "Performance monitoring plan", "Escalation procedures"], "evidence_needed": ["SLA templates", "Service catalog samples", "Monitoring dashboard examples"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "Service design RFPs value user-centric approaches with evidence of user research", "implication": "Methodology must include user research and journey mapping phases", "recommended_action": "Include user research methods: interviews, journey mapping, service safaris, prototype testing"},
+    {"insight": "Evaluators look for measurable service improvement targets", "implication": "Proposals must quantify expected improvements in service quality, efficiency, or satisfaction", "recommended_action": "Include baseline assessment and target KPIs for service quality metrics"},
+    {"insight": "Service portfolio rationalization is often an implicit requirement", "implication": "Even when not stated, evaluators expect assessment of current service portfolio efficiency", "recommended_action": "Include service portfolio assessment in the diagnostic phase"}
+  ],
+  "methodology_patterns": [
+    {"framework": "Service Design Thinking", "when_to_use": "User-centric service portfolio development and redesign", "typical_activities": ["User research", "Journey mapping", "Service blueprinting", "Prototyping", "Testing", "Implementation planning"]},
+    {"framework": "Service Catalog Development", "when_to_use": "Defining and organizing service offerings", "typical_activities": ["Service identification", "Service classification", "SLA framework", "Service catalog design", "Governance model"]},
+    {"framework": "Customer Journey Mapping", "when_to_use": "Understanding and improving service touchpoints", "typical_activities": ["Stakeholder mapping", "Touchpoint identification", "Pain point analysis", "Future-state journey design", "Quick win identification"]}
+  ],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "service design consulting methodology",
+    "service portfolio design framework",
+    "customer journey mapping methodology",
+    "service level agreement design",
+    "service catalog development approach"
+  ],
+  "recommended_s2_queries": [
+    "service design methodology effectiveness",
+    "service portfolio management",
+    "customer journey optimization",
+    "service level management framework"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume the client has an existing service catalog — discovery must come first",
+    "Do NOT design services without user research — internal assumptions about user needs are unreliable",
+    "Do NOT conflate service design with IT service management — service design covers all organizational services"
+  ],
+  "local_terminology": {}
+}

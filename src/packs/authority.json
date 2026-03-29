@@ -1,0 +1,36 @@
+{
+  "pack_id": "authority",
+  "pack_type": "client_type",
+  "pack_name": "Government Authority / Regulatory Body",
+  "version": "1.0",
+  "regulatory_references": [],
+  "compliance_patterns": [
+    {"pattern_name": "Authority procurement compliance", "description": "Government authorities follow structured procurement with technical and financial evaluation", "typical_requirements": ["Technical proposal envelope", "Financial proposal envelope", "Company profile and credentials", "Team qualification documents"], "evidence_needed": ["Company registration", "Relevant certifications", "Past performance references"]},
+    {"pattern_name": "Regulatory alignment", "description": "Authorities often have regulatory mandates that shape deliverable requirements", "typical_requirements": ["Alignment with authority's regulatory mandate", "Compliance with oversight frameworks", "Sector-specific regulatory knowledge"], "evidence_needed": ["Regulatory framework understanding", "Sector compliance experience"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "Authority evaluators are often domain specialists with deep technical knowledge", "implication": "Superficial or generic proposals are quickly identified and scored down", "recommended_action": "Demonstrate deep domain expertise with specific technical details and sector knowledge"},
+    {"insight": "Authorities value innovation and international best practices as they shape sector policy", "implication": "Proposals should include international benchmarks and innovative approaches", "recommended_action": "Include relevant international authority benchmarks and leading-practice examples"},
+    {"insight": "Authorities often operate with greater autonomy and faster decision-making than ministries", "implication": "Proposals can be more direct and outcome-focused, less protocol-heavy", "recommended_action": "Focus on deliverable quality and measurable outcomes rather than ceremonial compliance"},
+    {"insight": "Authorities frequently require consultants to interface with regulated entities", "implication": "Stakeholder management capability across the regulated ecosystem is valued", "recommended_action": "Demonstrate experience managing multi-stakeholder engagements in regulated environments"}
+  ],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "government authority advisory engagement",
+    "regulatory body consulting approach",
+    "authority transformation program",
+    "regulatory framework development consulting"
+  ],
+  "recommended_s2_queries": [
+    "regulatory authority transformation",
+    "government authority consulting effectiveness",
+    "regulatory body modernization"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume authority processes are identical to ministry processes — authorities often have more flexible procurement",
+    "Do NOT assume the authority lacks technical expertise — many authorities employ senior domain specialists",
+    "Do NOT assume regulatory mandates are static — authorities frequently update their frameworks"
+  ],
+  "local_terminology": {}
+}

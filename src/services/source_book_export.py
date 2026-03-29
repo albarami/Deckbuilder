@@ -576,10 +576,134 @@ def _add_engine2_requirements(doc: Document, source_book: SourceBook) -> None:
     doc.add_paragraph()
 
 
+def _add_routing_appendix(doc: Document, routing_report: dict) -> None:
+    """Appendix: Routing Summary — classification, packs, confidence, warnings.
+
+    Renders the routing classification, selected packs, confidence score,
+    and any warnings from the routing pipeline.
+    """
+    if not routing_report:
+        return
+
+    doc.add_page_break()
+    doc.add_heading("Appendix: Routing Summary", level=1)
+    doc.add_paragraph(
+        "This appendix documents the RFP routing classification, "
+        "selected context packs, and routing confidence. This information "
+        "is generated automatically by the routing pipeline."
+    )
+
+    # Classification table
+    classification = routing_report.get("classification", {})
+    if classification:
+        doc.add_heading("Classification", level=2)
+        table = doc.add_table(rows=0, cols=2)
+        table.style = "Table Grid"
+        table.columns[0].width = Inches(2.0)
+        table.columns[1].width = Inches(4.5)
+
+        fields = [
+            ("Jurisdiction", classification.get("jurisdiction", "unknown")),
+            ("Sector", classification.get("sector", "unknown")),
+            ("Domain", classification.get("domain", "") or "not identified"),
+            ("Subdomain", classification.get("subdomain", "") or "not identified"),
+            ("Client Type", classification.get("client_type", "") or "not identified"),
+            ("Regulatory Frame", classification.get("regulatory_frame", "none_identified")),
+            ("Evaluator Pattern", classification.get("evaluator_pattern", "") or "not detected"),
+            ("Language", classification.get("language", "en")),
+            ("Confidence", f"{classification.get('confidence', 0):.2f}"),
+        ]
+
+        for label, value in fields:
+            row = table.add_row().cells
+            row[0].text = label
+            for paragraph in row[0].paragraphs:
+                for run in paragraph.runs:
+                    run.bold = True
+            row[1].text = str(value)
+
+    # Proof types needed
+    proof_types = classification.get("proof_types_needed", [])
+    if proof_types:
+        doc.add_paragraph()
+        doc.add_heading("Proof Types Needed", level=2)
+        for pt in proof_types:
+            doc.add_paragraph(pt.replace("_", " ").title(), style="List Bullet")
+
+    # Selected packs
+    selected_packs = routing_report.get("selected_packs", [])
+    fallback_packs = routing_report.get("fallback_packs_used", [])
+    if selected_packs or fallback_packs:
+        doc.add_paragraph()
+        doc.add_heading("Selected Context Packs", level=2)
+        if selected_packs:
+            p = doc.add_paragraph()
+            run = p.add_run("Primary packs: ")
+            run.bold = True
+            p.add_run(", ".join(selected_packs))
+        if fallback_packs:
+            p = doc.add_paragraph()
+            run = p.add_run("Fallback packs: ")
+            run.bold = True
+            p.add_run(", ".join(fallback_packs))
+
+    # Merge statistics
+    doc.add_paragraph()
+    doc.add_heading("Merged Pack Statistics", level=2)
+    stats = [
+        ("Regulatory References", routing_report.get("merged_regulatory_refs", 0)),
+        ("Compliance Patterns", routing_report.get("merged_compliance_patterns", 0)),
+        ("Evaluator Insights", routing_report.get("merged_evaluator_insights", 0)),
+        ("Methodology Patterns", routing_report.get("merged_methodology_patterns", 0)),
+        ("Benchmark References", routing_report.get("merged_benchmark_refs", 0)),
+        ("Search Queries", routing_report.get("merged_search_queries", 0)),
+    ]
+    for label, count in stats:
+        doc.add_paragraph(f"{label}: {count}", style="List Bullet")
+
+    # Confidence
+    doc.add_paragraph()
+    confidence = routing_report.get("routing_confidence", 0)
+    p = doc.add_paragraph()
+    run = p.add_run(f"Overall Routing Confidence: {confidence:.2f}")
+    run.bold = True
+    if confidence < 0.7:
+        run.font.color.rgb = RGBColor(0xCC, 0x00, 0x00)
+
+    # Warnings
+    warnings = routing_report.get("warnings", [])
+    if warnings:
+        doc.add_paragraph()
+        doc.add_heading("Warnings", level=2)
+        for w in warnings:
+            p = doc.add_paragraph()
+            run = p.add_run("WARNING: ")
+            run.bold = True
+            run.font.color.rgb = RGBColor(0xCC, 0x00, 0x00)
+            p.add_run(w)
+
+    # Alternate classifications
+    alternates = classification.get("alternate_classifications", [])
+    if alternates:
+        doc.add_paragraph()
+        doc.add_heading("Alternate Classifications", level=2)
+        doc.add_paragraph(
+            "The following alternate classifications were considered "
+            "due to low routing confidence:"
+        )
+        for alt in alternates:
+            doc.add_paragraph(
+                f"{alt.get('field', '')}: {alt.get('value', '')} "
+                f"(score: {alt.get('score', 0)})",
+                style="List Bullet",
+            )
+
+
 async def export_source_book_docx(
     source_book: SourceBook,
     output_path: str,
     external_evidence_pack: object | None = None,
+    routing_report: dict | None = None,
 ) -> str:
     """Export a SourceBook as a .docx file.
 
@@ -591,6 +715,7 @@ async def export_source_book_docx(
         output_path: Path to write the .docx file.
         external_evidence_pack: Optional ExternalEvidencePack with rich
             metadata (provider, url, mapped_rfp_theme) to enrich Section 4.
+        routing_report: Optional routing report dict to render as an appendix.
 
     Returns the output path.
     """
@@ -623,6 +748,10 @@ async def export_source_book_docx(
 
     # Appendix: Engine 2 Requirements (proof gaps)
     _add_engine2_requirements(doc, source_book)
+
+    # Appendix: Routing Summary
+    if routing_report:
+        _add_routing_appendix(doc, routing_report)
 
     # Save
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

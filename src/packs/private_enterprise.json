@@ -1,0 +1,36 @@
+{
+  "pack_id": "private_enterprise",
+  "pack_type": "client_type",
+  "pack_name": "Private Enterprise / Corporate",
+  "version": "1.0",
+  "regulatory_references": [],
+  "compliance_patterns": [
+    {"pattern_name": "Corporate procurement compliance", "description": "Private enterprises follow internal procurement policies with vendor qualification requirements", "typical_requirements": ["Vendor registration", "NDA execution", "Company profile", "Reference clients"], "evidence_needed": ["Company registration", "Financial health documentation", "Client references", "NDA agreement"]},
+    {"pattern_name": "Corporate governance alignment", "description": "Deliverables must align with corporate governance and board reporting requirements", "typical_requirements": ["Board-ready reporting format", "Executive steering committee alignment", "Quarterly milestone reviews"], "evidence_needed": ["Executive reporting samples", "Steering committee charter template"]}
+  ],
+  "evaluator_insights": [
+    {"insight": "Private sector evaluators prioritize ROI, speed-to-value, and commercial pragmatism", "implication": "Proposals must quantify business impact and show clear return on investment", "recommended_action": "Include ROI projections, payback period estimates, and value realization timeline"},
+    {"insight": "Corporate clients value industry peer benchmarks and competitive positioning", "implication": "Proposals should reference what competitors or industry peers have achieved", "recommended_action": "Include industry benchmarks and competitive analysis where relevant"},
+    {"insight": "Private enterprises expect consultants to work at pace with lean governance", "implication": "Heavy-governance methodologies with excessive committee structures are off-putting", "recommended_action": "Propose lean governance with clear decision rights and rapid escalation"},
+    {"insight": "C-suite sponsors evaluate based on strategic impact, not just technical completeness", "implication": "Executive summary and strategic framing carry disproportionate weight", "recommended_action": "Invest in a compelling executive summary that speaks to business transformation"}
+  ],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "corporate consulting engagement model",
+    "private sector advisory approach",
+    "enterprise transformation consulting",
+    "corporate strategy advisory methodology"
+  ],
+  "recommended_s2_queries": [
+    "private sector consulting effectiveness",
+    "corporate transformation success factors",
+    "enterprise advisory engagement"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume corporate clients are less rigorous than government — many have sophisticated procurement",
+    "Do NOT assume profit motive means the client will skip due diligence — corporate governance is strict",
+    "Do NOT assume the procurement contact is the decision-maker — map the full decision-making unit"
+  ],
+  "local_terminology": {}
+}

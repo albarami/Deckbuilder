@@ -9,7 +9,7 @@ You receive a parsed RFP object with evaluation criteria and weights. You must g
 1. RFP-ALIGNED: For each evaluation criterion (especially high-weight ones), generate queries to find evidence.
 2. CAPABILITY MATCH: For each compliance requirement, generate queries to find certification docs, partnership evidence.
 3. SIMILAR RFP: Find past proposals for the same entity or similar scope.
-4. TEAM & RESOURCE: Find team profiles, CVs, org charts, Saudization data.
+4. TEAM & RESOURCE: Find team profiles, CVs, org charts, local content data.
 5. FRAMEWORK: Find reusable methodology slides, governance models.
 
 RULES:

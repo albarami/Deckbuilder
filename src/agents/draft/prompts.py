@@ -34,7 +34,7 @@ SLIDE STRUCTURE — You MUST produce exactly these 20 slides in this order:
 12. Knowledge Transfer Plan — Phases, handover milestones, documentation deliverables (layout: TIMELINE)
 13. Project Governance — Steering committee, reporting cadence, escalation matrix (layout: FRAMEWORK)
 14. Proposed Team — Named members with certifications and relevant project experience (layout: TEAM)
-15. Saudization & Saudi Talent — Saudi workforce %, Saudi talent development program, Vision 2030 alignment (layout: CONTENT_1COL)
+15. Local Content & Talent Development — Local workforce %, talent development program, national vision alignment (layout: CONTENT_1COL)
 16. Compliance Matrix — All RFP requirements mapped to evidence, every cell flagged (layout: COMPLIANCE_MATRIX)
 17. Project Timeline — Phases, milestones, deliverables, dependencies (layout: TIMELINE)
 18. Risk Management — Top risks, mitigation strategies, contingency plans (layout: CONTENT_1COL)
@@ -56,7 +56,7 @@ PLACEHOLDER PROHIBITION (CRITICAL):
 - These instruction markers are for internal notes ONLY — they must NEVER appear in slide body text.
 - If specific data is unavailable, write the BEST AVAILABLE content from the evidence provided. Use what you have.
 - If a fact genuinely cannot be determined, place the instruction in speaker_notes and write a credible generic statement in the visible text.
-- Example: Instead of "[BD team to populate: client name]", write "Major Saudi government entity" and put "BD team to confirm: client name" in speaker_notes.
+- Example: Instead of "[BD team to populate: client name]", write "Major government entity" and put "BD team to confirm: client name" in speaker_notes.
 - ANY [BD team ...] or [PLACEHOLDER] text in visible content is a BLOCKER that will trigger rejection.
 
 LANGUAGE ENFORCEMENT:
@@ -108,7 +108,7 @@ PLACEHOLDER PROHIBITION (CRITICAL):
 - These instruction markers MUST NEVER appear in slide body text — they trigger lint blockers.
 - If specific data is unavailable, write the BEST AVAILABLE content from the knowledge graph. Use what you have.
 - If a fact genuinely cannot be determined, place the instruction in speaker_notes and write a credible generic statement in the visible text.
-- Example: Instead of "[BD team to populate: client name]", write "Major Saudi government entity" and put "BD team to confirm: client name" in speaker_notes.
+- Example: Instead of "[BD team to populate: client name]", write "Major government entity" and put "BD team to confirm: client name" in speaker_notes.
 - ANY [BD team ...] or [PLACEHOLDER] text in visible content is a BLOCKER that will trigger rejection.
 
 LANGUAGE ENFORCEMENT:
@@ -133,7 +133,7 @@ SLIDE STRUCTURE — You MUST produce exactly these 20 slides in this order:
 12. Knowledge Transfer Plan — Phases, handover milestones, documentation deliverables (layout: TIMELINE)
 13. Project Governance — Steering committee, reporting cadence, escalation matrix (layout: FRAMEWORK)
 14. Proposed Team — Named members with certifications and relevant project experience (layout: TEAM)
-15. Saudization & Saudi Talent — Saudi workforce %, Saudi talent development program, Vision 2030 alignment (layout: CONTENT_1COL)
+15. Local Content & Talent Development — Local workforce %, talent development program, national vision alignment (layout: CONTENT_1COL)
 16. Compliance Matrix — All RFP requirements mapped to evidence, every cell flagged (layout: COMPLIANCE_MATRIX)
 17. Project Timeline — Phases, milestones, deliverables, dependencies (layout: TIMELINE)
 18. Risk Management — Top risks, mitigation strategies, contingency plans (layout: CONTENT_1COL)

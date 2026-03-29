@@ -22,6 +22,40 @@ logger = logging.getLogger(__name__)
 # Pack registry directory
 _PACKS_DIR = Path(__file__).resolve().parent.parent / "packs"
 
+# ──────────────────────────────────────────────────────────────
+# B.8: File-based pack discovery — scan src/packs/*.json at import time
+# ──────────────────────────────────────────────────────────────
+
+
+def _discover_pack_files() -> dict[str, str]:
+    """Scan the packs directory for *.json files and build pack_id → filename map.
+
+    Each JSON file must have a "pack_id" field. Files without it are skipped.
+    """
+    registry: dict[str, str] = {}
+    if not _PACKS_DIR.is_dir():
+        logger.warning("Packs directory not found: %s", _PACKS_DIR)
+        return registry
+
+    for pack_path in sorted(_PACKS_DIR.glob("*.json")):
+        try:
+            data = json.loads(pack_path.read_text(encoding="utf-8"))
+            pack_id = data.get("pack_id")
+            if pack_id:
+                registry[pack_id] = pack_path.name
+            else:
+                logger.warning(
+                    "Pack file %s has no pack_id field — skipping", pack_path.name,
+                )
+        except Exception as e:
+            logger.error("Failed to read pack file %s: %s", pack_path.name, e)
+
+    return registry
+
+
+# Auto-discovered pack registry (built at import time)
+_PACK_FILES: dict[str, str] = _discover_pack_files()
+
 # Jurisdiction keywords for rule-based classification
 _JURISDICTION_KEYWORDS: dict[str, list[str]] = {
     "saudi_arabia": [
@@ -72,16 +106,19 @@ _DOMAIN_KEYWORDS: dict[str, list[str]] = {
     ],
 }
 
-# Pack file mapping: pack_id → filename
-_PACK_FILES: dict[str, str] = {
-    "saudi_public_sector": "saudi_public_sector.json",
-    "saudi_private_sector": "saudi_private_sector.json",
-    "qatar_public_sector": "qatar_public_sector.json",
-    "investment_promotion": "investment_promotion.json",
-    "generic_mena_public_sector": "generic_mena_public_sector.json",
+# Subdomain keywords mapped from scope text
+_SUBDOMAIN_KEYWORDS: dict[str, list[str]] = {
+    "export_support": ["export", "تصدير", "outbound", "trade"],
+    "smart_government": ["smart", "ذكي", "e-government", "حكومة إلكترونية"],
+    "cloud_migration": ["cloud", "سحاب", "migration", "ترحيل"],
+    "erp_implementation": ["erp", "sap", "oracle", "enterprise resource"],
+    "organizational_restructuring": ["restructuring", "إعادة هيكلة", "reorganization"],
+    "performance_management": ["performance", "أداء", "kpi", "balanced scorecard"],
+    "service_portfolio": ["service portfolio", "محفظة خدمات", "service catalog"],
+    "investment_attraction": ["fdi", "foreign direct investment", "استثمار أجنبي"],
 }
 
-# Jurisdiction → pack_id mapping
+# Jurisdiction → pack_id mapping (explicit, not auto-discovered)
 _JURISDICTION_PACK_MAP: dict[str, dict[str, str]] = {
     "saudi_arabia": {
         "public_sector": "saudi_public_sector",
@@ -96,11 +133,19 @@ _JURISDICTION_PACK_MAP: dict[str, dict[str, str]] = {
     },
 }
 
+# B.2: Client-type pack map
+_CLIENT_TYPE_PACK_MAP: dict[str, str] = {
+    "ministry": "ministry",
+    "authority": "authority",
+    "private_enterprise": "private_enterprise",
+}
+
 # Generic fallbacks when no jurisdiction pack exists
 _FALLBACK_PACK_MAP: dict[str, str] = {
     "public_sector": "generic_mena_public_sector",
-    "private_sector": "generic_mena_public_sector",
-    "unknown": "generic_mena_public_sector",
+    "private_sector": "generic_mena_private_sector",
+    "semi_government": "generic_mena_public_sector",
+    "unknown": "generic_international",
 }
 
 
@@ -157,8 +202,10 @@ def classify_rfp(state: DeckForgeState) -> RFPClassification:
     # Classify jurisdiction
     jurisdiction = "unknown"
     jurisdiction_score = 0.0
+    jurisdiction_scores: dict[str, float] = {}
     for jur, keywords in _JURISDICTION_KEYWORDS.items():
         hits = sum(1 for kw in keywords if kw.lower() in search_text)
+        jurisdiction_scores[jur] = hits
         if hits > jurisdiction_score:
             jurisdiction = jur
             jurisdiction_score = hits
@@ -175,11 +222,22 @@ def classify_rfp(state: DeckForgeState) -> RFPClassification:
     # Classify domain
     domain = ""
     domain_score = 0.0
+    domain_scores: dict[str, float] = {}
     for dom, keywords in _DOMAIN_KEYWORDS.items():
         hits = sum(1 for kw in keywords if kw.lower() in search_text)
+        domain_scores[dom] = hits
         if hits > domain_score:
             domain = dom
             domain_score = hits
+
+    # B.5: Extract subdomain from scope keywords
+    subdomain = ""
+    subdomain_score = 0.0
+    for sub, keywords in _SUBDOMAIN_KEYWORDS.items():
+        hits = sum(1 for kw in keywords if kw.lower() in search_text)
+        if hits > subdomain_score:
+            subdomain = sub
+            subdomain_score = hits
 
     # Determine client type
     client_type = ""
@@ -197,6 +255,38 @@ def classify_rfp(state: DeckForgeState) -> RFPClassification:
     elif "qnv 2030" in search_text or "nds 2030" in search_text:
         regulatory_frame = "nds_2030"
 
+    # B.5: Detect evaluator pattern from evaluation_criteria
+    evaluator_pattern = ""
+    eval_criteria = getattr(rfp, "evaluation_criteria", [])
+    if eval_criteria:
+        criteria_text = " ".join(
+            str(getattr(ec, "criterion", "")) + " " + str(getattr(ec, "weight", ""))
+            for ec in eval_criteria
+        ).lower()
+        if "technical" in criteria_text and "financial" in criteria_text:
+            evaluator_pattern = "technical_financial_split"
+        elif "quality" in criteria_text and "cost" in criteria_text:
+            evaluator_pattern = "quality_cost_based"
+        elif "technical" in criteria_text:
+            evaluator_pattern = "technical_weighted"
+        elif "price" in criteria_text or "financial" in criteria_text:
+            evaluator_pattern = "price_weighted"
+
+    # B.5: Detect proof_types_needed from team_requirements and compliance
+    proof_types_needed: list[str] = []
+    team_reqs = getattr(rfp, "team_requirements", [])
+    if team_reqs:
+        proof_types_needed.append("team_cvs")
+    compliance_reqs = getattr(rfp, "compliance_requirements", [])
+    if compliance_reqs:
+        proof_types_needed.append("compliance_certificates")
+    if "case" in search_text or "experience" in search_text or "project" in search_text:
+        proof_types_needed.append("case_studies")
+    if "certification" in search_text or "شهادة" in search_text:
+        proof_types_needed.append("certifications")
+    if "financial" in search_text or "مالي" in search_text:
+        proof_types_needed.append("financial_statements")
+
     # Detect language
     arabic_chars = sum(1 for c in search_text if "\u0600" <= c <= "\u06ff")
     language = "ar" if arabic_chars > len(search_text) * 0.3 else "en"
@@ -207,14 +297,42 @@ def classify_rfp(state: DeckForgeState) -> RFPClassification:
         1.0,
     )
 
+    # B.5: Build alternate classifications when confidence < 0.8
+    alternate_classifications: list[dict] = []
+    if confidence < 0.8:
+        # Second-best jurisdiction
+        sorted_jurs = sorted(
+            jurisdiction_scores.items(), key=lambda x: x[1], reverse=True,
+        )
+        if len(sorted_jurs) >= 2 and sorted_jurs[1][1] > 0:
+            alternate_classifications.append({
+                "field": "jurisdiction",
+                "value": sorted_jurs[1][0],
+                "score": sorted_jurs[1][1],
+            })
+        # Second-best domain
+        sorted_doms = sorted(
+            domain_scores.items(), key=lambda x: x[1], reverse=True,
+        )
+        if len(sorted_doms) >= 2 and sorted_doms[1][1] > 0:
+            alternate_classifications.append({
+                "field": "domain",
+                "value": sorted_doms[1][0],
+                "score": sorted_doms[1][1],
+            })
+
     classification = RFPClassification(
         jurisdiction=jurisdiction,
         sector=sector,
         client_type=client_type,
         domain=domain,
+        subdomain=subdomain,
         regulatory_frame=regulatory_frame,
+        evaluator_pattern=evaluator_pattern,
+        proof_types_needed=proof_types_needed,
         language=language,
         confidence=confidence,
+        alternate_classifications=alternate_classifications,
     )
 
     logger.info(
@@ -243,7 +361,7 @@ def select_packs(classification: RFPClassification) -> tuple[list[str], list[str
         selected.append(jur_pack)
     else:
         # Use generic fallback
-        fb = _FALLBACK_PACK_MAP.get(classification.sector, "generic_mena_public_sector")
+        fb = _FALLBACK_PACK_MAP.get(classification.sector, "generic_international")
         fallbacks.append(fb)
         logger.warning(
             "No jurisdiction pack for %s/%s — using fallback: %s",
@@ -254,6 +372,12 @@ def select_packs(classification: RFPClassification) -> tuple[list[str], list[str
     if classification.domain and classification.domain in _PACK_FILES:
         selected.append(classification.domain)
 
+    # 3. Client-type pack (B.2)
+    if classification.client_type:
+        ct_pack = _CLIENT_TYPE_PACK_MAP.get(classification.client_type)
+        if ct_pack and ct_pack in _PACK_FILES:
+            selected.append(ct_pack)
+
     return selected, fallbacks
 
 
@@ -263,8 +387,12 @@ def merge_packs(
 ) -> dict:
     """Load and merge selected packs into a single context dict.
 
-    Merge precedence: CORE → jurisdiction → client-type → domain → fallback.
-    Forbidden assumptions are cumulative (all apply).
+    Merge precedence (B.6):
+    - regulatory_references: jurisdiction pack refs override generic ones (by name)
+    - methodology_patterns: domain pack patterns take precedence (by framework)
+    - forbidden_assumptions: always cumulative (all apply)
+    - evaluator_insights, compliance_patterns, benchmark_references: cumulative
+    - search queries: cumulative, deduplicated
 
     Returns a dict with merged pack content for injection into prompts.
     """
@@ -277,42 +405,106 @@ def merge_packs(
         else:
             logger.warning("Could not load pack: %s", pid)
 
-    # Merge all pack content
-    merged = {
-        "active_packs": [p.pack_id for p in packs],
-        "regulatory_references": [],
-        "compliance_patterns": [],
-        "evaluator_insights": [],
-        "methodology_patterns": [],
-        "benchmark_references": [],
-        "recommended_search_queries": [],
-        "recommended_s2_queries": [],
-        "forbidden_assumptions": [],
-        "local_terminology": {},
-    }
+    # Categorize packs by type for precedence logic
+    jurisdiction_packs = [p for p in packs if p.pack_type == "jurisdiction"]
+    domain_packs = [p for p in packs if p.pack_type == "domain"]
+    fallback_packs = [p for p in packs if p.pack_type == "generic_fallback"]
+    client_type_packs = [p for p in packs if p.pack_type == "client_type"]
+
+    # B.6: Merge regulatory_references with jurisdiction override
+    # Jurisdiction refs override generic/fallback refs with the same name
+    reg_refs_by_name: dict[str, dict] = {}
+    # First, add fallback refs (lowest precedence)
+    for pack in fallback_packs:
+        for r in pack.regulatory_references:
+            reg_refs_by_name[r.name] = r.model_dump(mode="json")
+    # Then client-type refs
+    for pack in client_type_packs:
+        for r in pack.regulatory_references:
+            reg_refs_by_name[r.name] = r.model_dump(mode="json")
+    # Then domain refs
+    for pack in domain_packs:
+        for r in pack.regulatory_references:
+            reg_refs_by_name[r.name] = r.model_dump(mode="json")
+    # Finally, jurisdiction refs (highest precedence — override by name)
+    for pack in jurisdiction_packs:
+        for r in pack.regulatory_references:
+            reg_refs_by_name[r.name] = r.model_dump(mode="json")
+
+    # B.6: Merge methodology_patterns with domain precedence
+    # Domain patterns override generic/fallback patterns with the same framework
+    method_by_framework: dict[str, dict] = {}
+    # First, fallback patterns (lowest)
+    for pack in fallback_packs:
+        for m in pack.methodology_patterns:
+            method_by_framework[m.framework] = m.model_dump(mode="json")
+    # Then client-type
+    for pack in client_type_packs:
+        for m in pack.methodology_patterns:
+            method_by_framework[m.framework] = m.model_dump(mode="json")
+    # Then jurisdiction
+    for pack in jurisdiction_packs:
+        for m in pack.methodology_patterns:
+            method_by_framework[m.framework] = m.model_dump(mode="json")
+    # Finally, domain patterns (highest precedence — override by framework)
+    for pack in domain_packs:
+        for m in pack.methodology_patterns:
+            method_by_framework[m.framework] = m.model_dump(mode="json")
+
+    # Cumulative fields: compliance_patterns, evaluator_insights,
+    # benchmark_references, forbidden_assumptions, search queries
+    all_compliance: list[dict] = []
+    all_evaluator: list[dict] = []
+    all_benchmarks: list[dict] = []
+    all_search: list[str] = []
+    all_s2: list[str] = []
+    all_forbidden: list[str] = []
+    all_terminology: dict[str, str] = {}
 
     for pack in packs:
-        merged["regulatory_references"].extend(
-            [r.model_dump(mode="json") for r in pack.regulatory_references]
-        )
-        merged["compliance_patterns"].extend(
+        all_compliance.extend(
             [c.model_dump(mode="json") for c in pack.compliance_patterns]
         )
-        merged["evaluator_insights"].extend(
+        all_evaluator.extend(
             [e.model_dump(mode="json") for e in pack.evaluator_insights]
         )
-        merged["methodology_patterns"].extend(
-            [m.model_dump(mode="json") for m in pack.methodology_patterns]
-        )
-        merged["benchmark_references"].extend(
+        all_benchmarks.extend(
             [b.model_dump(mode="json") for b in pack.benchmark_references]
         )
-        merged["recommended_search_queries"].extend(pack.recommended_search_queries)
-        merged["recommended_s2_queries"].extend(pack.recommended_s2_queries)
-        # Forbidden assumptions are CUMULATIVE
-        merged["forbidden_assumptions"].extend(pack.forbidden_assumptions)
+        all_search.extend(pack.recommended_search_queries)
+        all_s2.extend(pack.recommended_s2_queries)
+        # Forbidden assumptions are CUMULATIVE (B.6)
+        all_forbidden.extend(pack.forbidden_assumptions)
         # Terminology: later packs override earlier
-        merged["local_terminology"].update(pack.local_terminology)
+        all_terminology.update(pack.local_terminology)
+
+    # Deduplicate search queries while preserving order
+    seen_search: set[str] = set()
+    deduped_search: list[str] = []
+    for q in all_search:
+        if q not in seen_search:
+            seen_search.add(q)
+            deduped_search.append(q)
+
+    seen_s2: set[str] = set()
+    deduped_s2: list[str] = []
+    for q in all_s2:
+        if q not in seen_s2:
+            seen_s2.add(q)
+            deduped_s2.append(q)
+
+    merged = {
+        "active_packs": [p.pack_id for p in packs],
+        "regulatory_references": list(reg_refs_by_name.values()),
+        "compliance_patterns": all_compliance,
+        "evaluator_insights": all_evaluator,
+        "methodology_patterns": list(method_by_framework.values()),
+        "benchmark_references": all_benchmarks,
+        "recommended_search_queries": deduped_search,
+        "recommended_s2_queries": deduped_s2,
+        "forbidden_assumptions": all_forbidden,
+        "local_terminology": all_terminology,
+    }
 
     logger.info(
         "Merged %d packs: %d regulatory refs, %d compliance patterns, "

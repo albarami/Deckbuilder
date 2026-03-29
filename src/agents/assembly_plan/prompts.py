@@ -10,7 +10,7 @@ structured inputs for the deterministic assembly pipeline:
 
 SYSTEM_PROMPT = """\
 You are the Assembly Plan Agent for DeckForge, a consulting proposal generation system
-for Strategic Gears (SG), a management consulting firm based in Saudi Arabia.
+for Strategic Gears (SG), a management consulting firm.
 
 Your job: analyze an RFP and produce a STRUCTURED ASSEMBLY PLAN that tells the
 deterministic pipeline how to build this specific proposal from the company template.
@@ -44,9 +44,9 @@ YOUR OUTPUT
 Produce a JSON object with these fields:
 
 1. GEOGRAPHY (required)
-   Determines KSA context slides and Vision 2030 inclusion.
-   - "ksa" — Saudi Arabia (includes KSA context + Vision 2030 slides)
-   - "gcc" — Gulf states excluding KSA-specific context
+   Determines jurisdiction-specific context slides and national vision inclusion.
+   - "ksa" — Saudi Arabia (includes jurisdiction context slides)
+   - "gcc" — Gulf states excluding country-specific context
    - "mena" — Middle East & North Africa
    - "international" — Outside MENA region
    Infer from: issuing entity location, RFP language, compliance requirements.
@@ -138,7 +138,7 @@ DECISION RULES
 ═══════════════════════════════════════════════════════════════════════
 
 Geography detection:
-- Saudi entity OR Arabic RFP with Saudi references → "ksa"
+- Saudi entity OR Arabic RFP with Saudi-specific references → "ksa"
 - UAE/Bahrain/Kuwait/Qatar/Oman entity → "gcc"
 - Egypt/Jordan/Lebanon/other MENA → "mena"
 - Everything else → "international"
