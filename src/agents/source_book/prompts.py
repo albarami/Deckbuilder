@@ -359,6 +359,30 @@ List ALL relevant credentials:
 * Industry rankings
 * Scale metrics (270+ projects, 140+ clients, 21 sectors)
 
+──────────────────────────────────────
+3.5 ENGINE 2 PROOF REQUIREMENTS (add to certifications_and_compliance list)
+──────────────────────────────────────
+
+After the capability mapping, team profiles, and project evidence,
+add a PROOF SHOPPING LIST as items in certifications_and_compliance.
+For each evidence gap, add an item in this format:
+
+"[ENGINE 2 REQUIRED] Team staffing: Engine 2 must retrieve 4 consultant
+profiles matching the open_role_profile specifications above. Source:
+company HR/staffing database. Priority: critical for submission."
+
+"[ENGINE 2 REQUIRED] Project evidence: Engine 2 must retrieve 3-5 case
+studies demonstrating [specific RFP-relevant capabilities]. Source:
+company project database. Priority: high for competitive scoring."
+
+"[ENGINE 2 REQUIRED] Certification proof: Engine 2 must retrieve ISO,
+partnership, and industry ranking certificates. Source: company
+compliance/legal department. Priority: required for compliance."
+
+This turns Section 3 from an incomplete team section into a complete
+Engine 1 proof-requirements document that tells Engine 2 exactly what
+to find, where to find it, and how critical it is.
+
 Output ONLY valid JSON matching the SourceBookSection3 schema.
 FILL EVERY FIELD with substantive content."""
 
