@@ -350,14 +350,12 @@ def _engine1_guard(
             gap_count,
         )
 
-    # ── Guard: Blueprint overclaim discipline ───────────
-    # When firm proof is absent, scan ALL blueprint entries for certainty
-    # language and replace with conditional framing. This is not section-specific
-    # — overclaim is overclaim regardless of which slide it appears in.
-    has_real_team = bool(kg_names)
-    has_real_projects = len(real_projects) >= 3
+    # NOTE: Blueprint overclaim scanning was REMOVED from _engine1_guard
+    # because it runs before Stage 2a generates blueprints (empty list).
+    # Use _engine1_blueprint_overclaim_scan() AFTER Stage 2a instead.
+    # _engine1_blueprint_overclaim_scan() handles this AFTER Stage 2a.
 
-    if not has_real_team or not has_real_projects:
+    if False:  # DISABLED — overclaim scan moved to _engine1_blueprint_overclaim_scan()
         # Regex pattern matching semantic certainty claims in Arabic and English.
         # Covers: 100%, "all requirements met", "proven", "complete compliance",
         # and Arabic equivalents including يستوفي جميع, كل متطلب, مُثبتة, etc.
@@ -657,12 +655,39 @@ def _engine1_blueprint_overclaim_scan(
                     bp.slide_number, field_name, text[:50], fixed[:50],
                 )
 
-    total = overclaim_count + final_fixes
+    # ── Layer 3: Append Engine 2 conditional suffixes to team/proof sections ──
+    _ENGINE2_AR = " — يتطلب تأكيد التعيينات من المحرك الثاني"
+    _PROJECT_AR = " — يتطلب إثبات من سجل المشاريع"
+    _PROJECT_KW = [
+        "خبرة مباشرة", "سجل حافل", "مشاريع سابقة", "نفّذت", "نفذت",
+        "أنجزت", "مشروع مع", "مشروعاً مع", "الوحيدة التي",
+    ]
+    suffix_count = 0
+    for bp in source_book.slide_blueprints:
+        combined = f"{bp.section} {bp.title} {bp.purpose}".lower()
+        is_team = any(kw in combined for kw in _TEAM_KEYWORDS)
+        if not is_team:
+            continue
+        km = bp.key_message or ""
+        if not km:
+            continue
+        if "المحرك الثاني" in km or "Engine 2" in km:
+            continue  # already has conditional
+        if not has_real_team:
+            bp.key_message = km + _ENGINE2_AR
+            suffix_count += 1
+            km = bp.key_message
+        if not has_real_projects and any(kw in km for kw in _PROJECT_KW):
+            bp.key_message = km + _PROJECT_AR
+            suffix_count += 1
+
+    total = overclaim_count + final_fixes + suffix_count
     if total:
         logger.warning(
-            "Blueprint overclaim scan: replaced %d claims (%d regex + %d final pass) "
+            "Blueprint overclaim scan: %d fixes (%d regex + %d final + %d E2 suffix) "
             "(team=%d, projects=%d)",
-            total, overclaim_count, final_fixes, kg_people_count, kg_project_count,
+            total, overclaim_count, final_fixes, suffix_count,
+            kg_people_count, kg_project_count,
         )
     else:
         logger.info("Blueprint overclaim scan: 0 overclaims found")
