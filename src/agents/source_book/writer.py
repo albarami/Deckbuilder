@@ -495,7 +495,8 @@ def _engine1_guard(
                     (r"خبرة\s+عملية\s+موثقة", "خبرة عملية مطلوبة"),
                     (r"خبرة\s+موثقة", "خبرة مطلوبة"),
                     # "direct experience" → "required direct experience"
-                    (r"خبرة\s+مباشرة", "خبرة مباشرة مطلوبة"),
+                    # Match with optional Arabic waw prefix (وخبرة)
+                    (r"و?خبرة\s+مباشرة", "خبرة مباشرة مطلوبة"),
                     # "qualifications matching" → "qualifications designed to match"
                     (r"مؤهلات\s+تتطابق\s+مع", "مؤهلات مُصمَّمة لتتطابق مع"),
                     (r"تتطابق\s+مع\s+متطلبات", "مُصمَّمة لتتطابق مع متطلبات"),
