@@ -9,10 +9,34 @@ Reference: docs/plans/2026-03-20-phase-g2-filler-output-schema.md (approved)
 
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+def _load_core_preserve_tokens() -> list[str]:
+    """Load institutional acronyms from core_preserve_tokens.json.
+
+    These are acronyms that should never be translated regardless of
+    jurisdiction (e.g., DGA, NCA, MOTC, QCB). New tokens can be added
+    by editing src/packs/core_preserve_tokens.json — no code changes.
+    """
+    tokens_path = Path(__file__).resolve().parent.parent.parent / "src" / "packs" / "core_preserve_tokens.json"
+    # Try relative to this file's location
+    alt_path = Path(__file__).resolve().parent.parent.parent / "packs" / "core_preserve_tokens.json"
+    for p in [tokens_path, alt_path]:
+        if p.exists():
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+                return data.get("tokens", [])
+            except Exception:
+                pass
+    # Fallback if file not found
+    return []
+
 
 # ── Constants ────────────────────────────────────────────────────────────
 
@@ -27,12 +51,10 @@ APPROVED_ENGLISH_TERMS = frozenset({
     "KPI", "API", "SLA", "SLO", "PMO", "ERP", "CRM", "AI", "IoT",
     "RPA", "MBA", "PhD", "ROI", "TCO", "RFP", "NDA", "SOW",
     "UAT", "MVP", "POC", "BI", "ML", "NLP", "OCR",
-    # Government entity acronyms — CORE preserve tokens (never translate,
-    # regardless of jurisdiction). These are universal institutional acronyms
-    # that appear in RFPs from multiple GCC countries.
-    "MCIT", "NCA", "SDAIA", "NDMO", "DGA", "ZATCA", "GOSI",
-    "NTP", "DCMM", "ECC", "SAMA", "MOMRA", "MOH", "MOE",
-    "MOTC", "QCB", "CMA", "MHRSD",  # Qatar + cross-GCC
+    # Government entity acronyms — loaded from core_preserve_tokens.json
+    # These are institutional acronyms that should never be translated.
+    # To add new tokens: edit src/packs/core_preserve_tokens.json
+    *_load_core_preserve_tokens(),
     # Common English words in Arabic business context
     "Ministry", "Digital", "Transformation", "Enterprise",
     "Architecture", "Governance", "Framework", "Strategy",

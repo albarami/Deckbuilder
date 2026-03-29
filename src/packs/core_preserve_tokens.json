@@ -1,0 +1,8 @@
+{
+  "description": "Core preserve tokens — acronyms that should never be translated regardless of jurisdiction. Loaded by g2_schemas.py at runtime.",
+  "tokens": [
+    "MCIT", "NCA", "SDAIA", "NDMO", "DGA", "ZATCA", "GOSI",
+    "NTP", "DCMM", "ECC", "SAMA", "MOMRA", "MOH", "MOE",
+    "MOTC", "QCB", "CMA", "MHRSD"
+  ]
+}

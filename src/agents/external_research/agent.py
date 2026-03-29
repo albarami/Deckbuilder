@@ -24,20 +24,43 @@ logger = logging.getLogger(__name__)
 
 
 def _classify_evidence_tiers(pack: ExternalEvidencePack) -> None:
-    """Assign evidence_tier to each source based on relevance_score.
+    """Assign evidence_tier and evidence_class to each source.
 
-    Thresholds:
-        >= 0.80 → primary (directly about the RFP domain)
-        >= 0.65 → secondary (transferable methodology from adjacent domain)
-        <  0.65 → analogical (cross-domain analogy, limited direct applicability)
+    evidence_tier thresholds:
+        >= 0.80 → primary
+        >= 0.65 → secondary
+        <  0.65 → analogical
+
+    evidence_class rules:
+        academic papers, industry reports, benchmarks from international
+        orgs (McKinsey, BCG, OECD, World Bank, IFC, UNCTAD) → international_benchmark
+        Sources from country-specific gov sites, ministry pubs → local_public
+        Everything else defaults to international_benchmark
     """
+    _LOCAL_INDICATORS = [
+        "gov.sa", "gov.qa", "gov.ae", "vision2030", "qnv2030",
+        "ministry", "وزارة", "هيئة", "authority",
+        "dga.gov", "ndmo.gov", "nca.gov", "zatca.gov",
+    ]
+
     for source in pack.sources:
+        # Tier
         if source.relevance_score >= 0.80:
             source.evidence_tier = "primary"
         elif source.relevance_score >= 0.65:
             source.evidence_tier = "secondary"
         else:
             source.evidence_tier = "analogical"
+
+        # Class
+        url_lower = (source.url or "").lower()
+        title_lower = (source.title or "").lower()
+        combined = f"{url_lower} {title_lower}"
+
+        if any(indicator in combined for indicator in _LOCAL_INDICATORS):
+            source.evidence_class = "local_public"
+        else:
+            source.evidence_class = "international_benchmark"
 
 
 def _append_tier_counts(pack: ExternalEvidencePack) -> None:
@@ -164,33 +187,32 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
     sector = state.sector or ""
     geography = state.geography or ""
 
-    # 1. RFP-name query — targeted, not generic
+    # 1. RFP-name as a research question (not raw copy)
     if rfp_name and len(rfp_name) > 5:
-        queries.append(rfp_name[:200])
+        queries.append(f"best practices for {rfp_name[:80]}")
 
-    # 2. Mandate query — what is the RFP trying to achieve?
+    # 2. Mandate reformulated as research question
     if mandate and len(mandate) > 10:
-        queries.append(mandate[:200])
+        queries.append(f"how to {mandate[:80]} — methodology and benchmarks")
 
-    # 3. Per scope item — use ENGLISH text for better web results
+    # 3. Per scope item — reformulate as research questions, NOT copy RFP text
     if rfp.scope_items:
         for scope_item in rfp.scope_items[:4]:
             desc = scope_item.description
-            en_text = getattr(desc, "en", "") if desc else ""
-            if not en_text:
-                en_text = _extract_bilingual_any(desc) or ""
+            en_text = _extract_english(desc) or _extract_bilingual_any(desc) or ""
             if en_text and len(en_text) > 10:
-                queries.append(en_text[:200])
+                # Extract first 60 chars as the core concept, frame as question
+                core = en_text[:60].strip()
+                queries.append(f"best practices for {core} with SLA benchmarks")
 
-    # 4. Per deliverable — targeted evidence
+    # 4. Per deliverable — reformulate as evidence search
     if rfp.deliverables:
         for deliv in rfp.deliverables[:3]:
             desc = deliv.description
-            en_text = getattr(desc, "en", "") if desc else ""
-            if not en_text:
-                en_text = _extract_bilingual_any(desc) or ""
+            en_text = _extract_english(desc) or _extract_bilingual_any(desc) or ""
             if en_text and len(en_text) > 10:
-                queries.append(en_text[:200])
+                core = en_text[:50].strip()
+                queries.append(f"international examples of {core}")
 
     # 5. Institutional/geographic context
     if geography:

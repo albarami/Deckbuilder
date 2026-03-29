@@ -49,6 +49,9 @@ class ExternalSource(DeckForgeBaseModel):
     citation_count: int | None = None  # for S2 papers
     selection_method: str = ""  # "search_hit", "recommendation", "perplexity_synthesis"
     evidence_tier: Literal["primary", "secondary", "analogical"] = "analogical"
+    evidence_class: Literal[
+        "international_benchmark", "local_public", "evidence_gap",
+    ] = "international_benchmark"
 
 
 class ExternalEvidencePack(DeckForgeBaseModel):

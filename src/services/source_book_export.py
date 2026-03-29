@@ -308,37 +308,30 @@ def _add_section_4(
     enrichment = evidence_enrichment or {}
 
     if ext.entries:
-        # Enriched table with provider, URL, RFP theme
-        table = doc.add_table(rows=1, cols=6)
+        # Two-row format per source to fit ALL metadata fields
+        # Row 1: Source ID | Title | Provider | Evidence Tier | RFP Theme
+        # Row 2: Authors | URL | Query Used | How to Use | Evidence Class
+        table = doc.add_table(rows=1, cols=5)
         table.style = "Table Grid"
         hdr = table.rows[0].cells
         hdr[0].text = "Source ID"
-        hdr[1].text = "Title / Provider / URL"
-        hdr[2].text = "Type / Year"
+        hdr[1].text = "Title"
+        hdr[2].text = "Provider / Type / Year"
         hdr[3].text = "Evidence Tier"
-        hdr[4].text = "RFP Theme & How to Use"
-        hdr[5].text = "Key Finding"
+        hdr[4].text = "mapped_rfp_theme"
 
         for entry in ext.entries:
-            row = table.add_row().cells
-            row[0].text = entry.source_id
-
-            # Title + Provider + URL (enriched from evidence pack)
             enrich = enrichment.get(entry.source_id, {})
             provider = enrich.get("provider", "").replace("_", " ").title()
             url = enrich.get("url", "")
-            title_parts = [entry.title]
-            if provider:
-                title_parts.append(f"Provider: {provider}")
-            if url:
-                title_parts.append(f"URL: {url}")
-            row[1].text = "\n".join(title_parts)
+            authors = enrich.get("authors", "")
+            query_used = enrich.get("query_used", "")
+            selection_method = enrich.get("selection_method", "")
+            rfp_theme = enrich.get("mapped_rfp_theme", "")
+            how_to_use = enrich.get("how_to_use", "")
+            evidence_class = enrich.get("evidence_class", "international_benchmark")
 
-            # Type classification
-            type_label = entry.source_type.replace("_", " ").title()
-            row[2].text = f"{type_label} ({entry.year})"
-
-            # Evidence tier based on source_type
+            # Evidence tier
             tier_map = {
                 "academic_paper": "Primary — peer-reviewed",
                 "industry_report": "Primary — industry source",
@@ -346,22 +339,34 @@ def _add_section_4(
                 "case_study": "Secondary — analogical",
                 "framework": "Secondary — methodology reference",
             }
-            row[3].text = tier_map.get(entry.source_type, "Unclassified")
+            tier = tier_map.get(entry.source_type, "Unclassified")
 
-            # RFP theme + relevance + usage (enriched)
-            rfp_theme = enrich.get("mapped_rfp_theme", "")
-            how_to_use = enrich.get("how_to_use", "")
-            usage_parts = []
-            if rfp_theme:
-                usage_parts.append(f"RFP Theme: {rfp_theme}")
-            usage_parts.append(entry.relevance)
-            if how_to_use:
-                usage_parts.append(f"How to use: {how_to_use}")
-            elif entry.key_finding:
-                usage_parts.append(f"Proposal use: {entry.key_finding}")
-            row[4].text = "\n".join(usage_parts)
+            # Row 1: core identification
+            row1 = table.add_row().cells
+            row1[0].text = entry.source_id
+            row1[1].text = entry.title
+            type_label = entry.source_type.replace("_", " ").title()
+            row1[2].text = (
+                f"{type_label} ({entry.year})"
+                + (f"\nProvider: {provider}" if provider else "")
+            )
+            row1[3].text = tier
+            row1[4].text = rfp_theme or entry.relevance[:80]
 
-            row[5].text = entry.key_finding
+            # Row 2: extended metadata (all fields the consultant needs)
+            row2 = table.add_row().cells
+            row2[0].text = f"evidence_class: {evidence_class}"
+            authors_str = authors if isinstance(authors, str) else ", ".join(authors) if authors else "—"
+            row2[1].text = (
+                f"authors: {authors_str}\n"
+                f"selection_method: {selection_method or '—'}"
+            )
+            row2[2].text = f"URL: {url}" if url else "URL: —"
+            row2[3].text = f"query_used: {query_used}" if query_used else "query_used: —"
+            row2[4].text = (
+                f"How to use: {how_to_use or entry.key_finding}\n"
+                f"Key finding: {entry.key_finding}"
+            )
 
     if ext.coverage_assessment:
         doc.add_paragraph()
@@ -437,14 +442,8 @@ def _add_section_4(
         "flagged for Engine 2 retrieval from company backend databases."
     )
 
-    # Provider / URL availability note
-    doc.add_paragraph(
-        "Provider and URL metadata for each source are recorded in the "
-        "external_evidence_pack.json artifact produced during the research "
-        "phase. Consult that JSON file for full Provider identifiers, "
-        "URL links, author lists, query_used strings, and "
-        "mapped_rfp_theme annotations."
-    )
+    # All metadata is surfaced directly in the evidence table above.
+    # The consultant should NEVER need to open a side JSON file.
 
 
 def _add_section_5(doc: Document, source_book: SourceBook) -> None:
@@ -789,6 +788,10 @@ async def export_source_book_docx(
                     "url": getattr(src, "url", ""),
                     "mapped_rfp_theme": getattr(src, "mapped_rfp_theme", ""),
                     "how_to_use": getattr(src, "how_to_use_in_proposal", ""),
+                    "authors": getattr(src, "authors", ""),
+                    "query_used": getattr(src, "query_used", ""),
+                    "selection_method": getattr(src, "selection_method", ""),
+                    "evidence_class": getattr(src, "evidence_class", "international_benchmark"),
                 }
 
     # Cover page
