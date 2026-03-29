@@ -294,9 +294,22 @@ async def extract_evidence_ledger(
             verif_status = verif_map.get(
                 parsed.confidence_label, "unverified",
             )
+            # Classify evidence per the 3-class policy
+            if has_evidence_id and "EXT-" in parsed.source_reference:
+                evidence_class = "INTERNATIONAL_BENCHMARK"
+            elif has_evidence_id and "CLM-" in parsed.source_reference:
+                evidence_class = "SG_INTERNAL_PROOF"
+            elif is_internal:
+                evidence_class = "SG_INTERNAL_PROOF"
+            else:
+                evidence_class = "INTERNATIONAL_BENCHMARK"
+
+            if verif_status == "gap":
+                evidence_class = "EVIDENCE_GAP"
+
             # Keep source_reference clean; put verification in its own field
             source_ref = parsed.source_reference
-            verification_note = ""
+            verification_note = f"[{evidence_class}] "
             if parsed.verifiability:
                 verification_note = parsed.verifiability[:200]
             entries.append(

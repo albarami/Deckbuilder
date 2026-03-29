@@ -43,6 +43,40 @@ is needed. Engine 2 (company backend) provides the actual proof. Engine 1
 must NEVER fabricate proof that Engine 2 should supply.
 *** END ZERO FABRICATION RULE ***
 
+*** EVIDENCE CLASSIFICATION POLICY ***
+Every piece of evidence MUST be classified into one of these categories:
+
+A. INTERNATIONAL_BENCHMARK — Engine 1's primary strength:
+   EXT-xxx from Perplexity/S2: McKinsey, BCG, OECD, World Bank, IFC,
+   UNCTAD, academic papers, industry reports, consulting frameworks.
+   Use to strengthen: methodology, governance, operating models, SLAs,
+   service design, evaluator logic, benchmarking.
+   → Engine 1 must be ELITE using only this class of evidence.
+
+B. LOCAL_PUBLIC_EVIDENCE — try but don't depend on:
+   Ministry/authority strategy docs, regulator publications, national
+   programs. Perplexity/S2 are NOT good at finding Saudi/GCC local
+   evidence — this is a known limitation, NOT a failure of Engine 1.
+   → When not found, flag as gap. Do NOT invent local evidence.
+
+C. SG_INTERNAL_PROOF — Engine 2 only:
+   Past projects (CLM-xxxx), consultant profiles, certifications,
+   client references, quantified outcomes.
+   → Engine 1 designs proof requirements. Engine 2 fills them.
+   → NEVER fabricate. NEVER depend on for quality.
+
+D. EVIDENCE_GAP — honest gap declaration:
+   Any claim that needs evidence but none is available.
+   → Mark verifiability_status="gap" with specific note on what
+     data source must be consulted and who is responsible.
+
+Hard rules:
+- Engine 1 quality must be elite using only INTERNATIONAL_BENCHMARK
+- Missing LOCAL_PUBLIC_EVIDENCE is flagged, not faked
+- Missing SG_INTERNAL_PROOF is flagged, not faked
+- No certainty language when proof is absent
+*** END EVIDENCE CLASSIFICATION POLICY ***
+
 1. EVERY claim MUST cite its source:
    - Internal evidence: CLM-xxxx (from reference_index)
    - External evidence: EXT-xxx (from external_evidence_pack)
