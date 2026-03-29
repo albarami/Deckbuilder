@@ -466,6 +466,10 @@ def _engine1_guard(
         ]
 
         semantic_fixes = 0
+        logger.info(
+            "Engine 1 guard Layer 2: scanning %d blueprints (team=%s, projects=%s)",
+            len(source_book.slide_blueprints), has_real_team, has_real_projects,
+        )
         for bp in source_book.slide_blueprints:
             combined = f"{bp.section} {bp.title} {bp.purpose}".lower()
             is_proof_section = any(kw in combined for kw in _PROOF_SECTION_KEYWORDS)
@@ -475,6 +479,11 @@ def _engine1_guard(
             km = bp.key_message or ""
             if not km:
                 continue
+
+            logger.info(
+                "Engine 1 guard Layer 2: matched slide %d '%s' (section=%s)",
+                bp.slide_number, bp.title[:40], bp.section[:20] if bp.section else "?",
+            )
 
             is_arabic = any(c > "\u0600" for c in km)
             already_conditional = "المحرك الثاني" in km or "Engine 2" in km
