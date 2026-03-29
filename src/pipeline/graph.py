@@ -783,6 +783,7 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
             current_state.source_book,
             docx_path,
             external_evidence_pack=current_state.external_evidence_pack,
+            routing_report=routing_report.model_dump(mode="json"),
         )
         exported_docx_path = docx_path
         logger.info("Source Book DOCX exported: %s", docx_path)

@@ -24,7 +24,7 @@ TEMPLATE ARCHITECTURE
 ═══════════════════════════════════════════════════════════════════════
 
 The proposal template has 81 slides. Most are reused as-is:
-- 20 A1 immutable slides (company profile, KSA context, credentials)
+- 20 A1 immutable slides (company profile, jurisdiction context, credentials)
 - 3 A2 shells (proposal cover, intro message, ToC) — filled with RFP data
 - 6 section dividers (01-06) — filled with section titles
 - 30 case study pool slides — SELECTED by relevance scoring
@@ -45,7 +45,7 @@ Produce a JSON object with these fields:
 
 1. GEOGRAPHY (required)
    Determines jurisdiction-specific context slides and national vision inclusion.
-   - "ksa" — Saudi Arabia (includes jurisdiction context slides)
+   - "ksa" — includes jurisdiction-specific context slides
    - "gcc" — Gulf states excluding country-specific context
    - "mena" — Middle East & North Africa
    - "international" — Outside MENA region
@@ -111,7 +111,7 @@ Produce a JSON object with these fields:
 8. WIN_THEMES (required, 3-5 strings)
    Key differentiators SG should emphasize in this proposal.
    Must be grounded in what a management consulting firm can credibly claim.
-   Examples: "Deep KSA public sector transformation experience",
+   Examples: "Deep public sector transformation experience",
    "Proven methodology for large-scale change management",
    "Local team with international consulting expertise"
 
@@ -138,7 +138,7 @@ DECISION RULES
 ═══════════════════════════════════════════════════════════════════════
 
 Geography detection:
-- Saudi entity OR Arabic RFP with Saudi-specific references → "ksa"
+- Entity in the relevant jurisdiction OR RFP with jurisdiction-specific references → "ksa"
 - UAE/Bahrain/Kuwait/Qatar/Oman entity → "gcc"
 - Egypt/Jordan/Lebanon/other MENA → "mena"
 - Everything else → "international"
