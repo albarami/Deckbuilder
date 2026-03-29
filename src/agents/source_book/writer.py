@@ -486,8 +486,41 @@ def _engine1_guard(
             is_arabic = any(c > "\u0600" for c in km)
             already_conditional = "المحرك الثاني" in km or "Engine 2" in km
 
-            # If no team proof and not already conditional
-            if not has_real_team and not already_conditional:
+            # STEP 1: REWRITE base text certainty phrases → conditional
+            # This fixes the BASE claim, not just appends a suffix
+            if not has_real_team:
+                import re as _re2
+                _BASE_REWRITES = [
+                    # "documented experience" → "required experience"
+                    (r"خبرة\s+عملية\s+موثقة", "خبرة عملية مطلوبة"),
+                    (r"خبرة\s+موثقة", "خبرة مطلوبة"),
+                    # "direct experience" → "required direct experience"
+                    (r"خبرة\s+مباشرة", "خبرة مباشرة مطلوبة"),
+                    # "qualifications matching" → "qualifications designed to match"
+                    (r"مؤهلات\s+تتطابق\s+مع", "مؤهلات مُصمَّمة لتتطابق مع"),
+                    (r"تتطابق\s+مع\s+متطلبات", "مُصمَّمة لتتطابق مع متطلبات"),
+                    # "specialists" → "required specialists" in team context
+                    (r"متخصصين\s+بمؤهلات", "متخصصين مطلوبين بمؤهلات"),
+                    # "proven" → "required"
+                    (r"مُثبت[ةه]?", "مطلوب[ة]"),
+                    # English equivalents
+                    (r"proven\s+experience", "required experience"),
+                    (r"direct\s+experience", "required direct experience"),
+                    (r"documented\s+experience", "experience to be confirmed"),
+                ]
+                original_km = km
+                for pattern, replacement in _BASE_REWRITES:
+                    km = _re2.sub(pattern, replacement, km)
+                if km != original_km:
+                    bp.key_message = km
+                    semantic_fixes += 1
+                    logger.info(
+                        "Engine 1 guard: rewrote base text in slide %d",
+                        bp.slide_number,
+                    )
+
+            # STEP 2: Append Engine 2 suffix if not already conditional
+            if not has_real_team and "المحرك الثاني" not in km and "Engine 2" not in km:
                 suffix = _ENGINE2_AR_SUFFIX if is_arabic else _ENGINE2_EN_SUFFIX
                 bp.key_message = km + suffix
                 semantic_fixes += 1
@@ -495,9 +528,9 @@ def _engine1_guard(
                     "Engine 1 guard: appended Engine 2 team condition to slide %d",
                     bp.slide_number,
                 )
-                km = bp.key_message  # update for next check
+                km = bp.key_message
 
-            # If limited projects and claims project execution/uniqueness
+            # STEP 3: Project proof claims
             if not has_real_projects and "سجل المشاريع" not in km:
                 if any(kw in km for kw in _PROJECT_CLAIM_KW):
                     bp.key_message = km + _PROJECT_AR_SUFFIX
