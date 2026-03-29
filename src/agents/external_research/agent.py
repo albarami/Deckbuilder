@@ -199,7 +199,7 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
     if rfp.scope_items:
         for scope_item in rfp.scope_items[:4]:
             desc = scope_item.description
-            en_text = _extract_english(desc) or _extract_bilingual_any(desc) or ""
+            en_text = _extract_bilingual_en(desc) or _extract_bilingual_any(desc) or ""
             if en_text and len(en_text) > 10:
                 # Extract first 60 chars as the core concept, frame as question
                 core = en_text[:60].strip()
@@ -209,7 +209,7 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
     if rfp.deliverables:
         for deliv in rfp.deliverables[:3]:
             desc = deliv.description
-            en_text = _extract_english(desc) or _extract_bilingual_any(desc) or ""
+            en_text = _extract_bilingual_en(desc) or _extract_bilingual_any(desc) or ""
             if en_text and len(en_text) > 10:
                 core = en_text[:50].strip()
                 queries.append(f"international examples of {core}")
