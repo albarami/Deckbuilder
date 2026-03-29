@@ -363,20 +363,23 @@ def _engine1_guard(
         # and Arabic equivalents including يستوفي جميع, كل متطلب, مُثبتة, etc.
         import re as _re
         _OVERCLAIM_RE = _re.compile(
-            # Arabic certainty patterns
+            # Arabic certainty patterns — broad semantic coverage
             r"100%|بنسبة\s*100|"
-            r"يستوفي\s+جميع|يستوفون\s+جميع|"  # meets all
+            r"يستوفي\s+جميع|يستوفون\s+جميع|تستوفي\s+جميع|"  # meets all (m/f/pl)
             r"كل\s+متطلب|جميع\s+متطلبات|جميع\s+المتطلبات|"  # every/all requirements
-            r"مُثبتة|مثبتة|"  # proven
-            r"مُغطّى|مغطى|"  # covered
+            r"مُثبتة|مثبتة|مُثبت|مثبت|"  # proven (m/f)
+            r"مُغطّى|مغطى|مغطاة|"  # covered (m/f)
             r"امتثال\s+كامل|امتثال\s+100|مطابقة\s+كاملة|مطابقة\s*100|"
             r"تطابق\s+تام|استيفاء\s+كامل|"
-            r"فريق\s+مؤهل\s+بالكامل|"
-            r"خبرة\s+مثبتة|سجل\s+حافل|"
+            r"فريق\s+مؤهل\s+بالكامل|فريق\s+متكامل\s+يلبي|"
+            r"خبرة\s+مثبتة|خبرة\s+موثقة|سجل\s+حافل|"
+            r"تحقق\s+كامل|توافق\s+كامل|التزام\s+كامل|"  # complete compliance/conformity
+            r"بدون\s+استثناء|دون\s+استثناء|"  # without exception
             # English certainty patterns
-            r"fully meets|complete compliance|all requirements satisfied|"
-            r"proven track record|fully qualified team|"
-            r"100% match|100% compliance",
+            r"fully meets|fully meet|complete compliance|all requirements satisfied|"
+            r"proven track record|proven capability|proven expertise|"
+            r"fully qualified team|fully staffed|"
+            r"100% match|100% compliance|100% coverage",
             _re.IGNORECASE,
         )
 
