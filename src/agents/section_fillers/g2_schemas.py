@@ -27,9 +27,12 @@ APPROVED_ENGLISH_TERMS = frozenset({
     "KPI", "API", "SLA", "SLO", "PMO", "ERP", "CRM", "AI", "IoT",
     "RPA", "MBA", "PhD", "ROI", "TCO", "RFP", "NDA", "SOW",
     "UAT", "MVP", "POC", "BI", "ML", "NLP", "OCR",
-    # Government entities and standards (KSA)
+    # Government entity acronyms — CORE preserve tokens (never translate,
+    # regardless of jurisdiction). These are universal institutional acronyms
+    # that appear in RFPs from multiple GCC countries.
     "MCIT", "NCA", "SDAIA", "NDMO", "DGA", "ZATCA", "GOSI",
     "NTP", "DCMM", "ECC", "SAMA", "MOMRA", "MOH", "MOE",
+    "MOTC", "QCB", "CMA", "MHRSD",  # Qatar + cross-GCC
     # Common English words in Arabic business context
     "Ministry", "Digital", "Transformation", "Enterprise",
     "Architecture", "Governance", "Framework", "Strategy",
