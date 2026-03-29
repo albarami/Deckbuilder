@@ -166,74 +166,67 @@ def _validate_query(query: str, max_len: int = 120) -> str | None:
 
 
 def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
-    """Generate 6-10 Perplexity queries from RFP context.
+    """Generate 6-10 Perplexity queries as natural-language research questions.
 
-    Strategy: domain-specific queries targeting the actual RFP subject matter.
-    Each query must be specific enough to return proposal-usable intelligence.
+    Strategy: A human researcher reading this RFP would ask "how do
+    organizations solve this problem?" — NOT copy the RFP text.
 
-    Query categories:
-    - Per scope item: what does the best practice look like for THIS deliverable?
-    - Institutional context: comparable organizations, regulatory frameworks
-    - Benchmarks: from pack_context.benchmark_references (pack-driven, not hardcoded)
+    NEVER prepend "best practices for" to RFP text. Instead, reformulate
+    each scope concept into a genuine research question.
     """
     queries: list[str] = []
 
     rfp = state.rfp_context
     if not rfp:
-        return ["management consulting methodology best practices"]
+        return ["how do consulting firms design service delivery frameworks"]
 
-    rfp_name = _extract_bilingual_any(rfp.rfp_name)
-    mandate = _extract_bilingual_any(rfp.mandate)
-    sector = state.sector or ""
-    geography = state.geography or ""
-
-    # 1. RFP-name as a research question (not raw copy)
-    if rfp_name and len(rfp_name) > 5:
-        queries.append(f"best practices for {rfp_name[:80]}")
-
-    # 2. Mandate reformulated as research question
-    if mandate and len(mandate) > 10:
-        queries.append(f"how to {mandate[:80]} — methodology and benchmarks")
-
-    # 3. Per scope item — reformulate as research questions, NOT copy RFP text
+    # Extract domain nouns for reformulation
+    scope_concepts: list[str] = []
     if rfp.scope_items:
-        for scope_item in rfp.scope_items[:4]:
-            desc = scope_item.description
-            en_text = _extract_bilingual_en(desc) or _extract_bilingual_any(desc) or ""
-            if en_text and len(en_text) > 10:
-                # Extract first 60 chars as the core concept, frame as question
-                core = en_text[:60].strip()
-                queries.append(f"best practices for {core} with SLA benchmarks")
+        for si in rfp.scope_items[:4]:
+            en = _extract_bilingual_en(si.description) or ""
+            if en:
+                scope_concepts.append(_extract_domain_nouns(en, max_words=6))
 
-    # 4. Per deliverable — reformulate as evidence search
-    if rfp.deliverables:
-        for deliv in rfp.deliverables[:3]:
-            desc = deliv.description
-            en_text = _extract_bilingual_en(desc) or _extract_bilingual_any(desc) or ""
-            if en_text and len(en_text) > 10:
-                core = en_text[:50].strip()
-                queries.append(f"international examples of {core}")
+    # 1. Per scope concept — reformulate as "how do organizations..."
+    _QUESTION_FRAMES = [
+        "how do organizations design {concept} programs",
+        "what frameworks exist for {concept} in government agencies",
+        "how do investment promotion agencies implement {concept}",
+        "what are the key success factors for {concept} delivery",
+    ]
+    for i, concept in enumerate(scope_concepts):
+        if concept and len(concept.split()) >= 2:
+            frame = _QUESTION_FRAMES[i % len(_QUESTION_FRAMES)]
+            queries.append(frame.format(concept=concept))
 
-    # 5. Institutional/geographic context
-    if geography:
-        queries.append(
-            f"{geography} government consulting services framework"
-        )
-    if sector and geography:
-        queries.append(
-            f"{geography} {sector} operating model benchmarks"
-        )
-
-    # 6. Pack-driven queries (replaces hardcoded KOTRA/Enterprise Singapore/etc.)
+    # 2. Pack-driven seed queries (curated by domain experts)
     pack_ctx = getattr(state, "pack_context", None) or {}
     pack_search = pack_ctx.get("recommended_search_queries", [])
-    for pq in pack_search[:4]:
+    for pq in pack_search[:5]:
         queries.append(pq)
 
-    if not queries:
-        queries.append("management consulting methodology best practices")
+    # 3. Geographic/institutional context
+    geography = state.geography or ""
+    sector = state.sector or ""
+    if geography and sector:
+        queries.append(
+            f"how does {geography} government evaluate {sector} consulting proposals"
+        )
 
-    # Validate all queries — fix truncation, drop invalid
+    # 4. Deliverable-specific research
+    if rfp.deliverables:
+        for deliv in rfp.deliverables[:2]:
+            en = _extract_bilingual_en(deliv.description) or ""
+            if en:
+                nouns = _extract_domain_nouns(en, max_words=5)
+                if nouns:
+                    queries.append(f"international case studies of {nouns}")
+
+    if not queries:
+        queries.append("how do consulting firms design service delivery frameworks")
+
+    # Validate — no truncation, no copy-paste
     validated = []
     for q in queries:
         clean = _validate_query(q)
@@ -300,21 +293,25 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
             queries.append(clean)
 
     # SECONDARY: Extract domain concept nouns from scope items (4-8 words)
+    # Only add if the result forms a coherent 4+ word academic phrase
     if rfp.scope_items:
         for scope_item in rfp.scope_items[:4]:
             desc = scope_item.description
             en_text = getattr(desc, "en", "") if desc else ""
             if en_text and len(en_text) > 5:
-                phrase = _extract_domain_nouns(en_text, max_words=8)
-                clean = _validate_query(phrase, max_len=60)
-                if clean:
-                    queries.append(clean)
+                phrase = _extract_domain_nouns(en_text, max_words=6)
+                words = phrase.split()
+                # Only use if 4+ meaningful words — prevents noun dumps
+                if len(words) >= 4:
+                    clean = _validate_query(phrase, max_len=60)
+                    if clean:
+                        queries.append(clean)
 
     # Sector + geography queries
     if sector:
-        queries.append(f"{sector} service design framework")
+        queries.append(f"{sector} service delivery framework")
     if geography and sector:
-        queries.append(f"{geography} {sector} policy evaluation")
+        queries.append(f"{geography} {sector} program evaluation")
 
     if not queries:
         queries.append("consulting methodology evaluation")
