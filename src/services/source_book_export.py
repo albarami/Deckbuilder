@@ -297,6 +297,7 @@ def _add_section_4(
     doc: Document,
     source_book: SourceBook,
     evidence_enrichment: dict[str, dict] | None = None,
+    theme_coverage: dict | None = None,
 ) -> None:
     """Section 4: External Evidence — enriched for proposal-building.
 
@@ -443,37 +444,41 @@ def _add_section_4(
     )
 
     # ── Theme Coverage ─────────────────────────────────────
-    # Surfaced from the research query log so the consultant sees
-    # which proposal themes have strong evidence vs gaps
+    # Rendered from the REAL theme_coverage data passed in from the
+    # research query log. No approximation. No fallback counting.
     doc.add_paragraph()
     doc.add_heading("Proposal Theme Coverage", level=2)
+
     _theme_display = {
-        "methodology": "Core Methodology (needs assessment, service design, governance)",
-        "institutional_model": "Institutional Model (operating models, frameworks)",
-        "evaluation": "Evaluation & Measurement (KPI, SLA, maturity models)",
-        "analogical_domain": "Analogical Domain (investment promotion, export support)",
-        "pack_curated": "Pack-Curated Queries (domain-expert research seeds)",
-        "local_public_context": "Local/GCC Public Evidence (jurisdiction-specific)",
+        "needs_assessment": "Needs Assessment",
+        "service_portfolio_design": "Service Portfolio Design",
+        "institutional_framework": "Institutional Framework",
+        "strategic_support": "Strategic Support",
+        "methodology": "Core Methodology",
+        "institutional_model": "Institutional Model",
+        "evaluation": "Evaluation & Measurement",
+        "analogical_domain": "Analogical Domain",
+        "pack_curated": "Pack-Curated Queries",
+        "local_public_context": "Local/GCC Public Evidence",
     }
     _status_icons = {"covered": "✅", "weak": "⚠️", "gap": "❌"}
 
-    # Build coverage from actual source data
-    theme_counts: dict[str, int] = {}
-    for entry in (ext.entries or []):
-        # Map source relevance to theme (approximate)
-        theme_counts["methodology"] = theme_counts.get("methodology", 0) + 1
-
-    # Use approximate coverage — at minimum show the structure
-    for theme_key, theme_label in _theme_display.items():
-        count = theme_counts.get(theme_key, 0)
-        if theme_key == "methodology" and total_sources > 0:
-            count = max(count, total_sources // 2)
-        status = "covered" if count >= 3 else "weak" if count >= 1 else "gap"
-        icon = _status_icons.get(status, "")
-        p = doc.add_paragraph()
-        run = p.add_run(f"{icon} {theme_label}: ")
-        run.bold = True
-        p.add_run(f"{count} sources — {status}")
+    if theme_coverage:
+        # Use EXACT data from the research query log — no recomputation
+        for theme_key, info in theme_coverage.items():
+            count = info.get("retained_sources", 0)
+            status = info.get("status", "gap")
+            label = _theme_display.get(theme_key, theme_key.replace("_", " ").title())
+            icon = _status_icons.get(status, "")
+            p = doc.add_paragraph()
+            run = p.add_run(f"{icon} {label}: ")
+            run.bold = True
+            p.add_run(f"{count} sources — {status}")
+    else:
+        doc.add_paragraph(
+            "Theme coverage data not available. "
+            "Check research_query_log for details."
+        )
 
     doc.add_paragraph(
         "Theme coverage is determined by the number and quality of retained "
@@ -799,6 +804,7 @@ async def export_source_book_docx(
     output_path: str,
     external_evidence_pack: object | None = None,
     routing_report: dict | None = None,
+    theme_coverage: dict | None = None,
 ) -> str:
     """Export a SourceBook as a .docx file.
 
@@ -840,7 +846,7 @@ async def export_source_book_docx(
     _add_section_1(doc, source_book)
     _add_section_2(doc, source_book)
     _add_section_3(doc, source_book)
-    _add_section_4(doc, source_book, _evidence_enrichment)
+    _add_section_4(doc, source_book, _evidence_enrichment, theme_coverage=theme_coverage)
     _add_section_5(doc, source_book)
     _add_section_6(doc, source_book)
     _add_section_7(doc, source_book)

@@ -778,12 +778,50 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     exported_docx_path: str | None = None
     export_error: ErrorInfo | None = None
 
+    # Compute theme_coverage from the query theme map and retained sources
+    _theme_coverage = None
+    try:
+        from src.agents.external_research.agent import _QUERY_THEME_MAP
+        if current_state.external_evidence_pack:
+            sources = getattr(current_state.external_evidence_pack, "sources", [])
+            # Count retained sources per theme
+            theme_counts: dict[str, int] = {}
+            for src in sources:
+                query = getattr(src, "query_used", "")
+                theme = _QUERY_THEME_MAP.get(query, "")
+                if not theme:
+                    # Try partial match
+                    for q, t in _QUERY_THEME_MAP.items():
+                        if query and q[:30] in query:
+                            theme = t
+                            break
+                if theme:
+                    theme_counts[theme] = theme_counts.get(theme, 0) + 1
+
+            # Build coverage dict
+            all_themes = list(set(list(_QUERY_THEME_MAP.values()) + [
+                "needs_assessment", "service_portfolio_design",
+                "institutional_framework", "strategic_support",
+                "methodology", "institutional_model", "evaluation",
+                "analogical_domain", "pack_curated", "local_public_context",
+            ]))
+            _theme_coverage = {}
+            for t in sorted(set(all_themes)):
+                if not t or t == "fallback":
+                    continue
+                count = theme_counts.get(t, 0)
+                status = "covered" if count >= 3 else "weak" if count >= 1 else "gap"
+                _theme_coverage[t] = {"retained_sources": count, "status": status}
+    except Exception as e:
+        logger.warning("Could not compute theme_coverage for DOCX: %s", e)
+
     try:
         await export_source_book_docx(
             current_state.source_book,
             docx_path,
             external_evidence_pack=current_state.external_evidence_pack,
             routing_report=routing_report.model_dump(mode="json"),
+            theme_coverage=_theme_coverage,
         )
         exported_docx_path = docx_path
         logger.info("Source Book DOCX exported: %s", docx_path)

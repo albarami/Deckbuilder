@@ -363,7 +363,16 @@ async def run_source_book_only(
     )
     print(f"  Research query log: {query_log_path}")
 
-    # 6. research_results_raw.json — raw results from S2 + Perplexity
+    # 6a. query_execution_log.json — real execution truth
+    from src.agents.external_research.agent import _QUERY_EXECUTION_LOG
+    exec_log_path = str(output_dir / "query_execution_log.json")
+    Path(exec_log_path).write_text(
+        json.dumps(_QUERY_EXECUTION_LOG, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    print(f"  Query execution log: {exec_log_path} ({len(_QUERY_EXECUTION_LOG)} entries)")
+
+    # 6b. research_results_raw.json — raw results from S2 + Perplexity
     raw_results = _collect_raw_research_results(ext_evidence)
     raw_path = str(output_dir / "research_results_raw.json")
     Path(raw_path).write_text(
@@ -698,8 +707,8 @@ async def run_source_book_only(
 
 
 def _collect_research_query_log(ext_evidence) -> dict:
-    """Build research query log with query_theme, per-service tracking, and theme coverage."""
-    from src.agents.external_research.agent import _QUERY_THEME_MAP
+    """Build research query log from EXECUTION TRUTH, not retained source inference."""
+    from src.agents.external_research.agent import _QUERY_EXECUTION_LOG, _QUERY_THEME_MAP
 
     log: dict[str, Any] = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -713,58 +722,46 @@ def _collect_research_query_log(ext_evidence) -> dict:
 
     queries = getattr(ext_evidence, "search_queries_used", [])
     sources = getattr(ext_evidence, "sources", [])
-    # Get the ACTUAL per-query service map from the evidence pack
     query_service_map = getattr(ext_evidence, "query_service_map", {}) or {}
 
-    # Build a set of queries that actually produced results per service
-    s2_queries_actual: set[str] = set()
-    pplx_queries_actual: set[str] = set()
-    for src in sources:
-        provider = getattr(src, "provider", "")
-        query_used = getattr(src, "query_used", "")
-        if provider == "semantic_scholar":
-            if query_used:
-                s2_queries_actual.add(query_used)
-        elif provider == "perplexity":
-            if query_used:
-                pplx_queries_actual.add(query_used)
+    # Build execution truth from the REAL execution log — not from retained sources
+    # This records which services were ACTUALLY invoked per query
+    exec_services_invoked: dict[str, set[str]] = {}
+    for entry in _QUERY_EXECUTION_LOG:
+        q = entry.get("query", "")
+        svc = entry.get("service_invoked", "")
+        if q and svc:
+            exec_services_invoked.setdefault(q, set()).add(svc)
 
-    # Build per-query entries with theme and truthful per-service tracking
+    # Count retained sources per query (for reporting, NOT for services_actual)
+    retained_by_query: dict[str, int] = {}
+    for src in sources:
+        qused = getattr(src, "query_used", "")
+        if qused:
+            retained_by_query[qused] = retained_by_query.get(qused, 0) + 1
+
+    # Build per-query entries
     theme_source_counts: dict[str, int] = {}
     for q in queries:
         theme = _QUERY_THEME_MAP.get(q, "unclassified")
 
-        # services_requested comes from the actual query_service_map, NOT hardcoded
+        # services_requested from the query_service_map (set at generation time)
         services_requested = query_service_map.get(q, [])
-        if not services_requested:
-            # Fallback: try partial match
-            for map_q, svcs in query_service_map.items():
-                if q[:30] in map_q or map_q[:30] in q:
-                    services_requested = svcs
-                    break
         if not services_requested:
             services_requested = ["unknown"]
 
-        # services_actual: only services that actually returned results for this query
-        services_actual = []
-        if q in s2_queries_actual or any(q[:30] in sq for sq in s2_queries_actual):
-            services_actual.append("semantic_scholar")
-        if q in pplx_queries_actual or any(q[:30] in pq for pq in pplx_queries_actual):
-            services_actual.append("perplexity")
+        # services_actual from EXECUTION LOG TRUTH — not from retained source attribution
+        services_actual = sorted(exec_services_invoked.get(q, set()))
 
-        # Count retained sources per theme
-        retained = sum(
-            1 for src in sources
-            if getattr(src, "query_used", "") == q
-            or q[:30] in getattr(src, "query_used", "")
-        )
+        # retained_sources_count from actual retained sources
+        retained = retained_by_query.get(q, 0)
         theme_source_counts[theme] = theme_source_counts.get(theme, 0) + retained
 
         log["queries_sent"].append({
             "query": q,
             "query_theme": theme,
             "services_requested": services_requested,
-            "services_actual": services_actual if services_actual else [],
+            "services_actual": services_actual,
             "retained_sources_count": retained,
         })
 

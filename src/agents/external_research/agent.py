@@ -26,6 +26,26 @@ logger = logging.getLogger(__name__)
 # and _generate_pplx_queries. Used by the evidence builder to set mapped_rfp_theme.
 _QUERY_THEME_MAP: dict[str, str] = {}
 
+# Module-level execution log — records which services were ACTUALLY invoked
+# per query at retrieval time. This is execution truth, not inferred from
+# retained source attribution.
+_QUERY_EXECUTION_LOG: list[dict] = []
+
+
+def _log_query_execution(
+    query: str,
+    query_theme: str,
+    service: str,
+    raw_results_count: int,
+) -> None:
+    """Record a real query execution event."""
+    _QUERY_EXECUTION_LOG.append({
+        "query": query,
+        "query_theme": query_theme,
+        "service_invoked": service,
+        "raw_results_count": raw_results_count,
+    })
+
 
 def _classify_evidence_tiers(pack: ExternalEvidencePack) -> None:
     """Assign evidence_tier and evidence_class to each source.
@@ -515,7 +535,14 @@ async def _gather_raw_evidence(
 
     api_key = settings.semantic_scholar_api_key
     if api_key.strip() and s2_queries:
+        # Log each S2 query as ACTUALLY INVOKED
+        for sq in s2_queries[:5]:
+            _log_query_execution(sq, _QUERY_THEME_MAP.get(sq, ""), "semantic_scholar", 0)
         papers = await _search_semantic_scholar(s2_queries[:5], api_key)
+        # Update raw_results_count for S2
+        for entry in _QUERY_EXECUTION_LOG:
+            if entry["service_invoked"] == "semantic_scholar":
+                entry["raw_results_count"] = len(papers)  # approximate per-service total
         for paper in papers:
             authors_raw = paper.get("authors", []) or []
             author_names = [
@@ -541,6 +568,8 @@ async def _gather_raw_evidence(
 
         api_key = settings.perplexity_api_key.get_secret_value()
         for query in pplx_queries[:4]:
+            # Log this Perplexity query as ACTUALLY INVOKED
+            _log_query_execution(query, _QUERY_THEME_MAP.get(query, ""), "perplexity", 0)
             try:
                 result = search_web(
                     query,
@@ -582,6 +611,10 @@ async def run(state: DeckForgeState) -> dict:
 
     Returns a dict with keys matching DeckForgeState fields to update.
     """
+    # Clear execution logs from previous runs
+    _QUERY_THEME_MAP.clear()
+    _QUERY_EXECUTION_LOG.clear()
+
     pplx_queries = _generate_pplx_queries(state)
     s2_queries = _generate_s2_queries(state)
     all_queries = _deduplicate(pplx_queries + s2_queries)
