@@ -1305,15 +1305,55 @@ async def _generate_section_5(
 async def _generate_blueprints(
     source_book: SourceBook,
     model: str,
+    state: DeckForgeState | None = None,
 ) -> SourceBookSection6:
-    """Stage 2a: Dedicated LLM call for slide blueprints only."""
+    """Stage 2a: Dedicated LLM call for slide blueprints only.
+
+    Injects claim discipline rules based on KG data availability.
+    """
     context = _dump_sections_15(source_book)
-    logger.info("Stage 2a (blueprints): input chars=%d", len(context))
+
+    # Inject claim discipline into context based on proof state
+    claim_discipline = ""
+    if state:
+        kg = state.knowledge_graph
+        kg_people = 0
+        kg_projects = 0
+        if kg:
+            kg_people = len([p for p in kg.people if p.person_type == "internal_team"])
+            kg_projects = len(kg.projects)
+
+        if kg_people == 0 or kg_projects <= 1:
+            claim_discipline = """
+
+*** CLAIM DISCIPLINE — MANDATORY FOR THIS RUN ***
+
+The knowledge graph has {people} named team members and {projects} projects.
+You MUST follow these rules for team and capability slides:
+
+FOR TEAM SLIDES (S07, S12, S13, S14):
+- ALLOWED: "تصميم فريق مقترح", "هيكل فريق يطابق متطلبات الأدوار المستهدفة",
+  "ملفات أدوار مفتوحة لحين تأكيد التعيينات", "تغطية منهجية قوية"
+- FORBIDDEN: "يستوفي كل عضو جميع الشروط", "خبرة مباشرة موثقة",
+  "مطابقة 100%", "استيفاء كامل", "فريق مؤكد", "قدرات مثبتة بالكامل"
+
+FOR CAPABILITY SLIDES (S07):
+- ALLOWED: "قدرات مطلوبة ومدعومة بأطر مرجعية دولية",
+  "تصميم مقترح يستند إلى أطر دولية وخبرة قابلة للاستكمال"
+- FORBIDDEN: "كل متطلب مغطى بقدرة مثبتة", "خبرة مباشرة" without Engine 2 proof
+
+Use conditional language: "مُصمَّم لاستيفاء", "مطلوبة", "مُستهدَف"
+instead of: "يستوفي", "موثقة", "مثبتة", "كامل"
+""".format(people=kg_people, projects=kg_projects)
+
+    full_context = context + claim_discipline
+    logger.info("Stage 2a (blueprints): input chars=%d (discipline=%d chars)",
+                len(full_context), len(claim_discipline))
 
     result = await call_llm(
         model=model,
         system_prompt=STAGE2A_BLUEPRINTS_PROMPT,
-        user_message=context,
+        user_message=full_context,
         response_model=SourceBookSection6,
         max_tokens=48000,
         temperature=0.1,
@@ -1468,7 +1508,7 @@ async def run(
         source_book = _engine1_guard(source_book, state)
 
         # ── Stage 2a: Section 6 (blueprints) ──────────────────
-        section6 = await _generate_blueprints(source_book, model)
+        section6 = await _generate_blueprints(source_book, model, state=state)
         source_book.slide_blueprints = section6.slide_blueprints
 
         if not source_book.slide_blueprints:
