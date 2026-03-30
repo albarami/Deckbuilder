@@ -171,46 +171,62 @@ class SemanticScholarClient:
             self._next_request_at = time.monotonic() + AUTH_MIN_INTERVAL_SEC
 
     async def _get(self, url: str, params: dict) -> dict:
-        """Authenticated GET. Raises on non-200. NO fallback."""
-        await self._rate_limit()
-        headers = {"x-api-key": self._api_key}
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            resp = await client.get(url, params=params, headers=headers)
-        logger.info("S2 GET %s: %s params=%s", resp.status_code, url, params)
-        if resp.status_code != 200:
+        """Authenticated GET with retry on 429/500. Raises on persistent failure."""
+        for attempt in range(3):
+            await self._rate_limit()
+            headers = {"x-api-key": self._api_key}
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.get(url, params=params, headers=headers)
+            logger.info("S2 GET %s: %s params=%s", resp.status_code, url, params)
+            if resp.status_code == 200:
+                return resp.json()
+            if resp.status_code in (429, 500, 502, 503) and attempt < 2:
+                wait = (attempt + 1) * 2  # 2s, 4s backoff
+                logger.warning("S2 %d on attempt %d, retrying in %ds", resp.status_code, attempt + 1, wait)
+                await asyncio.sleep(wait)
+                continue
             body = resp.text[:500]
             logger.error("S2 API error %s: %s", resp.status_code, body)
             raise SemanticScholarAPIError(resp.status_code, body)
-        return resp.json()
+        raise SemanticScholarAPIError(0, "Max retries exceeded")
 
     async def _post(self, url: str, params: dict, json_data: dict) -> dict:
-        """Authenticated POST. Raises on non-200. NO fallback."""
-        await self._rate_limit()
-        headers = {"x-api-key": self._api_key}
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            resp = await client.post(url, params=params, json=json_data, headers=headers)
-        logger.info("S2 POST %s: %s", resp.status_code, url)
-        if resp.status_code != 200:
+        """Authenticated POST with retry on 429/500. Raises on persistent failure."""
+        for attempt in range(3):
+            await self._rate_limit()
+            headers = {"x-api-key": self._api_key}
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(url, params=params, json=json_data, headers=headers)
+            logger.info("S2 POST %s: %s", resp.status_code, url)
+            if resp.status_code == 200:
+                return resp.json()
+            if resp.status_code in (429, 500, 502, 503) and attempt < 2:
+                wait = (attempt + 1) * 2
+                logger.warning("S2 %d on attempt %d, retrying in %ds", resp.status_code, attempt + 1, wait)
+                await asyncio.sleep(wait)
+                continue
             body = resp.text[:500]
             logger.error("S2 API error %s: %s", resp.status_code, body)
             raise SemanticScholarAPIError(resp.status_code, body)
-        return resp.json()
+        raise SemanticScholarAPIError(0, "Max retries exceeded")
 
     async def search_papers(
         self,
         query: str,
         year_from: int = 2018,
         max_results: int = 50,
-        min_citations: int = 0,
+        min_citations: int = 5,
         fields_of_study: list[str] | None = None,
+        publication_types: list[str] | None = None,
         sort: str = "citationCount:desc",
     ) -> list[dict]:
-        """Step 1: Bulk search with full discovery filters.
+        """Step 1: Bulk search with full discovery filters per documentation.
 
         Uses GET /graph/v1/paper/search/bulk with:
-        - year filter
-        - fieldsOfStudy filter (when provided)
-        - minCitationCount filter
+        - year filter (default: 2018-)
+        - fieldsOfStudy filter (default: Business,Economics,Political Science,Sociology)
+        - publicationTypes filter (default: Review,JournalArticle,Study,BookSection,Book)
+        - minCitationCount filter (default: 5 for broad topics)
         - sort by citationCount desc by default
         - DISCOVERY_FIELDS for rich metadata
 
@@ -226,6 +242,8 @@ class SemanticScholarClient:
             params["minCitationCount"] = str(min_citations)
         if fields_of_study:
             params["fieldsOfStudy"] = ",".join(fields_of_study)
+        if publication_types:
+            params["publicationTypes"] = ",".join(publication_types)
         if sort:
             params["sort"] = sort
 
@@ -316,6 +334,31 @@ class SemanticScholarClient:
             logger.warning("S2 hydration failed: %s", e)
             return []
 
+    async def get_author_details(self, author_ids: list[str]) -> list[dict]:
+        """Step 4b (optional): Author enrichment for credibility/context.
+
+        Uses POST /graph/v1/author/batch. Only call when author
+        credibility matters for proposal evidence strength.
+        """
+        if not author_ids:
+            return []
+
+        url = f"{S2_GRAPH_BASE}/author/batch"
+        params = {"fields": "name,affiliations,paperCount,citationCount,hIndex"}
+        body = {"ids": author_ids[:100]}
+
+        try:
+            data = await self._post(url, params, body)
+            authors = [a for a in data if a is not None]
+            logger.info(
+                "S2 author enrichment: requested=%d returned=%d",
+                len(author_ids), len(authors),
+            )
+            return authors
+        except SemanticScholarAPIError as e:
+            logger.warning("S2 author enrichment failed (non-blocking): %s", e)
+            return []
+
     async def search_snippets(
         self,
         query: str,
@@ -366,19 +409,24 @@ class SemanticScholarClient:
         stats = _SearchRunStats(queries=list(queries))
         all_papers: dict[str, dict] = {}
 
-        # Preferred fields of study for consulting proposals
+        # Default filters per documentation spec
         _PREFERRED_FIELDS = [
-            "Business", "Economics", "Political Science", "Sociology",
+            "Business", "Economics", "Political Science", "Sociology", "Education",
+        ]
+        _PREFERRED_PUB_TYPES = [
+            "Review", "JournalArticle", "Study", "BookSection", "Book",
         ]
 
-        # Step 1: Bulk search with filters and pagination
+        # Step 1: Bulk search with ALL required filters and pagination
         for q in queries:
             try:
                 results = await self.search_papers(
                     query=q,
                     year_from=year_from,
                     max_results=search_per_query,
+                    min_citations=5,
                     fields_of_study=_PREFERRED_FIELDS,
+                    publication_types=_PREFERRED_PUB_TYPES,
                     sort="citationCount:desc",
                 )
                 for p in results:

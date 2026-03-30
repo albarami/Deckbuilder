@@ -22,6 +22,10 @@ from .prompts import SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
+# Module-level dict mapping query text → theme. Populated by _generate_s2_queries
+# and _generate_pplx_queries. Used by the evidence builder to set mapped_rfp_theme.
+_QUERY_THEME_MAP: dict[str, str] = {}
+
 
 def _classify_evidence_tiers(pack: ExternalEvidencePack) -> None:
     """Assign evidence_tier and evidence_class to each source.
@@ -303,6 +307,7 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
     Bucket D: Analogical domain (export promotion, investment agencies, trade)
 
     Each query: 5-8 words, readable English, methodology-focused.
+    Every query has an associated query_theme stored in _S2_QUERY_THEMES.
     """
     queries: list[str] = []
     rfp = state.rfp_context
@@ -322,8 +327,9 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
         clean = _validate_query(pq, max_len=80)
         if clean:
             queries.append(clean)
+            _QUERY_THEME_MAP[clean] = "pack_curated"
 
-    # 2. Bucket A — Core methodology queries
+    # 2. Bucket A — Core methodology queries (theme: methodology)
     _BUCKET_A = [
         (["needs", "assess", "priorit", "current"],
          "needs assessment methodology for government service agencies"),
@@ -338,8 +344,9 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
         if sum(1 for kw in keywords if kw in scope_text) >= 2:
             if query not in queries:
                 queries.append(query)
+                _QUERY_THEME_MAP[query] = "methodology"
 
-    # 3. Bucket B — Institutional model queries
+    # 3. Bucket B — Institutional model queries (theme: institutional_model)
     _BUCKET_B = [
         (["institutional", "framework", "relationship", "managing"],
          "institutional framework for client relationship management"),
@@ -352,8 +359,9 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
         if sum(1 for kw in keywords if kw in scope_text) >= 2:
             if query not in queries:
                 queries.append(query)
+                _QUERY_THEME_MAP[query] = "institutional_model"
 
-    # 4. Bucket C — Evaluation/measurement queries
+    # 4. Bucket C — Evaluation/measurement queries (theme: evaluation)
     _BUCKET_C = [
         (["kpi", "sla", "performance", "indicator"],
          "service level agreement design for public agencies"),
@@ -366,8 +374,9 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
         if sum(1 for kw in keywords if kw in scope_text) >= 2:
             if query not in queries:
                 queries.append(query)
+                _QUERY_THEME_MAP[query] = "evaluation"
 
-    # 5. Bucket D — Analogical domain queries
+    # 5. Bucket D — Analogical domain queries (theme: analogical_domain)
     _BUCKET_D = [
         (["export", "expansion", "international", "outbound"],
          "investment promotion agency service delivery framework"),
@@ -380,9 +389,11 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
         if sum(1 for kw in keywords if kw in scope_text) >= 2:
             if query not in queries:
                 queries.append(query)
+                _QUERY_THEME_MAP[query] = "analogical_domain"
 
     if not queries:
         queries.append("consulting methodology evaluation framework")
+        _QUERY_THEME_MAP["consulting methodology evaluation framework"] = "fallback"
 
     return _deduplicate(queries)[:5]
 
