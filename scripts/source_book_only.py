@@ -713,24 +713,39 @@ def _collect_research_query_log(ext_evidence) -> dict:
 
     queries = getattr(ext_evidence, "search_queries_used", [])
     sources = getattr(ext_evidence, "sources", [])
+    # Get the ACTUAL per-query service map from the evidence pack
+    query_service_map = getattr(ext_evidence, "query_service_map", {}) or {}
 
-    # Build a set of queries that actually produced S2 results
+    # Build a set of queries that actually produced results per service
     s2_queries_actual: set[str] = set()
     pplx_queries_actual: set[str] = set()
     for src in sources:
         provider = getattr(src, "provider", "")
         query_used = getattr(src, "query_used", "")
-        if "scholar" in provider or "academic" in getattr(src, "source_type", ""):
+        if provider == "semantic_scholar":
             if query_used:
                 s2_queries_actual.add(query_used)
-        elif "perplexity" in provider or "web" in getattr(src, "source_type", ""):
+        elif provider == "perplexity":
             if query_used:
                 pplx_queries_actual.add(query_used)
 
-    # Build per-query entries with theme and per-service truth
+    # Build per-query entries with theme and truthful per-service tracking
     theme_source_counts: dict[str, int] = {}
     for q in queries:
         theme = _QUERY_THEME_MAP.get(q, "unclassified")
+
+        # services_requested comes from the actual query_service_map, NOT hardcoded
+        services_requested = query_service_map.get(q, [])
+        if not services_requested:
+            # Fallback: try partial match
+            for map_q, svcs in query_service_map.items():
+                if q[:30] in map_q or map_q[:30] in q:
+                    services_requested = svcs
+                    break
+        if not services_requested:
+            services_requested = ["unknown"]
+
+        # services_actual: only services that actually returned results for this query
         services_actual = []
         if q in s2_queries_actual or any(q[:30] in sq for sq in s2_queries_actual):
             services_actual.append("semantic_scholar")
@@ -748,14 +763,15 @@ def _collect_research_query_log(ext_evidence) -> dict:
         log["queries_sent"].append({
             "query": q,
             "query_theme": theme,
-            "services_requested": ["semantic_scholar", "perplexity"],
-            "services_actual": services_actual if services_actual else ["perplexity"],
+            "services_requested": services_requested,
+            "services_actual": services_actual if services_actual else [],
             "retained_sources_count": retained,
         })
 
-    # Build theme coverage
+    # Build theme coverage — include all themes from both Perplexity and S2
     _ALL_THEMES = [
-        "methodology", "institutional_model", "evaluation",
+        "needs_assessment", "service_portfolio_design", "institutional_framework",
+        "strategic_support", "methodology", "institutional_model", "evaluation",
         "analogical_domain", "pack_curated", "local_public_context",
     ]
     for theme in _ALL_THEMES:
@@ -796,10 +812,14 @@ def _collect_raw_research_results(ext_evidence) -> dict:
                 "relevance_score": getattr(src, "relevance_score", 0),
                 "relevance_reason": getattr(src, "relevance_reason", ""),
             }
-            st = getattr(src, "source_type", "")
-            if "academic" in st or "scholar" in st:
+            # Use the ACTUAL provider field, not inference from source_type
+            provider = getattr(src, "provider", "")
+            if provider == "semantic_scholar":
                 results["semantic_scholar_results"].append(entry)
+            elif provider == "perplexity":
+                results["perplexity_results"].append(entry)
             else:
+                # Fallback: unknown provider
                 results["perplexity_results"].append(entry)
     return results
 

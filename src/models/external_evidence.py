@@ -59,4 +59,7 @@ class ExternalEvidencePack(DeckForgeBaseModel):
 
     sources: list[ExternalSource] = Field(default_factory=list)
     search_queries_used: list[str] = Field(default_factory=list)
+    # Per-query service mapping: query text → list of services it was sent to
+    # e.g. {"query1": ["perplexity"], "query2": ["semantic_scholar"]}
+    query_service_map: dict[str, list[str]] = Field(default_factory=dict)
     coverage_assessment: str = ""  # summary of what evidence was/wasn't found

@@ -169,46 +169,54 @@ def _validate_query(query: str, max_len: int = 120) -> str | None:
     return q
 
 
-def _scope_to_research_question(scope_en: str) -> str | None:
-    """Convert a scope item's English text into a proper research question.
+def _scope_to_research_question(scope_en: str) -> tuple[str, str] | None:
+    """Convert a scope item's English text into a (research_question, theme) tuple.
 
     Uses keyword detection to identify the domain concept and maps it
-    to a human-quality research question. Returns None if no meaningful
-    concept is detected.
+    to a human-quality research question with its theme classification.
+    Returns None if no meaningful concept is detected.
     """
     text = scope_en.lower()
 
-    # Map domain concepts to research questions
-    # Each tuple: (keywords_to_match, research_question)
-    _CONCEPT_MAP: list[tuple[list[str], str]] = [
+    # Map domain concepts to (research_question, theme)
+    _CONCEPT_MAP: list[tuple[list[str], str, str]] = [
         (["priorit", "needs", "assess", "current"],
-         "how do investment promotion agencies assess company needs and prioritize service delivery"),
+         "how do investment promotion agencies assess company needs and prioritize service delivery",
+         "needs_assessment"),
         (["service", "ecosystem", "portfolio", "design"],
-         "how do government agencies design service portfolios for companies expanding internationally"),
+         "how do government agencies design service portfolios for companies expanding internationally",
+         "service_portfolio_design"),
         (["institutional framework", "relationship", "managing"],
-         "benchmark models for institutional relationship management between investment agencies and national companies"),
+         "benchmark models for institutional relationship management between investment agencies and national companies",
+         "institutional_framework"),
         (["strategic support", "activation", "continuous"],
-         "operating models for government agencies providing continuous strategic support to national firms"),
+         "operating models for government agencies providing continuous strategic support to national firms",
+         "strategic_support"),
         (["export", "expansion", "international"],
-         "international benchmarks for government-backed export and international expansion support programs"),
+         "international benchmarks for government-backed export and international expansion support programs",
+         "analogical_domain"),
         (["segmentation", "classification", "readiness"],
-         "international benchmarks for company segmentation by readiness for cross-border expansion"),
+         "international benchmarks for company segmentation by readiness for cross-border expansion",
+         "evaluation"),
         (["sla", "kpi", "performance", "indicator"],
-         "service level agreements and KPI frameworks for investment promotion agencies"),
+         "service level agreements and KPI frameworks for investment promotion agencies",
+         "evaluation"),
         (["governance", "oversight", "steering"],
-         "governance frameworks for multi-stakeholder consulting engagements in government"),
+         "governance frameworks for multi-stakeholder consulting engagements in government",
+         "methodology"),
         (["knowledge transfer", "capacity building"],
-         "knowledge transfer methodologies for consulting engagements with government agencies"),
+         "knowledge transfer methodologies for consulting engagements with government agencies",
+         "methodology"),
     ]
 
-    for keywords, question in _CONCEPT_MAP:
+    for keywords, question, theme in _CONCEPT_MAP:
         if sum(1 for kw in keywords if kw in text) >= 2:
-            return question
+            return question, theme
 
-    # Fallback: extract first meaningful phrase and frame it
+    # Fallback
     nouns = _extract_domain_nouns(scope_en, max_words=5)
     if nouns and len(nouns.split()) >= 3:
-        return f"how do government agencies implement {nouns} programs"
+        return f"how do government agencies implement {nouns} programs", "methodology"
     return None
 
 
@@ -224,29 +232,34 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
     if not rfp:
         return ["how do consulting firms design service delivery frameworks"]
 
-    # 1. Per scope item — map to curated research questions
+    # 1. Per scope item — map to curated research questions WITH themes
     if rfp.scope_items:
         for si in rfp.scope_items[:4]:
             en = _extract_bilingual_en(si.description) or ""
             if en:
-                q = _scope_to_research_question(en)
-                if q:
-                    queries.append(q)
+                result = _scope_to_research_question(en)
+                if result:
+                    query, theme = result
+                    queries.append(query)
+                    _QUERY_THEME_MAP[query] = theme
 
     # 2. Pack-driven seed queries (curated by domain experts)
     pack_ctx = getattr(state, "pack_context", None) or {}
     pack_search = pack_ctx.get("recommended_search_queries", [])
     for pq in pack_search[:5]:
         queries.append(pq)
+        _QUERY_THEME_MAP[pq] = "pack_curated"
 
-    # 3. Per deliverable — map to research questions
+    # 3. Per deliverable — map to research questions WITH themes
     if rfp.deliverables:
         for deliv in rfp.deliverables[:2]:
             en = _extract_bilingual_en(deliv.description) or ""
             if en:
-                q = _scope_to_research_question(en)
-                if q:
-                    queries.append(q)
+                result = _scope_to_research_question(en)
+                if result:
+                    query, theme = result
+                    queries.append(query)
+                    _QUERY_THEME_MAP[query] = theme
 
     # 4. Geographic/institutional context
     geography = state.geography or ""
@@ -573,6 +586,17 @@ async def run(state: DeckForgeState) -> dict:
     s2_queries = _generate_s2_queries(state)
     all_queries = _deduplicate(pplx_queries + s2_queries)
 
+    # Build per-query service map — tracks which service each query is sent to
+    _query_service_map: dict[str, list[str]] = {}
+    for q in pplx_queries:
+        _query_service_map.setdefault(q, [])
+        if "perplexity" not in _query_service_map[q]:
+            _query_service_map[q].append("perplexity")
+    for q in s2_queries:
+        _query_service_map.setdefault(q, [])
+        if "semantic_scholar" not in _query_service_map[q]:
+            _query_service_map[q].append("semantic_scholar")
+
     if not all_queries:
         logger.warning("No search queries generated — returning empty evidence pack")
         return {
@@ -624,6 +648,7 @@ async def run(state: DeckForgeState) -> dict:
         return {
             "external_evidence_pack": ExternalEvidencePack(
                 search_queries_used=queries,
+                query_service_map=_query_service_map,
                 coverage_assessment=(
                     "Both Semantic Scholar and Perplexity returned no results. "
                     "Proposal will rely on internal evidence only."
@@ -671,6 +696,7 @@ async def run(state: DeckForgeState) -> dict:
         )
         evidence_pack = llm_result.parsed
         evidence_pack.search_queries_used = queries
+        evidence_pack.query_service_map = _query_service_map
         _classify_evidence_tiers(evidence_pack)
         _append_tier_counts(evidence_pack)
 
