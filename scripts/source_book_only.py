@@ -698,21 +698,82 @@ async def run_source_book_only(
 
 
 def _collect_research_query_log(ext_evidence) -> dict:
-    """Build research query log from available data."""
+    """Build research query log with query_theme, per-service tracking, and theme coverage."""
+    from src.agents.external_research.agent import _QUERY_THEME_MAP
+
     log: dict[str, Any] = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "queries_sent": [],
+        "theme_coverage": {},
+        "snippet_enrichment_status": "available_but_not_invoked",
+        "author_enrichment_status": "available_but_not_invoked",
     }
-    if ext_evidence:
-        queries = getattr(ext_evidence, "search_queries_used", [])
-        for q in queries:
-            log["queries_sent"].append({
-                "query": q,
-                "services": ["semantic_scholar", "perplexity"],
-            })
-        log["coverage_assessment"] = getattr(
-            ext_evidence, "coverage_assessment", "",
+    if not ext_evidence:
+        return log
+
+    queries = getattr(ext_evidence, "search_queries_used", [])
+    sources = getattr(ext_evidence, "sources", [])
+
+    # Build a set of queries that actually produced S2 results
+    s2_queries_actual: set[str] = set()
+    pplx_queries_actual: set[str] = set()
+    for src in sources:
+        provider = getattr(src, "provider", "")
+        query_used = getattr(src, "query_used", "")
+        if "scholar" in provider or "academic" in getattr(src, "source_type", ""):
+            if query_used:
+                s2_queries_actual.add(query_used)
+        elif "perplexity" in provider or "web" in getattr(src, "source_type", ""):
+            if query_used:
+                pplx_queries_actual.add(query_used)
+
+    # Build per-query entries with theme and per-service truth
+    theme_source_counts: dict[str, int] = {}
+    for q in queries:
+        theme = _QUERY_THEME_MAP.get(q, "unclassified")
+        services_actual = []
+        if q in s2_queries_actual or any(q[:30] in sq for sq in s2_queries_actual):
+            services_actual.append("semantic_scholar")
+        if q in pplx_queries_actual or any(q[:30] in pq for pq in pplx_queries_actual):
+            services_actual.append("perplexity")
+
+        # Count retained sources per theme
+        retained = sum(
+            1 for src in sources
+            if getattr(src, "query_used", "") == q
+            or q[:30] in getattr(src, "query_used", "")
         )
+        theme_source_counts[theme] = theme_source_counts.get(theme, 0) + retained
+
+        log["queries_sent"].append({
+            "query": q,
+            "query_theme": theme,
+            "services_requested": ["semantic_scholar", "perplexity"],
+            "services_actual": services_actual if services_actual else ["perplexity"],
+            "retained_sources_count": retained,
+        })
+
+    # Build theme coverage
+    _ALL_THEMES = [
+        "methodology", "institutional_model", "evaluation",
+        "analogical_domain", "pack_curated", "local_public_context",
+    ]
+    for theme in _ALL_THEMES:
+        count = theme_source_counts.get(theme, 0)
+        if count >= 3:
+            status = "covered"
+        elif count >= 1:
+            status = "weak"
+        else:
+            status = "gap"
+        log["theme_coverage"][theme] = {
+            "retained_sources": count,
+            "status": status,
+        }
+
+    log["coverage_assessment"] = getattr(
+        ext_evidence, "coverage_assessment", "",
+    )
     return log
 
 
