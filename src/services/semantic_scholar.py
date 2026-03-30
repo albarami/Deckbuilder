@@ -197,49 +197,155 @@ class SemanticScholarClient:
         return resp.json()
 
     async def search_papers(
-        self, query: str, year_from: int = 2018, max_results: int = 1000
+        self,
+        query: str,
+        year_from: int = 2018,
+        max_results: int = 50,
+        min_citations: int = 0,
+        fields_of_study: list[str] | None = None,
+        sort: str = "citationCount:desc",
     ) -> list[dict]:
-        """Step 1: Bulk search for papers matching a keyword query.
+        """Step 1: Bulk search with full discovery filters.
 
-        Uses GET /graph/v1/paper/search/bulk with proper fields and filters.
-        Returns up to max_results papers sorted by citation count.
+        Uses GET /graph/v1/paper/search/bulk with:
+        - year filter
+        - fieldsOfStudy filter (when provided)
+        - minCitationCount filter
+        - sort by citationCount desc by default
+        - DISCOVERY_FIELDS for rich metadata
+
+        Handles token pagination: keeps fetching pages until max_results
+        or marginal relevance collapses (empty page / total exhausted).
         """
-        params = {
+        params: dict = {
             "query": query,
             "fields": DISCOVERY_FIELDS,
             "year": f"{year_from}-",
         }
-        data = await self._get(S2_BULK_SEARCH_URL, params)
-        papers = data.get("data", [])
+        if min_citations > 0:
+            params["minCitationCount"] = str(min_citations)
+        if fields_of_study:
+            params["fieldsOfStudy"] = ",".join(fields_of_study)
+        if sort:
+            params["sort"] = sort
+
+        all_papers: list[dict] = []
+        token: str | None = None
+        pages = 0
+
+        while len(all_papers) < max_results and pages < 3:
+            if token:
+                params["token"] = token
+
+            data = await self._get(S2_BULK_SEARCH_URL, params)
+            papers = data.get("data", [])
+            next_token = data.get("token")
+
+            if not papers:
+                break
+
+            all_papers.extend(papers)
+            pages += 1
+
+            if not next_token or next_token == token:
+                break
+            token = next_token
+
         logger.info(
-            "S2 search: query='%s' total=%s returned=%s",
-            query,
-            data.get("total", 0),
-            len(papers),
+            "S2 search: query='%s' total=%s pages=%d returned=%d",
+            query, data.get("total", 0), pages, len(all_papers),
         )
-        papers.sort(key=lambda p: p.get("citationCount", 0), reverse=True)
-        return papers[:max_results]
+        all_papers.sort(key=lambda p: p.get("citationCount", 0), reverse=True)
+        return all_papers[:max_results]
 
     async def get_recommendations(
-        self, seed_paper_ids: list[str], max_results: int = 20
+        self,
+        seed_paper_ids: list[str],
+        negative_paper_ids: list[str] | None = None,
+        max_results: int = 30,
     ) -> list[dict]:
-        """Step 3: Get recommended papers based on scored seed papers."""
+        """Step 3: Get recommended papers with positive AND negative seeds.
+
+        Uses POST /recommendations/v1/papers with:
+        - positivePaperIds: best seed papers
+        - negativePaperIds: off-domain papers to steer away from
+        """
         params = {
             "fields": RECOMMENDATION_FIELDS,
             "limit": min(max_results, 40),
         }
         body = {
             "positivePaperIds": seed_paper_ids,
-            "negativePaperIds": [],
+            "negativePaperIds": negative_paper_ids or [],
         }
         data = await self._post(S2_RECOMMENDATIONS_URL, params, body)
         papers = data.get("recommendedPapers", [])
         logger.info(
-            "S2 recommendations: seeds=%s returned=%s",
+            "S2 recommendations: seeds=%s negatives=%s returned=%s",
             len(seed_paper_ids),
+            len(negative_paper_ids or []),
             len(papers),
         )
         return papers
+
+    async def hydrate_papers(self, paper_ids: list[str]) -> list[dict]:
+        """Step 4: Hydrate shortlisted papers with full metadata.
+
+        Uses POST /graph/v1/paper/batch to enrich papers with:
+        title, abstract, year, url, citationCount, influentialCitationCount,
+        authors, venue, publicationVenue, openAccessPdf, fieldsOfStudy,
+        publicationTypes, tldr
+        """
+        if not paper_ids:
+            return []
+
+        url = f"{S2_GRAPH_BASE}/paper/batch"
+        params = {"fields": HYDRATION_FIELDS}
+        body = {"ids": paper_ids[:100]}  # API limit: 100 per batch
+
+        try:
+            data = await self._post(url, params, body)
+            # Response is a list of paper objects (some may be None)
+            papers = [p for p in data if p is not None]
+            logger.info(
+                "S2 hydration: requested=%d returned=%d",
+                len(paper_ids), len(papers),
+            )
+            return papers
+        except SemanticScholarAPIError as e:
+            logger.warning("S2 hydration failed: %s", e)
+            return []
+
+    async def search_snippets(
+        self,
+        query: str,
+        paper_ids: list[str] | None = None,
+        max_results: int = 5,
+    ) -> list[dict]:
+        """Step 5 (optional): Extract exact supporting excerpts from papers.
+
+        Uses GET /graph/v1/snippet/search for high-value shortlisted papers.
+        Only call selectively — not for every paper.
+        """
+        url = f"{S2_GRAPH_BASE}/snippet/search"
+        params: dict = {
+            "query": query,
+            "limit": max_results,
+        }
+        if paper_ids:
+            params["paper_ids"] = ",".join(paper_ids[:10])
+
+        try:
+            data = await self._get(url, params)
+            snippets = data.get("data", [])
+            logger.info(
+                "S2 snippets: query='%s' papers=%s returned=%d",
+                query[:40], len(paper_ids or []), len(snippets),
+            )
+            return snippets
+        except SemanticScholarAPIError as e:
+            logger.warning("S2 snippet search failed (non-blocking): %s", e)
+            return []
 
     async def search_and_recommend(
         self,
@@ -248,22 +354,33 @@ class SemanticScholarClient:
         search_per_query: int = 50,
         recommend_count: int = 30,
     ) -> list[dict]:
-        """Full flow: search → score → shortlist → recommend → merge.
+        """Full documented flow: search → score → shortlist → recommend → hydrate.
 
-        Step 1: Bulk search per query (up to search_per_query each)
+        Step 1: Bulk search per query with filters (fieldsOfStudy, pagination)
         Step 2: Score all discovered papers
-        Step 3: Select top 3-5 seeds
-        Step 4: Get recommendations from seeds
-        Step 5: Re-score recommendations
-        Step 6: Return merged, scored, deduplicated results
+        Step 3: Select top 3-5 seeds + identify junk for negative IDs
+        Step 4: Recommendations with positive seeds + negative junk papers
+        Step 5: Hydrate final shortlist with full metadata
+        Step 6: Return merged, scored, deduplicated, hydrated results
         """
         stats = _SearchRunStats(queries=list(queries))
         all_papers: dict[str, dict] = {}
 
-        # Step 1: Bulk search discovery
+        # Preferred fields of study for consulting proposals
+        _PREFERRED_FIELDS = [
+            "Business", "Economics", "Political Science", "Sociology",
+        ]
+
+        # Step 1: Bulk search with filters and pagination
         for q in queries:
             try:
-                results = await self.search_papers(q, year_from, search_per_query)
+                results = await self.search_papers(
+                    query=q,
+                    year_from=year_from,
+                    max_results=search_per_query,
+                    fields_of_study=_PREFERRED_FIELDS,
+                    sort="citationCount:desc",
+                )
                 for p in results:
                     pid = p.get("paperId", "")
                     if pid and pid not in all_papers:
@@ -281,11 +398,11 @@ class SemanticScholarClient:
         for pid, paper in all_papers.items():
             paper["_relevance_score"] = score_paper(paper)
 
-        # Reject junk (score < 0.05)
-        junk = [pid for pid, p in all_papers.items() if p.get("_relevance_score", 0) < 0.05]
-        for pid in junk:
+        # Identify junk (score < 0.05) — these become negative IDs
+        junk_ids = [pid for pid, p in all_papers.items() if p.get("_relevance_score", 0) < 0.05]
+        for pid in junk_ids:
             del all_papers[pid]
-        stats.junk_rejected = len(junk)
+        stats.junk_rejected = len(junk_ids)
         stats.total_after_scoring = len(all_papers)
 
         if not all_papers:
@@ -306,9 +423,15 @@ class SemanticScholarClient:
             [f"{p.get('_relevance_score', 0):.2f}" for p in sorted_papers[:5]],
         )
 
-        # Step 4: Get recommendations
+        # Step 4: Recommendations with negative IDs for drift control
+        # Use up to 3 junk IDs as negative seeds to steer away from off-domain
+        negative_ids = junk_ids[:3] if junk_ids else []
         try:
-            recs = await self.get_recommendations(seed_ids, recommend_count)
+            recs = await self.get_recommendations(
+                seed_ids,
+                negative_paper_ids=negative_ids,
+                max_results=recommend_count,
+            )
             for p in recs:
                 pid = p.get("paperId", "")
                 if pid and pid not in all_papers:
@@ -320,7 +443,27 @@ class SemanticScholarClient:
 
         stats.total_after_recommendations = len(all_papers)
 
-        # Step 5: Final sort by relevance score
+        # Step 5: Hydrate top papers with full metadata
+        top_ids = sorted(
+            all_papers.keys(),
+            key=lambda pid: all_papers[pid].get("_relevance_score", 0),
+            reverse=True,
+        )[:15]  # Hydrate top 15
+        try:
+            hydrated = await self.hydrate_papers(top_ids)
+            for hp in hydrated:
+                pid = hp.get("paperId", "")
+                if pid in all_papers:
+                    # Merge hydrated fields into existing paper
+                    all_papers[pid].update(hp)
+                    # Preserve our score
+                    if "_relevance_score" not in all_papers[pid]:
+                        all_papers[pid]["_relevance_score"] = score_paper(all_papers[pid])
+            logger.info("S2 hydration: enriched %d papers", len(hydrated))
+        except Exception as e:
+            logger.warning("S2 hydration step failed (non-blocking): %s", e)
+
+        # Step 6: Final sort by relevance score
         final = sorted(
             all_papers.values(),
             key=lambda p: p.get("_relevance_score", 0),
