@@ -323,14 +323,14 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
 
     # SECONDARY: Map scope items to curated academic phrases (no noun dumps)
     _S2_CONCEPT_MAP: list[tuple[list[str], str]] = [
-        (["priorit", "needs", "assess"], "needs assessment methodology government"),
-        (["service", "portfolio", "design"], "service portfolio design government"),
-        (["institutional", "framework", "relationship"], "institutional framework relationship management"),
-        (["strategic", "support", "continuous"], "strategic advisory operating model"),
-        (["export", "expansion", "international"], "export promotion program evaluation"),
-        (["segmentation", "classification"], "client segmentation framework government"),
-        (["sla", "kpi", "performance"], "service level agreement design methodology"),
-        (["governance", "oversight"], "project governance framework consulting"),
+        (["priorit", "needs", "assess"], "needs assessment methodology for government services"),
+        (["service", "portfolio", "design"], "service portfolio design for government agencies"),
+        (["institutional", "framework", "relationship"], "institutional framework for client relationship management"),
+        (["strategic", "support", "continuous"], "strategic advisory services operating model design"),
+        (["export", "expansion", "international"], "export promotion program evaluation and design"),
+        (["segmentation", "classification"], "client segmentation framework for government services"),
+        (["sla", "kpi", "performance"], "service level agreement design for promotion agencies"),
+        (["governance", "oversight"], "project governance framework for consulting engagements"),
     ]
     if rfp.scope_items:
         for scope_item in rfp.scope_items[:4]:
