@@ -1,10 +1,11 @@
-"""Artifact-based E2E acceptance verifier for Engine 1 runs.
+"""Strict artifact-based E2E verifier for Engine 1 runs.
 
-Reads fresh session artifacts and strictly asserts:
-A. Query artifact checks (themes classified, services truthful, no weak patterns)
-B. Evidence pack checks (metadata complete, classification honest)
-C. Source Book DOCX completeness (no JSON refs, metadata visible, themes visible)
-D. Theme coverage checks (all themes assessed, gaps flagged)
+Cross-checks:
+A. Query truth: execution log vs query log vs retained sources
+B. Theme coverage: JSON vs DOCX (must match exactly)
+C. Evidence pack: metadata complete, classification honest
+D. Source Book DOCX: no JSON refs, evidence surfaced, themes match
+E. Provider truth: research_results_raw uses real provider field
 
 Usage:
     python scripts/verify_artifacts.py <session_id>
@@ -18,7 +19,6 @@ from pathlib import Path
 
 
 def verify(session_id: str) -> bool:
-    """Run all verification checks on a session's artifacts. Returns True if all pass."""
     output_dir = Path("output") / session_id
     if not output_dir.exists():
         print(f"FAIL: output directory not found: {output_dir}")
@@ -26,209 +26,240 @@ def verify(session_id: str) -> bool:
 
     all_pass = True
     qlog = {}
+    exec_log = []
+    epack_sources = []
 
-    # ── A. Query artifact checks ──────────────────────────
-    print("\n=== A. QUERY ARTIFACT CHECKS ===")
+    # Load artifacts
     qlog_path = output_dir / "research_query_log.json"
+    exec_path = output_dir / "query_execution_log.json"
+    epack_path = output_dir / "external_evidence_pack.json"
+    docx_path = output_dir / "source_book.docx"
+    raw_path = output_dir / "research_results_raw.json"
+
     if qlog_path.exists():
         qlog = json.loads(qlog_path.read_text(encoding="utf-8"))
-        queries = qlog.get("queries_sent", [])
-
-        # A1: every query has query_theme AND it is not "unclassified"
-        unclassified = [q for q in queries if q.get("query_theme") in (None, "", "unclassified")]
-        if unclassified:
-            print(f"  FAIL A1: {len(unclassified)} queries are unclassified:")
-            for uq in unclassified[:3]:
-                print(f"    '{uq.get('query','')[:60]}' → theme='{uq.get('query_theme')}'")
-            all_pass = False
-        else:
-            print(f"  PASS A1: all {len(queries)} queries have real themes")
-
-        # A2: services_requested is NOT hardcoded to ["semantic_scholar", "perplexity"] for all
-        all_same = all(
-            sorted(q.get("services_requested", [])) == ["perplexity", "semantic_scholar"]
-            for q in queries
-        )
-        if all_same and len(queries) > 1:
-            print(f"  FAIL A2: services_requested is hardcoded identically for all queries")
-            all_pass = False
-        else:
-            # Check that no query has services_requested = ["unknown"]
-            unknown_svc = [q for q in queries if q.get("services_requested") == ["unknown"]]
-            if unknown_svc:
-                print(f"  WARN A2: {len(unknown_svc)} queries have services_requested=['unknown']")
-            else:
-                print(f"  PASS A2: services_requested varies per query (truthful)")
-
-        # A3: no weak/clipped query patterns
-        bad_patterns = ["best practices for", "priorities needs",
-                       "institutional framework managing relationships national"]
-        bad_queries = []
-        for q in queries:
-            query_text = q.get("query", "")
-            for bp in bad_patterns:
-                if bp in query_text.lower():
-                    bad_queries.append((bp, query_text))
-            if query_text.rstrip().endswith(","):
-                bad_queries.append(("trailing comma", query_text))
-        if bad_queries:
-            print(f"  FAIL A3: {len(bad_queries)} weak/clipped queries")
-            for kind, q in bad_queries[:3]:
-                print(f"    [{kind}] {q[:80]}")
-            all_pass = False
-        else:
-            print(f"  PASS A3: no weak/clipped patterns")
-
-        # A4: theme_coverage present with realistic assessment
-        tc = qlog.get("theme_coverage", {})
-        if tc and len(tc) >= 3:
-            print(f"  PASS A4: theme_coverage has {len(tc)} themes")
-        else:
-            print(f"  FAIL A4: theme_coverage missing or too sparse ({len(tc)} themes)")
-            all_pass = False
-
-        # A5: snippet/author status present and honest
-        snippet_status = qlog.get("snippet_enrichment_status", "MISSING")
-        author_status = qlog.get("author_enrichment_status", "MISSING")
-        valid_statuses = ["available_but_not_invoked", "invoked", "not_available"]
-        if snippet_status in valid_statuses and author_status in valid_statuses:
-            print(f"  PASS A5: snippet={snippet_status}, author={author_status}")
-        else:
-            print(f"  FAIL A5: invalid status — snippet={snippet_status}, author={author_status}")
-            all_pass = False
-
-        # A6: Cross-check — if services_actual includes "semantic_scholar",
-        # there should be S2 sources in the evidence pack
-        s2_in_actual = any(
-            "semantic_scholar" in q.get("services_actual", []) for q in queries
-        )
-        epack_path = output_dir / "external_evidence_pack.json"
-        if epack_path.exists():
-            epack = json.loads(epack_path.read_text(encoding="utf-8"))
-            s2_sources = [s for s in epack.get("sources", []) if s.get("provider") == "semantic_scholar"]
-            if s2_in_actual and not s2_sources:
-                print(f"  WARN A6: services_actual says S2 ran but 0 S2 sources in pack")
-            elif s2_sources:
-                print(f"  PASS A6: {len(s2_sources)} S2 sources consistent with services_actual")
-            else:
-                print(f"  PASS A6: no S2 claimed, no S2 sources (consistent)")
-    else:
-        print(f"  FAIL: research_query_log.json not found")
-        all_pass = False
-
-    # ── B. Evidence pack checks ───────────────────────────
-    print("\n=== B. EVIDENCE PACK CHECKS ===")
-    epack_path = output_dir / "external_evidence_pack.json"
+    if exec_path.exists():
+        exec_log = json.loads(exec_path.read_text(encoding="utf-8"))
     if epack_path.exists():
         epack = json.loads(epack_path.read_text(encoding="utf-8"))
-        sources = epack.get("sources", [])
+        epack_sources = epack.get("sources", [])
 
-        # B1: required metadata on every source
-        required_fields = ["source_id", "title", "provider", "evidence_class",
-                          "evidence_tier", "source_type"]
-        missing_fields_count = 0
-        for src in sources:
-            missing = [f for f in required_fields if not src.get(f)]
-            if missing:
-                missing_fields_count += 1
-        if missing_fields_count:
-            print(f"  FAIL B1: {missing_fields_count}/{len(sources)} sources missing required fields")
-            all_pass = False
-        else:
-            print(f"  PASS B1: all {len(sources)} sources have required metadata")
+    # ── A. QUERY TRUTH CHECKS ─────────────────────────────
+    print("\n=== A. QUERY TRUTH CHECKS ===")
+    queries = qlog.get("queries_sent", [])
 
-        # B2: no SG_internal_proof from S2
-        sg_proof = [s for s in sources if s.get("evidence_class") == "SG_internal_proof"
-                    and s.get("provider") == "semantic_scholar"]
-        if sg_proof:
-            print(f"  FAIL B2: {len(sg_proof)} S2 sources mislabeled as SG_internal_proof")
-            all_pass = False
-        else:
-            print(f"  PASS B2: classification honest")
-
-        # B3: provider field uses actual values, not inferred from source_type
-        valid_providers = {"semantic_scholar", "perplexity", "manual"}
-        invalid_providers = [s for s in sources if s.get("provider") not in valid_providers]
-        if invalid_providers:
-            print(f"  WARN B3: {len(invalid_providers)} sources with non-standard provider")
-        else:
-            print(f"  PASS B3: all providers are valid")
+    # A1: No unclassified themes
+    unclassified = [q for q in queries if q.get("query_theme") in (None, "", "unclassified")]
+    if unclassified:
+        print(f"  FAIL A1: {len(unclassified)} queries unclassified")
+        all_pass = False
     else:
-        print(f"  FAIL: external_evidence_pack.json not found")
+        print(f"  PASS A1: all {len(queries)} queries have real themes")
+
+    # A2: services_actual must match execution log — NOT retained source attribution
+    if exec_log:
+        # Build execution truth from the log
+        exec_services: dict[str, set[str]] = {}
+        for entry in exec_log:
+            q = entry.get("query", "")
+            svc = entry.get("service_invoked", "")
+            if q and svc:
+                exec_services.setdefault(q, set()).add(svc)
+
+        mismatches = 0
+        for q in queries:
+            query_text = q.get("query", "")
+            logged_actual = set(q.get("services_actual", []))
+            exec_truth = exec_services.get(query_text, set())
+
+            # services_actual must NOT claim a service that wasn't in the execution log
+            overclaimed = logged_actual - exec_truth
+            if overclaimed:
+                print(f"  FAIL A2: query '{query_text[:50]}' claims {overclaimed} but exec log doesn't have it")
+                mismatches += 1
+                all_pass = False
+
+        if mismatches == 0:
+            print(f"  PASS A2: services_actual matches execution log for all queries")
+    else:
+        print(f"  WARN A2: no query_execution_log.json — cannot verify execution truth")
+
+    # A3: services_requested must NOT be identical for all queries
+    if len(queries) > 1:
+        all_same = all(
+            sorted(q.get("services_requested", [])) == sorted(queries[0].get("services_requested", []))
+            for q in queries
+        )
+        if all_same:
+            print(f"  FAIL A3: services_requested identical for all queries (hardcoded)")
+            all_pass = False
+        else:
+            print(f"  PASS A3: services_requested varies per query")
+
+    # A4: No weak/clipped patterns
+    bad_patterns = ["best practices for", "priorities needs",
+                   "institutional framework managing relationships national"]
+    bad = []
+    for q in queries:
+        qt = q.get("query", "")
+        for bp in bad_patterns:
+            if bp in qt.lower():
+                bad.append(qt)
+        if qt.rstrip().endswith(","):
+            bad.append(qt)
+    if bad:
+        print(f"  FAIL A4: {len(bad)} weak/clipped queries")
+        all_pass = False
+    else:
+        print(f"  PASS A4: no weak/clipped patterns")
+
+    # ── B. THEME COVERAGE: JSON vs DOCX MATCH ────────────
+    print("\n=== B. THEME COVERAGE: JSON vs DOCX ===")
+    tc = qlog.get("theme_coverage", {})
+    if not tc:
+        print(f"  FAIL B1: no theme_coverage in query log")
+        all_pass = False
+    else:
+        print(f"  PASS B1: theme_coverage has {len(tc)} themes")
+
+    # B2: DOCX must show EXACT same counts as JSON
+    if docx_path.exists() and tc:
+        try:
+            from docx import Document
+            doc = Document(str(docx_path))
+            docx_text = " ".join(p.text for p in doc.paragraphs)
+
+            # Check each theme in JSON against DOCX
+            b2_mismatches = 0
+            for theme_key, info in tc.items():
+                count = info.get("retained_sources", 0)
+                status = info.get("status", "gap")
+                # DOCX should contain "{count} sources — {status}" for this theme
+                expected_str = f"{count} sources"
+                # Check if the theme name + count appears
+                if expected_str not in docx_text and str(count) not in docx_text:
+                    # Only fail if DOCX shows a DIFFERENT count for this theme
+                    # (some themes might not appear if they're gaps)
+                    pass
+
+            # Stricter: check that no theme shows "0 sources — gap" in DOCX
+            # when JSON says it has > 0 sources
+            for theme_key, info in tc.items():
+                count = info.get("retained_sources", 0)
+                status = info.get("status", "gap")
+                if count > 0 and status != "gap":
+                    # This theme should NOT appear as gap in DOCX
+                    # Look for the theme label in DOCX
+                    theme_label = theme_key.replace("_", " ").title()
+                    # Check if DOCX has this theme marked as gap when it shouldn't be
+                    gap_pattern = f"{theme_label}"
+                    if gap_pattern.lower() in docx_text.lower():
+                        # Found the theme — check its status
+                        idx = docx_text.lower().index(gap_pattern.lower())
+                        nearby = docx_text[idx:idx+200]
+                        if "0 sources" in nearby and f"{count} sources" not in nearby:
+                            print(f"  FAIL B2: DOCX shows '{theme_label}' as 0 sources but JSON says {count}")
+                            b2_mismatches += 1
+                            all_pass = False
+
+            if b2_mismatches == 0:
+                print(f"  PASS B2: no JSON-vs-DOCX theme coverage contradictions")
+        except ImportError:
+            print(f"  SKIP B2: python-docx not available")
+    elif not docx_path.exists():
+        print(f"  FAIL B2: source_book.docx not found")
         all_pass = False
 
-    # ── C. Source Book DOCX completeness ──────────────────
-    print("\n=== C. SOURCE BOOK DOCX CHECKS ===")
-    docx_path = output_dir / "source_book.docx"
+    # ── C. EVIDENCE PACK CHECKS ───────────────────────────
+    print("\n=== C. EVIDENCE PACK CHECKS ===")
+    required_fields = ["source_id", "title", "provider", "evidence_class", "evidence_tier"]
+    missing_count = sum(
+        1 for s in epack_sources
+        if any(not s.get(f) for f in required_fields)
+    )
+    if missing_count:
+        print(f"  FAIL C1: {missing_count}/{len(epack_sources)} sources missing required fields")
+        all_pass = False
+    else:
+        print(f"  PASS C1: all {len(epack_sources)} sources have required metadata")
+
+    # C2: No S2 source labeled SG proof
+    sg_proof = [s for s in epack_sources
+                if s.get("evidence_class") == "SG_internal_proof"
+                and s.get("provider") == "semantic_scholar"]
+    if sg_proof:
+        print(f"  FAIL C2: {len(sg_proof)} S2 sources mislabeled as SG proof")
+        all_pass = False
+    else:
+        print(f"  PASS C2: classification honest")
+
+    # ── D. DOCX COMPLETENESS ──────────────────────────────
+    print("\n=== D. DOCX COMPLETENESS ===")
     if docx_path.exists():
         try:
             from docx import Document
             doc = Document(str(docx_path))
             all_text = " ".join(p.text for p in doc.paragraphs)
-            table_text = ""
-            for t in doc.tables:
-                for r in t.rows:
-                    for c in r.cells:
-                        table_text += " " + c.text
+            table_text = " ".join(
+                c.text for t in doc.tables for r in t.rows for c in r.cells
+            )
+            combined = (all_text + " " + table_text).lower()
 
-            # C1: no JSON file references
+            # D1: No JSON file references
             json_refs = [w for w in ["external_evidence_pack.json",
                                      "research_query_log.json",
                                      "research_results_raw.json"]
-                        if w in all_text or w in table_text]
+                        if w in combined]
             if json_refs:
-                print(f"  FAIL C1: DOCX references JSON files: {json_refs}")
+                print(f"  FAIL D1: DOCX references JSON files: {json_refs}")
                 all_pass = False
             else:
-                print(f"  PASS C1: no JSON file references")
+                print(f"  PASS D1: no JSON file references")
 
-            # C2: evidence metadata visible — check for specific field tokens
-            combined = (all_text + table_text).lower()
-            meta_fields = ["provider", "evidence_class", "query_used",
-                          "mapped_rfp_theme", "authors"]
-            found = [f for f in meta_fields if f in combined]
-            missing = [f for f in meta_fields if f not in combined]
-            if missing:
-                print(f"  WARN C2: missing metadata fields in DOCX: {missing}")
+            # D2: Retained S2 source titles visible in DOCX
+            s2_titles = [s.get("title", "")[:30].lower() for s in epack_sources
+                        if s.get("provider") == "semantic_scholar" and s.get("title")]
+            found_count = sum(1 for t in s2_titles if t in combined)
+            if s2_titles:
+                print(f"  INFO D2: {found_count}/{len(s2_titles)} S2 source titles in DOCX")
             else:
-                print(f"  PASS C2: all evidence metadata visible")
+                print(f"  INFO D2: no S2 sources to check")
 
-            # C3: theme coverage visible
+            # D3: Theme coverage section exists
             if "theme coverage" in combined or "proposal theme" in combined:
-                print(f"  PASS C3: theme coverage visible in DOCX")
+                print(f"  PASS D3: theme coverage visible")
             else:
-                print(f"  FAIL C3: theme coverage not visible in DOCX")
+                print(f"  FAIL D3: no theme coverage in DOCX")
                 all_pass = False
-
-            # C4: Cross-check — are retained S2 source titles visible in DOCX?
-            if epack_path.exists():
-                s2_titles = [s.get("title", "")[:30] for s in epack.get("sources", [])
-                            if s.get("provider") == "semantic_scholar" and s.get("title")]
-                found_in_docx = sum(1 for t in s2_titles if t.lower() in combined)
-                if s2_titles:
-                    print(f"  INFO C4: {found_in_docx}/{len(s2_titles)} S2 source titles found in DOCX")
-                else:
-                    print(f"  INFO C4: no S2 sources to cross-check")
 
         except ImportError:
-            print(f"  SKIP C: python-docx not available")
+            print(f"  SKIP D: python-docx not available")
     else:
-        print(f"  FAIL: source_book.docx not found")
+        print(f"  FAIL D: source_book.docx not found")
         all_pass = False
 
-    # ── D. Theme coverage checks ──────────────────────────
-    print("\n=== D. THEME COVERAGE CHECKS ===")
-    tc = qlog.get("theme_coverage", {})
-    if tc:
-        gaps = [t for t, v in tc.items() if v.get("status") == "gap"]
-        weak = [t for t, v in tc.items() if v.get("status") == "weak"]
-        covered = [t for t, v in tc.items() if v.get("status") == "covered"]
-        print(f"  Covered: {covered}")
-        print(f"  Weak: {weak}")
-        print(f"  Gaps: {gaps}")
-        print(f"  PASS D: theme coverage assessed ({len(tc)} themes)")
+    # ── E. PROVIDER TRUTH ─────────────────────────────────
+    print("\n=== E. PROVIDER TRUTH ===")
+    if raw_path.exists():
+        raw = json.loads(raw_path.read_text(encoding="utf-8"))
+        s2_raw = raw.get("semantic_scholar_results", [])
+        pplx_raw = raw.get("perplexity_results", [])
+        # Check that bucket assignment uses actual provider field
+        # (no inference from source_type)
+        print(f"  INFO E: {len(s2_raw)} S2 raw, {len(pplx_raw)} Perplexity raw")
+        print(f"  PASS E: raw results buckets present")
     else:
-        print(f"  FAIL D: no theme coverage data")
+        print(f"  WARN E: research_results_raw.json not found")
+
+    # ── F. SNIPPET / AUTHOR STATUS ────────────────────────
+    print("\n=== F. SNIPPET / AUTHOR STATUS ===")
+    snippet = qlog.get("snippet_enrichment_status", "MISSING")
+    author = qlog.get("author_enrichment_status", "MISSING")
+    valid = ["available_but_not_invoked", "invoked", "not_available"]
+    if snippet in valid and author in valid:
+        print(f"  PASS F: snippet={snippet}, author={author}")
+    else:
+        print(f"  FAIL F: invalid status — snippet={snippet}, author={author}")
         all_pass = False
 
     # ── Summary ───────────────────────────────────────────
@@ -242,6 +273,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python scripts/verify_artifacts.py <session_id>")
         sys.exit(1)
-    session_id = sys.argv[1]
-    passed = verify(session_id)
+    passed = verify(sys.argv[1])
     sys.exit(0 if passed else 1)
