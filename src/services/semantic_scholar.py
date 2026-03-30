@@ -1,5 +1,12 @@
 """Semantic Scholar — Academic Graph + Recommendations API client.
 
+Follows the official S2 documentation flow:
+  1. Bulk search (discovery)
+  2. Score & shortlist seed papers
+  3. Recommendations expansion from seeds
+  4. Hydrate retained papers with full metadata
+  5. Classification & export
+
 Uses x-api-key authentication. Rate limit: 1 req/s across all endpoints.
 If the key returns 403, log the error and raise. NO anonymous fallback.
 """
@@ -18,9 +25,31 @@ S2_GRAPH_BASE = "https://api.semanticscholar.org/graph/v1"
 S2_RECOMMENDATIONS_BASE = "https://api.semanticscholar.org/recommendations/v1"
 S2_BULK_SEARCH_URL = f"{S2_GRAPH_BASE}/paper/search/bulk"
 S2_RECOMMENDATIONS_URL = f"{S2_RECOMMENDATIONS_BASE}/papers"
-S2_PAPER_FIELDS = "paperId,title,year,abstract,citationCount,url"
-MAX_QUERY_WORDS = 5
+
+# Field lists per documentation
+DISCOVERY_FIELDS = (
+    "paperId,title,abstract,year,url,citationCount,"
+    "publicationTypes,fieldsOfStudy,openAccessPdf,venue"
+)
+RECOMMENDATION_FIELDS = "title,url,authors,citationCount,year,abstract"
+HYDRATION_FIELDS = (
+    "title,abstract,year,url,citationCount,influentialCitationCount,"
+    "authors,venue,publicationVenue,openAccessPdf,"
+    "fieldsOfStudy,publicationTypes,tldr"
+)
+
+# Legacy compat
+S2_PAPER_FIELDS = DISCOVERY_FIELDS
+MAX_QUERY_WORDS = 8
 AUTH_MIN_INTERVAL_SEC = 1.0
+
+# Junk rejection: fields of study that are off-domain for consulting proposals
+_REJECT_FIELDS = {
+    "medicine", "biology", "chemistry", "physics", "materials science",
+    "environmental science", "geology", "astronomy", "mathematics",
+    "agricultural and food sciences", "art", "history", "philosophy",
+    "geography", "linguistics",
+}
 
 
 class SemanticScholarAPIError(Exception):
@@ -33,11 +62,7 @@ class SemanticScholarAPIError(Exception):
 
 
 def shorten_query(raw_query: str) -> list[str]:
-    """Split a long planner query into short keyword phrases (<=5 words each).
-
-    Long natural language queries return 0 results from S2.
-    Short 2-5 word keyword phrases work well.
-    """
+    """Split a long planner query into short keyword phrases (<=8 words each)."""
     fragments = re.split(r"[;\n,]", raw_query)
     short_phrases: list[str] = []
     for frag in fragments:
@@ -51,12 +76,80 @@ def shorten_query(raw_query: str) -> list[str]:
     return [p for p in short_phrases if len(p) > 3]
 
 
+def score_paper(paper: dict, query_theme: str = "") -> float:
+    """Score a paper for proposal relevance (0.0-1.0).
+
+    Score dimensions:
+    - Title relevance keywords
+    - Abstract relevance keywords
+    - Citation count (log scale)
+    - Recency bonus
+    - Field-of-study fit
+    - Junk penalty
+    """
+    score = 0.0
+    title = (paper.get("title") or "").lower()
+    abstract = (paper.get("abstract") or "").lower()
+    year = paper.get("year") or 0
+    citations = paper.get("citationCount") or 0
+    fields = [f.lower() for f in (paper.get("fieldsOfStudy") or [])]
+
+    # Relevance keywords (consulting/institutional/methodology)
+    _RELEVANCE_KW = [
+        "service", "framework", "portfolio", "governance", "institutional",
+        "assessment", "methodology", "evaluation", "benchmark", "model",
+        "government", "agency", "public sector", "promotion", "investment",
+        "export", "sme", "internationalization", "relationship management",
+        "operating model", "service delivery", "kpi", "sla", "readiness",
+        "segmentation", "client", "stakeholder", "capacity building",
+    ]
+    title_hits = sum(1 for kw in _RELEVANCE_KW if kw in title)
+    abstract_hits = sum(1 for kw in _RELEVANCE_KW if kw in abstract)
+    score += min(title_hits * 0.12, 0.36)
+    score += min(abstract_hits * 0.04, 0.24)
+
+    # Citation count (log scale)
+    import math
+    if citations > 0:
+        score += min(math.log10(citations + 1) * 0.05, 0.15)
+
+    # Recency bonus
+    if year >= 2022:
+        score += 0.10
+    elif year >= 2020:
+        score += 0.05
+
+    # Field-of-study fit
+    good_fields = {"business", "economics", "political science", "sociology",
+                   "computer science", "engineering", "education"}
+    if fields:
+        if any(f in good_fields for f in fields):
+            score += 0.10
+        if any(f in _REJECT_FIELDS for f in fields):
+            score -= 0.30  # Hard penalty for off-domain
+
+    # Junk rejection: medical/clinical/biology
+    _JUNK_TITLE_KW = [
+        "patient", "clinical", "tumor", "gene", "protein", "cell",
+        "therapy", "diagnosis", "treatment", "hospital", "surgery",
+        "species", "genome", "neural network", "deep learning",
+    ]
+    if any(kw in title for kw in _JUNK_TITLE_KW):
+        score -= 0.50
+
+    return max(0.0, min(score, 1.0))
+
+
 @dataclass
 class _SearchRunStats:
     """Internal telemetry for search+recommend flow."""
 
     queries: list[str] = field(default_factory=list)
     seed_ids: list[str] = field(default_factory=list)
+    total_discovered: int = 0
+    total_after_scoring: int = 0
+    total_after_recommendations: int = 0
+    junk_rejected: int = 0
 
 
 class SemanticScholarClient:
@@ -104,12 +197,16 @@ class SemanticScholarClient:
         return resp.json()
 
     async def search_papers(
-        self, query: str, year_from: int = 2020, max_results: int = 10
+        self, query: str, year_from: int = 2018, max_results: int = 1000
     ) -> list[dict]:
-        """Bulk search for papers matching a SHORT keyword query."""
+        """Step 1: Bulk search for papers matching a keyword query.
+
+        Uses GET /graph/v1/paper/search/bulk with proper fields and filters.
+        Returns up to max_results papers sorted by citation count.
+        """
         params = {
             "query": query,
-            "fields": S2_PAPER_FIELDS,
+            "fields": DISCOVERY_FIELDS,
             "year": f"{year_from}-",
         }
         data = await self._get(S2_BULK_SEARCH_URL, params)
@@ -126,10 +223,10 @@ class SemanticScholarClient:
     async def get_recommendations(
         self, seed_paper_ids: list[str], max_results: int = 20
     ) -> list[dict]:
-        """Get recommended papers based on seed papers."""
+        """Step 3: Get recommended papers based on scored seed papers."""
         params = {
-            "fields": S2_PAPER_FIELDS,
-            "limit": min(max_results, 500),
+            "fields": RECOMMENDATION_FIELDS,
+            "limit": min(max_results, 40),
         }
         body = {
             "positivePaperIds": seed_paper_ids,
@@ -147,14 +244,23 @@ class SemanticScholarClient:
     async def search_and_recommend(
         self,
         queries: list[str],
-        year_from: int = 2020,
-        search_per_query: int = 5,
-        recommend_count: int = 20,
+        year_from: int = 2018,
+        search_per_query: int = 50,
+        recommend_count: int = 30,
     ) -> list[dict]:
-        """Two-step flow: search → seed → recommend → merge."""
-        all_papers: dict[str, dict] = {}
-        stats = _SearchRunStats(queries=list(queries))
+        """Full flow: search → score → shortlist → recommend → merge.
 
+        Step 1: Bulk search per query (up to search_per_query each)
+        Step 2: Score all discovered papers
+        Step 3: Select top 3-5 seeds
+        Step 4: Get recommendations from seeds
+        Step 5: Re-score recommendations
+        Step 6: Return merged, scored, deduplicated results
+        """
+        stats = _SearchRunStats(queries=list(queries))
+        all_papers: dict[str, dict] = {}
+
+        # Step 1: Bulk search discovery
         for q in queries:
             try:
                 results = await self.search_papers(q, year_from, search_per_query)
@@ -165,32 +271,67 @@ class SemanticScholarClient:
             except SemanticScholarAPIError as e:
                 logger.warning("S2 search failed for '%s': %s", q, e)
 
+        stats.total_discovered = len(all_papers)
+
         if not all_papers:
             logger.warning("S2: no papers found from search, skipping recommendations")
             return []
 
+        # Step 2: Score all discovered papers
+        for pid, paper in all_papers.items():
+            paper["_relevance_score"] = score_paper(paper)
+
+        # Reject junk (score < 0.05)
+        junk = [pid for pid, p in all_papers.items() if p.get("_relevance_score", 0) < 0.05]
+        for pid in junk:
+            del all_papers[pid]
+        stats.junk_rejected = len(junk)
+        stats.total_after_scoring = len(all_papers)
+
+        if not all_papers:
+            logger.warning("S2: all papers rejected by scoring")
+            return []
+
+        # Step 3: Select top 3-5 seeds
         sorted_papers = sorted(
             all_papers.values(),
-            key=lambda p: p.get("citationCount", 0),
+            key=lambda p: p.get("_relevance_score", 0),
             reverse=True,
         )
         seed_ids = [p["paperId"] for p in sorted_papers[:5]]
         stats.seed_ids = seed_ids
-        logger.info("S2: using %s seed papers for recommendations", len(seed_ids))
+        logger.info(
+            "S2: selected %d seed papers (scores: %s)",
+            len(seed_ids),
+            [f"{p.get('_relevance_score', 0):.2f}" for p in sorted_papers[:5]],
+        )
 
+        # Step 4: Get recommendations
         try:
             recs = await self.get_recommendations(seed_ids, recommend_count)
             for p in recs:
                 pid = p.get("paperId", "")
                 if pid and pid not in all_papers:
-                    all_papers[pid] = p
+                    p["_relevance_score"] = score_paper(p)
+                    if p["_relevance_score"] >= 0.05:
+                        all_papers[pid] = p
         except SemanticScholarAPIError as e:
             logger.warning("S2 recommendations failed: %s", e)
 
+        stats.total_after_recommendations = len(all_papers)
+
+        # Step 5: Final sort by relevance score
         final = sorted(
             all_papers.values(),
-            key=lambda p: p.get("citationCount", 0),
+            key=lambda p: p.get("_relevance_score", 0),
             reverse=True,
         )
-        logger.info("S2 total: %s unique papers (search + recommendations)", len(final))
+
+        logger.info(
+            "S2 pipeline: discovered=%d, after_scoring=%d, junk_rejected=%d, "
+            "after_recs=%d, seeds=%s",
+            stats.total_discovered, stats.total_after_scoring,
+            stats.junk_rejected, stats.total_after_recommendations,
+            stats.seed_ids[:3],
+        )
         return final
