@@ -2,15 +2,15 @@
   "status": "SUCCESS",
   "index_status": "OK",
   "index_reason": "",
-  "session_id": "sb-ar-1774816866",
+  "session_id": "sb-ar-1774860216",
   "failures": [],
-  "word_count": 19892,
+  "word_count": 14598,
   "evidence_ledger_entries": 25,
   "slide_blueprint_entries": 35,
-  "external_sources": 15,
-  "s2_status": "WORKING (3 results)",
-  "pplx_status": "WORKING (8 results)",
-  "capability_mappings": 9,
+  "external_sources": 12,
+  "s2_status": "FAILED (coverage says: Strong coverage achieved across all four RFP scope areas. For Scope Area 1 (Needs Assessment and Pri)",
+  "pplx_status": "WORKING (4 results)",
+  "capability_mappings": 8,
   "consultant_count": 4,
   "real_consultant_names": [],
   "project_count": 1,
@@ -35,8 +35,7 @@
       "evaluator_pattern": "",
       "proof_types_needed": [
         "team_cvs",
-        "compliance_certificates",
-        "case_studies"
+        "compliance_certificates"
       ],
       "language": "ar",
       "confidence": 0.8,
@@ -57,41 +56,41 @@
     "warnings": [],
     "routing_confidence": 0.8
   },
-  "total_time": 3067.4598536491394,
-  "docx_path": "output/sb-ar-1774816866/source_book.docx",
+  "total_time": 2976.131909608841,
+  "docx_path": "output/sb-ar-1774860216/source_book.docx",
   "artifacts": {
-    "Source Book DOCX": "output/sb-ar-1774816866/source_book.docx",
-    "Evidence Ledger JSON": "output\\sb-ar-1774816866\\evidence_ledger.json",
-    "Slide Blueprint JSON": "output\\sb-ar-1774816866\\slide_blueprint_from_source_book.json",
-    "External Evidence Pack": "output\\sb-ar-1774816866\\external_evidence_pack.json",
-    "Research Query Log": "output\\sb-ar-1774816866\\research_query_log.json",
-    "Research Results Raw": "output\\sb-ar-1774816866\\research_results_raw.json"
+    "Source Book DOCX": "output/sb-ar-1774860216/source_book.docx",
+    "Evidence Ledger JSON": "output\\sb-ar-1774860216\\evidence_ledger.json",
+    "Slide Blueprint JSON": "output\\sb-ar-1774860216\\slide_blueprint_from_source_book.json",
+    "External Evidence Pack": "output\\sb-ar-1774860216\\external_evidence_pack.json",
+    "Research Query Log": "output\\sb-ar-1774860216\\research_query_log.json",
+    "Research Results Raw": "output\\sb-ar-1774860216\\research_results_raw.json"
   },
   "cost": {
     "total_calls": 14,
-    "total_input_tokens": 573258,
-    "total_output_tokens": 166382,
-    "total_tokens": 739640,
-    "total_cost_usd": 16.8882,
-    "total_latency_s": 2903.5,
+    "total_input_tokens": 515201,
+    "total_output_tokens": 169365,
+    "total_tokens": 684566,
+    "total_cost_usd": 16.4584,
+    "total_latency_s": 2829.2,
     "by_model": {
       "gpt-5.4": {
         "calls": 4,
-        "input_tokens": 205744,
-        "output_tokens": 8781,
-        "cost_usd": 0.6022
+        "input_tokens": 195950,
+        "output_tokens": 9990,
+        "cost_usd": 0.5898
       },
       "claude-sonnet-4-6": {
         "calls": 1,
-        "input_tokens": 26296,
-        "output_tokens": 12187,
-        "cost_usd": 0.2617
+        "input_tokens": 27549,
+        "output_tokens": 9044,
+        "cost_usd": 0.2183
       },
       "claude-opus-4-6": {
         "calls": 9,
-        "input_tokens": 341218,
-        "output_tokens": 145414,
-        "cost_usd": 16.0243
+        "input_tokens": 291702,
+        "output_tokens": 150331,
+        "cost_usd": 15.6504
       }
     },
     "calls": [
@@ -99,113 +98,113 @@
         "model": "gpt-5.4",
         "caller": "RFPContext",
         "input_tokens": 84448,
-        "output_tokens": 3532,
-        "cost_usd": 0.2464,
-        "latency_s": 46.5
+        "output_tokens": 3481,
+        "cost_usd": 0.2459,
+        "latency_s": 49.1
       },
       {
         "model": "gpt-5.4",
         "caller": "RetrievalQueries",
-        "input_tokens": 16047,
-        "output_tokens": 1079,
-        "cost_usd": 0.0509,
-        "latency_s": 13.2
+        "input_tokens": 17989,
+        "output_tokens": 1070,
+        "cost_usd": 0.0557,
+        "latency_s": 15.1
       },
       {
         "model": "gpt-5.4",
         "caller": "RankedSourcesOutput",
-        "input_tokens": 28356,
-        "output_tokens": 948,
-        "cost_usd": 0.0804,
-        "latency_s": 13.0
+        "input_tokens": 30284,
+        "output_tokens": 1315,
+        "cost_usd": 0.0889,
+        "latency_s": 20.6
       },
       {
         "model": "claude-sonnet-4-6",
         "caller": "ExternalEvidencePack",
-        "input_tokens": 26296,
-        "output_tokens": 12187,
-        "cost_usd": 0.2617,
-        "latency_s": 207.3
+        "input_tokens": 27549,
+        "output_tokens": 9044,
+        "cost_usd": 0.2183,
+        "latency_s": 152.4
       },
       {
         "model": "claude-opus-4-6",
         "caller": "ProposalStrategy",
-        "input_tokens": 19394,
+        "input_tokens": 16630,
         "output_tokens": 8000,
-        "cost_usd": 0.8909,
-        "latency_s": 145.3
+        "cost_usd": 0.8495,
+        "latency_s": 143.3
       },
       {
         "model": "claude-opus-4-6",
         "caller": "SourceBookSection1",
-        "input_tokens": 20067,
-        "output_tokens": 12969,
-        "cost_usd": 1.2737,
-        "latency_s": 236.2
+        "input_tokens": 21003,
+        "output_tokens": 13362,
+        "cost_usd": 1.3172,
+        "latency_s": 237.3
       },
       {
         "model": "claude-opus-4-6",
         "caller": "SourceBookSection2",
-        "input_tokens": 15981,
-        "output_tokens": 7449,
-        "cost_usd": 0.7984,
-        "latency_s": 134.8
+        "input_tokens": 16927,
+        "output_tokens": 9358,
+        "cost_usd": 0.9558,
+        "latency_s": 158.2
       },
       {
         "model": "claude-opus-4-6",
         "caller": "SourceBookSection3",
-        "input_tokens": 14372,
-        "output_tokens": 11155,
-        "cost_usd": 1.0522,
-        "latency_s": 170.2
+        "input_tokens": 15080,
+        "output_tokens": 11291,
+        "cost_usd": 1.073,
+        "latency_s": 173.2
       },
       {
         "model": "claude-opus-4-6",
         "caller": "SourceBookSection4",
-        "input_tokens": 21117,
-        "output_tokens": 9476,
-        "cost_usd": 1.0275,
-        "latency_s": 174.1
+        "input_tokens": 18837,
+        "output_tokens": 8150,
+        "cost_usd": 0.8938,
+        "latency_s": 139.5
       },
       {
         "model": "claude-opus-4-6",
         "caller": "_Section5Methodology",
-        "input_tokens": 16661,
-        "output_tokens": 28167,
-        "cost_usd": 2.3624,
-        "latency_s": 462.8
+        "input_tokens": 17231,
+        "output_tokens": 32000,
+        "cost_usd": 2.6585,
+        "latency_s": 532.1
       },
       {
         "model": "claude-opus-4-6",
         "caller": "_Section5Governance",
-        "input_tokens": 16594,
-        "output_tokens": 22260,
-        "cost_usd": 1.9184,
-        "latency_s": 387.3
+        "input_tokens": 17164,
+        "output_tokens": 23108,
+        "cost_usd": 1.9906,
+        "latency_s": 396.6
       },
       {
         "model": "claude-opus-4-6",
         "caller": "SourceBookSection6",
-        "input_tokens": 92395,
-        "output_tokens": 33490,
-        "cost_usd": 3.8977,
-        "latency_s": 611.2
+        "input_tokens": 68902,
+        "output_tokens": 32805,
+        "cost_usd": 3.4939,
+        "latency_s": 537.8
       },
       {
         "model": "claude-opus-4-6",
         "caller": "SourceBookSection7",
-        "input_tokens": 124637,
-        "output_tokens": 12448,
-        "cost_usd": 2.8032,
-        "latency_s": 247.0
+        "input_tokens": 99928,
+        "output_tokens": 12257,
+        "cost_usd": 2.4182,
+        "latency_s": 204.2
       },
       {
         "model": "gpt-5.4",
         "caller": "SourceBookReview",
-        "input_tokens": 76893,
-        "output_tokens": 3222,
-        "cost_usd": 0.2245,
-        "latency_s": 54.6
+        "input_tokens": 63229,
+        "output_tokens": 4124,
+        "cost_usd": 0.1993,
+        "latency_s": 69.8
       }
     ]
   }
