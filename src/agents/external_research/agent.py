@@ -165,14 +165,54 @@ def _validate_query(query: str, max_len: int = 120) -> str | None:
     return q
 
 
+def _scope_to_research_question(scope_en: str) -> str | None:
+    """Convert a scope item's English text into a proper research question.
+
+    Uses keyword detection to identify the domain concept and maps it
+    to a human-quality research question. Returns None if no meaningful
+    concept is detected.
+    """
+    text = scope_en.lower()
+
+    # Map domain concepts to research questions
+    # Each tuple: (keywords_to_match, research_question)
+    _CONCEPT_MAP: list[tuple[list[str], str]] = [
+        (["priorit", "needs", "assess", "current"],
+         "how do investment promotion agencies assess company needs and prioritize service delivery"),
+        (["service", "ecosystem", "portfolio", "design"],
+         "how do government agencies design service portfolios for companies expanding internationally"),
+        (["institutional framework", "relationship", "managing"],
+         "benchmark models for institutional relationship management between investment agencies and national companies"),
+        (["strategic support", "activation", "continuous"],
+         "operating models for government agencies providing continuous strategic support to national firms"),
+        (["export", "expansion", "international"],
+         "international benchmarks for government-backed export and international expansion support programs"),
+        (["segmentation", "classification", "readiness"],
+         "international benchmarks for company segmentation by readiness for cross-border expansion"),
+        (["sla", "kpi", "performance", "indicator"],
+         "service level agreements and KPI frameworks for investment promotion agencies"),
+        (["governance", "oversight", "steering"],
+         "governance frameworks for multi-stakeholder consulting engagements in government"),
+        (["knowledge transfer", "capacity building"],
+         "knowledge transfer methodologies for consulting engagements with government agencies"),
+    ]
+
+    for keywords, question in _CONCEPT_MAP:
+        if sum(1 for kw in keywords if kw in text) >= 2:
+            return question
+
+    # Fallback: extract first meaningful phrase and frame it
+    nouns = _extract_domain_nouns(scope_en, max_words=5)
+    if nouns and len(nouns.split()) >= 3:
+        return f"how do government agencies implement {nouns} programs"
+    return None
+
+
 def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
-    """Generate 6-10 Perplexity queries as natural-language research questions.
+    """Generate 6-10 Perplexity queries as human-quality research questions.
 
-    Strategy: A human researcher reading this RFP would ask "how do
-    organizations solve this problem?" — NOT copy the RFP text.
-
-    NEVER prepend "best practices for" to RFP text. Instead, reformulate
-    each scope concept into a genuine research question.
+    Each query contains: actor + action + domain context + output type.
+    NO raw RFP text copying. NO noun dumps. NO "best practices for" prefix.
     """
     queries: list[str] = []
 
@@ -180,25 +220,14 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
     if not rfp:
         return ["how do consulting firms design service delivery frameworks"]
 
-    # Extract domain nouns for reformulation
-    scope_concepts: list[str] = []
+    # 1. Per scope item — map to curated research questions
     if rfp.scope_items:
         for si in rfp.scope_items[:4]:
             en = _extract_bilingual_en(si.description) or ""
             if en:
-                scope_concepts.append(_extract_domain_nouns(en, max_words=6))
-
-    # 1. Per scope concept — reformulate as "how do organizations..."
-    _QUESTION_FRAMES = [
-        "how do organizations design {concept} programs",
-        "what frameworks exist for {concept} in government agencies",
-        "how do investment promotion agencies implement {concept}",
-        "what are the key success factors for {concept} delivery",
-    ]
-    for i, concept in enumerate(scope_concepts):
-        if concept and len(concept.split()) >= 2:
-            frame = _QUESTION_FRAMES[i % len(_QUESTION_FRAMES)]
-            queries.append(frame.format(concept=concept))
+                q = _scope_to_research_question(en)
+                if q:
+                    queries.append(q)
 
     # 2. Pack-driven seed queries (curated by domain experts)
     pack_ctx = getattr(state, "pack_context", None) or {}
@@ -206,7 +235,16 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
     for pq in pack_search[:5]:
         queries.append(pq)
 
-    # 3. Geographic/institutional context
+    # 3. Per deliverable — map to research questions
+    if rfp.deliverables:
+        for deliv in rfp.deliverables[:2]:
+            en = _extract_bilingual_en(deliv.description) or ""
+            if en:
+                q = _scope_to_research_question(en)
+                if q:
+                    queries.append(q)
+
+    # 4. Geographic/institutional context
     geography = state.geography or ""
     sector = state.sector or ""
     if geography and sector:
@@ -214,19 +252,10 @@ def _generate_pplx_queries(state: DeckForgeState) -> list[str]:
             f"how does {geography} government evaluate {sector} consulting proposals"
         )
 
-    # 4. Deliverable-specific research
-    if rfp.deliverables:
-        for deliv in rfp.deliverables[:2]:
-            en = _extract_bilingual_en(deliv.description) or ""
-            if en:
-                nouns = _extract_domain_nouns(en, max_words=5)
-                if nouns:
-                    queries.append(f"international case studies of {nouns}")
-
     if not queries:
         queries.append("how do consulting firms design service delivery frameworks")
 
-    # Validate — no truncation, no copy-paste
+    # Validate — no truncation, no copy-paste, no noun dumps
     validated = []
     for q in queries:
         clean = _validate_query(q)
@@ -292,20 +321,29 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
         if clean:
             queries.append(clean)
 
-    # SECONDARY: Extract domain concept nouns from scope items (4-8 words)
-    # Only add if the result forms a coherent 4+ word academic phrase
+    # SECONDARY: Map scope items to curated academic phrases (no noun dumps)
+    _S2_CONCEPT_MAP: list[tuple[list[str], str]] = [
+        (["priorit", "needs", "assess"], "needs assessment methodology government"),
+        (["service", "portfolio", "design"], "service portfolio design government"),
+        (["institutional", "framework", "relationship"], "institutional framework relationship management"),
+        (["strategic", "support", "continuous"], "strategic advisory operating model"),
+        (["export", "expansion", "international"], "export promotion program evaluation"),
+        (["segmentation", "classification"], "client segmentation framework government"),
+        (["sla", "kpi", "performance"], "service level agreement design methodology"),
+        (["governance", "oversight"], "project governance framework consulting"),
+    ]
     if rfp.scope_items:
         for scope_item in rfp.scope_items[:4]:
             desc = scope_item.description
             en_text = getattr(desc, "en", "") if desc else ""
-            if en_text and len(en_text) > 5:
-                phrase = _extract_domain_nouns(en_text, max_words=6)
-                words = phrase.split()
-                # Only use if 4+ meaningful words — prevents noun dumps
-                if len(words) >= 4:
-                    clean = _validate_query(phrase, max_len=60)
-                    if clean:
-                        queries.append(clean)
+            if en_text:
+                text_lower = en_text.lower()
+                for keywords, academic_phrase in _S2_CONCEPT_MAP:
+                    if sum(1 for kw in keywords if kw in text_lower) >= 2:
+                        clean = _validate_query(academic_phrase, max_len=60)
+                        if clean and clean not in queries:
+                            queries.append(clean)
+                        break
 
     # Sector + geography queries
     if sector:
