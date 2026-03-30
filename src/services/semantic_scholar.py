@@ -150,6 +150,8 @@ class _SearchRunStats:
     total_after_scoring: int = 0
     total_after_recommendations: int = 0
     junk_rejected: int = 0
+    # Per-query bulk search telemetry: query → {total, returned}
+    per_query_telemetry: dict = field(default_factory=dict)
 
 
 class SemanticScholarClient:
@@ -269,12 +271,13 @@ class SemanticScholarClient:
                 break
             token = next_token
 
+        total = data.get("total", 0) if data else 0
         logger.info(
             "S2 search: query='%s' total=%s pages=%d returned=%d",
-            query, data.get("total", 0), pages, len(all_papers),
+            query, total, pages, len(all_papers),
         )
         all_papers.sort(key=lambda p: p.get("citationCount", 0), reverse=True)
-        return all_papers[:max_results]
+        return all_papers[:max_results], total
 
     async def get_recommendations(
         self,
@@ -420,7 +423,7 @@ class SemanticScholarClient:
         # Step 1: Bulk search with ALL required filters and pagination
         for q in queries:
             try:
-                results = await self.search_papers(
+                results, bulk_total = await self.search_papers(
                     query=q,
                     year_from=year_from,
                     max_results=search_per_query,
@@ -429,12 +432,22 @@ class SemanticScholarClient:
                     publication_types=_PREFERRED_PUB_TYPES,
                     sort="citationCount:desc",
                 )
+                # Capture per-query telemetry
+                stats.per_query_telemetry[q] = {
+                    "bulk_search_total": bulk_total,
+                    "bulk_search_returned": len(results),
+                }
                 for p in results:
                     pid = p.get("paperId", "")
                     if pid and pid not in all_papers:
                         all_papers[pid] = p
             except SemanticScholarAPIError as e:
                 logger.warning("S2 search failed for '%s': %s", q, e)
+                stats.per_query_telemetry[q] = {
+                    "bulk_search_total": 0,
+                    "bulk_search_returned": 0,
+                    "error": str(e),
+                }
 
         stats.total_discovered = len(all_papers)
 
@@ -525,4 +538,4 @@ class SemanticScholarClient:
             stats.junk_rejected, stats.total_after_recommendations,
             stats.seed_ids[:3],
         )
-        return final
+        return final, stats.per_query_telemetry

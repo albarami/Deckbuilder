@@ -84,6 +84,52 @@ def verify(session_id: str) -> bool:
     else:
         print(f"  WARN A2: no query_execution_log.json — cannot verify execution truth")
 
+    # A2b: Execution metrics must be real, not approximate
+    if exec_log:
+        metrics_issues = 0
+        for entry in exec_log:
+            metrics = entry.get("execution_metrics")
+            if not metrics or not isinstance(metrics, dict):
+                print(f"  FAIL A2b: entry '{entry.get('query','')[:40]}' missing execution_metrics")
+                metrics_issues += 1
+                all_pass = False
+                continue
+
+            svc = entry.get("service_invoked", "")
+            if svc == "semantic_scholar":
+                s2m = metrics.get("semantic_scholar", {})
+                total = s2m.get("bulk_search_total", -1)
+                returned = s2m.get("bulk_search_returned", -1)
+                if total == -1 or returned == -1:
+                    print(f"  FAIL A2b: S2 entry missing bulk_search_total/returned")
+                    metrics_issues += 1
+                    all_pass = False
+                # Check for the known broken pattern: all S2 have identical counts
+                pass
+            elif svc == "perplexity":
+                pm = metrics.get("perplexity", {})
+                citation_count = pm.get("citation_count", -1)
+                answer_returned = pm.get("answer_returned")
+                if citation_count == -1:
+                    print(f"  FAIL A2b: Perplexity entry missing citation_count")
+                    metrics_issues += 1
+                    all_pass = False
+                if answer_returned is True and citation_count == 0:
+                    print(f"  WARN A2b: Perplexity answered but 0 citations for '{entry.get('query','')[:40]}'")
+
+        # Check for suspicious patterns: all S2 entries have identical counts
+        s2_entries = [e for e in exec_log if e.get("service_invoked") == "semantic_scholar"]
+        if len(s2_entries) > 1:
+            s2_metrics = [e.get("execution_metrics", {}).get("semantic_scholar", {}) for e in s2_entries]
+            totals = [m.get("bulk_search_total", 0) for m in s2_metrics]
+            if len(set(totals)) == 1 and totals[0] > 10:
+                print(f"  FAIL A2b: all {len(s2_entries)} S2 queries have identical total={totals[0]} (suspicious)")
+                all_pass = False
+                metrics_issues += 1
+
+        if metrics_issues == 0:
+            print(f"  PASS A2b: execution metrics are real and per-query")
+
     # A3: services_requested must NOT be identical for all queries
     if len(queries) > 1:
         all_same = all(

@@ -28,22 +28,26 @@ _QUERY_THEME_MAP: dict[str, str] = {}
 
 # Module-level execution log — records which services were ACTUALLY invoked
 # per query at retrieval time. This is execution truth, not inferred from
-# retained source attribution.
+# retained source attribution. Each entry has real per-query metrics.
 _QUERY_EXECUTION_LOG: list[dict] = []
+_QUERY_ID_COUNTER: int = 0
 
 
 def _log_query_execution(
     query: str,
     query_theme: str,
     service: str,
-    raw_results_count: int,
+    execution_metrics: dict,
 ) -> None:
-    """Record a real query execution event."""
+    """Record a real query execution event with exact metrics."""
+    global _QUERY_ID_COUNTER
+    _QUERY_ID_COUNTER += 1
     _QUERY_EXECUTION_LOG.append({
+        "query_id": f"q-{_QUERY_ID_COUNTER:03d}",
         "query": query,
         "query_theme": query_theme,
         "service_invoked": service,
-        "raw_results_count": raw_results_count,
+        "execution_metrics": execution_metrics,
     })
 
 
@@ -492,8 +496,10 @@ def _deduplicate(items: list[str]) -> list[str]:
     return unique
 
 
-async def _search_semantic_scholar(queries: list[str], api_key: str) -> list[dict]:
-    """Run S2 two-step search + recommendations."""
+async def _search_semantic_scholar(
+    queries: list[str], api_key: str
+) -> tuple[list[dict], dict]:
+    """Run S2 two-step search + recommendations. Returns (papers, per_query_telemetry)."""
     from src.services.semantic_scholar import (
         SemanticScholarAPIError,
         SemanticScholarClient,
@@ -512,11 +518,11 @@ async def _search_semantic_scholar(queries: list[str], api_key: str) -> list[dic
 
     client = SemanticScholarClient(api_key)
     try:
-        papers = await client.search_and_recommend(short_queries)
-        return papers
+        papers, per_query_telemetry = await client.search_and_recommend(short_queries)
+        return papers, per_query_telemetry
     except SemanticScholarAPIError as e:
         logger.error("S2 pipeline failed: %s", e)
-        return []
+        return [], {}
 
 
 async def _gather_raw_evidence(
@@ -535,14 +541,14 @@ async def _gather_raw_evidence(
 
     api_key = settings.semantic_scholar_api_key
     if api_key.strip() and s2_queries:
-        # Log each S2 query as ACTUALLY INVOKED
+        papers, s2_telemetry = await _search_semantic_scholar(s2_queries[:5], api_key)
+        # Log each S2 query with REAL per-query telemetry from the bulk search
         for sq in s2_queries[:5]:
-            _log_query_execution(sq, _QUERY_THEME_MAP.get(sq, ""), "semantic_scholar", 0)
-        papers = await _search_semantic_scholar(s2_queries[:5], api_key)
-        # Update raw_results_count for S2
-        for entry in _QUERY_EXECUTION_LOG:
-            if entry["service_invoked"] == "semantic_scholar":
-                entry["raw_results_count"] = len(papers)  # approximate per-service total
+            metrics = s2_telemetry.get(sq, {"bulk_search_total": 0, "bulk_search_returned": 0})
+            _log_query_execution(
+                sq, _QUERY_THEME_MAP.get(sq, ""), "semantic_scholar",
+                {"semantic_scholar": metrics},
+            )
         for paper in papers:
             authors_raw = paper.get("authors", []) or []
             author_names = [
@@ -568,8 +574,6 @@ async def _gather_raw_evidence(
 
         api_key = settings.perplexity_api_key.get_secret_value()
         for query in pplx_queries[:4]:
-            # Log this Perplexity query as ACTUALLY INVOKED
-            _log_query_execution(query, _QUERY_THEME_MAP.get(query, ""), "perplexity", 0)
             try:
                 result = search_web(
                     query,
@@ -579,6 +583,15 @@ async def _gather_raw_evidence(
                         "evidence for a proposal. Provide specific facts, "
                         "statistics, and benchmark data."
                     ),
+                )
+                # Log AFTER the call with REAL metrics
+                citation_count = len(result.citations) if result else 0
+                _log_query_execution(
+                    query, _QUERY_THEME_MAP.get(query, ""), "perplexity",
+                    {"perplexity": {
+                        "answer_returned": bool(result),
+                        "citation_count": citation_count,
+                    }},
                 )
                 if result:
                     perplexity_results.append({
@@ -593,6 +606,10 @@ async def _gather_raw_evidence(
                     })
             except Exception as e:
                 logger.warning("Perplexity query failed: %s — %s", query, e)
+                _log_query_execution(
+                    query, _QUERY_THEME_MAP.get(query, ""), "perplexity",
+                    {"perplexity": {"answer_returned": False, "citation_count": 0, "error": str(e)}},
+                )
     except Exception as e:
         logger.warning("Perplexity service unavailable: %s", e)
 
@@ -612,8 +629,10 @@ async def run(state: DeckForgeState) -> dict:
     Returns a dict with keys matching DeckForgeState fields to update.
     """
     # Clear execution logs from previous runs
+    global _QUERY_ID_COUNTER
     _QUERY_THEME_MAP.clear()
     _QUERY_EXECUTION_LOG.clear()
+    _QUERY_ID_COUNTER = 0
 
     pplx_queries = _generate_pplx_queries(state)
     s2_queries = _generate_s2_queries(state)
