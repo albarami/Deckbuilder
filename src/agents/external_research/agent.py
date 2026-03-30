@@ -295,64 +295,94 @@ def _extract_domain_nouns(text: str, max_words: int = 8) -> str:
 
 
 def _generate_s2_queries(state: DeckForgeState) -> list[str]:
-    """Generate short academic-style queries for Semantic Scholar.
+    """Generate 6-10 academic-style S2 queries using 4-bucket approach.
 
-    S2 works best with 4-8 word ENGLISH keyword phrases.
-    Long sentences and Arabic text return irrelevant papers.
+    Bucket A: Core methodology (needs assessment, service design, governance)
+    Bucket B: Institutional model (operating models, agency design, frameworks)
+    Bucket C: Evaluation/measurement (KPI, maturity, assessment methods)
+    Bucket D: Analogical domain (export promotion, investment agencies, trade)
 
-    Strategy:
-    1. Use pack_context.recommended_s2_queries as PRIMARY source
-    2. Extract DOMAIN CONCEPT nouns from English scope text (not full sentences)
-    3. Keep all queries to 4-8 words, max 60 characters
+    Each query: 5-8 words, readable English, methodology-focused.
     """
     queries: list[str] = []
     rfp = state.rfp_context
     if not rfp:
-        return ["consulting methodology evaluation"]
+        return ["consulting methodology evaluation framework"]
 
-    sector = state.sector or ""
-    geography = state.geography or ""
+    # Build searchable text from scope items
+    scope_text = ""
+    if rfp.scope_items:
+        for si in rfp.scope_items[:4]:
+            en = _extract_bilingual_en(si.description) or ""
+            scope_text += " " + en.lower()
 
-    # PRIMARY: Pack-driven S2 queries (curated academic phrases)
+    # 1. Pack-driven curated S2 queries (highest priority)
     pack_ctx = getattr(state, "pack_context", None) or {}
-    pack_s2 = pack_ctx.get("recommended_s2_queries", [])
-    for pq in pack_s2[:5]:
-        clean = _validate_query(pq, max_len=60)
+    for pq in pack_ctx.get("recommended_s2_queries", [])[:4]:
+        clean = _validate_query(pq, max_len=80)
         if clean:
             queries.append(clean)
 
-    # SECONDARY: Map scope items to curated academic phrases (no noun dumps)
-    _S2_CONCEPT_MAP: list[tuple[list[str], str]] = [
-        (["priorit", "needs", "assess"], "needs assessment methodology for government services"),
-        (["service", "portfolio", "design"], "service portfolio design for government agencies"),
-        (["institutional", "framework", "relationship"], "institutional framework for client relationship management"),
-        (["strategic", "support", "continuous"], "strategic advisory services operating model design"),
-        (["export", "expansion", "international"], "export promotion program evaluation and design"),
-        (["segmentation", "classification"], "client segmentation framework for government services"),
-        (["sla", "kpi", "performance"], "service level agreement design for promotion agencies"),
-        (["governance", "oversight"], "project governance framework for consulting engagements"),
+    # 2. Bucket A — Core methodology queries
+    _BUCKET_A = [
+        (["needs", "assess", "priorit", "current"],
+         "needs assessment methodology for government service agencies"),
+        (["service", "portfolio", "design", "catalog"],
+         "service portfolio design framework for public agencies"),
+        (["governance", "oversight", "steering", "reporting"],
+         "project governance framework for consulting engagements"),
+        (["roadmap", "phased", "implementation", "timeline"],
+         "phased implementation roadmap methodology for government"),
     ]
-    if rfp.scope_items:
-        for scope_item in rfp.scope_items[:4]:
-            desc = scope_item.description
-            en_text = getattr(desc, "en", "") if desc else ""
-            if en_text:
-                text_lower = en_text.lower()
-                for keywords, academic_phrase in _S2_CONCEPT_MAP:
-                    if sum(1 for kw in keywords if kw in text_lower) >= 2:
-                        clean = _validate_query(academic_phrase, max_len=60)
-                        if clean and clean not in queries:
-                            queries.append(clean)
-                        break
+    for keywords, query in _BUCKET_A:
+        if sum(1 for kw in keywords if kw in scope_text) >= 2:
+            if query not in queries:
+                queries.append(query)
 
-    # Sector + geography queries
-    if sector:
-        queries.append(f"{sector} service delivery framework")
-    if geography and sector:
-        queries.append(f"{geography} {sector} program evaluation")
+    # 3. Bucket B — Institutional model queries
+    _BUCKET_B = [
+        (["institutional", "framework", "relationship", "managing"],
+         "institutional framework for client relationship management"),
+        (["operating", "model", "service delivery"],
+         "operating model design for government support agencies"),
+        (["stakeholder", "engagement", "communication"],
+         "stakeholder engagement framework for public programs"),
+    ]
+    for keywords, query in _BUCKET_B:
+        if sum(1 for kw in keywords if kw in scope_text) >= 2:
+            if query not in queries:
+                queries.append(query)
+
+    # 4. Bucket C — Evaluation/measurement queries
+    _BUCKET_C = [
+        (["kpi", "sla", "performance", "indicator"],
+         "service level agreement design for public agencies"),
+        (["readiness", "maturity", "assessment", "segmentation"],
+         "readiness assessment framework for client segmentation"),
+        (["monitor", "evaluation", "quality", "measurement"],
+         "program evaluation methodology for public services"),
+    ]
+    for keywords, query in _BUCKET_C:
+        if sum(1 for kw in keywords if kw in scope_text) >= 2:
+            if query not in queries:
+                queries.append(query)
+
+    # 5. Bucket D — Analogical domain queries
+    _BUCKET_D = [
+        (["export", "expansion", "international", "outbound"],
+         "investment promotion agency service delivery framework"),
+        (["investment", "promotion", "trade", "enterprise"],
+         "export promotion program evaluation methodology"),
+        (["support", "national", "companies", "firms"],
+         "government agency support programs for firm internationalization"),
+    ]
+    for keywords, query in _BUCKET_D:
+        if sum(1 for kw in keywords if kw in scope_text) >= 2:
+            if query not in queries:
+                queries.append(query)
 
     if not queries:
-        queries.append("consulting methodology evaluation")
+        queries.append("consulting methodology evaluation framework")
 
     return _deduplicate(queries)[:5]
 
