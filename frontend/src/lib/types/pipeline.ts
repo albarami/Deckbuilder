@@ -3,10 +3,14 @@
  */
 
 export type PipelineStatus = "running" | "gate_pending" | "complete" | "error";
-export type ProposalMode = "lite" | "standard" | "full";
+export type ProposalMode = "lite" | "standard" | "full" | "source_book_only";
 export type RendererMode = "legacy" | "template_v2";
 export type ThumbnailMode = "rendered" | "metadata_only" | "draft";
-export type ExportFormat = "pptx" | "docx" | "source_index" | "gap_report";
+export type ExportFormat =
+  | "pptx" | "docx" | "source_index" | "gap_report"
+  | "source_book" | "evidence_ledger" | "slide_blueprint"
+  | "external_evidence" | "routing_report"
+  | "research_query_log" | "query_execution_log";
 export type GatePayloadType =
   | "context_review"
   | "source_review"
@@ -369,6 +373,7 @@ export interface SessionMetadata {
 }
 
 export interface PipelineOutputs {
+  // Deck mode outputs
   pptx_ready: boolean;
   docx_ready: boolean;
   source_index_ready: boolean;
@@ -376,6 +381,29 @@ export interface PipelineOutputs {
   slide_count: number;
   preview_ready: boolean;
   deliverables: DeliverableInfo[];
+  // Source Book mode outputs
+  source_book_ready: boolean;
+  evidence_ledger_ready: boolean;
+  slide_blueprint_ready: boolean;
+  external_evidence_ready: boolean;
+  routing_report_ready: boolean;
+  research_query_log_ready: boolean;
+  query_execution_log_ready: boolean;
+}
+
+export interface SourceBookSummary {
+  word_count: number;
+  reviewer_score: number;
+  threshold_met: boolean;
+  competitive_viability: string;
+  evidence_ledger_entries: number;
+  slide_blueprint_entries: number;
+  external_sources: number;
+  capability_mappings: number;
+  consultant_count: number;
+  real_consultant_names: string[];
+  project_count: number;
+  pass_number: number;
 }
 
 export interface SessionHistoryItem {
@@ -383,6 +411,7 @@ export interface SessionHistoryItem {
   rfp_name: string;
   issuing_entity: string;
   language: string;
+  proposal_mode: ProposalMode;
   status: PipelineStatus;
   current_stage: string;
   current_gate_number?: number | null;
@@ -402,6 +431,7 @@ export interface SessionHistoryResponse {
 export interface PipelineStatusResponse {
   session_id: string;
   status: PipelineStatus;
+  proposal_mode: ProposalMode;
   current_stage: string;
   current_stage_label: string;
   current_step_number?: number | null;
@@ -412,6 +442,7 @@ export interface PipelineStatusResponse {
   elapsed_ms: number;
   error: { agent: string; message: string } | null;
   outputs: PipelineOutputs | null;
+  source_book_summary: SourceBookSummary | null;
   session_metadata: SessionMetadata;
   agent_runs: AgentRunInfo[];
   deliverables: DeliverableInfo[];

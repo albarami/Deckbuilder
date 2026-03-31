@@ -342,6 +342,35 @@ class Gate3AssemblyPlanData(BaseModel):
     win_themes: list[str] = Field(default_factory=list)
 
 
+class SectionCritiqueSummary(BaseModel):
+    """Per-section critique from Source Book reviewer."""
+
+    section_id: str = ""
+    score: int = 3
+    issues: list[str] = Field(default_factory=list)
+    rewrite_instructions: list[str] = Field(default_factory=list)
+
+
+class Gate3SourceBookData(BaseModel):
+    """Structured payload for Gate 3 Source Book review.
+
+    Surfaces the Source Book reviewer's assessment: overall score,
+    threshold status, per-section critiques, and competitive viability.
+    """
+
+    reviewer_score: int = 0
+    threshold_met: bool = False
+    competitive_viability: str = "unknown"
+    pass_number: int = 0
+    rewrite_required: bool = False
+    section_critiques: list[SectionCritiqueSummary] = Field(default_factory=list)
+    coherence_issues: list[str] = Field(default_factory=list)
+    word_count: int = 0
+    evidence_count: int = 0
+    blueprint_count: int = 0
+    docx_preview_url: str = ""
+
+
 class SlidePreviewItem(BaseModel):
     """Draft or final slide preview entry."""
 
@@ -430,6 +459,7 @@ class GateInfo(BaseModel):
         | Gate2SourceReviewData
         | Gate3ReportReviewData
         | Gate3AssemblyPlanData
+        | Gate3SourceBookData
         | Gate4SlideReviewData
         | Gate5QaReviewData
         | dict[str, Any]

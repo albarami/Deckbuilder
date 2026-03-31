@@ -27,6 +27,7 @@ from backend.models.api_models import (
     SessionHistoryItem,
     SessionHistoryResponse,
     SessionMetadataInfo,
+    SourceBookSummary,
     SSEEvent,
     ThumbnailMode,
 )
@@ -72,11 +73,21 @@ class PipelineSession:
         self.error_info: dict[str, str] | None = None
 
         self.outputs: PipelineOutputs = PipelineOutputs()
+        # Deck mode artifact paths
         self.pptx_path: str | None = None
         self.docx_path: str | None = None
         self.source_index_path: str | None = None
         self.gap_report_path: str | None = None
         self.deliverables: list[DeliverableInfo] = []
+        # Source Book mode artifact paths
+        self.source_book_path: str | None = None
+        self.evidence_ledger_path: str | None = None
+        self.slide_blueprint_path: str | None = None
+        self.external_evidence_path: str | None = None
+        self.routing_report_path: str | None = None
+        self.research_query_log_path: str | None = None
+        self.query_execution_log_path: str | None = None
+        self.source_book_summary: SourceBookSummary | None = None
 
         self.metadata: SessionMetadataInfo = SessionMetadataInfo(
             updated_at=datetime.now(UTC).isoformat()
@@ -126,6 +137,7 @@ class PipelineSession:
         return PipelineStatusResponse(
             session_id=self.session_id,
             status=self.status,
+            proposal_mode=self.proposal_mode,
             current_stage=self.current_stage,
             current_stage_label=self.current_stage_label,
             current_step_number=self.current_step_number,
@@ -136,6 +148,7 @@ class PipelineSession:
             elapsed_ms=self.elapsed_ms,
             error=self.error_info,
             outputs=self.outputs,
+            source_book_summary=self.source_book_summary,
             session_metadata=self.metadata,
             agent_runs=self.agent_runs,
             deliverables=self.deliverables,
@@ -149,6 +162,7 @@ class PipelineSession:
             rfp_name=self.rfp_name,
             issuing_entity=self.issuing_entity,
             language=self.language,
+            proposal_mode=self.proposal_mode,
             status=self.status,
             current_stage=self.current_stage_label or self.current_stage,
             current_gate_number=self.current_gate.gate_number if self.current_gate else None,
