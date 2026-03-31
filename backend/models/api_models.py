@@ -29,6 +29,7 @@ class ProposalMode(StrEnum):
     LITE = "lite"
     STANDARD = "standard"
     FULL = "full"
+    SOURCE_BOOK_ONLY = "source_book_only"
 
 
 class RendererMode(StrEnum):
@@ -43,10 +44,19 @@ class ThumbnailMode(StrEnum):
 
 
 class ExportFormat(StrEnum):
+    # Deck mode exports
     PPTX = "pptx"
     DOCX = "docx"
     SOURCE_INDEX = "source_index"
     GAP_REPORT = "gap_report"
+    # Source Book mode exports
+    SOURCE_BOOK = "source_book"
+    EVIDENCE_LEDGER = "evidence_ledger"
+    SLIDE_BLUEPRINT = "slide_blueprint"
+    EXTERNAL_EVIDENCE = "external_evidence"
+    ROUTING_REPORT = "routing_report"
+    RESEARCH_QUERY_LOG = "research_query_log"
+    QUERY_EXECUTION_LOG = "query_execution_log"
 
 
 class GatePayloadType(StrEnum):
@@ -56,6 +66,7 @@ class GatePayloadType(StrEnum):
     ASSEMBLY_PLAN_REVIEW = "assembly_plan_review"
     SLIDE_REVIEW = "slide_review"
     QA_REVIEW = "qa_review"
+    SOURCE_BOOK_REVIEW = "source_book_review"
 
 
 class AgentRunStatus(StrEnum):
@@ -465,6 +476,7 @@ class SessionMetadataInfo(BaseModel):
 class PipelineOutputs(BaseModel):
     """Output file availability."""
 
+    # Deck mode outputs
     pptx_ready: bool = False
     docx_ready: bool = False
     source_index_ready: bool = False
@@ -472,6 +484,31 @@ class PipelineOutputs(BaseModel):
     slide_count: int = 0
     preview_ready: bool = False
     deliverables: list[DeliverableInfo] = Field(default_factory=list)
+    # Source Book mode outputs
+    source_book_ready: bool = False
+    evidence_ledger_ready: bool = False
+    slide_blueprint_ready: bool = False
+    external_evidence_ready: bool = False
+    routing_report_ready: bool = False
+    research_query_log_ready: bool = False
+    query_execution_log_ready: bool = False
+
+
+class SourceBookSummary(BaseModel):
+    """Source Book completion metrics — typed contract for frontend."""
+
+    word_count: int = 0
+    reviewer_score: int = 0
+    threshold_met: bool = False
+    competitive_viability: str = "unknown"
+    evidence_ledger_entries: int = 0
+    slide_blueprint_entries: int = 0
+    external_sources: int = 0
+    capability_mappings: int = 0
+    consultant_count: int = 0
+    real_consultant_names: list[str] = Field(default_factory=list)
+    project_count: int = 0
+    pass_number: int = 0
 
 
 class SessionHistoryItem(BaseModel):
@@ -481,6 +518,7 @@ class SessionHistoryItem(BaseModel):
     rfp_name: str = ""
     issuing_entity: str = ""
     language: str = "en"
+    proposal_mode: str = "standard"
     status: PipelineStatus
     current_stage: str
     current_gate_number: int | None = None
@@ -504,6 +542,7 @@ class PipelineStatusResponse(BaseModel):
 
     session_id: str
     status: PipelineStatus
+    proposal_mode: str = "standard"
     current_stage: str
     current_stage_label: str = ""
     current_step_number: int | None = None
@@ -514,6 +553,7 @@ class PipelineStatusResponse(BaseModel):
     elapsed_ms: int = 0
     error: dict[str, str] | None = None
     outputs: PipelineOutputs | None = None
+    source_book_summary: SourceBookSummary | None = None
     session_metadata: SessionMetadataInfo = Field(default_factory=SessionMetadataInfo)
     agent_runs: list[AgentRunInfo] = Field(default_factory=list)
     deliverables: list[DeliverableInfo] = Field(default_factory=list)
