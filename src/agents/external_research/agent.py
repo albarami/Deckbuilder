@@ -541,7 +541,11 @@ async def _gather_raw_evidence(
 
     api_key = settings.semantic_scholar_api_key
     if api_key.strip() and s2_queries:
-        papers, s2_telemetry = await _search_semantic_scholar(s2_queries[:5], api_key)
+        try:
+            papers, s2_telemetry = await _search_semantic_scholar(s2_queries[:5], api_key)
+        except Exception as e:
+            logger.warning("Semantic Scholar search failed gracefully: %s", e)
+            papers, s2_telemetry = [], {}
         # Log each S2 query with REAL per-query telemetry from the bulk search
         for sq in s2_queries[:5]:
             metrics = s2_telemetry.get(sq, {"bulk_search_total": 0, "bulk_search_returned": 0})

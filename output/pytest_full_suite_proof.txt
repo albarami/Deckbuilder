@@ -1,7 +1,3 @@
-C:\Users\baram\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
-The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
-
-  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
 ........................................................................ [  3%]
 ........................................................................ [  7%]
 ........................................................................ [ 10%]
@@ -32,8 +28,9 @@ The event loop scope for asynchronous fixtures will default to the fixture cachi
 .......................................................                  [100%]
 ============================== warnings summary ===============================
 tests/agents/test_extractors.py::test_extract_pdf_basic
-  C:\Users\baram\AppData\Roaming\Python\Python312\site-packages\PyPDF2\__init__.py:21: DeprecationWarning: PyPDF2 is deprecated. Please move to the pypdf library instead.
+  C:\Users\baram\AppData\Local\Programs\Python\Python313\Lib\site-packages\PyPDF2\__init__.py:21: DeprecationWarning: PyPDF2 is deprecated. Please move to the pypdf library instead.
     warnings.warn(
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-1997 passed, 2 skipped, 1 warning in 237.36s (0:03:57)
+1997 passed, 2 skipped, 1 warning in 247.26s (0:04:07)
+pytest-xprocess reminder::Be sure to terminate the started process by running 'pytest --xkill' if you have not explicitly done so in your fixture with 'xprocess.getinfo(<process_name>).terminate()'.
