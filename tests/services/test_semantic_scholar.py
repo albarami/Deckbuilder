@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.services.semantic_scholar import (
+    MAX_QUERY_WORDS,
     SemanticScholarAPIError,
     SemanticScholarClient,
     shorten_query,
@@ -12,13 +13,13 @@ from src.services.semantic_scholar import (
 
 
 def test_shorten_query_splits_long() -> None:
-    """Long text is truncated into <=5-word phrases."""
+    """Long text is truncated into <=MAX_QUERY_WORDS-word phrases."""
     result = shorten_query(
         "digital transformation advisory enterprise architecture assessment",
     )
     assert len(result) >= 1
     for phrase in result:
-        assert len(phrase.split()) <= 5
+        assert len(phrase.split()) <= MAX_QUERY_WORDS
 
 
 def test_shorten_query_handles_delimiters() -> None:
@@ -48,7 +49,7 @@ async def test_search_papers_sends_auth_header() -> None:
 
     with patch("src.services.semantic_scholar.httpx.AsyncClient", return_value=mock_client):
         client = SemanticScholarClient("my-key")
-        await client.search_papers("digital transformation government")
+        papers, total = await client.search_papers("digital transformation government")
 
     assert captured["headers"] == {"x-api-key": "my-key"}
 
@@ -106,29 +107,66 @@ async def test_get_recommendations_sends_post() -> None:
 
 @pytest.mark.asyncio
 async def test_search_and_recommend_two_step() -> None:
-    """Two-step flow merges search and recommendation results."""
+    """Two-step flow merges search and recommendation results.
+
+    search_papers returns (papers, total) tuple.
+    search_and_recommend returns (papers, per_query_telemetry) tuple.
+    """
     client = SemanticScholarClient("good-key")
 
     with (
         patch.object(
             client,
             "search_papers",
-            new=AsyncMock(return_value=[
-                {"paperId": "p1", "citationCount": 10, "title": "A"},
-                {"paperId": "p2", "citationCount": 5, "title": "B"},
-            ]),
+            new=AsyncMock(return_value=(
+                [
+                    {"paperId": "p1", "citationCount": 10, "title": "Service Portfolio Design"},
+                    {"paperId": "p2", "citationCount": 5, "title": "Government Framework"},
+                ],
+                2,  # total from bulk search
+            )),
         ) as mock_search,
         patch.object(
             client,
             "get_recommendations",
             new=AsyncMock(return_value=[
-                {"paperId": "p3", "citationCount": 7, "title": "C"},
+                {"paperId": "p3", "citationCount": 7, "title": "Institutional Model"},
             ]),
         ) as mock_recs,
+        patch.object(
+            client,
+            "hydrate_papers",
+            new=AsyncMock(return_value=[]),
+        ),
     ):
-        merged = await client.search_and_recommend(["q1", "q2"])
+        merged, telemetry = await client.search_and_recommend(["q1", "q2"])
 
     ids = {p.get("paperId") for p in merged}
     assert {"p1", "p2", "p3"}.issubset(ids)
     assert mock_search.await_count == 2
     mock_recs.assert_awaited_once()
+    assert isinstance(telemetry, dict)
+
+
+@pytest.mark.asyncio
+async def test_search_and_recommend_no_results_returns_empty_tuple() -> None:
+    """When S2 finds zero papers, must return ([], {}) not bare [].
+
+    This is the regression test for the crash bug: if search returns
+    nothing, the caller unpacks (papers, telemetry) and must not get
+    a ValueError from trying to unpack a bare list.
+    """
+    client = SemanticScholarClient("good-key")
+
+    with patch.object(
+        client,
+        "search_papers",
+        new=AsyncMock(return_value=([], 0)),  # zero papers
+    ):
+        result = await client.search_and_recommend(["nonexistent gibberish query xyz123"])
+
+    # Must return a tuple of (list, dict), not bare list
+    assert isinstance(result, tuple), f"Expected tuple, got {type(result)}"
+    papers, telemetry = result
+    assert papers == []
+    assert isinstance(telemetry, dict)

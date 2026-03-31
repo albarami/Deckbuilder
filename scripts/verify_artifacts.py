@@ -368,6 +368,89 @@ def verify(session_id: str) -> bool:
     else:
         print(f"  WARN H: blueprint file not found")
 
+    # ── I. TERMINAL LOG CROSS-CHECK ─────────────────────
+    print("\n=== I. TERMINAL LOG CROSS-CHECK ===")
+    # Find the terminal log for this session
+    # Terminal logs are in the output/ directory (parent of session dir)
+    terminal_log = None
+    output_root = output_dir.parent
+    for f in sorted(output_root.glob("source_book_*.txt"), reverse=True):
+        try:
+            content = f.read_text(encoding="utf-8", errors="replace")
+            if session_id in content:
+                terminal_log = content
+                logger.info("Found terminal log for %s: %s", session_id, f.name) if 'logger' in dir() else None
+                break
+        except Exception:
+            continue
+    if terminal_log:
+        # Count S2 bulk search invocations in terminal log
+        import re
+        s2_searches_in_log = len(re.findall(r"S2 search: query=", terminal_log))
+        pplx_calls_in_log = len(re.findall(r"Perplexity API 200", terminal_log))
+
+        # Count in execution log
+        s2_in_exec = sum(1 for e in exec_log if e.get("service_invoked") == "semantic_scholar")
+        pplx_in_exec = sum(1 for e in exec_log if e.get("service_invoked") == "perplexity")
+
+        if s2_searches_in_log != s2_in_exec:
+            print(f"  FAIL I: S2 searches in terminal={s2_searches_in_log} vs exec_log={s2_in_exec}")
+            all_pass = False
+        else:
+            print(f"  PASS I1: S2 count matches (terminal={s2_searches_in_log}, exec={s2_in_exec})")
+
+        if pplx_calls_in_log != pplx_in_exec:
+            print(f"  FAIL I: Perplexity calls in terminal={pplx_calls_in_log} vs exec_log={pplx_in_exec}")
+            all_pass = False
+        else:
+            print(f"  PASS I2: Perplexity count matches (terminal={pplx_calls_in_log}, exec={pplx_in_exec})")
+    else:
+        print(f"  WARN I: no terminal log found for cross-check")
+
+    # ── J. EXACT DOCX-vs-JSON THEME COVERAGE ──────────────
+    print("\n=== J. EXACT DOCX-vs-JSON THEME COVERAGE ===")
+    if docx_path.exists() and tc:
+        try:
+            from docx import Document
+            doc = Document(str(docx_path))
+            docx_lines = [p.text for p in doc.paragraphs]
+
+            j_mismatches = 0
+            for theme_key, info in tc.items():
+                count = info.get("retained_sources", 0)
+                status = info.get("status", "gap")
+                expected_fragment = f"{count} sources"
+
+                # Find the DOCX line for this theme
+                theme_label = theme_key.replace("_", " ").title()
+                found_line = None
+                for line in docx_lines:
+                    if theme_label.lower() in line.lower() and "sources" in line.lower():
+                        found_line = line
+                        break
+
+                if found_line:
+                    if expected_fragment not in found_line:
+                        print(f"  FAIL J: {theme_key}: JSON says {count} but DOCX says: '{found_line[:80]}'")
+                        j_mismatches += 1
+                        all_pass = False
+                    elif status not in found_line:
+                        print(f"  FAIL J: {theme_key}: JSON status='{status}' not in DOCX: '{found_line[:80]}'")
+                        j_mismatches += 1
+                        all_pass = False
+
+            if j_mismatches == 0:
+                print(f"  PASS J: all {len(tc)} themes match exactly between JSON and DOCX")
+        except ImportError:
+            print(f"  SKIP J: python-docx not available")
+    else:
+        if not tc:
+            print(f"  FAIL J: no theme_coverage in JSON")
+            all_pass = False
+        else:
+            print(f"  FAIL J: DOCX not found")
+            all_pass = False
+
     # ── Summary ───────────────────────────────────────────
     print(f"\n{'='*60}")
     print(f"  VERIFICATION RESULT: {'ALL PASS' if all_pass else 'SOME FAILURES'}")
