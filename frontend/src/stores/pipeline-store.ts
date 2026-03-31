@@ -23,6 +23,8 @@ import type {
   SessionMetadata,
   SSEEvent,
   AgentRunInfo,
+  ProposalMode,
+  SourceBookSummary,
 } from "@/lib/types/pipeline";
 import { getStatus } from "@/lib/api/pipeline";
 
@@ -32,6 +34,7 @@ interface PipelineState {
   // Session
   sessionId: string | null;
   status: PipelineStatus | "idle";
+  proposalMode: ProposalMode;
   currentStage: string;
 
   // Gate
@@ -40,6 +43,7 @@ interface PipelineState {
 
   // Outputs
   outputs: PipelineOutputs | null;
+  sourceBookSummary: SourceBookSummary | null;
 
   // Error
   error: { agent: string; message: string } | null;
@@ -107,10 +111,12 @@ export type PipelineStore = PipelineState & PipelineActions;
 const initialState: PipelineState = {
   sessionId: null,
   status: "idle",
+  proposalMode: "standard",
   currentStage: "",
   currentGate: null,
   completedGates: [],
   outputs: null,
+  sourceBookSummary: null,
   error: null,
   startedAt: null,
   elapsedMs: 0,
@@ -171,6 +177,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
     set({
       sessionId: response.session_id,
       status: response.status,
+      proposalMode: (response.proposal_mode as ProposalMode) || "standard",
       currentStage: response.current_stage,
       currentGate: response.current_gate,
       completedGates: response.completed_gates,
@@ -178,6 +185,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
       elapsedMs: response.elapsed_ms,
       error: response.error,
       outputs: response.outputs,
+      sourceBookSummary: response.source_book_summary || null,
       sessionMetadata: response.session_metadata,
       agentRuns: response.agent_runs,
     }),
@@ -249,6 +257,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
               const statusResponse = await getStatus(sessionId);
               if (statusResponse.outputs) {
                 store.setComplete({
+                  // Deck mode
                   pptx_ready: statusResponse.outputs.pptx_ready,
                   docx_ready: statusResponse.outputs.docx_ready,
                   source_index_ready: statusResponse.outputs.source_index_ready,
@@ -256,7 +265,19 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
                   slide_count: statusResponse.outputs.slide_count,
                   preview_ready: statusResponse.outputs.preview_ready,
                   deliverables: statusResponse.deliverables ?? [],
+                  // Source Book mode
+                  source_book_ready: statusResponse.outputs.source_book_ready,
+                  evidence_ledger_ready: statusResponse.outputs.evidence_ledger_ready,
+                  slide_blueprint_ready: statusResponse.outputs.slide_blueprint_ready,
+                  external_evidence_ready: statusResponse.outputs.external_evidence_ready,
+                  routing_report_ready: statusResponse.outputs.routing_report_ready,
+                  research_query_log_ready: statusResponse.outputs.research_query_log_ready,
+                  query_execution_log_ready: statusResponse.outputs.query_execution_log_ready,
                 });
+                // Also store Source Book summary if available
+                if (statusResponse.source_book_summary) {
+                  set({ sourceBookSummary: statusResponse.source_book_summary });
+                }
               } else {
                 // No outputs from backend — show empty state, not fake readiness
                 store.setComplete({

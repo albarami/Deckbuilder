@@ -60,7 +60,10 @@ export function Gate3SourceBook({ gate }: Gate3SourceBookProps) {
     );
   }
 
-  const score = normalizeScore(data.quality_summary?.reviewer_score);
+  // Use new top-level reviewer_score first, fall back to legacy quality_summary
+  const rawScore = data.reviewer_score || data.quality_summary?.reviewer_score;
+  const score = normalizeScore(rawScore);
+  const isNewPayload = data.section_critiques && data.section_critiques.length > 0;
 
   return (
     <div
@@ -79,8 +82,17 @@ export function Gate3SourceBook({ gate }: Gate3SourceBookProps) {
               {data.source_book_title || labels.defaultTitle}
             </h3>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="info">{labels.wordCount(data.total_word_count)}</Badge>
-              <Badge variant="default">{labels.sectionCount(data.section_count)}</Badge>
+              <Badge variant="info">{labels.wordCount(data.word_count || data.total_word_count || 0)}</Badge>
+              {data.threshold_met ? (
+                <Badge variant="success">{labels.passed}</Badge>
+              ) : (
+                <Badge variant="warning">{labels.review}</Badge>
+              )}
+              {data.competitive_viability && data.competitive_viability !== "unknown" ? (
+                <Badge variant={data.competitive_viability === "strong" ? "success" : "default"}>
+                  {data.competitive_viability}
+                </Badge>
+              ) : null}
             </div>
           </div>
 
@@ -130,19 +142,19 @@ export function Gate3SourceBook({ gate }: Gate3SourceBookProps) {
               <span className="text-xs text-sg-slate/70 dark:text-slate-300">
                 {labels.benchmark}
               </span>
-              <Badge variant={data.quality_summary?.benchmark_passed ? "success" : "warning"}>
-                {data.quality_summary?.benchmark_passed ? labels.passed : labels.review}
+              <Badge variant={data.threshold_met ? "success" : "warning"}>
+                {data.threshold_met ? labels.passed : labels.review}
               </Badge>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs">
               <MetricCard
                 label={labels.evidenceCount}
-                value={String(data.quality_summary?.evidence_count ?? 0)}
+                value={String(data.evidence_count || data.quality_summary?.evidence_count || 0)}
               />
               <MetricCard
                 label={labels.blueprintCount}
-                value={String(data.quality_summary?.blueprint_count ?? 0)}
+                value={String(data.blueprint_count || data.quality_summary?.blueprint_count || 0)}
               />
             </div>
           </div>
@@ -194,26 +206,75 @@ export function Gate3SourceBook({ gate }: Gate3SourceBookProps) {
         </p>
 
         <div className="max-h-[26rem] space-y-2 overflow-y-auto pe-1">
-          {data.sections.map((section, index) => (
-            <details
-              key={section.section_id || `${index}`}
-              open={index === 0}
-              className="rounded-lg border border-sg-border bg-sg-mist/30 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/40"
-            >
-              <summary className="cursor-pointer list-none text-sm font-semibold text-sg-navy dark:text-slate-100">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="line-clamp-1">{section.title || `${labels.section} ${index + 1}`}</span>
-                  <Badge variant="default">{labels.preview}</Badge>
+          {/* New payload: show section critiques */}
+          {isNewPayload ? (
+            <>
+              {data.section_critiques.map((critique, index) => (
+                <details
+                  key={critique.section_id || `${index}`}
+                  open={index === 0}
+                  className="rounded-lg border border-sg-border bg-sg-mist/30 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/40"
+                >
+                  <summary className="cursor-pointer list-none text-sm font-semibold text-sg-navy dark:text-slate-100">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="line-clamp-1">{critique.section_id}</span>
+                      <Badge variant={critique.score >= 4 ? "success" : critique.score >= 3 ? "warning" : "danger"}>
+                        {critique.score}/5
+                      </Badge>
+                    </div>
+                  </summary>
+                  <div className="mt-2 space-y-1">
+                    {critique.issues.map((issue, i) => (
+                      <p key={i} className="text-sm leading-relaxed text-sg-slate/80 dark:text-slate-300">
+                        • {issue}
+                      </p>
+                    ))}
+                    {critique.rewrite_instructions.length > 0 ? (
+                      <div className="mt-1 border-t border-sg-border/50 pt-1">
+                        {critique.rewrite_instructions.map((instr, i) => (
+                          <p key={i} className="text-xs italic text-sg-slate/60 dark:text-slate-400">
+                            ↳ {instr}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </details>
+              ))}
+              {data.coherence_issues.length > 0 ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 dark:border-amber-900/50 dark:bg-amber-950/30">
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Coherence Issues</p>
+                  {data.coherence_issues.map((issue, i) => (
+                    <p key={i} className="mt-1 text-xs text-amber-600 dark:text-amber-400">• {issue}</p>
+                  ))}
                 </div>
-              </summary>
-              <p className="mt-2 text-sm leading-relaxed text-sg-slate/80 dark:text-slate-300">
-                {section.preview_paragraph || labels.noPreview}
-              </p>
-            </details>
-          ))}
-          {data.sections.length === 0 ? (
-            <p className="text-sm italic text-sg-slate/50 dark:text-slate-400">{labels.noPreview}</p>
-          ) : null}
+              ) : null}
+            </>
+          ) : (
+            /* Legacy payload: show section previews */
+            <>
+              {(data.sections ?? []).map((section, index) => (
+                <details
+                  key={section.section_id || `${index}`}
+                  open={index === 0}
+                  className="rounded-lg border border-sg-border bg-sg-mist/30 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/40"
+                >
+                  <summary className="cursor-pointer list-none text-sm font-semibold text-sg-navy dark:text-slate-100">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="line-clamp-1">{section.title || `${labels.section} ${index + 1}`}</span>
+                      <Badge variant="default">{labels.preview}</Badge>
+                    </div>
+                  </summary>
+                  <p className="mt-2 text-sm leading-relaxed text-sg-slate/80 dark:text-slate-300">
+                    {section.preview_paragraph || labels.noPreview}
+                  </p>
+                </details>
+              ))}
+              {(data.sections ?? []).length === 0 ? (
+                <p className="text-sm italic text-sg-slate/50 dark:text-slate-400">{labels.noPreview}</p>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -234,6 +295,41 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 function extractSourceBookData(data: unknown): Gate3SourceBookData | null {
   if (!data || typeof data !== "object") return null;
   const obj = data as Record<string, unknown>;
+
+  // Detect new review-centric payload (has reviewer_score at top level)
+  const isNewPayload = typeof obj.reviewer_score === "number";
+
+  if (isNewPayload) {
+    // New review-centric payload from SOURCE_BOOK_REVIEW gate type
+    const critiques = Array.isArray(obj.section_critiques)
+      ? obj.section_critiques
+          .filter((c): c is Record<string, unknown> => Boolean(c) && typeof c === "object")
+          .map((c) => ({
+            section_id: String(c.section_id ?? ""),
+            score: typeof c.score === "number" ? c.score : 0,
+            issues: Array.isArray(c.issues) ? c.issues.map(String) : [],
+            rewrite_instructions: Array.isArray(c.rewrite_instructions)
+              ? c.rewrite_instructions.map(String)
+              : [],
+          }))
+      : [];
+
+    return {
+      reviewer_score: typeof obj.reviewer_score === "number" ? obj.reviewer_score : 0,
+      threshold_met: typeof obj.threshold_met === "boolean" ? obj.threshold_met : false,
+      competitive_viability: typeof obj.competitive_viability === "string" ? obj.competitive_viability : "unknown",
+      pass_number: typeof obj.pass_number === "number" ? obj.pass_number : 0,
+      rewrite_required: typeof obj.rewrite_required === "boolean" ? obj.rewrite_required : false,
+      section_critiques: critiques,
+      coherence_issues: Array.isArray(obj.coherence_issues) ? obj.coherence_issues.map(String) : [],
+      word_count: typeof obj.word_count === "number" ? obj.word_count : 0,
+      evidence_count: typeof obj.evidence_count === "number" ? obj.evidence_count : 0,
+      blueprint_count: typeof obj.blueprint_count === "number" ? obj.blueprint_count : 0,
+      docx_preview_url: typeof obj.docx_preview_url === "string" ? obj.docx_preview_url : "",
+    };
+  }
+
+  // Legacy payload (old content-summary shape)
   if (!Array.isArray(obj.sections)) return null;
 
   const sections = obj.sections
@@ -251,43 +347,40 @@ function extractSourceBookData(data: unknown): Gate3SourceBookData | null {
   const blueprint = toRecord(obj.blueprint_summary);
 
   return {
-    source_book_title:
-      typeof obj.source_book_title === "string" ? obj.source_book_title : undefined,
-    total_word_count:
-      typeof obj.total_word_count === "number" ? obj.total_word_count : 0,
-    section_count:
-      typeof obj.section_count === "number" ? obj.section_count : sections.length,
+    // Required new fields with defaults
+    reviewer_score: quality && typeof quality.reviewer_score === "number" ? quality.reviewer_score : 0,
+    threshold_met: quality && typeof quality.benchmark_passed === "boolean" ? quality.benchmark_passed : false,
+    competitive_viability: "unknown",
+    pass_number: 0,
+    rewrite_required: false,
+    section_critiques: [],
+    coherence_issues: [],
+    word_count: typeof obj.total_word_count === "number" ? obj.total_word_count : 0,
+    evidence_count: quality && typeof quality.evidence_count === "number" ? quality.evidence_count : 0,
+    blueprint_count: quality && typeof quality.blueprint_count === "number" ? quality.blueprint_count : 0,
+    docx_preview_url: "",
+    // Legacy fields
+    source_book_title: typeof obj.source_book_title === "string" ? obj.source_book_title : undefined,
+    total_word_count: typeof obj.total_word_count === "number" ? obj.total_word_count : 0,
+    section_count: typeof obj.section_count === "number" ? obj.section_count : sections.length,
     sections,
     quality_summary: quality
       ? {
-          reviewer_score:
-            typeof quality.reviewer_score === "number" ? quality.reviewer_score : undefined,
-          benchmark_passed:
-            typeof quality.benchmark_passed === "boolean"
-              ? quality.benchmark_passed
-              : undefined,
-          evidence_count:
-            typeof quality.evidence_count === "number" ? quality.evidence_count : undefined,
-          blueprint_count:
-            typeof quality.blueprint_count === "number" ? quality.blueprint_count : undefined,
+          reviewer_score: typeof quality.reviewer_score === "number" ? quality.reviewer_score : undefined,
+          benchmark_passed: typeof quality.benchmark_passed === "boolean" ? quality.benchmark_passed : undefined,
+          evidence_count: typeof quality.evidence_count === "number" ? quality.evidence_count : undefined,
+          blueprint_count: typeof quality.blueprint_count === "number" ? quality.blueprint_count : undefined,
         }
       : undefined,
     evidence_summary: evidence
       ? {
-          evidence_ledger_entries:
-            typeof evidence.evidence_ledger_entries === "number"
-              ? evidence.evidence_ledger_entries
-              : 0,
-          external_source_count:
-            typeof evidence.external_source_count === "number"
-              ? evidence.external_source_count
-              : 0,
+          evidence_ledger_entries: typeof evidence.evidence_ledger_entries === "number" ? evidence.evidence_ledger_entries : 0,
+          external_source_count: typeof evidence.external_source_count === "number" ? evidence.external_source_count : 0,
         }
       : undefined,
     blueprint_summary: blueprint
       ? {
-          total_entries:
-            typeof blueprint.total_entries === "number" ? blueprint.total_entries : 0,
+          total_entries: typeof blueprint.total_entries === "number" ? blueprint.total_entries : 0,
           covered_sections: Array.isArray(blueprint.covered_sections)
             ? blueprint.covered_sections.map((item) => String(item))
             : [],

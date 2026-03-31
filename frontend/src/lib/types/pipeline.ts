@@ -232,15 +232,35 @@ export interface SourceBookBlueprintSummary {
   covered_sections: string[];
 }
 
+export interface SectionCritiqueSummary {
+  section_id: string;
+  score: number;
+  issues: string[];
+  rewrite_instructions: string[];
+}
+
 export interface Gate3SourceBookData {
+  // Review-centric payload (matches backend Gate3SourceBookData)
+  reviewer_score: number;
+  threshold_met: boolean;
+  competitive_viability: string;
+  pass_number: number;
+  rewrite_required: boolean;
+  section_critiques: SectionCritiqueSummary[];
+  coherence_issues: string[];
+  word_count: number;
+  evidence_count: number;
+  blueprint_count: number;
+  docx_preview_url: string;
+  // Legacy fields (for backward compat with old gate payloads)
   source_book_title?: string;
-  total_word_count: number;
-  section_count: number;
-  sections: SourceBookSectionPreview[];
+  total_word_count?: number;
+  section_count?: number;
+  sections?: SourceBookSectionPreview[];
   quality_summary?: SourceBookQualitySummary;
   evidence_summary?: SourceBookEvidenceSummary;
   blueprint_summary?: SourceBookBlueprintSummary;
-  docx_ready: boolean;
+  docx_ready?: boolean;
 }
 
 /**
