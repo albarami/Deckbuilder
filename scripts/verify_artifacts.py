@@ -17,6 +17,11 @@ import json
 import sys
 from pathlib import Path
 
+# Fix Windows console encoding for Arabic text
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 
 def verify(session_id: str) -> bool:
     output_dir = Path("output") / session_id

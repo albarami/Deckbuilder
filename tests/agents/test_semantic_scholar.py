@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.services.semantic_scholar import (
+    MAX_QUERY_WORDS,
     SemanticScholarAPIError,
     SemanticScholarClient,
     shorten_query,
@@ -14,7 +15,7 @@ from src.services.semantic_scholar import (
 def test_shorten_query_handles_long_input() -> None:
     phrases = shorten_query("digital transformation advisory enterprise architecture assessment")
     assert phrases
-    assert all(len(p.split()) <= 5 for p in phrases)
+    assert all(len(p.split()) <= MAX_QUERY_WORDS for p in phrases)
 
 
 @pytest.mark.asyncio

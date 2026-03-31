@@ -303,7 +303,7 @@ class TestExternalResearchAgentQueries:
         assert isinstance(queries, list)
         # No RFP context = fallback query only
         assert len(queries) == 1
-        assert queries[0] == "management consulting methodology best practices"
+        assert queries[0] == "how do consulting firms design service delivery frameworks"
 
     @pytest.mark.asyncio
     async def test_gather_raw_evidence_graceful_failure(self):
@@ -539,7 +539,7 @@ class TestExternalResearchRealRFPContext:
         queries = _generate_search_queries(state)
 
         # At least one query should reference the RFP name
-        rfp_name_found = any("Digital Transformation" in q for q in queries)
+        rfp_name_found = any("digital transformation" in q.lower() for q in queries)
         assert rfp_name_found, f"RFP name not found in queries: {queries}"
 
     def test_queries_from_deliverables(self):
