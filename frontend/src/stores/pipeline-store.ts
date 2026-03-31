@@ -163,6 +163,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
     set({
       sessionId,
       status: "running",
+      proposalMode: "standard",
       startedAt,
       currentStage: "intake",
       error: null,
@@ -170,6 +171,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
       completedGates: [],
       currentGate: null,
       outputs: null,
+      sourceBookSummary: null,
       agentRuns: [],
     }),
 
@@ -288,6 +290,13 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
                   slide_count: event.slide_count ?? 0,
                   preview_ready: false,
                   deliverables: [],
+                  source_book_ready: false,
+                  evidence_ledger_ready: false,
+                  slide_blueprint_ready: false,
+                  external_evidence_ready: false,
+                  routing_report_ready: false,
+                  research_query_log_ready: false,
+                  query_execution_log_ready: false,
                 });
               }
             } catch {
@@ -300,6 +309,13 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
                 slide_count: event.slide_count ?? 0,
                 preview_ready: false,
                 deliverables: [],
+                source_book_ready: false,
+                evidence_ledger_ready: false,
+                slide_blueprint_ready: false,
+                external_evidence_ready: false,
+                routing_report_ready: false,
+                research_query_log_ready: false,
+                query_execution_log_ready: false,
               });
             }
           })();

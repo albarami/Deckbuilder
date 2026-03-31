@@ -218,7 +218,7 @@ export function Gate3SourceBook({ gate }: Gate3SourceBookProps) {
                   <summary className="cursor-pointer list-none text-sm font-semibold text-sg-navy dark:text-slate-100">
                     <div className="flex items-center justify-between gap-2">
                       <span className="line-clamp-1">{critique.section_id}</span>
-                      <Badge variant={critique.score >= 4 ? "success" : critique.score >= 3 ? "warning" : "danger"}>
+                      <Badge variant={critique.score >= 4 ? "success" : critique.score >= 3 ? "warning" : "error"}>
                         {critique.score}/5
                       </Badge>
                     </div>
