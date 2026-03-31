@@ -308,6 +308,66 @@ def verify(session_id: str) -> bool:
         print(f"  FAIL F: invalid status — snippet={snippet}, author={author}")
         all_pass = False
 
+    # ── G. DOCX SELF-SUFFICIENCY — strict JSON reference check ──
+    print("\n=== G. DOCX SELF-SUFFICIENCY ===")
+    if docx_path.exists():
+        try:
+            from docx import Document
+            doc = Document(str(docx_path))
+            all_text = " ".join(p.text for p in doc.paragraphs)
+            table_text = " ".join(
+                c.text for t in doc.tables for r in t.rows for c in r.cells
+            )
+            full_text = all_text + " " + table_text
+
+            json_terms = [
+                "external_evidence_pack.json", "research_query_log.json",
+                "research_results_raw.json", "query_execution_log.json",
+                "external_evidence_pack", "research_query_log",
+            ]
+            # Also check for generic "json" or "JSON" (case-sensitive)
+            found_refs = []
+            for term in json_terms:
+                if term.lower() in full_text.lower():
+                    found_refs.append(term)
+            if found_refs:
+                print(f"  FAIL G: DOCX references JSON files: {found_refs}")
+                all_pass = False
+            else:
+                print(f"  PASS G: DOCX is self-sufficient (no JSON references)")
+        except ImportError:
+            print(f"  SKIP G: python-docx not available")
+    else:
+        print(f"  FAIL G: source_book.docx not found")
+        all_pass = False
+
+    # ── H. BLUEPRINT SHELL CHECK ──────────────────────────
+    print("\n=== H. BLUEPRINT SHELL CHECK ===")
+    bp_path = output_dir / "slide_blueprint_from_source_book.json"
+    if bp_path.exists():
+        bp = json.loads(bp_path.read_text(encoding="utf-8"))
+        shell_sections = ["S02", "S04", "S06", "S08", "S10"]
+        shell_issues = 0
+        for entry in bp:
+            sid = entry.get("section_id", "")
+            if sid in shell_sections:
+                km = entry.get("key_message", "") or ""
+                title = entry.get("slide_title", "") or ""
+                # Check for shell/placeholder content
+                sn = entry.get("section_name", "")
+                if km == f"{sn} content" or km == f"{sn} shell":
+                    print(f"  FAIL H: {sid} has shell key_message: '{km}'")
+                    shell_issues += 1
+                    all_pass = False
+                if title == sn and sid in ["S02"]:
+                    print(f"  FAIL H: {sid} has shell title = section name: '{title}'")
+                    shell_issues += 1
+                    all_pass = False
+        if shell_issues == 0:
+            print(f"  PASS H: no shell/placeholder content in divider/dynamic sections")
+    else:
+        print(f"  WARN H: blueprint file not found")
+
     # ── Summary ───────────────────────────────────────────
     print(f"\n{'='*60}")
     print(f"  VERIFICATION RESULT: {'ALL PASS' if all_pass else 'SOME FAILURES'}")

@@ -6,9 +6,11 @@
   "classification_keywords": {
     "domain": {
       "investment_promotion": [
-        "استثمار", "توسع خارجي", "تصدير", "شركات وطنية",
+        "استثمار", "الاستثمار", "توسع خارجي", "التوسع الخارجي",
+        "تصدير", "التصدير", "شركات وطنية", "الشركات الوطنية",
         "investment", "export", "internationalization", "outbound",
-        "trade promotion", "خدمات داعمة"
+        "trade promotion", "خدمات داعمة", "الخدمات الداعمة",
+        "ترويج", "تسويق الاستثمار"
       ]
     }
   },

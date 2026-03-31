@@ -453,7 +453,7 @@ class SemanticScholarClient:
 
         if not all_papers:
             logger.warning("S2: no papers found from search, skipping recommendations")
-            return []
+            return [], stats.per_query_telemetry
 
         # Step 2: Score all discovered papers
         for pid, paper in all_papers.items():
@@ -468,7 +468,7 @@ class SemanticScholarClient:
 
         if not all_papers:
             logger.warning("S2: all papers rejected by scoring")
-            return []
+            return [], stats.per_query_telemetry
 
         # Step 3: Select top 3-5 seeds
         sorted_papers = sorted(

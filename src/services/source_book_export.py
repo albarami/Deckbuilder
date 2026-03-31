@@ -476,8 +476,8 @@ def _add_section_4(
             p.add_run(f"{count} sources — {status}")
     else:
         doc.add_paragraph(
-            "Theme coverage data not available. "
-            "Check research_query_log for details."
+            "Theme coverage data not available for this run. "
+            "The research phase did not produce theme mapping."
         )
 
     doc.add_paragraph(

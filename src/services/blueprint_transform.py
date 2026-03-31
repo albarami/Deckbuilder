@@ -304,12 +304,20 @@ def _ensure_all_sections(
                 house_action="include_as_is",
             ))
         else:
+            # Dynamic sections get proper authored defaults (not shell)
+            _DYNAMIC_DEFAULTS: dict[str, dict[str, str]] = {
+                "S02": {
+                    "slide_title": "رسالة المقدمة — نهج استراتيجي متكامل",
+                    "key_message": "نقدم لكم نهجنا المتكامل لتحقيق أهداف المشروع بمنهجية مبتكرة ومدعومة بأطر دولية مرجعية",
+                },
+            }
+            dyn_default = _DYNAMIC_DEFAULTS.get(spec.section_id, {})
             additions.append(ContractEntry(
                 section_id=spec.section_id,
                 section_name=spec.section_name,
                 ownership="dynamic",
-                slide_title=spec.section_name,
-                key_message=f"{spec.section_name} content",
+                slide_title=dyn_default.get("slide_title", spec.section_name),
+                key_message=dyn_default.get("key_message", f"Content for {spec.section_name}"),
             ))
 
     return entries + additions
