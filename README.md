@@ -1,159 +1,253 @@
 # DeckForge
 
-**Agentic Presentation Intelligence System**
-**Report-First | No Free Facts | Bilingual Output**
-
-DeckForge is an RFP-to-Deck engine built for Strategic Gears Consulting. It transforms institutional knowledge — stored across SharePoint presentations, proposals, reports, and frameworks — into consulting-grade proposal decks through a conversational, multi-agent workflow.
-
-The system receives structured RFP summaries, searches and synthesizes relevant knowledge from a pre-indexed SharePoint corpus, generates a fully-cited research report for human approval, and converts that approved report into a branded slide deck in Arabic, English, or bilingual format.
+Agentic proposal intelligence system for Strategic Gears Consulting. Transforms RFP documents into proposal-grade Source Books and presentation decks through a multi-agent pipeline with human approval gates.
 
 ---
 
-## Architecture Summary
-
-### Pipeline: 10 Steps, 5 Human Gates
-
-1. **RFP Intake** — BD Station pushes structured AI Assist summary (10-field contract)
-2. **Context Understanding** — Context Agent parses RFP into structured object → **Gate 1**
-3. **SharePoint Retrieval** — Retrieval Agent executes 5-strategy search → **Gate 2**
-4. **Deep Analysis** — Analysis Agent extracts atomic Claim Objects into Reference Index
-5. **Research Report** — Research Agent writes fully-cited report → **Gate 3** (most important)
-6. **Slide Outline** — Structure Agent converts report to slide structure → **Gate 4**
-7. **Slide Content** — Content Agent distills report into slide copy
-8. **Quality Assurance** — QA Agent enforces No Free Facts, validates every claim
-9. **PPTX Rendering** — Design Agent renders branded PPTX via python-pptx → **Gate 5**
-10. **Export** — Final PPTX, research report (.docx), source index, gap report
-
-### 9 Agents, 3 Models
-
-| Agent | Model | Role |
-|-------|-------|------|
-| Workflow Controller | LangGraph (deterministic) | State machine routing, gate enforcement |
-| Conversation Manager | Claude Sonnet 4.6 | Natural language → structured actions |
-| Context Agent | GPT-5.4 | RFP parsing into structured JSON |
-| Retrieval Agent | GPT-5.4 + Azure AI Search | Query generation + source ranking |
-| Analysis Agent | Claude Opus 4.6 | Deep extraction into atomic Claim Objects |
-| Research Agent | Claude Opus 4.6 | Fully-cited research report generation |
-| Structure Agent | GPT-5.4 | Report → slide outline conversion |
-| Content Agent | GPT-5.4 | Slide copy writing from approved report |
-| QA Agent | GPT-5.4 | No Free Facts enforcement, validation |
-| Design Agent | python-pptx (deterministic) | Branded PPTX rendering |
-
-### Core Principles
-
-- **No Free Facts** — every factual claim must trace to a cited source. Unsupported claims fail closed.
-- **Report-First** — a research report is approved by humans before any slides are created.
-- **Gaps over guesses** — missing evidence is flagged explicitly, never fabricated.
-
----
-
-## Current Milestone Status
-
-| Milestone | Scope | Status |
-|-----------|-------|--------|
-| M0: Scaffold + README | Project structure, config, dependencies, README | **In progress** |
-| M1: Enums | `src/models/enums.py` — 19 StrEnum classes | Planned |
-| M2: Pydantic Models | 9 model files (`common.py` through `indexing.py`) | Planned |
-| M3: Master State | `state.py` + `ids.py` + `__init__.py` re-export | Planned |
-| M4: Config + LLM Wrapper | `settings.py` + `models.py` + `llm.py` | Planned |
-| M5–M10: Agents, Pipeline, Rendering, Knowledge Layer | Full system | Deferred |
-
----
-
-## Local Setup
+## Quick Start (Windows)
 
 ### Prerequisites
 
-- Python 3.12+
-- Git
+| Requirement | Version | Check |
+|-------------|---------|-------|
+| Python | 3.12+ | `python --version` |
+| Node.js | 18.17+ | `node --version` |
+| npm | 9+ | `npm --version` |
+| Git | any | `git --version` |
 
-### Installation
+**For live mode** (real LLM calls): you need API keys for OpenAI and Anthropic. See [Environment Setup](#environment-setup).
 
-```bash
+### 1. Clone and install backend
+
+```powershell
 git clone https://github.com/albarami/Deckbuilder.git
 cd Deckbuilder
 
 python -m venv .venv
-
-# Windows
 .venv\Scripts\activate
-
-# macOS/Linux
-source .venv/bin/activate
 
 pip install -r requirements.txt
 ```
 
-### Environment
+### 2. Install frontend
 
-Copy `.env.example` to `.env` and fill in your API keys:
-
-```bash
-cp .env.example .env
+```powershell
+cd frontend
+npm install
+cd ..
 ```
 
-Required keys: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`. Azure keys are needed for production only.
+### 3. Environment setup
+
+**Backend** -- copy the example and fill in your API keys:
+
+```powershell
+copy .env.example .env
+```
+
+Edit `.env` and set:
+
+| Variable | Required for | Notes |
+|----------|-------------|-------|
+| `OPENAI_API_KEY` | Live mode | GPT-5.4 calls |
+| `ANTHROPIC_API_KEY` | Live mode | Claude Opus/Sonnet calls |
+| `SEMANTIC_SCHOLAR_API_KEY` | Optional | Richer academic evidence in Source Book mode |
+| `PERPLEXITY_API_KEY` | Optional | Richer web evidence in Source Book mode |
+| `AZURE_SEARCH_*` | Production only | Not needed for local dev |
+| `SHAREPOINT_*` | Production only | Not needed for local dev |
+
+**Frontend** -- create `frontend/.env.local`:
+
+```powershell
+copy frontend\.env.local.example frontend\.env.local
+```
+
+Default values work for local development. Only change if your backend runs on a different port.
+
+### 4. Start the backend
+
+```powershell
+# Activate venv if not already active
+.venv\Scripts\activate
+
+# Live mode (real LLM calls, requires API keys)
+$env:PIPELINE_MODE="live"
+uvicorn backend.server:app --reload --port 8000
+```
+
+Verify: open `http://localhost:8000/api/health` -- should return `{"status": "ok", ...}`.
+
+### 5. Start the frontend
+
+In a **separate terminal**:
+
+```powershell
+cd frontend
+npm run dev
+```
+
+Open `http://localhost:3000` in your browser.
+
+### 6. Smoke test
+
+1. Navigate to **New Proposal** (`/en/new`)
+2. Select **Source Book Only** mode
+3. Upload any PDF (an RFP document works best)
+4. Select a sector and geography
+5. Click **Generate Source Book**
+6. Approve Gate 1 (Context Review) and Gate 2 (Source Review)
+7. Wait for Source Book generation (2-8 minutes in live mode)
+8. Review Gate 3 -- download DOCX, approve or reject with feedback
+9. View the completion panel with artifact summary
+
+"Working" means: you see the agent grid updating, the timeline showing stage transitions, and Gate 3 appearing with a downloadable DOCX.
+
+---
+
+## Project Structure
+
+```
+Deckbuilder/
+  backend/                  # FastAPI API layer
+    models/api_models.py    # All API contracts (Pydantic)
+    routers/                # HTTP endpoints (pipeline, gates, export, upload, slides)
+    services/               # Session manager, SSE broadcaster, pipeline runtime
+  src/                      # Core pipeline engine
+    agents/                 # LLM agents (context, retrieval, source_book, etc.)
+    models/                 # Domain models (state, source_book, rfp, etc.)
+    pipeline/               # LangGraph graph definition
+    services/               # LLM wrapper, routing, export, accounting
+  frontend/                 # Next.js 14 + React 18 + TypeScript
+    src/app/                # App router pages
+    src/components/         # UI components (pipeline, gates, intake, artifacts, export)
+    src/stores/             # Zustand state management
+    src/hooks/              # Custom hooks (pipeline, SSE, gate)
+    src/lib/                # API clients, types
+    src/i18n/               # EN/AR translations
+  templates/                # PPTX template (tracked in git)
+  PROPOSAL_TEMPLATE/        # .potx proposal templates (NOT in git -- see note below)
+  output/                   # Generated artifacts per session (gitignored)
+  tests/                    # Backend pytest tests
+  docs/plans/               # Implementation plans
+```
+
+---
+
+## Pipeline Modes
+
+The system has two proposal modes selectable from the intake UI:
+
+| Mode | What it produces | Gates |
+|------|-----------------|-------|
+| **Source Book Only** | Proposal intelligence DOCX + evidence ledger + blueprints + routing report | 3 gates (Context, Sources, Source Book) |
+| **Full Proposal Deck** | Everything above + branded PPTX slide deck | 5 gates (+ Slides, QA) |
+
+---
+
+## Important Caveats
+
+### dry_run mode is currently broken
+
+`PIPELINE_MODE=dry_run` does not work reliably. `src/pipeline/dry_run.py` patches `src.pipeline.graph.load_documents`, which no longer exists. For real validation, use `PIPELINE_MODE=live` with valid API keys.
+
+### PROPOSAL_TEMPLATE directory
+
+The `PROPOSAL_TEMPLATE/` directory contains `.potx` branded templates and is **not tracked in git** (too large / environment-specific). It is only needed for the **Full Proposal Deck** mode (PPTX rendering). **Source Book Only** mode works without it.
+
+If you need deck rendering, obtain the template files separately and place them in `PROPOSAL_TEMPLATE/`:
+- `Arabic_Proposal_Template.potx`
+- `PROPOSAL_TEMPLATE EN.potx`
+
+### API costs
+
+Live mode makes real LLM calls. A full Source Book run costs approximately $2-5 USD across 15-16 LLM calls (GPT-5.4 + Claude Opus/Sonnet).
 
 ---
 
 ## Test Commands
 
-```bash
+### Backend
+
+```powershell
+.venv\Scripts\activate
+
+# Run all backend tests
+python -m pytest tests/ -v
+
+# Run a specific test file
+python -m pytest tests/services/test_session_accounting.py -v
+```
+
+### Frontend
+
+```powershell
+cd frontend
+
+# TypeScript check
+npx tsc --noEmit
+
 # Run all tests
-.venv\Scripts\python.exe -m pytest tests/ -v
+npx vitest run --reporter=verbose
 
-# Run tests for a specific module
-.venv\Scripts\python.exe -m pytest tests/agents/test_enums.py -v
-
-# Lint check
-.venv\Scripts\python.exe -m ruff check src/
-
-# Type check
-.venv\Scripts\python.exe -m mypy src/
-
-# All three (run before every review)
-.venv\Scripts\python.exe -m pytest tests/ -v && .venv\Scripts\python.exe -m ruff check src/ && .venv\Scripts\python.exe -m mypy src/
+# Watch mode
+npx vitest
 ```
 
 ---
 
-## Repo Workflow
+## Troubleshooting
 
-### Roles
+### Backend won't start
 
-- **Cursor** builds code
-- **Salim** reviews, approves or rejects, and authorizes commits
+**"Module not found" errors:**
+Make sure the venv is activated and you ran `pip install -r requirements.txt` from the repo root.
 
-### Protocol
+**"OPENAI_API_KEY not set" or similar:**
+Copy `.env.example` to `.env` and fill in your API keys. The backend reads from `.env` via `python-dotenv`.
 
-1. **Read docs first** — architecture, prompt library, state schema, existing code
-2. **Implement one thing** — exactly what Salim asked, nothing more
-3. **Validate and test** — pytest, ruff, mypy must all pass
-4. **Report results** — state what was built, what was tested, what passed
-5. **Wait for approval** — no commits until Salim says "commit"
+### Frontend can't reach backend
 
-### Commit Convention
+**CORS errors or "Failed to fetch":**
+- Ensure the backend is running on port 8000: `http://localhost:8000/api/health`
+- The frontend defaults to `http://localhost:8000` as the API URL
+- If you changed the backend port, create `frontend/.env.local` with `NEXT_PUBLIC_API_URL=http://localhost:YOUR_PORT`
 
-```
-feat(scope): description    — new feature or agent
-fix(scope): description     — bug fix
-test(scope): description    — adding or updating tests
-refactor(scope): description — code restructure (no behavior change)
-docs(scope): description    — documentation changes
-chore(scope): description   — config, dependencies, tooling
-```
+### Frontend shows raw stage keys (e.g., "evidence_curation")
 
-### Rules
+This means the i18n translation keys are missing. Pull the latest code -- the EN/AR translation files should have all stage and agent labels.
 
-- Never commit without Salim's explicit approval
-- Never push broken code
-- Never force push
-- Docs are the source of truth — if code contradicts docs, fix the code
-- All Pydantic models in `src/models/`, never inline in agent files
-- All LLM calls through `src/services/llm.py`, never direct API imports in agents
+### Pipeline stuck or no SSE events
 
-### Remote
+- Check the backend terminal for error logs
+- Ensure `PIPELINE_MODE=live` is set (not `dry_run`)
+- The Source Book generation phase takes 2-8 minutes -- the UI should show "Evidence Curation" with "(this may take several minutes)"
 
-```
-origin  https://github.com/albarami/Deckbuilder.git
-```
+### npm install fails
+
+- Ensure Node.js 18.17+ is installed
+- Delete `frontend/node_modules` and `frontend/package-lock.json`, then run `npm install` again
+
+---
+
+## Architecture
+
+### Backend: FastAPI + LangGraph
+
+- `backend/server.py` -- FastAPI app with CORS, lifespan, router registration
+- `backend/services/pipeline_runtime.py` -- Drives graph execution, SSE broadcasts, gate handling
+- `backend/services/session_manager.py` -- In-memory session state
+- `backend/services/sse_broadcaster.py` -- Per-session SSE event queues
+
+### Frontend: Next.js 14 + Zustand
+
+- App router with `[locale]` prefix (EN/AR)
+- Zustand pipeline store with SSE event hydration
+- Real-time agent grid, activity timeline, progress bar
+- Artifact viewer components for Source Book mode
+
+### Pipeline: LangGraph State Machine
+
+- `src/pipeline/graph.py` -- Node definitions + edge routing
+- `src/models/state.py` -- `DeckForgeState` master state object
+- Agents are pure async functions: `run(state) -> dict[str, Any]`
+- Gates are LangGraph interrupts -- backend catches them, frontend renders review UI
