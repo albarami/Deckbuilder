@@ -773,10 +773,10 @@ async def _rewrite_hedges(
         if not cleaned.evidence_ledger.entries and source_book.evidence_ledger.entries:
             cleaned.evidence_ledger = source_book.evidence_ledger
         logger.info("Hedge rewrite complete — removed %d hedge patterns", len(hedges_found))
-        return cleaned
+        return cleaned, result
     except Exception as e:
         logger.warning("Hedge rewrite failed: %s — keeping original", e)
-        return source_book
+        return source_book, None
 
 
 def _build_shared_context(
@@ -1030,7 +1030,7 @@ async def _generate_section_1(
         len(s1.rfp_interpretation.key_compliance_requirements),
         len(s1.rfp_interpretation.objective_and_scope.split()),
     )
-    return s1
+    return s1, result
 
 
 async def _generate_section_2(
@@ -1078,7 +1078,7 @@ async def _generate_section_2(
         "Stage 1b complete: problem_framing_words=%d",
         total_words,
     )
-    return s2
+    return s2, result
 
 
 async def _generate_section_3(
@@ -1123,7 +1123,7 @@ async def _generate_section_3(
         len(s3.why_strategic_gears.project_experience),
         len(s3.why_strategic_gears.capability_mapping),
     )
-    return s3
+    return s3, result
 
 
 async def _generate_section_4(
@@ -1164,7 +1164,7 @@ async def _generate_section_4(
         "Stage 1c complete: evidence_entries=%d",
         len(s4.external_evidence.entries),
     )
-    return s4
+    return s4, result
 
 
 def _build_section5_payload(shared_ctx: dict, prev_fields: dict | None = None) -> str:
@@ -1303,7 +1303,7 @@ async def _generate_section_5(
         len(merged.methodology_overview),
     )
 
-    return SourceBookSection5(proposed_solution=merged)
+    return SourceBookSection5(proposed_solution=merged), result_1, result_2
 
 
 async def _generate_blueprints(
@@ -1365,7 +1365,7 @@ instead of: "يستوفي", "موثقة", "مثبتة", "كامل"
 
     section6 = result.parsed
     logger.info("Stage 2a produced: %d blueprints", len(section6.slide_blueprints))
-    return section6
+    return section6, result
 
 
 async def _generate_evidence_ledger(
@@ -1399,7 +1399,7 @@ async def _generate_evidence_ledger(
         "Stage 2b produced: %d evidence entries",
         len(section7.evidence_ledger.entries),
     )
-    return section7
+    return section7, result
 
 
 async def run(
@@ -1451,21 +1451,30 @@ async def run(
     )
 
     try:
+        from src.services.session_accounting import update_session_from_llm
+        accumulated_session = state.session.model_copy(deep=True)
+
         # ── Stage 1a: Section 1 (RFP Interpretation) ──────────
         # No per-stage fallback. If a stage fails, the whole pass fails.
-        s1 = await _generate_section_1(shared_ctx, model, previous_book)
+        s1, s1_llm = await _generate_section_1(shared_ctx, model, previous_book)
+        accumulated_session = update_session_from_llm(accumulated_session, s1_llm)
 
         # ── Stage 1b: Section 2 (Client Problem Framing) ──────
-        s2 = await _generate_section_2(shared_ctx, model, previous_book)
+        s2, s2_llm = await _generate_section_2(shared_ctx, model, previous_book)
+        accumulated_session = update_session_from_llm(accumulated_session, s2_llm)
 
         # ── Stage 1c: Section 3 (Why Strategic Gears) ─────────
-        s3 = await _generate_section_3(shared_ctx, model, previous_book)
+        s3, s3_llm = await _generate_section_3(shared_ctx, model, previous_book)
+        accumulated_session = update_session_from_llm(accumulated_session, s3_llm)
 
         # ── Stage 1d: Section 4 (External Evidence) ───────────
-        s4 = await _generate_section_4(shared_ctx, model, previous_book)
+        s4, s4_llm = await _generate_section_4(shared_ctx, model, previous_book)
+        accumulated_session = update_session_from_llm(accumulated_session, s4_llm)
 
         # ── Stage 1e: Section 5 (Proposed Solution) ───────────
-        s5 = await _generate_section_5(shared_ctx, model, previous_book)
+        s5, s5_llm_1, s5_llm_2 = await _generate_section_5(shared_ctx, model, previous_book)
+        accumulated_session = update_session_from_llm(accumulated_session, s5_llm_1)
+        accumulated_session = update_session_from_llm(accumulated_session, s5_llm_2)
 
         # ── Assemble SourceBook from split-call outputs ────────
         source_book = SourceBook(
@@ -1512,7 +1521,8 @@ async def run(
         source_book = _engine1_guard(source_book, state)
 
         # ── Stage 2a: Section 6 (blueprints) ──────────────────
-        section6 = await _generate_blueprints(source_book, model, state=state)
+        section6, s6_llm = await _generate_blueprints(source_book, model, state=state)
+        accumulated_session = update_session_from_llm(accumulated_session, s6_llm)
         source_book.slide_blueprints = section6.slide_blueprints
 
         if not source_book.slide_blueprints:
@@ -1528,7 +1538,8 @@ async def run(
         source_book = _engine1_blueprint_overclaim_scan(source_book, state)
 
         # ── Stage 2b: Section 7 (evidence ledger) ─────────────
-        section7 = await _generate_evidence_ledger(source_book, model)
+        section7, s7_llm = await _generate_evidence_ledger(source_book, model)
+        accumulated_session = update_session_from_llm(accumulated_session, s7_llm)
         source_book.evidence_ledger = section7.evidence_ledger
 
         if not source_book.evidence_ledger.entries:
@@ -1545,11 +1556,15 @@ async def run(
         hedges = _scan_for_hedges(source_book)
         if hedges:
             logger.warning("Hedge scanner found %d banned phrases: %s", len(hedges), ", ".join(hedges))
-            source_book = await _rewrite_hedges(source_book, hedges)
+            source_book, hedge_llm = await _rewrite_hedges(source_book, hedges)
+            if hedge_llm:
+                accumulated_session = update_session_from_llm(accumulated_session, hedge_llm)
             remaining = _scan_for_hedges(source_book)
             if remaining:
                 logger.warning("Hedge rewrite: %d phrases remain — second pass", len(remaining))
-                source_book = await _rewrite_hedges(source_book, remaining)
+                source_book, hedge_llm_2 = await _rewrite_hedges(source_book, remaining)
+                if hedge_llm_2:
+                    accumulated_session = update_session_from_llm(accumulated_session, hedge_llm_2)
         else:
             logger.info("Hedge scanner: zero banned phrases found")
 
@@ -1561,13 +1576,9 @@ async def run(
             len(source_book.why_strategic_gears.capability_mapping),
         )
 
-        # Update session accounting (8 stages: 1a + 1b + 1c + 1d + 1e-i + 1e-ii + 2a + 2b)
-        session = state.session.model_copy(deep=True)
-        session.total_llm_calls += 8
-
         return {
             "source_book": source_book,
-            "session": session,
+            "session": accumulated_session,
             "fallback_events": fallback_events,
         }
 

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/Card";
 import type { AgentRunInfo } from "@/lib/types/pipeline";
+import { usePipelineStore } from "@/stores/pipeline-store";
 
 interface AgentStatusGridProps {
   agentRuns: AgentRunInfo[];
@@ -23,15 +24,30 @@ const AGENT_ORDER = [
   "qa_agent",
 ] as const;
 
+const SB_AGENT_ORDER = [
+  "context_agent",
+  "retrieval_planner",
+  "retrieval_ranker",
+  "evidence_curator",
+  "routing_agent",
+  "proposal_strategist",
+  "sb_writer",
+  "sb_reviewer",
+  "sb_evidence_extractor",
+];
+
 export function AgentStatusGrid({ agentRuns }: AgentStatusGridProps) {
   const t = useTranslations("pipeline");
+  const proposalMode = usePipelineStore((s) => s.proposalMode);
+
+  const agentOrder = proposalMode === "source_book_only" ? SB_AGENT_ORDER : AGENT_ORDER;
 
   const orderedRuns = useMemo(() => {
     const byKey = new Map(agentRuns.map((run) => [run.agent_key, run]));
-    return AGENT_ORDER.map((key) => byKey.get(key)).filter(
+    return agentOrder.map((key) => byKey.get(key)).filter(
       (run): run is AgentRunInfo => Boolean(run),
     );
-  }, [agentRuns]);
+  }, [agentRuns, agentOrder]);
 
   const completeCount = orderedRuns.filter((run) => run.status === "complete").length;
   const activeCount = orderedRuns.filter((run) => run.status === "running").length;
@@ -160,6 +176,18 @@ function mapAgentLabel(
       return t("agents.presentation");
     case "qa_agent":
       return t("agents.qa");
+    case "evidence_curator":
+      return t("agents.evidenceCurator");
+    case "routing_agent":
+      return t("agents.routingAgent");
+    case "proposal_strategist":
+      return t("agents.proposalStrategist");
+    case "sb_writer":
+      return t("agents.sbWriter");
+    case "sb_reviewer":
+      return t("agents.sbReviewer");
+    case "sb_evidence_extractor":
+      return t("agents.sbEvidenceExtractor");
     default:
       return agentKey;
   }

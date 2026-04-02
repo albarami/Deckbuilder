@@ -18,7 +18,7 @@ from backend.models.api_models import (
     GateDecisionResponse,
     PipelineStatus,
 )
-from backend.services.pipeline_runtime import advance_pipeline_session
+from backend.services.pipeline_runtime import advance_pipeline_session, advance_source_book_session
 from backend.services.session_manager import SessionManager
 
 router = APIRouter(prefix="/api/pipeline", tags=["gates"])
@@ -99,8 +99,15 @@ async def decide_gate(
 
     pipeline_status = PipelineStatus.RUNNING
 
+    # Select pipeline function based on proposal_mode
+    advance_fn = (
+        advance_source_book_session
+        if session.proposal_mode == "source_book_only"
+        else advance_pipeline_session
+    )
+
     asyncio.create_task(
-        advance_pipeline_session(
+        advance_fn(
             session_id,
             graph=graph,
             session_manager=sm,

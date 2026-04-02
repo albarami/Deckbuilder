@@ -131,6 +131,11 @@ class PipelineStage(StrEnum):
     CONTENT_GENERATION = "content_generation"
     QA = "qa"
     DECK_REVIEW = "deck_review"
+    # Source Book pipeline stages
+    EVIDENCE_CURATION = "evidence_curation"
+    SOURCE_BOOK_GENERATION = "source_book_generation"
+    SOURCE_BOOK_REVIEW = "source_book_review"
+    # Terminal
     FINALIZED = "finalized"
     ERROR = "error"
 

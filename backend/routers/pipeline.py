@@ -33,7 +33,8 @@ from backend.models.api_models import (
     StartPipelineRequest,
     StartPipelineResponse,
 )
-from backend.services.pipeline_runtime import advance_pipeline_session
+from backend.models.api_models import ProposalMode
+from backend.services.pipeline_runtime import advance_pipeline_session, advance_source_book_session
 from backend.services.session_manager import SessionManager
 from backend.services.sse_broadcaster import SSEBroadcaster
 
@@ -193,9 +194,13 @@ async def start_pipeline(
     sm.set_agent_runs(session.session_id, _build_initial_agent_runs())
     sm.set_deliverables(session.session_id, _build_deliverables(session.session_id, ready=False))
 
+    # Select the correct pipeline function based on proposal_mode
+    is_source_book = body.proposal_mode == ProposalMode.SOURCE_BOOK_ONLY
+    advance_fn = advance_source_book_session if is_source_book else advance_pipeline_session
+
     async def _run_pipeline_with_logging() -> None:
         try:
-            await advance_pipeline_session(
+            await advance_fn(
                 session.session_id,
                 graph=graph,
                 session_manager=sm,

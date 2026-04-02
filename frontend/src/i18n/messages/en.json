@@ -102,6 +102,24 @@
     "journeyOutputReport": "Approved research report",
     "journeyOutputSources": "Source index",
     "journeyOutputGap": "Gap report",
+    "startSourceBook": "Generate Source Book",
+    "modeSelector": {
+      "title": "What would you like to generate?",
+      "deckTitle": "Full Proposal Deck",
+      "deckDescription": "Complete proposal with research report, branded slides, and QA review.",
+      "sourceBookTitle": "Source Book Only",
+      "sourceBookDescription": "Proposal intelligence document with evidence, blueprints, and routing analysis."
+    },
+    "sbJourneyTitle": "What happens after you click Generate Source Book",
+    "sbJourneySubtitle": "DeckForge generates a proposal-grade Source Book with evidence curation, iterative review, and DOCX export.",
+    "sbJourneySummary": "Your RFP will be processed through 3 review stages with expert AI agents.",
+    "sbJourneyStepsContext": "Parse the RFP brief and confirm context accuracy.",
+    "sbJourneyStepsSources": "Review and approve the evidence source set.",
+    "sbJourneyStepsSourceBook": "Review the Source Book draft, download DOCX, approve or request revisions.",
+    "sbJourneyOutputSourceBook": "Source Book (DOCX)",
+    "sbJourneyOutputEvidenceLedger": "Evidence Ledger",
+    "sbJourneyOutputBlueprints": "Slide Blueprints",
+    "sbJourneyOutputRoutingReport": "Routing Report",
     "config": {
       "languageEn": "English",
       "languageAr": "Arabic",
@@ -133,7 +151,11 @@
       "sourceBook": "Source Book",
       "report": "Report Generation",
       "slides": "Slide Rendering",
-      "qa": "Quality Assurance"
+      "qa": "Quality Assurance",
+      "evidenceCuration": "Evidence Curation",
+      "proposalStrategy": "Proposal Strategy",
+      "sourceBookGeneration": "Source Book Generation",
+      "sourceBookReview": "Source Book Review"
     },
     "agentRunning": "Running ({time})",
     "agentCompleted": "Completed in {time}",
@@ -155,6 +177,7 @@
     "timelinePipelineComplete": "Pipeline complete",
     "timelinePipelineError": "Pipeline error",
     "timelineHeartbeat": "Heartbeat received",
+    "longStageHint": "(this may take several minutes)",
     "timelineRenderProgress": "Rendering slide {current} of {total}",
     "journeyLegendTitle": "Workflow framing",
     "journeyLegendSummary": "This hero bar tracks the 5 human approval gates. The full DeckForge workflow spans 10 operational steps across intake, retrieval, research, deck build, QA, and final delivery.",
@@ -172,6 +195,9 @@
     "agentQaModel": "Gate 5 QA Agent",
     "agentMetricLive": "live",
     "agentMetricReady": "ready",
+    "sourceBook": {
+      "pptComingSoon": "Slides and QA are coming soon. Source Book delivery is available now."
+    },
     "agents": {
       "context": "Context Agent",
       "retrievalPlanner": "Retrieval Planner",
@@ -184,6 +210,12 @@
       "refine": "Refine Agent",
       "presentation": "Presentation Agent",
       "qa": "QA Agent",
+      "evidenceCurator": "Evidence Curator",
+      "routingAgent": "Routing Agent",
+      "proposalStrategist": "Proposal Strategist",
+      "sbWriter": "Source Book Writer",
+      "sbReviewer": "Source Book Reviewer",
+      "sbEvidenceExtractor": "Evidence Extractor",
       "contextMetric": "Context package",
       "retrievalPlannerMetric": "Search plan",
       "rankerMetric": "Source shortlist",
@@ -232,7 +264,8 @@
     "qaWarning": "Warning",
     "qaPassed": "{count} passed",
     "qaFailed": "{count} failed",
-    "qaWarnings": "{count} warnings"
+    "qaWarnings": "{count} warnings",
+    "evaluationHighlights": "Evaluation Highlights"
   },
   "slides": {
     "title": "Slide Browser",
@@ -288,7 +321,11 @@
     "summaryCost": "Cost",
     "summaryGateTimeline": "Gate Timeline",
     "summaryGateNumber": "Gate {number}",
-    "summaryStarted": "Started"
+    "summaryStarted": "Started",
+    "downloadSourceIndex": "Source Index (DOCX)",
+    "downloadGapReport": "Gap Report (DOCX)",
+    "downloadQueryLog": "Research Query Log",
+    "downloadExecLog": "Query Execution Log"
   },
   "sourceBook": {
     "readyTitle": "Your Source Book is ready for use.",
@@ -298,5 +335,93 @@
     "evidenceSummary": "Evidence Summary",
     "blueprintCoverage": "Blueprint Coverage",
     "pptComingSoon": "Slides and QA are coming soon. Source Book delivery is available now."
+  },
+  "artifacts": {
+    "evidenceLedger": "Evidence Ledger",
+    "slideBlueprints": "Slide Blueprints",
+    "externalEvidence": "External Evidence",
+    "routingReport": "Routing Report",
+    "downloadJson": "Download JSON",
+    "downloadDocx": "Download DOCX",
+    "noData": "No data available for this artifact.",
+    "loadError": "Failed to load artifact data.",
+    "entries": "{count} entries",
+    "sources": "{count} sources",
+    "viewEvidenceDetails": "View Evidence Details",
+    "validationWarnings": "Validation Warnings",
+    "coverageAssessment": "Coverage Assessment",
+    "classification": "Classification",
+    "selectedPacks": "Selected Packs",
+    "fallbackPacks": "Fallback Packs",
+    "confidence": "Confidence",
+    "ledger": {
+      "colClaimId": "Claim ID",
+      "colClaim": "Claim",
+      "colSource": "Source",
+      "colConfidence": "Confidence",
+      "colStatus": "Status",
+      "expand": "Show more",
+      "collapse": "Show less",
+      "status": {
+        "verified": "Verified",
+        "partially_verified": "Partial",
+        "unverified": "Unverified",
+        "gap": "Gap"
+      }
+    },
+    "blueprint": {
+      "violationsTitle": "Validation Warnings",
+      "ownership": {
+        "house": "House",
+        "dynamic": "Dynamic",
+        "hybrid": "Hybrid"
+      },
+      "slideTitle": "Slide Title",
+      "keyMessage": "Key Message",
+      "bulletPoints": "Content Points",
+      "evidenceRefs": "Evidence References",
+      "visualGuidance": "Visual Guidance",
+      "stats": "{contract} contract entries from {legacy} legacy blueprints"
+    },
+    "pack": {
+      "coverageTitle": "Coverage Assessment",
+      "tier": {
+        "primary": "Primary",
+        "secondary": "Secondary",
+        "analogical": "Analogical"
+      },
+      "relevance": "Relevance",
+      "theme": "RFP Theme",
+      "keyFindings": "Key Findings",
+      "howToUse": "Proposal Usage",
+      "showMoreFindings": "Show all {count} findings",
+      "showLessFindings": "Show fewer"
+    },
+    "routing": {
+      "classificationTitle": "Classification",
+      "jurisdiction": "Jurisdiction",
+      "sector": "Sector",
+      "domain": "Domain",
+      "clientType": "Client Type",
+      "regulatoryFrame": "Regulatory Frame",
+      "confidence": "Routing Confidence",
+      "selectedPacks": "Selected Packs",
+      "fallbackPacks": "Fallback Packs",
+      "warnings": "Routing Warnings"
+    },
+    "summary": {
+      "wordCount": "Word Count",
+      "reviewerScore": "Reviewer Score",
+      "passNumber": "Pass",
+      "evidenceLedger": "Evidence Ledger",
+      "blueprints": "Blueprints",
+      "externalSources": "External Sources",
+      "ready": "Ready",
+      "notReady": "Pending",
+      "sourceBook": "Source Book",
+      "evidencePack": "Evidence Pack",
+      "routingReport": "Routing Report",
+      "viewDetails": "View Evidence Details"
+    }
   }
 }

@@ -149,6 +149,7 @@ class LLMResponse(Generic[T]):  # noqa: UP046
     output_tokens: int
     model: str
     latency_ms: float
+    cost_usd: float = 0.0
 
 
 def _get_openai_client() -> openai.AsyncOpenAI:
@@ -169,6 +170,7 @@ def _get_anthropic_client() -> anthropic.AsyncAnthropic:
         settings = get_settings()
         _anthropic_client = anthropic.AsyncAnthropic(
             api_key=settings.anthropic_api_key.get_secret_value(),
+            timeout=1200.0,
         )
     return _anthropic_client
 
@@ -393,6 +395,7 @@ async def call_llm(  # noqa: UP047
                 output_tokens=out_tokens,
                 model=model,
                 latency_ms=elapsed_ms,
+                cost_usd=cost,
             )
         except _NON_RETRYABLE_ERRORS as e:
             raise LLMError(model=model, attempts=attempt + 1, last_error=e) from e

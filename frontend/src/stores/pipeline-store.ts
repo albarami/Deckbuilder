@@ -64,7 +64,7 @@ interface PipelineState {
 
 interface PipelineActions {
   /** Initialize from a start pipeline response */
-  setSession: (sessionId: string, startedAt: string) => void;
+  setSession: (sessionId: string, startedAt: string, proposalMode?: ProposalMode) => void;
 
   /** Restore full state from GET /status response (session resume) */
   restoreFromStatus: (response: PipelineStatusResponse) => void;
@@ -159,11 +159,11 @@ export const isSourceBookReadyCheckpoint = (state: SourceBookCheckpointState): b
 export const usePipelineStore = create<PipelineStore>((set, get) => ({
   ...initialState,
 
-  setSession: (sessionId, startedAt) =>
+  setSession: (sessionId, startedAt, proposalMode) =>
     set({
       sessionId,
       status: "running",
-      proposalMode: "standard",
+      proposalMode: proposalMode ?? "standard",
       startedAt,
       currentStage: "intake",
       error: null,
@@ -236,6 +236,12 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
     switch (event.type) {
       case "stage_change":
         if (event.stage) store.setStage(event.stage);
+        if (event.agent_runs) {
+          set({ agentRuns: event.agent_runs });
+        }
+        if (event.session_metadata) {
+          set({ sessionMetadata: event.session_metadata });
+        }
         break;
 
       case "gate_pending":

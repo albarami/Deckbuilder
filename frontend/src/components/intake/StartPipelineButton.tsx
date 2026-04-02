@@ -39,6 +39,7 @@ export function StartPipelineButton({
   const hasInput = uploadedFiles.length > 0 || pastedText.trim().length > 0;
   const configValid = isConfigValid(config);
   const canStart = hasInput && configValid && !isStarting;
+  const isSourceBookMode = config.proposalMode === "source_book_only";
 
   const handleStart = useCallback(async () => {
     if (!canStart) return;
@@ -77,7 +78,11 @@ export function StartPipelineButton({
         className="w-full bg-sg-teal shadow-sg-glow-teal hover:bg-sg-navy"
         data-testid="start-pipeline-btn"
       >
-        {isStarting ? t("starting") : t("startPipeline")}
+        {isStarting
+          ? t("starting")
+          : isSourceBookMode
+            ? t("startSourceBook")
+            : t("startPipeline")}
       </Button>
 
       {/* Validation hint */}

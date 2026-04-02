@@ -105,6 +105,13 @@ const mockOutputs: PipelineOutputs = {
   slide_count: 24,
   preview_ready: true,
   deliverables: [],
+  source_book_ready: false,
+  evidence_ledger_ready: false,
+  slide_blueprint_ready: false,
+  external_evidence_ready: false,
+  routing_report_ready: false,
+  research_query_log_ready: false,
+  query_execution_log_ready: false,
 };
 
 const mockMetadata: SessionMetadata = {
@@ -306,6 +313,13 @@ describe("ExportPanel", () => {
       slide_count: 10,
       preview_ready: false,
       deliverables: [],
+      source_book_ready: false,
+      evidence_ledger_ready: false,
+      slide_blueprint_ready: false,
+      external_evidence_ready: false,
+      routing_report_ready: false,
+      research_query_log_ready: false,
+      query_execution_log_ready: false,
     };
     render(<ExportPanel {...defaultProps} outputs={partialOutputs} />);
     const downloadButtons = screen.getAllByTestId("download-button");

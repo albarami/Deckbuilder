@@ -148,6 +148,7 @@ async def run(state: DeckForgeState) -> dict:
         session.total_llm_calls += 1
         session.total_input_tokens += llm_result.input_tokens
         session.total_output_tokens += llm_result.output_tokens
+        session.total_cost_usd += llm_result.cost_usd
 
         return {
             "proposal_strategy": strategy,

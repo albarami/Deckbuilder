@@ -14,7 +14,15 @@ import { Badge } from "@/components/ui/Badge";
 import { useIsPptEnabled } from "@/hooks/use-is-ppt-enabled";
 import { DownloadButton } from "./DownloadButton";
 import { ExportSummary } from "./ExportSummary";
-import { downloadPptx, downloadDocx, downloadSourceIndex, downloadGapReport } from "@/lib/api/export";
+import {
+  downloadPptx,
+  downloadDocx,
+  downloadSourceIndex,
+  downloadGapReport,
+  downloadSourceBook,
+  downloadResearchQueryLog,
+  downloadQueryExecutionLog,
+} from "@/lib/api/export";
 import type {
   PipelineOutputs,
   SessionMetadata,
@@ -40,6 +48,8 @@ export interface ExportPanelProps {
   sourceBookGatePending?: boolean;
   /** True when Source Book is approved and DOCX is ready */
   sourceBookReadyCheckpoint?: boolean;
+  /** True when proposal_mode is source_book_only */
+  isSourceBookMode?: boolean;
 }
 
 export function ExportPanel({
@@ -52,6 +62,7 @@ export function ExportPanel({
   className = "",
   sourceBookGatePending = false,
   sourceBookReadyCheckpoint = false,
+  isSourceBookMode = false,
 }: ExportPanelProps) {
   const t = useTranslations("export");
   const tSourceBook = useTranslations("sourceBook");
@@ -77,10 +88,27 @@ export function ExportPanel({
     [sessionId],
   );
 
+  const handleSourceBookDownload = useCallback(
+    () => downloadSourceBook(sessionId),
+    [sessionId],
+  );
+
+  const handleQueryLogDownload = useCallback(
+    () => downloadResearchQueryLog(sessionId),
+    [sessionId],
+  );
+
+  const handleExecLogDownload = useCallback(
+    () => downloadQueryExecutionLog(sessionId),
+    [sessionId],
+  );
+
   const isReady = outputs !== null;
   const slideCount = outputs?.slide_count ?? 0;
-  const docxReadyByOutput = outputs?.docx_ready ?? false;
-  const sourceBookEligible = sourceBookGatePending || sourceBookReadyCheckpoint || docxReadyByOutput;
+  const sourceBookReady = outputs?.source_book_ready ?? false;
+  const sourceBookEligible = isSourceBookMode
+    ? (sourceBookGatePending || sourceBookReadyCheckpoint || sourceBookReady)
+    : (sourceBookGatePending || sourceBookReadyCheckpoint || (outputs?.docx_ready ?? false));
   const showFullPipelineMessage = !sourceBookEligible && !isReady;
 
   return (
@@ -100,56 +128,89 @@ export function ExportPanel({
           )}
           <div>
             <h2 className="text-lg font-bold text-sg-navy dark:text-slate-100">{t("title")}</h2>
-            {isReady ? (
+            {isSourceBookMode ? (
+              <p className="text-sm text-sg-slate/70 dark:text-slate-300">
+                {sourceBookEligible ? tSourceBook("readyTitle") : t("notReady")}
+              </p>
+            ) : isReady ? (
               <p className="text-sm text-sg-slate/70 dark:text-slate-300">
                 {t("slideCount", { count: slideCount })}
               </p>
             ) : (
-              <p className="text-sm text-amber-600">
+              <p className="text-sm text-amber-600 dark:text-amber-400">
                 {showFullPipelineMessage ? t("notReady") : tSourceBook("readyTitle")}
               </p>
             )}
           </div>
         </div>
 
-        {/* Download buttons */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="download-section">
-          <DownloadButton
-            label={t("downloadPptx")}
-            onDownload={handlePptxDownload}
-            variant="primary"
-            available={isPptEnabled && isReady && (outputs?.pptx_ready ?? false)}
-            unavailableLabel={t("downloadPptx")}
-            errorMessage={t("downloadError")}
-          />
-          <DownloadButton
-            label={tSourceBook("downloadDocxNow")}
-            onDownload={handleDocxDownload}
-            variant="primary"
-            available={sourceBookEligible}
-            unavailableLabel={tSourceBook("downloadDocxNow")}
-            errorMessage={t("downloadError")}
-          />
-          <DownloadButton
-            label={t("downloadSourceIndex") ?? "Source Index"}
-            onDownload={handleSourceIndexDownload}
-            variant="secondary"
-            available={isReady && (outputs?.source_index_ready ?? false)}
-            unavailableLabel={t("downloadSourceIndex") ?? "Source Index"}
-            errorMessage={t("downloadError")}
-          />
-          <DownloadButton
-            label={t("downloadGapReport") ?? "Gap Report"}
-            onDownload={handleGapReportDownload}
-            variant="secondary"
-            available={isReady && (outputs?.gap_report_ready ?? false)}
-            unavailableLabel={t("downloadGapReport") ?? "Gap Report"}
-            errorMessage={t("downloadError")}
-          />
-        </div>
+        {/* Download buttons — Source Book mode vs Deck mode */}
+        {isSourceBookMode ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="download-section">
+            <DownloadButton
+              label={tSourceBook("downloadDocxNow")}
+              onDownload={handleSourceBookDownload}
+              variant="primary"
+              available={sourceBookEligible}
+              unavailableLabel={tSourceBook("downloadDocxNow")}
+              errorMessage={t("downloadError")}
+            />
+            <DownloadButton
+              label={t("downloadQueryLog")}
+              onDownload={handleQueryLogDownload}
+              variant="secondary"
+              available={isReady && (outputs?.research_query_log_ready ?? false)}
+              unavailableLabel={t("downloadQueryLog")}
+              errorMessage={t("downloadError")}
+            />
+            <DownloadButton
+              label={t("downloadExecLog")}
+              onDownload={handleExecLogDownload}
+              variant="secondary"
+              available={isReady && (outputs?.query_execution_log_ready ?? false)}
+              unavailableLabel={t("downloadExecLog")}
+              errorMessage={t("downloadError")}
+            />
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="download-section">
+            <DownloadButton
+              label={t("downloadPptx")}
+              onDownload={handlePptxDownload}
+              variant="primary"
+              available={isPptEnabled && isReady && (outputs?.pptx_ready ?? false)}
+              unavailableLabel={t("downloadPptx")}
+              errorMessage={t("downloadError")}
+            />
+            <DownloadButton
+              label={tSourceBook("downloadDocxNow")}
+              onDownload={handleDocxDownload}
+              variant="primary"
+              available={sourceBookEligible}
+              unavailableLabel={tSourceBook("downloadDocxNow")}
+              errorMessage={t("downloadError")}
+            />
+            <DownloadButton
+              label={t("downloadSourceIndex")}
+              onDownload={handleSourceIndexDownload}
+              variant="secondary"
+              available={isReady && (outputs?.source_index_ready ?? false)}
+              unavailableLabel={t("downloadSourceIndex")}
+              errorMessage={t("downloadError")}
+            />
+            <DownloadButton
+              label={t("downloadGapReport")}
+              onDownload={handleGapReportDownload}
+              variant="secondary"
+              available={isReady && (outputs?.gap_report_ready ?? false)}
+              unavailableLabel={t("downloadGapReport")}
+              errorMessage={t("downloadError")}
+            />
+          </div>
+        )}
 
         {/* File format hints */}
-        {isReady && (
+        {isReady && !isSourceBookMode && (
           <div className="flex flex-wrap gap-2" data-testid="format-hints">
             {isPptEnabled && outputs?.pptx_ready && (
               <Badge variant="info">{t("formatPptx")}</Badge>

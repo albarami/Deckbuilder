@@ -17,6 +17,7 @@ import { FileUploadZone } from "@/components/intake/FileUploadZone";
 import { PipelinePreview } from "@/components/intake/PipelinePreview";
 import { TextPasteArea } from "@/components/intake/TextPasteArea";
 import { ProposalConfig, type ProposalConfigValues } from "@/components/intake/ProposalConfig";
+import { SourceBookModeSelector } from "@/components/intake/SourceBookModeSelector";
 import { StartPipelineButton } from "@/components/intake/StartPipelineButton";
 import { Card } from "@/components/ui/Card";
 import type { UploadedFileInfo } from "@/lib/types/pipeline";
@@ -87,6 +88,14 @@ export default function NewProposalPage() {
       </Card>
 
       <Card variant="default" className="rounded-2xl dark:border-slate-800 dark:bg-slate-900">
+        <SourceBookModeSelector
+          value={config.proposalMode}
+          onChange={(mode) => setConfig((prev) => ({ ...prev, proposalMode: mode }))}
+          disabled={isStarting}
+        />
+      </Card>
+
+      <Card variant="default" className="rounded-2xl dark:border-slate-800 dark:bg-slate-900">
         <ProposalConfig
           values={config}
           onChange={setConfig}
@@ -100,7 +109,7 @@ export default function NewProposalPage() {
         config={config}
       />
 
-      <PipelinePreview />
+      <PipelinePreview proposalMode={config.proposalMode} />
     </div>
   );
 }

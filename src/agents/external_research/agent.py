@@ -801,9 +801,6 @@ async def run(state: DeckForgeState) -> dict:
 
 
 def _update_session(state: DeckForgeState, llm_result) -> object:
-    """Update session metadata with token usage."""
-    session = state.session.model_copy(deep=True)
-    session.total_llm_calls += 1
-    session.total_input_tokens += llm_result.input_tokens
-    session.total_output_tokens += llm_result.output_tokens
-    return session
+    """Update session metadata with token usage and cost."""
+    from src.services.session_accounting import update_session_from_llm
+    return update_session_from_llm(state.session, llm_result)

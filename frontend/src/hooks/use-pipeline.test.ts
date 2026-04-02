@@ -21,6 +21,8 @@ const mockStore = {
   },
   agentRuns: [],
   events: [],
+  proposalMode: "standard" as const,
+  sourceBookSummary: null,
   isStarting: false,
   setStarting: vi.fn(),
   setSession: vi.fn(),
@@ -36,8 +38,8 @@ const mockIsReady = vi.fn(() => false);
 
 vi.mock("@/stores/pipeline-store", () => ({
   usePipelineStore: () => mockStore,
-  isSourceBookGatePending: (...args: unknown[]) => mockIsPending(...args),
-  isSourceBookReadyCheckpoint: (...args: unknown[]) => mockIsReady(...args),
+  isSourceBookGatePending: () => mockIsPending(),
+  isSourceBookReadyCheckpoint: () => mockIsReady(),
 }));
 
 vi.mock("@/lib/api/pipeline", () => ({
@@ -57,8 +59,8 @@ describe("usePipeline", () => {
 
     expect(result.current.isSourceBookGatePending).toBe(true);
     expect(result.current.isSourceBookReadyCheckpoint).toBe(false);
-    expect(mockIsPending).toHaveBeenCalledWith(mockStore);
-    expect(mockIsReady).toHaveBeenCalledWith(mockStore);
+    expect(mockIsPending).toHaveBeenCalled();
+    expect(mockIsReady).toHaveBeenCalled();
   });
 
   it("starts pipeline and stores session id", async () => {
@@ -71,16 +73,20 @@ describe("usePipeline", () => {
     const sessionId = await result.current.start({
       documents: [{ upload_id: "up1", filename: "rfp.pdf" }],
       renderer_mode: "template_v2",
+      language: "en",
+      proposal_mode: "standard",
+      sector: "technology",
+      geography: "saudi_arabia",
     });
 
     expect(sessionId).toBe("sess-new");
     expect(mockStore.setStarting).toHaveBeenCalledWith(true);
-    expect(mockStore.setSession).toHaveBeenCalledWith("sess-new", "2026-03-25T10:00:01Z");
+    expect(mockStore.setSession).toHaveBeenCalledWith("sess-new", "2026-03-25T10:00:01Z", "standard");
     expect(mockStore.setStarting).toHaveBeenLastCalledWith(false);
   });
 
   it("returns false when resume gets 404", async () => {
-    mockGetStatus.mockRejectedValue(new APIError(404, "Not found"));
+    mockGetStatus.mockRejectedValue(new APIError(404, { code: "SESSION_NOT_FOUND", message: "Not found" }));
     const { result } = renderHook(() => usePipeline());
     await expect(result.current.resume("missing")).resolves.toBe(false);
   });

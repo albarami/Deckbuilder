@@ -534,4 +534,6 @@ export interface SSEEvent {
   slide_count?: number | null;
   error?: string | null;
   message?: string | null;
+  agent_runs?: AgentRunInfo[];
+  session_metadata?: SessionMetadata;
 }

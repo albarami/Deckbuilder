@@ -32,9 +32,15 @@ vi.mock("next-intl", () => ({
       "config.modeStandard": "Standard",
       "config.modeFull": "Full",
       startPipeline: "Start Pipeline",
+      startSourceBook: "Generate Source Book",
       starting: "Starting...",
       needInput: "Need input",
       startError: "Start failed",
+      "modeSelector.title": "What would you like to generate?",
+      "modeSelector.deckTitle": "Full Proposal Deck",
+      "modeSelector.deckDescription": "Complete proposal.",
+      "modeSelector.sourceBookTitle": "Source Book Only",
+      "modeSelector.sourceBookDescription": "Proposal intelligence document.",
     };
     return map[key] ?? key;
   },
@@ -108,6 +114,48 @@ describe("integration: intake upload and start flow", () => {
       text_input: "supplemental context from intake form",
       language: "en",
       proposal_mode: "standard",
+      sector: "Government",
+      geography: "Saudi Arabia",
+      renderer_mode: "template_v2",
+    });
+    expect(mockPush).toHaveBeenCalledWith("/pipeline/session-100");
+  });
+
+  it("selects Source Book mode and sends proposal_mode: source_book_only", async () => {
+    const { container } = render(<NewProposalPage />);
+
+    // Upload file
+    const fileInput = container.querySelector("input[type='file']") as HTMLInputElement;
+    const file = new File(["rfp content"], "RFP.pdf", { type: "application/pdf" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    await waitFor(() => expect(mockUploadDocuments).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId("uploaded-files")).toBeInTheDocument());
+
+    // Select Source Book mode
+    fireEvent.click(screen.getByTestId("mode-card-source_book_only"));
+
+    // Fill config — mode dropdown should be hidden, so only sector/geography
+    fireEvent.change(container.querySelector("#config-sector") as HTMLSelectElement, {
+      target: { value: "Government" },
+    });
+    fireEvent.change(container.querySelector("#config-geography") as HTMLSelectElement, {
+      target: { value: "Saudi Arabia" },
+    });
+
+    // Button should say "Generate Source Book"
+    expect(screen.getByTestId("start-pipeline-btn")).toHaveTextContent("Generate Source Book");
+
+    // Start
+    fireEvent.click(screen.getByTestId("start-pipeline-btn"));
+
+    await waitFor(() => expect(mockStart).toHaveBeenCalledTimes(1));
+    expect(mockStart).toHaveBeenCalledWith({
+      documents: [
+        { upload_id: "up-1", filename: "RFP.pdf" },
+      ],
+      text_input: undefined,
+      language: "en",
+      proposal_mode: "source_book_only",
       sector: "Government",
       geography: "Saudi Arabia",
       renderer_mode: "template_v2",

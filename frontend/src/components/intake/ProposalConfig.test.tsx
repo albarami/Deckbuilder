@@ -106,12 +106,27 @@ describe("ProposalConfig", () => {
     expect(screen.getByLabelText("Geography")).toBeDisabled();
   });
 
-  it("renders mode options", () => {
+  it("renders mode options when not in source_book_only mode", () => {
     render(
       <ProposalConfig values={defaultConfig} onChange={onChange} />,
     );
     const modeSelect = screen.getByLabelText("Proposal Mode");
     expect(modeSelect).toHaveValue("standard");
+  });
+
+  it("hides mode dropdown when proposalMode is source_book_only", () => {
+    const sbConfig: ProposalConfigValues = {
+      ...defaultConfig,
+      proposalMode: "source_book_only",
+    };
+    render(
+      <ProposalConfig values={sbConfig} onChange={onChange} />,
+    );
+    expect(screen.queryByLabelText("Proposal Mode")).not.toBeInTheDocument();
+    // Other fields should still render
+    expect(screen.getByLabelText("Language")).toBeInTheDocument();
+    expect(screen.getByLabelText("Sector")).toBeInTheDocument();
+    expect(screen.getByLabelText("Geography")).toBeInTheDocument();
   });
 });
 

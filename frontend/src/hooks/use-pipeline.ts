@@ -36,7 +36,7 @@ export function usePipeline() {
       store.setStarting(true);
       try {
         const response = await apiStartPipeline(request);
-        store.setSession(response.session_id, response.created_at);
+        store.setSession(response.session_id, response.created_at, request.proposal_mode);
         return response.session_id;
       } catch (err) {
         if (err instanceof APIError) {
@@ -81,10 +81,12 @@ export function usePipeline() {
     // State (readonly convenience accessors)
     sessionId: store.sessionId,
     status: store.status,
+    proposalMode: store.proposalMode,
     currentStage: store.currentStage,
     currentGate: store.currentGate,
     completedGates: store.completedGates,
     outputs: store.outputs,
+    sourceBookSummary: store.sourceBookSummary,
     error: store.error,
     startedAt: store.startedAt,
     elapsedMs: store.elapsedMs,

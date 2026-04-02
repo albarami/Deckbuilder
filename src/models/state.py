@@ -177,11 +177,27 @@ class DeckForgeState(DeckForgeBaseModel):
     renderer_mode: RendererMode = RendererMode.TEMPLATE_V2
     proposal_manifest: ProposalManifest | None = None
 
-    # ─── Output ───
+    # ─── Output (Deck mode) ───
     pptx_path: str | None = None  # Path to rendered PPTX
     report_docx_path: str | None = None  # Path to exported report
     source_index_path: str | None = None  # Path to source index document
     gap_report_path: str | None = None  # Path to gap report document
+
+    # ─── Output (Source Book mode) ───
+    source_book_docx_path: str | None = None  # Path to exported Source Book DOCX
+    evidence_ledger_path: str | None = None  # Path to evidence ledger JSON
+    slide_blueprint_path: str | None = None  # Path to slide blueprint JSON
+    external_evidence_path: str | None = None  # Path to external evidence pack JSON
+    routing_report_path: str | None = None  # Path to routing report JSON
+    research_query_log_path: str | None = None  # Path to research query log JSON
+    query_execution_log_path: str | None = None  # Path to query execution log JSON
+
+    # ─── Session-safe query telemetry (captured at call site) ───
+    # These are snapshots of process-global data from the external research agent,
+    # captured into graph state right after the agent completes. This makes them
+    # safe for multi-session FastAPI servers where globals can be overwritten.
+    captured_query_execution_log: list[dict] = Field(default_factory=list)
+    captured_query_theme_map: dict[str, str] = Field(default_factory=dict)
 
     # ─── Conversation ───
     conversation_history: list[ConversationTurn] = Field(default_factory=list)

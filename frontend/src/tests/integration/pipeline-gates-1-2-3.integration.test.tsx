@@ -34,9 +34,9 @@ vi.mock("@/lib/api/export", () => ({
 
 const gate1: GateInfo = {
   gate_number: 1,
-  agent_name: "context_analyzer",
   payload_type: "context_review",
   summary: "Review extracted RFP context",
+  prompt: "Review the extracted RFP context",
   gate_data: {
     rfp_brief: {
       rfp_name: { en: "National Transformation RFP" },
@@ -45,28 +45,26 @@ const gate1: GateInfo = {
     missing_fields: [],
     evaluation_highlights: ["Scope parsed", "Deadlines captured"],
   },
-  available_actions: ["approve", "reject"],
 };
 
 const gate2: GateInfo = {
   gate_number: 2,
-  agent_name: "retrieval",
   payload_type: "source_review",
   summary: "Review retrieved evidence sources",
+  prompt: "Review the retrieved evidence sources",
   gate_data: {
     sources: [
       { source_id: "s1", title: "Benchmark paper 1", relevance_score: 0.91 },
       { source_id: "s2", title: "Benchmark paper 2", relevance_score: 0.87 },
     ],
   },
-  available_actions: ["approve", "reject"],
 };
 
 const gate3: GateInfo = {
   gate_number: 3,
-  agent_name: "reviewer",
   payload_type: "source_book_review",
   summary: "Review source book draft",
+  prompt: "Review the source book draft",
   gate_data: {
     source_book_title: "Source Book",
     total_word_count: 4100,
@@ -84,7 +82,6 @@ const gate3: GateInfo = {
     evidence_summary: { evidence_ledger_entries: 25, external_source_count: 16 },
     blueprint_summary: { total_entries: 12, covered_sections: ["Executive Summary"] },
   },
-  available_actions: ["approve", "reject"],
 };
 
 describe("integration: gate 1 -> gate 2 -> gate 3 flow", () => {

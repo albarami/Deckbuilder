@@ -683,6 +683,8 @@ class SSEEvent(BaseModel):
     slide_count: int | None = None
     error: str | None = None
     message: str | None = None
+    agent_runs: list[dict] | None = None
+    session_metadata: dict | None = None
 
 
 class HealthResponse(BaseModel):

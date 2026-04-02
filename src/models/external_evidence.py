@@ -5,7 +5,7 @@ Produced by the External Research Agent from Semantic Scholar + Perplexity.
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from .common import DeckForgeBaseModel
 
@@ -46,12 +46,21 @@ class ExternalSource(DeckForgeBaseModel):
     raw_excerpt: str = ""  # verbatim excerpt or distilled finding
     how_to_use_in_proposal: str = ""  # actionable guidance for proposal writer
     supports_category: list[SupportsCategoryType] = Field(default_factory=list)
+
     citation_count: int | None = None  # for S2 papers
     selection_method: str = ""  # "search_hit", "recommendation", "perplexity_synthesis"
     evidence_tier: Literal["primary", "secondary", "analogical"] = "analogical"
     evidence_class: Literal[
         "international_benchmark", "local_public", "evidence_gap",
     ] = "international_benchmark"
+
+    @field_validator("supports_category", mode="before")
+    @classmethod
+    def _coerce_supports_category(cls, v: list) -> list:
+        """Coerce unknown LLM-generated category values to 'general'."""
+        allowed = {"methodology", "market_context", "benchmark", "teaming",
+                   "governance", "timeline", "service_design", "general"}
+        return [cat if cat in allowed else "general" for cat in (v or [])]
 
 
 class ExternalEvidencePack(DeckForgeBaseModel):

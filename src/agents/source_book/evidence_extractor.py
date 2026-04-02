@@ -229,6 +229,19 @@ async def extract_evidence_ledger(
             messages=[{"role": "user", "content": sb_text}],
         )
 
+        # Extract token usage for session accounting
+        _extractor_usage = None
+        if hasattr(response, "usage") and response.usage:
+            from src.services.llm import _compute_cost
+            _ext_in = response.usage.input_tokens
+            _ext_out = response.usage.output_tokens
+            _ext_cost = _compute_cost("claude-sonnet-4-20250514", _ext_in, _ext_out)
+            _extractor_usage = {
+                "input_tokens": _ext_in,
+                "output_tokens": _ext_out,
+                "cost_usd": _ext_cost,
+            }
+
         raw_text = response.content[0].text
         # Parse the JSON array from the response
         # Strip markdown fences if present
@@ -357,11 +370,16 @@ async def extract_evidence_ledger(
             "Evidence extractor: produced %d valid entries",
             len(filtered),
         )
-        return filtered
+        return filtered, _extractor_usage
 
     except json.JSONDecodeError as e:
         logger.error("Evidence extractor: JSON parse failed: %s", e)
-        return []
+        # Preserve usage — the LLM call succeeded even if output was malformed
+        return [], _extractor_usage
     except Exception as e:
         logger.error("Evidence extractor: failed: %s", e)
-        return []
+        # Preserve usage if the Anthropic call succeeded before the failure
+        try:
+            return [], _extractor_usage
+        except NameError:
+            return [], None

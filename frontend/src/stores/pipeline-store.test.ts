@@ -27,6 +27,13 @@ vi.mock("@/lib/api/pipeline", () => ({
       slide_count: 15,
       preview_ready: true,
       deliverables: [],
+      source_book_ready: false,
+      evidence_ledger_ready: false,
+      slide_blueprint_ready: false,
+      external_evidence_ready: false,
+      routing_report_ready: false,
+      research_query_log_ready: false,
+      query_execution_log_ready: false,
     },
     deliverables: [],
     completed_gates: [],
@@ -69,6 +76,13 @@ describe("PipelineStore", () => {
         slide_count: 0,
         preview_ready: false,
         deliverables: [],
+        source_book_ready: false,
+        evidence_ledger_ready: false,
+        slide_blueprint_ready: false,
+        external_evidence_ready: false,
+        routing_report_ready: false,
+        research_query_log_ready: false,
+        query_execution_log_ready: false,
       },
     };
 
@@ -96,6 +110,13 @@ describe("PipelineStore", () => {
         slide_count: 0,
         preview_ready: false,
         deliverables: [],
+        source_book_ready: false,
+        evidence_ledger_ready: false,
+        slide_blueprint_ready: false,
+        external_evidence_ready: false,
+        routing_report_ready: false,
+        research_query_log_ready: false,
+        query_execution_log_ready: false,
       },
     };
 
@@ -123,6 +144,13 @@ describe("PipelineStore", () => {
         slide_count: 0,
         preview_ready: false,
         deliverables: [],
+        source_book_ready: false,
+        evidence_ledger_ready: false,
+        slide_blueprint_ready: false,
+        external_evidence_ready: false,
+        routing_report_ready: false,
+        research_query_log_ready: false,
+        query_execution_log_ready: false,
       },
     };
 
@@ -142,6 +170,13 @@ describe("PipelineStore", () => {
         slide_count: 0,
         preview_ready: false,
         deliverables: [],
+        source_book_ready: false,
+        evidence_ledger_ready: false,
+        slide_blueprint_ready: false,
+        external_evidence_ready: false,
+        routing_report_ready: false,
+        research_query_log_ready: false,
+        query_execution_log_ready: false,
       },
     };
 
@@ -243,6 +278,13 @@ describe("PipelineStore", () => {
       slide_count: 12,
       preview_ready: true,
       deliverables: [],
+      source_book_ready: false,
+      evidence_ledger_ready: false,
+      slide_blueprint_ready: false,
+      external_evidence_ready: false,
+      routing_report_ready: false,
+      research_query_log_ready: false,
+      query_execution_log_ready: false,
     });
 
     const state = usePipelineStore.getState();
@@ -293,6 +335,8 @@ describe("PipelineStore", () => {
       deliverables: [],
       rfp_name: "Test RFP",
       issuing_entity: "Test Entity",
+      proposal_mode: "standard",
+      source_book_summary: null,
     };
 
     usePipelineStore.getState().restoreFromStatus(response);
@@ -444,5 +488,60 @@ describe("PipelineStore", () => {
       expect(usePipelineStore.getState().status).toBe("complete");
       expect(usePipelineStore.getState().completedGates).toHaveLength(1);
     });
+  });
+
+  it("stage_change with agent_runs updates store agentRuns", () => {
+    const store = usePipelineStore.getState();
+    store.setSession("sess-ar-1", "2024-01-01T00:00:00Z");
+
+    store.handleSSEEvent({
+      type: "stage_change",
+      stage: "evidence_curation",
+      timestamp: "2024-01-01T00:01:00Z",
+      agent_runs: [
+        {
+          agent_key: "evidence_curator",
+          agent_label: "Evidence Curator",
+          model: "gpt-4o",
+          status: "running",
+        },
+      ],
+    });
+
+    const state = usePipelineStore.getState();
+    expect(state.agentRuns).toHaveLength(1);
+    expect(state.agentRuns[0].agent_key).toBe("evidence_curator");
+  });
+
+  it("stage_change without agent_runs preserves existing agentRuns", () => {
+    const store = usePipelineStore.getState();
+    store.setSession("sess-ar-2", "2024-01-01T00:00:00Z");
+
+    // Set initial agentRuns via a stage_change with agent_runs
+    store.handleSSEEvent({
+      type: "stage_change",
+      stage: "evidence_curation",
+      timestamp: "2024-01-01T00:01:00Z",
+      agent_runs: [
+        {
+          agent_key: "evidence_curator",
+          agent_label: "Evidence Curator",
+          model: "gpt-4o",
+          status: "running",
+        },
+      ],
+    });
+
+    // Now send a stage_change WITHOUT agent_runs
+    store.handleSSEEvent({
+      type: "stage_change",
+      stage: "proposal_strategy",
+      timestamp: "2024-01-01T00:02:00Z",
+    });
+
+    const state = usePipelineStore.getState();
+    expect(state.agentRuns).toHaveLength(1);
+    expect(state.agentRuns[0].agent_key).toBe("evidence_curator");
+    expect(state.currentStage).toBe("proposal_strategy");
   });
 });

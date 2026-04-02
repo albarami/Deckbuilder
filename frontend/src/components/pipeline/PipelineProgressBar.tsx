@@ -39,7 +39,10 @@ const STAGES: StageDefinition[] = [
     id: "sourceBook",
     gateNumber: 3,
     labelKey: "stages.sourceBook",
-    stageKeys: ["report_generation", "report", "source_book_generation", "source_book"],
+    stageKeys: [
+      "report_generation", "report", "source_book_generation", "source_book",
+      "evidence_curation", "proposal_strategy", "source_book_review",
+    ],
   },
   {
     id: "slides",

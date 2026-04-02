@@ -23,6 +23,7 @@ from backend.models.api_models import (
     Gate2SourceReviewData,
     Gate3AssemblyPlanData,
     Gate3ReportReviewData,
+    Gate3SourceBookData,
     Gate4SlideReviewData,
     Gate5QaReviewData,
     GatePayloadType,
@@ -31,9 +32,11 @@ from backend.models.api_models import (
     ReadinessStatus,
     ReportSectionSummary,
     RfpBriefInput,
+    SectionCritiqueSummary,
     SensitivitySummary,
     SlideBudgetSummary,
     SlidePreviewItem,
+    SourceBookSummary,
     SourceIndexItem,
     SourceReviewItem,
     SSEEvent,
@@ -57,6 +60,11 @@ FRONTEND_STAGE_MAP: dict[str, tuple[str, str, int | None]] = {
     PipelineStage.CONTENT_GENERATION.value: ("slide_rendering", "Iterative Slide Builder", 7),
     PipelineStage.QA.value: ("quality_assurance", "Quality Assurance", 8),
     PipelineStage.DECK_REVIEW.value: ("quality_assurance", "Deck Review", 9),
+    # Source Book pipeline stages
+    PipelineStage.EVIDENCE_CURATION.value: ("evidence_curation", "Evidence Curation", 4),
+    PipelineStage.SOURCE_BOOK_GENERATION.value: ("source_book_generation", "Source Book Generation", 5),
+    PipelineStage.SOURCE_BOOK_REVIEW.value: ("source_book_review", "Source Book Review", 6),
+    # Terminal
     PipelineStage.FINALIZED.value: ("finalized", "Finalization & Export", 10),
     PipelineStage.ERROR.value: ("error", "Pipeline Error", None),
 }
@@ -115,6 +123,839 @@ async def advance_pipeline_session(
     finally:
         for patch in patches:
             patch.stop()
+
+
+async def advance_source_book_session(
+    session_id: str,
+    *,
+    graph: Any,
+    session_manager: SessionManager,
+    broadcaster: SSEBroadcaster,
+    pipeline_mode: str,
+    resume_payload: dict[str, Any] | None = None,
+) -> None:
+    """Advance a Source Book pipeline session until the next gate or completion.
+
+    Source Book pipeline flow:
+      Phase 1: graph.ainvoke(state) → Gate 1 (context review)
+      Phase 2: graph.ainvoke(Command(resume)) → Gate 2 (source review)
+      Phase 3: graph.ainvoke(Command(resume)) → evidence curation + writer/reviewer → Gate 3
+      Phase 4: After Gate 3 approval → extract artifacts, export files, mark complete
+               (DO NOT resume graph — Gate 3 is terminal for source_book_only)
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    session = session_manager.get(session_id)
+    if session is None:
+        return
+
+    config = {"configurable": {"thread_id": session.thread_id}}
+
+    # Check if this is Gate 3 approval — terminal gate for source_book_only
+    if resume_payload is not None and resume_payload.get("approved"):
+        last_gate = session.completed_gates[-1] if session.completed_gates else None
+        if last_gate and last_gate.gate_number == 3:
+            # Gate 3 approved — extract artifacts and complete
+            await _complete_source_book_session(
+                session=session,
+                session_manager=session_manager,
+                broadcaster=broadcaster,
+                logger=logger,
+            )
+            return
+
+    # For Gate 3 rejection, we DO resume the graph (revision loop)
+    # For all other cases (initial start, Gate 1/2 resume), advance normally
+
+    patches = []
+    if pipeline_mode == "dry_run":
+        patches = get_dry_run_patches()
+        for patch in patches:
+            patch.start()
+
+    try:
+        # Pre-invoke optimistic broadcast for immediate UI feedback
+        if resume_payload is not None and resume_payload.get("approved"):
+            last_gate_num = session.completed_gates[-1].gate_number if session.completed_gates else 0
+            if last_gate_num == 2:
+                # Gate 2 approved -> evidence curation about to start
+                _optimistic_stage = "evidence_curation"
+                _optimistic_label = "Evidence Curation"
+                _optimistic_runs = _derive_source_book_agent_runs(
+                    session.graph_state or _build_initial_state(session, session_manager)
+                )
+                # Force evidence_curator to RUNNING
+                for _r in _optimistic_runs:
+                    if _r.agent_key == "evidence_curator" and _r.status == AgentRunStatus.WAITING:
+                        _r.status = AgentRunStatus.RUNNING
+                        _r.metric_value = "running"
+                        break
+                session_manager.update_stage(
+                    session.session_id, _optimistic_stage,
+                    stage_label=_optimistic_label, step_number=4,
+                )
+                await broadcaster.broadcast(
+                    session.session_id,
+                    _build_event(
+                        "stage_change",
+                        session_id=session.session_id,
+                        stage=_optimistic_stage,
+                        stage_key=_optimistic_stage,
+                        stage_label=_optimistic_label,
+                        step_number=4,
+                        agent_runs=[_r.model_dump() for _r in _optimistic_runs],
+                        message=_optimistic_label,
+                    ),
+                )
+            elif last_gate_num == 1:
+                # Gate 1 approved -> source research about to start
+                session_manager.update_stage(
+                    session.session_id, "source_research",
+                    stage_label="Source Research", step_number=3,
+                )
+                await broadcaster.broadcast(
+                    session.session_id,
+                    _build_event(
+                        "stage_change",
+                        session_id=session.session_id,
+                        stage="source_research",
+                        stage_key="source_research",
+                        stage_label="Source Research",
+                        step_number=3,
+                        message="Source Research",
+                    ),
+                )
+
+        if resume_payload is None:
+            state = session.graph_state or _build_initial_state(session, session_manager)
+            result = await graph.ainvoke(state, config)
+        else:
+            result = await graph.ainvoke(Command(resume=resume_payload), config)
+
+        await _sync_source_book_session(
+            session=session,
+            result=result,
+            session_manager=session_manager,
+            broadcaster=broadcaster,
+        )
+    finally:
+        for patch in patches:
+            patch.stop()
+
+
+async def _sync_source_book_session(
+    *,
+    session: PipelineSession,
+    result: dict[str, Any],
+    session_manager: SessionManager,
+    broadcaster: SSEBroadcaster,
+) -> None:
+    """Sync session state from graph result for Source Book pipeline.
+
+    Similar to _sync_session_from_result but uses Source Book-specific
+    gate payload logic and stage mapping.
+    """
+    interrupts = result.get("__interrupt__", [])
+    state_payload = {key: value for key, value in result.items() if key != "__interrupt__"}
+    state = DeckForgeState.model_validate(state_payload)
+
+    session_manager.set_graph_state(
+        session.session_id,
+        graph_state=state,
+        interrupt_info=interrupts[0].value if interrupts else None,
+    )
+
+    # Sync RFP brief from state
+    if state.rfp_context:
+        session.rfp_brief = RfpBriefInput(
+            rfp_name={
+                "en": state.rfp_context.rfp_name.en,
+                "ar": state.rfp_context.rfp_name.ar or "",
+            },
+            issuing_entity=state.rfp_context.issuing_entity.en,
+            procurement_platform=state.rfp_context.procurement_platform or "",
+            mandate_summary=state.rfp_context.mandate.en,
+            scope_requirements=[
+                scope_item.description.en for scope_item in state.rfp_context.scope_items
+            ],
+            deliverables=[
+                deliverable.description.en for deliverable in state.rfp_context.deliverables
+            ],
+            mandatory_compliance=[
+                requirement.requirement.en
+                for requirement in state.rfp_context.compliance_requirements
+            ],
+            key_dates={
+                "inquiry_deadline": state.rfp_context.key_dates.inquiry_deadline or ""
+                if state.rfp_context.key_dates
+                else "",
+                "submission_deadline": state.rfp_context.key_dates.submission_deadline or ""
+                if state.rfp_context.key_dates
+                else "",
+                "opening_date": state.rfp_context.key_dates.bid_opening or ""
+                if state.rfp_context.key_dates
+                else "",
+                "expected_award_date": state.rfp_context.key_dates.expected_award or ""
+                if state.rfp_context.key_dates
+                else "",
+                "service_start_date": state.rfp_context.key_dates.service_start or ""
+                if state.rfp_context.key_dates
+                else "",
+            },
+            submission_format={
+                "format": "Structured proposal submission",
+                "delivery_method": "Client portal",
+                "file_requirements": state.rfp_context.submission_format.additional_requirements
+                if state.rfp_context.submission_format
+                else [],
+                "additional_instructions": "",
+            },
+        )
+
+    stage_key, stage_label, step_number = _map_stage(state.current_stage)
+    session_manager.update_stage(
+        session.session_id,
+        stage_key,
+        stage_label=stage_label,
+        step_number=step_number,
+    )
+
+    agent_runs = _derive_source_book_agent_runs(state)
+    session_manager.set_agent_runs(session.session_id, agent_runs)
+
+    # Set deliverables for SB mode (DOCX at minimum)
+    deliverables = _derive_source_book_deliverables(session.session_id, state)
+    session_manager.set_deliverables(session.session_id, deliverables)
+
+    # Post-invoke broadcast with real agent state + session metadata
+    _status_session = session_manager.get(session.session_id)
+    _metadata_dict = None
+    if _status_session:
+        _sr = _status_session.to_status_response()
+        _metadata_dict = _sr.session_metadata.model_dump() if _sr.session_metadata else None
+
+    await broadcaster.broadcast(
+        session.session_id,
+        _build_event(
+            "stage_change",
+            session_id=session.session_id,
+            stage=stage_key,
+            stage_key=stage_key,
+            stage_label=stage_label,
+            step_number=step_number,
+            agent_runs=[r.model_dump() for r in agent_runs],
+            session_metadata=_metadata_dict,
+            message=stage_label,
+        ),
+    )
+
+    # Error handling
+    if state.last_error:
+        session_manager.set_error(
+            session.session_id,
+            state.last_error.agent,
+            state.last_error.message,
+        )
+        await broadcaster.broadcast(
+            session.session_id,
+            _build_event(
+                "pipeline_error",
+                session_id=session.session_id,
+                stage=stage_key,
+                stage_key=stage_key,
+                stage_label=stage_label,
+                step_number=step_number,
+                agent=state.last_error.agent,
+                agent_key=state.last_error.agent,
+                message=state.last_error.message,
+                error=state.last_error.message,
+            ),
+        )
+        await broadcaster.close_session(session.session_id)
+        return
+
+    # Gate interrupt handling
+    if interrupts:
+        gate_number = interrupts[0].value.get(
+            "gate_number", _sb_gate_number_from_stage(state.current_stage)
+        )
+        payload_type, gate_data = _build_source_book_gate_payloads(
+            session.session_id, state, gate_number
+        )
+        summary = interrupts[0].value.get("summary", _sb_default_gate_summary(gate_number))
+        prompt = interrupts[0].value.get(
+            "prompt",
+            f"Gate {gate_number}: review, approve, or reject with feedback.",
+        )
+
+        session_manager.set_gate_pending(
+            session.session_id,
+            gate_number=gate_number,
+            summary=summary,
+            prompt=prompt,
+            payload_type=payload_type,
+            gate_data=gate_data,
+        )
+
+        await broadcaster.broadcast(
+            session.session_id,
+            _build_event(
+                "gate_pending",
+                session_id=session.session_id,
+                stage=stage_key,
+                stage_key=stage_key,
+                stage_label=stage_label,
+                step_number=step_number,
+                gate_number=gate_number,
+                gate_payload_type=payload_type,
+                summary=summary,
+                prompt=prompt,
+                gate_data=gate_data.model_dump() if hasattr(gate_data, "model_dump") else gate_data,
+                message=summary,
+            ),
+        )
+        return
+
+    # If we reach FINALIZED without gate interrupt, complete
+    if state.current_stage == PipelineStage.FINALIZED:
+        await _complete_source_book_session(
+            session=session,
+            session_manager=session_manager,
+            broadcaster=broadcaster,
+        )
+
+
+async def _complete_source_book_session(
+    *,
+    session: PipelineSession,
+    session_manager: SessionManager,
+    broadcaster: SSEBroadcaster,
+    logger: Any = None,
+) -> None:
+    """Finalize a Source Book session after Gate 3 approval.
+
+    Extracts artifacts from graph state, writes JSON artifacts to disk,
+    builds SourceBookSummary metrics, and marks session complete.
+    """
+    import json
+    import logging
+    from pathlib import Path
+
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    state = session.graph_state
+    if state is None:
+        session_manager.set_error(
+            session.session_id, "pipeline", "No graph state available for completion."
+        )
+        await broadcaster.broadcast(
+            session.session_id,
+            _build_event(
+                "pipeline_error",
+                session_id=session.session_id,
+                error="No graph state available.",
+            ),
+        )
+        await broadcaster.close_session(session.session_id)
+        return
+
+    session_id = session.session_id
+    output_dir = Path(f"output/{session_id}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── Extract and write artifact JSONs ──
+
+    # 1. Evidence Ledger
+    if state.source_book and state.source_book.evidence_ledger:
+        try:
+            ledger_data = state.source_book.evidence_ledger.model_dump(mode="json")
+            ledger_path = str(output_dir / "evidence_ledger.json")
+            with open(ledger_path, "w", encoding="utf-8") as f:
+                json.dump(ledger_data, f, indent=2, ensure_ascii=False)
+            session.evidence_ledger_path = ledger_path
+            session.outputs.evidence_ledger_ready = True
+            logger.info("Evidence ledger exported: %s", ledger_path)
+        except Exception as e:
+            logger.error("Evidence ledger export failed: %s", e)
+
+    # 2. Slide Blueprints — run through blueprint_transform for contract schema
+    if state.source_book and state.source_book.slide_blueprints:
+        try:
+            from src.services.blueprint_transform import transform_to_contract_blueprint
+            team_profiles = None
+            if state.source_book.why_strategic_gears:
+                team_profiles = getattr(
+                    state.source_book.why_strategic_gears, "named_consultants", None
+                )
+            contract_entries, violations = transform_to_contract_blueprint(
+                state.source_book.slide_blueprints,
+                team_profiles=team_profiles,
+            )
+            bp_data = {
+                "contract_entries": [
+                    e.model_dump(mode="json") if hasattr(e, "model_dump") else e
+                    for e in contract_entries
+                ],
+                "validation_violations": violations,
+                "legacy_count": len(state.source_book.slide_blueprints),
+                "contract_count": len(contract_entries),
+            }
+            bp_path = str(output_dir / "slide_blueprint.json")
+            with open(bp_path, "w", encoding="utf-8") as f:
+                json.dump(bp_data, f, indent=2, ensure_ascii=False)
+            session.slide_blueprint_path = bp_path
+            session.outputs.slide_blueprint_ready = True
+            if violations:
+                logger.warning(
+                    "Slide blueprint exported with %d violations: %s",
+                    len(violations), bp_path,
+                )
+            else:
+                logger.info("Slide blueprint exported: %s", bp_path)
+        except Exception as e:
+            logger.error("Slide blueprint export failed: %s", e)
+
+    # 3. External Evidence Pack
+    if state.external_evidence_pack:
+        try:
+            ee_data = state.external_evidence_pack.model_dump(mode="json")
+            ee_path = str(output_dir / "external_evidence.json")
+            with open(ee_path, "w", encoding="utf-8") as f:
+                json.dump(ee_data, f, indent=2, ensure_ascii=False)
+            session.external_evidence_path = ee_path
+            session.outputs.external_evidence_ready = True
+            logger.info("External evidence exported: %s", ee_path)
+        except Exception as e:
+            logger.error("External evidence export failed: %s", e)
+
+    # 4. Routing Report
+    if state.routing_report:
+        try:
+            rr_data = state.routing_report if isinstance(state.routing_report, dict) else (
+                state.routing_report.model_dump(mode="json")
+                if hasattr(state.routing_report, "model_dump")
+                else state.routing_report
+            )
+            rr_path = str(output_dir / "routing_report.json")
+            with open(rr_path, "w", encoding="utf-8") as f:
+                json.dump(rr_data, f, indent=2, ensure_ascii=False)
+            session.routing_report_path = rr_path
+            session.outputs.routing_report_ready = True
+            logger.info("Routing report exported: %s", rr_path)
+        except Exception as e:
+            logger.error("Routing report export failed: %s", e)
+
+    # 5. Research Query Log — built from session-safe captured data + evidence pack
+    #    Uses the same logic as scripts/source_book_only.py::_collect_research_query_log
+    #    but reads from graph state (captured_query_*) not process globals.
+    try:
+        query_log = _build_research_query_log(state)
+        if query_log.get("queries_sent"):
+            rql_path = str(output_dir / "research_query_log.json")
+            with open(rql_path, "w", encoding="utf-8") as f:
+                json.dump(query_log, f, indent=2, ensure_ascii=False)
+            session.research_query_log_path = rql_path
+            session.outputs.research_query_log_ready = True
+            logger.info("Research query log exported: %s", rql_path)
+    except Exception as e:
+        logger.warning("Research query log export failed: %s", e)
+
+    # 6. Query Execution Log — session-safe per-query telemetry from graph state
+    try:
+        captured_exec_log = getattr(state, "captured_query_execution_log", [])
+        if captured_exec_log:
+            qel_path = str(output_dir / "query_execution_log.json")
+            with open(qel_path, "w", encoding="utf-8") as f:
+                json.dump(captured_exec_log, f, indent=2, ensure_ascii=False)
+            session.query_execution_log_path = qel_path
+            session.outputs.query_execution_log_ready = True
+            logger.info(
+                "Query execution log exported: %s (%d entries)",
+                qel_path, len(captured_exec_log),
+            )
+    except Exception as e:
+        logger.warning("Query execution log export failed: %s", e)
+
+    # 7. Source Book DOCX — already exported by source_book_node
+    if state.report_docx_path:
+        session.source_book_path = state.report_docx_path
+        session.outputs.source_book_ready = True
+        session.outputs.docx_ready = True
+    elif state.source_book_docx_path:
+        session.source_book_path = state.source_book_docx_path
+        session.outputs.source_book_ready = True
+        session.outputs.docx_ready = True
+
+    # ── Build SourceBookSummary metrics ──
+    summary = _build_source_book_summary(state)
+    session.source_book_summary = summary
+
+    # ── Build final deliverables list ──
+    deliverables = _derive_source_book_deliverables(session_id, state)
+    # Update deliverable readiness from session outputs
+    for d in deliverables:
+        if d.key == "source_book":
+            d.ready = session.outputs.source_book_ready
+            d.path = session.source_book_path
+            d.download_url = f"/api/pipeline/{session_id}/export/source_book" if d.ready else None
+        elif d.key == "evidence_ledger":
+            d.ready = session.outputs.evidence_ledger_ready
+            d.path = session.evidence_ledger_path
+            d.download_url = f"/api/pipeline/{session_id}/export/evidence_ledger" if d.ready else None
+        elif d.key == "slide_blueprint":
+            d.ready = session.outputs.slide_blueprint_ready
+            d.path = session.slide_blueprint_path
+            d.download_url = f"/api/pipeline/{session_id}/export/slide_blueprint" if d.ready else None
+        elif d.key == "external_evidence":
+            d.ready = session.outputs.external_evidence_ready
+            d.path = session.external_evidence_path
+            d.download_url = f"/api/pipeline/{session_id}/export/external_evidence" if d.ready else None
+        elif d.key == "routing_report":
+            d.ready = session.outputs.routing_report_ready
+            d.path = session.routing_report_path
+            d.download_url = f"/api/pipeline/{session_id}/export/routing_report" if d.ready else None
+        elif d.key == "research_query_log":
+            d.ready = session.outputs.research_query_log_ready
+            d.path = session.research_query_log_path
+            d.download_url = f"/api/pipeline/{session_id}/export/research_query_log" if d.ready else None
+        elif d.key == "query_execution_log":
+            d.ready = session.outputs.query_execution_log_ready
+            d.path = session.query_execution_log_path
+            d.download_url = f"/api/pipeline/{session_id}/export/query_execution_log" if d.ready else None
+
+    # ── Mark session complete ──
+    session_manager.set_complete(session_id, slide_count=0, deliverables=deliverables)
+
+    stage_key, stage_label, step_number = "finalized", "Finalization & Export", 10
+    await broadcaster.broadcast(
+        session_id,
+        _build_event(
+            "pipeline_complete",
+            session_id=session_id,
+            stage=stage_key,
+            stage_key=stage_key,
+            stage_label=stage_label,
+            step_number=step_number,
+            slide_count=0,
+            message="Source Book pipeline complete. Artifacts are ready.",
+        ),
+    )
+    await broadcaster.close_session(session_id)
+
+
+def _build_source_book_summary(state: DeckForgeState) -> SourceBookSummary:
+    """Extract Source Book metrics from graph state into typed summary."""
+    sb = state.source_book
+    review = state.source_book_review
+    evidence_pack = state.external_evidence_pack
+
+    word_count = 0
+    evidence_ledger_entries = 0
+    blueprint_entries = 0
+    capability_mappings = 0
+    consultant_count = 0
+    real_consultant_names: list[str] = []
+    project_count = 0
+
+    if sb:
+        # Real prose word count — extracts actual text fields, not JSON blobs
+        word_count = _count_source_book_words(sb)
+        evidence_ledger_entries = len(sb.evidence_ledger.entries) if sb.evidence_ledger else 0
+        blueprint_entries = len(sb.slide_blueprints)
+
+        # Why Strategic Gears section metrics — uses actual model fields:
+        # WhyStrategicGears.named_consultants, .project_experience, .capability_mapping
+        wsg = sb.why_strategic_gears
+        if wsg:
+            capability_mappings = len(getattr(wsg, "capability_mapping", []))
+            consultants = getattr(wsg, "named_consultants", [])
+            consultant_count = len(consultants)
+            real_consultant_names = [
+                getattr(c, "name", "") for c in consultants
+                if getattr(c, "name", "")
+            ]
+            project_count = len(getattr(wsg, "project_experience", []))
+
+    external_sources = 0
+    if evidence_pack:
+        sources = getattr(evidence_pack, "sources", [])
+        external_sources = len(sources)
+
+    return SourceBookSummary(
+        word_count=word_count,
+        reviewer_score=review.overall_score if review else 0,
+        threshold_met=review.pass_threshold_met if review else False,
+        competitive_viability=review.competitive_viability if review else "unknown",
+        evidence_ledger_entries=evidence_ledger_entries,
+        slide_blueprint_entries=blueprint_entries,
+        external_sources=external_sources,
+        capability_mappings=capability_mappings,
+        consultant_count=consultant_count,
+        real_consultant_names=real_consultant_names,
+        project_count=project_count,
+        pass_number=sb.pass_number if sb else 0,
+    )
+
+
+def _derive_source_book_agent_runs(state: DeckForgeState) -> list[AgentRunInfo]:
+    """Build agent run cards for Source Book pipeline mode."""
+    runs = {
+        agent_key: AgentRunInfo(
+            agent_key=agent_key,
+            agent_label=agent_label,
+            model=model,
+            status=AgentRunStatus.WAITING,
+            metric_label=metric_label,
+            metric_value="pending",
+            step_key=step_key,
+            step_number=step_number,
+        )
+        for agent_key, agent_label, model, metric_label, step_key, step_number in [
+            ("context_agent", "Context Agent", "GPT-5.4", "Context package", "context_understanding", 1),
+            ("retrieval_planner", "Retrieval Planner", "GPT-5.4", "Search plan", "knowledge_retrieval", 2),
+            ("retrieval_ranker", "Ranker Agent", "GPT-5.4", "Source shortlist", "knowledge_retrieval", 2),
+            ("evidence_curator", "Evidence Curator", "Claude Opus 4.6", "Evidence pack", "evidence_curation", 3),
+            ("routing_agent", "Routing Agent", "GPT-5.4", "Jurisdiction routing", "evidence_curation", 3),
+            ("proposal_strategist", "Proposal Strategist", "Claude Opus 4.6", "Win themes", "evidence_curation", 3),
+            ("sb_writer", "Source Book Writer", "Claude Opus 4.6", "Source book draft", "source_book_generation", 4),
+            ("sb_reviewer", "Source Book Reviewer", "GPT-5.4", "Review score", "source_book_review", 5),
+            ("sb_evidence_extractor", "Evidence Extractor", "Claude Opus 4.6", "Ledger entries", "source_book_generation", 4),
+        ]
+    }
+
+    # Update status based on state
+    if state.rfp_context:
+        runs["context_agent"].status = AgentRunStatus.COMPLETE
+        runs["context_agent"].metric_value = f"{state.rfp_context.completeness.top_level_fields_extracted}/10 fields"
+
+    if state.retrieved_sources:
+        runs["retrieval_planner"].status = AgentRunStatus.COMPLETE
+        runs["retrieval_planner"].metric_value = "queries issued"
+        runs["retrieval_ranker"].status = AgentRunStatus.COMPLETE
+        runs["retrieval_ranker"].metric_value = f"{len(state.retrieved_sources)} sources"
+
+    if state.external_evidence_pack:
+        runs["evidence_curator"].status = AgentRunStatus.COMPLETE
+        sources = getattr(state.external_evidence_pack, "sources", [])
+        runs["evidence_curator"].metric_value = f"{len(sources)} evidence sources"
+
+    if state.routing_report:
+        runs["routing_agent"].status = AgentRunStatus.COMPLETE
+        if isinstance(state.routing_report, dict):
+            confidence = state.routing_report.get("routing_confidence", 0)
+            runs["routing_agent"].metric_value = f"conf={confidence:.2f}"
+        else:
+            runs["routing_agent"].metric_value = "classified"
+
+    if state.proposal_strategy:
+        runs["proposal_strategist"].status = AgentRunStatus.COMPLETE
+        win_themes = getattr(state.proposal_strategy, "win_themes", [])
+        runs["proposal_strategist"].metric_value = f"{len(win_themes)} themes"
+
+    if state.source_book:
+        runs["sb_writer"].status = AgentRunStatus.COMPLETE
+        bp_count = len(state.source_book.slide_blueprints)
+        ledger_count = len(state.source_book.evidence_ledger.entries) if state.source_book.evidence_ledger else 0
+        runs["sb_writer"].metric_value = f"{bp_count} blueprints, {ledger_count} evidence"
+
+    if state.source_book_review:
+        runs["sb_reviewer"].status = AgentRunStatus.COMPLETE
+        runs["sb_reviewer"].metric_value = f"{state.source_book_review.overall_score}/5"
+
+    if state.source_book and state.source_book.evidence_ledger and len(state.source_book.evidence_ledger.entries) > 0:
+        runs["sb_evidence_extractor"].status = AgentRunStatus.COMPLETE
+        runs["sb_evidence_extractor"].metric_value = f"{len(state.source_book.evidence_ledger.entries)} entries"
+
+    # Mark currently running agent
+    current_stage = state.current_stage.value if hasattr(state.current_stage, "value") else str(state.current_stage)
+    stage_to_agents = {
+        PipelineStage.CONTEXT_REVIEW.value: ["context_agent"],
+        PipelineStage.SOURCE_REVIEW.value: ["retrieval_planner", "retrieval_ranker"],
+        PipelineStage.EVIDENCE_CURATION.value: ["evidence_curator", "routing_agent", "proposal_strategist"],
+        PipelineStage.SOURCE_BOOK_GENERATION.value: ["sb_writer", "sb_evidence_extractor"],
+        PipelineStage.SOURCE_BOOK_REVIEW.value: ["sb_reviewer"],
+    }
+    active_agents = stage_to_agents.get(current_stage, [])
+    for key in active_agents:
+        if runs[key].status == AgentRunStatus.WAITING:
+            runs[key].status = AgentRunStatus.RUNNING
+            runs[key].metric_value = "running"
+            break
+
+    if state.last_error:
+        failing = runs.get(state.last_error.agent)
+        if failing:
+            failing.status = AgentRunStatus.ERROR
+            failing.metric_value = state.last_error.message
+
+    return list(runs.values())
+
+
+def _derive_source_book_deliverables(session_id: str, state: DeckForgeState) -> list[DeliverableInfo]:
+    """Build deliverable list for Source Book pipeline mode."""
+    return [
+        DeliverableInfo(
+            key="source_book",
+            label="Source Book (DOCX)",
+            ready=bool(state.report_docx_path or state.source_book_docx_path),
+            filename=f"source_book_{session_id[:6]}.docx",
+            download_url=f"/api/pipeline/{session_id}/export/source_book"
+            if (state.report_docx_path or state.source_book_docx_path)
+            else None,
+            path=state.report_docx_path or state.source_book_docx_path,
+        ),
+        DeliverableInfo(
+            key="evidence_ledger",
+            label="Evidence Ledger (JSON)",
+            ready=bool(state.evidence_ledger_path),
+            filename=f"evidence_ledger_{session_id[:6]}.json",
+            download_url=f"/api/pipeline/{session_id}/export/evidence_ledger"
+            if state.evidence_ledger_path
+            else None,
+            path=state.evidence_ledger_path,
+        ),
+        DeliverableInfo(
+            key="slide_blueprint",
+            label="Slide Blueprint (JSON)",
+            ready=bool(state.slide_blueprint_path),
+            filename=f"slide_blueprint_{session_id[:6]}.json",
+            download_url=f"/api/pipeline/{session_id}/export/slide_blueprint"
+            if state.slide_blueprint_path
+            else None,
+            path=state.slide_blueprint_path,
+        ),
+        DeliverableInfo(
+            key="external_evidence",
+            label="External Evidence Pack (JSON)",
+            ready=bool(state.external_evidence_path),
+            filename=f"external_evidence_{session_id[:6]}.json",
+            download_url=f"/api/pipeline/{session_id}/export/external_evidence"
+            if state.external_evidence_path
+            else None,
+            path=state.external_evidence_path,
+        ),
+        DeliverableInfo(
+            key="routing_report",
+            label="Routing Report (JSON)",
+            ready=bool(state.routing_report_path),
+            filename=f"routing_report_{session_id[:6]}.json",
+            download_url=f"/api/pipeline/{session_id}/export/routing_report"
+            if state.routing_report_path
+            else None,
+            path=state.routing_report_path,
+        ),
+        DeliverableInfo(
+            key="research_query_log",
+            label="Research Query Log (JSON)",
+            ready=bool(state.research_query_log_path),
+            filename=f"research_query_log_{session_id[:6]}.json",
+            download_url=f"/api/pipeline/{session_id}/export/research_query_log"
+            if state.research_query_log_path
+            else None,
+            path=state.research_query_log_path,
+        ),
+        DeliverableInfo(
+            key="query_execution_log",
+            label="Query Execution Log (JSON)",
+            ready=bool(state.query_execution_log_path),
+            filename=f"query_execution_log_{session_id[:6]}.json",
+            download_url=f"/api/pipeline/{session_id}/export/query_execution_log"
+            if state.query_execution_log_path
+            else None,
+            path=state.query_execution_log_path,
+        ),
+    ]
+
+
+def _build_source_book_gate_payloads(
+    session_id: str,
+    state: DeckForgeState,
+    gate_number: int,
+) -> tuple[GatePayloadType, Any]:
+    """Build gate payload for Source Book pipeline mode."""
+    if gate_number == 1:
+        return GatePayloadType.CONTEXT_REVIEW, _build_gate1_payload(state)
+    if gate_number == 2:
+        return GatePayloadType.SOURCE_REVIEW, _build_gate2_payload(state)
+    # Gate 3 in source_book_only = Source Book Review
+    return GatePayloadType.SOURCE_BOOK_REVIEW, _build_gate3_source_book_payload(session_id, state)
+
+
+def _build_gate3_source_book_payload(
+    session_id: str,
+    state: DeckForgeState,
+) -> Gate3SourceBookData:
+    """Build Gate 3 payload for Source Book review."""
+    review = state.source_book_review
+    sb = state.source_book
+
+    # Word count estimate
+    word_count = 0
+    if sb:
+        for section_name in [
+            "rfp_interpretation", "client_problem_framing",
+            "why_strategic_gears", "external_evidence", "proposed_solution",
+        ]:
+            section = getattr(sb, section_name, None)
+            if section:
+                section_text = str(section.model_dump(mode="json") if hasattr(section, "model_dump") else section)
+                word_count += len(section_text.split())
+
+    # Section critiques from reviewer
+    critiques: list[SectionCritiqueSummary] = []
+    if review and review.section_critiques:
+        for sc in review.section_critiques:
+            critiques.append(SectionCritiqueSummary(
+                section_id=sc.section_id,
+                score=sc.score,
+                issues=list(sc.issues),
+                rewrite_instructions=list(sc.rewrite_instructions),
+            ))
+
+    evidence_count = 0
+    blueprint_count = 0
+    if sb:
+        evidence_count = len(sb.evidence_ledger.entries) if sb.evidence_ledger else 0
+        blueprint_count = len(sb.slide_blueprints)
+
+    docx_preview_url = ""
+    if state.report_docx_path or state.source_book_docx_path:
+        docx_preview_url = f"/api/pipeline/{session_id}/export/source_book"
+
+    return Gate3SourceBookData(
+        reviewer_score=review.overall_score if review else 0,
+        threshold_met=review.pass_threshold_met if review else False,
+        competitive_viability=review.competitive_viability if review else "unknown",
+        pass_number=sb.pass_number if sb else 0,
+        rewrite_required=review.rewrite_required if review else False,
+        section_critiques=critiques,
+        coherence_issues=list(review.coherence_issues) if review else [],
+        word_count=word_count,
+        evidence_count=evidence_count,
+        blueprint_count=blueprint_count,
+        docx_preview_url=docx_preview_url,
+    )
+
+
+def _sb_gate_number_from_stage(stage: Any) -> int | None:
+    """Map pipeline stage to gate number for Source Book mode."""
+    stage_value = stage.value if hasattr(stage, "value") else str(stage)
+    return {
+        PipelineStage.CONTEXT_REVIEW.value: 1,
+        PipelineStage.SOURCE_REVIEW.value: 2,
+        PipelineStage.SOURCE_BOOK_REVIEW.value: 3,
+    }.get(stage_value)
+
+
+def _sb_default_gate_summary(gate_number: int) -> str:
+    return {
+        1: "Context review is ready.",
+        2: "Source review is ready.",
+        3: "Source Book review is ready.",
+    }.get(gate_number, "Review required.")
 
 
 def _build_initial_state(
@@ -909,6 +1750,168 @@ def _to_language(value: str) -> Language:
         return Language(value)
     except ValueError:
         return Language.EN
+
+
+def _build_research_query_log(state: DeckForgeState) -> dict[str, Any]:
+    """Build research query log from session-safe captured data + evidence pack.
+
+    Mirrors scripts/source_book_only.py::_collect_research_query_log but reads
+    from graph state (captured_query_*) not process globals, making it safe for
+    concurrent multi-session servers.
+    """
+    import time
+
+    captured_exec_log = getattr(state, "captured_query_execution_log", [])
+    captured_theme_map = getattr(state, "captured_query_theme_map", {})
+    ext_evidence = state.external_evidence_pack
+
+    log: dict[str, Any] = {
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "queries_sent": [],
+        "theme_coverage": {},
+        "snippet_enrichment_status": "available_but_not_invoked",
+        "author_enrichment_status": "available_but_not_invoked",
+    }
+    if not ext_evidence:
+        return log
+
+    queries = getattr(ext_evidence, "search_queries_used", [])
+    sources = getattr(ext_evidence, "sources", [])
+    query_service_map = getattr(ext_evidence, "query_service_map", {}) or {}
+
+    # Build execution truth from captured (session-safe) execution log
+    exec_services_invoked: dict[str, set[str]] = {}
+    for entry in captured_exec_log:
+        q = entry.get("query", "")
+        svc = entry.get("service_invoked", "")
+        if q and svc:
+            exec_services_invoked.setdefault(q, set()).add(svc)
+
+    # Count retained sources per query
+    retained_by_query: dict[str, int] = {}
+    for src in sources:
+        qused = getattr(src, "query_used", "")
+        if qused:
+            retained_by_query[qused] = retained_by_query.get(qused, 0) + 1
+
+    # Build per-query entries
+    theme_source_counts: dict[str, int] = {}
+    for q in queries:
+        theme = captured_theme_map.get(q, "unclassified")
+
+        # services_requested from the query_service_map (set at generation time)
+        services_requested = query_service_map.get(q, [])
+        if not services_requested:
+            services_requested = ["unknown"]
+
+        # services_actual from EXECUTION LOG TRUTH
+        services_actual = sorted(exec_services_invoked.get(q, set()))
+
+        # retained_sources_count from actual retained sources
+        retained = retained_by_query.get(q, 0)
+        theme_source_counts[theme] = theme_source_counts.get(theme, 0) + retained
+
+        log["queries_sent"].append({
+            "query": q,
+            "query_theme": theme,
+            "services_requested": services_requested,
+            "services_actual": services_actual,
+            "retained_sources_count": retained,
+        })
+
+    # Build theme coverage
+    _ALL_THEMES = [
+        "needs_assessment", "service_portfolio_design", "institutional_framework",
+        "strategic_support", "methodology", "institutional_model", "evaluation",
+        "analogical_domain", "pack_curated", "local_public_context",
+    ]
+    for theme in _ALL_THEMES:
+        count = theme_source_counts.get(theme, 0)
+        status = "covered" if count >= 3 else "weak" if count >= 1 else "gap"
+        log["theme_coverage"][theme] = {
+            "retained_sources": count,
+            "status": status,
+        }
+
+    log["coverage_assessment"] = getattr(ext_evidence, "coverage_assessment", "")
+    return log
+
+
+def _count_source_book_words(sb: Any) -> int:
+    """Count real prose words from Source Book section fields.
+
+    Extracts actual prose text from structured section fields,
+    not JSON-serialized blobs. Mirrors scripts/source_book_only.py logic.
+    """
+    if sb is None:
+        return 0
+
+    def _wc(text: str | None) -> int:
+        return len(text.split()) if text else 0
+
+    prose_parts: list[str | None] = []
+
+    # Section 1: RFP Interpretation
+    rfp = sb.rfp_interpretation
+    if rfp:
+        prose_parts.extend([
+            getattr(rfp, "objective_and_scope", None),
+            getattr(rfp, "constraints_and_compliance", None),
+            getattr(rfp, "unstated_evaluator_priorities", None),
+            getattr(rfp, "probable_scoring_logic", None),
+        ])
+
+    # Section 2: Client Problem Framing
+    cpf = sb.client_problem_framing
+    if cpf:
+        prose_parts.extend([
+            getattr(cpf, "current_state_challenge", None),
+            getattr(cpf, "why_it_matters_now", None),
+            getattr(cpf, "transformation_logic", None),
+            getattr(cpf, "risk_if_unchanged", None),
+        ])
+
+    # Section 3: Why Strategic Gears — consultant profiles, project outcomes
+    wsg = sb.why_strategic_gears
+    if wsg:
+        for nc in getattr(wsg, "named_consultants", []):
+            prose_parts.extend([
+                getattr(nc, "relevance", None),
+                getattr(nc, "justification", None),
+            ])
+        for pe in getattr(wsg, "project_experience", []):
+            prose_parts.append(getattr(pe, "outcomes", None))
+        for cm in getattr(wsg, "capability_mapping", []):
+            prose_parts.append(getattr(cm, "sg_capability", None))
+        certs = getattr(wsg, "certifications_and_compliance", None)
+        if certs:
+            prose_parts.append(" ".join(certs))
+
+    # Section 4: External Evidence
+    ext = sb.external_evidence
+    if ext:
+        prose_parts.append(getattr(ext, "coverage_assessment", None))
+        for ee in getattr(ext, "entries", []):
+            prose_parts.extend([
+                getattr(ee, "relevance", None),
+                getattr(ee, "key_finding", None),
+            ])
+
+    # Section 5: Proposed Solution
+    ps = sb.proposed_solution
+    if ps:
+        prose_parts.extend([
+            getattr(ps, "methodology_overview", None),
+            getattr(ps, "governance_framework", None),
+            getattr(ps, "timeline_logic", None),
+            getattr(ps, "value_case_and_differentiation", None),
+        ])
+        for phase in getattr(ps, "phase_details", []):
+            prose_parts.extend(getattr(phase, "activities", []))
+            prose_parts.extend(getattr(phase, "deliverables", []))
+            prose_parts.append(getattr(phase, "governance", None))
+
+    return sum(_wc(p) for p in prose_parts)
 
 
 def _build_event(event_type: str, **kwargs: Any) -> SSEEvent:

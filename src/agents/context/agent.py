@@ -40,6 +40,7 @@ async def run(state: DeckForgeState) -> DeckForgeState:
         state.session.total_input_tokens += result.input_tokens
         state.session.total_output_tokens += result.output_tokens
         state.session.total_llm_calls += 1
+        state.session.total_cost_usd += result.cost_usd
     except LLMError as e:
         if _is_schema_drift_error(e):
             try:
@@ -54,6 +55,7 @@ async def run(state: DeckForgeState) -> DeckForgeState:
                 state.session.total_input_tokens += retry_result.input_tokens
                 state.session.total_output_tokens += retry_result.output_tokens
                 state.session.total_llm_calls += 1
+                state.session.total_cost_usd += retry_result.cost_usd
                 return state
             except LLMError as retry_error:
                 e = retry_error

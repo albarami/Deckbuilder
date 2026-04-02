@@ -37,6 +37,7 @@ async def plan(
         state.session.total_input_tokens += result.input_tokens
         state.session.total_output_tokens += result.output_tokens
         state.session.total_llm_calls += 1
+        state.session.total_cost_usd += result.cost_usd
     except LLMError as e:
         state.current_stage = PipelineStage.ERROR
         state.errors.append(ErrorInfo(

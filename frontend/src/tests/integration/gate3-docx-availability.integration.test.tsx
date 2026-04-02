@@ -35,9 +35,9 @@ vi.mock("@/lib/api/export", () => ({
 
 const gate3Pending: GateInfo = {
   gate_number: 3,
-  agent_name: "reviewer",
   payload_type: "source_book_review",
   summary: "Source book pending review",
+  prompt: "Review the source book draft",
   gate_data: {
     source_book_title: "Source Book Draft",
     total_word_count: 3980,
@@ -55,7 +55,6 @@ const gate3Pending: GateInfo = {
     evidence_summary: { evidence_ledger_entries: 22, external_source_count: 14 },
     blueprint_summary: { total_entries: 10, covered_sections: ["Executive Summary"] },
   },
-  available_actions: ["approve", "reject"],
 };
 
 describe("integration: gate 3 DOCX availability", () => {

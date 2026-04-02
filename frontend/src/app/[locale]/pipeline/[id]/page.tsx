@@ -458,10 +458,13 @@ function formatStageLabel(
     case "source_research":
     case "sources":
       return t("stages.sources");
+    case "evidence_curation":
+    case "proposal_strategy":
     case "report_generation":
     case "report":
     case "source_book_generation":
     case "source_book":
+    case "source_book_review":
       return t("stages.sourceBook");
     case "slide_rendering":
     case "slides":

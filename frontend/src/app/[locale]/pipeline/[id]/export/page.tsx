@@ -18,6 +18,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Link } from "@/i18n/routing";
 import { useIsPptEnabled } from "@/hooks/use-is-ppt-enabled";
+import { ArtifactViewerTabs } from "@/components/artifacts/ArtifactViewerTabs";
 import type { PipelineStatusResponse } from "@/lib/types/pipeline";
 
 export default function ExportPage() {
@@ -111,14 +112,20 @@ export default function ExportPage() {
 
   // ── Main export view ────────────────────────────────────────────────
 
+  const isSourceBookMode = statusData.proposal_mode === "source_book_only";
   const sourceBookGatePending =
     statusData.status === "gate_pending" && statusData.current_gate?.gate_number === 3;
-  const docxReady =
-    Boolean(statusData.outputs?.docx_ready) ||
-    Boolean(statusData.outputs?.deliverables?.some((d) => d.key === "docx" && d.ready));
+  const sourceBookReady = Boolean(statusData.outputs?.source_book_ready);
   const sourceBookReadyCheckpoint =
     statusData.completed_gates.some((gate) => gate.gate_number === 3 && gate.approved) &&
-    docxReady;
+    (isSourceBookMode ? sourceBookReady : Boolean(statusData.outputs?.docx_ready));
+  // Artifact viewers mount when at least one viewable artifact is actually exported
+  const artifactsReady = isSourceBookMode && (
+    Boolean(statusData.outputs?.evidence_ledger_ready) ||
+    Boolean(statusData.outputs?.slide_blueprint_ready) ||
+    Boolean(statusData.outputs?.external_evidence_ready) ||
+    Boolean(statusData.outputs?.routing_report_ready)
+  );
 
   return (
     <div className="space-y-4">
@@ -160,7 +167,12 @@ export default function ExportPage() {
         elapsedMs={statusData.elapsed_ms}
         sourceBookGatePending={sourceBookGatePending}
         sourceBookReadyCheckpoint={sourceBookReadyCheckpoint}
+        isSourceBookMode={isSourceBookMode}
       />
+
+      {artifactsReady && (
+        <ArtifactViewerTabs sessionId={sessionId} />
+      )}
     </div>
   );
 }

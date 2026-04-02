@@ -100,15 +100,18 @@ function mapEventToItem(
   t: (key: string, values?: Record<string, string | number>) => string,
 ): ActivityItem | null {
   switch (event.type) {
-    case "stage_change":
+    case "stage_change": {
+      const stageLabel = formatStageLabel(event.stage, t);
+      const isLongStage = event.stage === "evidence_curation" || event.stage === "source_book_generation";
       return {
         id: `stage-${index}`,
-        label: t("timelineStageChanged", {
-          stage: formatStageLabel(event.stage, t),
-        }),
+        label: isLongStage
+          ? `${t("timelineStageChanged", { stage: stageLabel })} ${t("longStageHint")}`
+          : t("timelineStageChanged", { stage: stageLabel }),
         timestamp: event.timestamp,
         tone: "info",
       };
+    }
     case "agent_start":
       return {
         id: `agent-start-${index}`,
@@ -206,6 +209,14 @@ function formatStageLabel(
     case "qa":
     case "finalized":
       return t("stages.qa");
+    case "evidence_curation":
+      return t("stages.evidenceCuration");
+    case "proposal_strategy":
+      return t("stages.proposalStrategy");
+    case "source_book_generation":
+      return t("stages.sourceBookGeneration");
+    case "source_book_review":
+      return t("stages.sourceBookReview");
     default:
       return formatSnakeCase(stage ?? "Unknown stage");
   }
@@ -238,6 +249,18 @@ function formatBackendAgentName(
       return t("agents.presentation");
     case "qa_agent":
       return t("agents.qa");
+    case "evidence_curator":
+      return t("agents.evidenceCurator");
+    case "routing_agent":
+      return t("agents.routingAgent");
+    case "proposal_strategist":
+      return t("agents.proposalStrategist");
+    case "sb_writer":
+      return t("agents.sbWriter");
+    case "sb_reviewer":
+      return t("agents.sbReviewer");
+    case "sb_evidence_extractor":
+      return t("agents.sbEvidenceExtractor");
     default:
       return formatSnakeCase(agent ?? "Unknown agent");
   }

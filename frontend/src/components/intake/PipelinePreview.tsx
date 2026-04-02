@@ -2,6 +2,7 @@
 
 import {
   BookCheck,
+  BookOpen,
   FileCheck2,
   FileOutput,
   GitBranch,
@@ -12,11 +13,18 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/Card";
+import type { ProposalMode } from "@/lib/types/pipeline";
 
-export function PipelinePreview() {
+export interface PipelinePreviewProps {
+  proposalMode?: ProposalMode;
+}
+
+export function PipelinePreview({ proposalMode = "standard" }: PipelinePreviewProps) {
   const t = useTranslations("intake");
+  const isSourceBook = proposalMode === "source_book_only";
+  // Any non-SB mode (lite, standard, full) shows the deck journey
 
-  const steps = [
+  const deckSteps = [
     { icon: <SearchCheck className="h-4 w-4" aria-hidden="true" />, label: t("journeyStepsContext") },
     { icon: <Workflow className="h-4 w-4" aria-hidden="true" />, label: t("journeyStepsSources") },
     { icon: <BookCheck className="h-4 w-4" aria-hidden="true" />, label: t("journeyStepsReport") },
@@ -24,12 +32,29 @@ export function PipelinePreview() {
     { icon: <ShieldCheck className="h-4 w-4" aria-hidden="true" />, label: t("journeyStepsQa") },
   ];
 
-  const outputs = [
+  const sbSteps = [
+    { icon: <SearchCheck className="h-4 w-4" aria-hidden="true" />, label: t("sbJourneyStepsContext") },
+    { icon: <Workflow className="h-4 w-4" aria-hidden="true" />, label: t("sbJourneyStepsSources") },
+    { icon: <BookOpen className="h-4 w-4" aria-hidden="true" />, label: t("sbJourneyStepsSourceBook") },
+  ];
+
+  const steps = isSourceBook ? sbSteps : deckSteps;
+
+  const deckOutputs = [
     t("journeyOutputDeck"),
     t("journeyOutputReport"),
     t("journeyOutputSources"),
     t("journeyOutputGap"),
   ];
+
+  const sbOutputs = [
+    t("sbJourneyOutputSourceBook"),
+    t("sbJourneyOutputEvidenceLedger"),
+    t("sbJourneyOutputBlueprints"),
+    t("sbJourneyOutputRoutingReport"),
+  ];
+
+  const outputs = isSourceBook ? sbOutputs : deckOutputs;
 
   return (
     <Card
@@ -43,13 +68,13 @@ export function PipelinePreview() {
         </div>
         <div>
           <h3 className="text-base font-semibold tracking-tight text-sg-navy dark:text-slate-100">
-            {t("journeyTitle")}
+            {isSourceBook ? t("sbJourneyTitle") : t("journeyTitle")}
           </h3>
           <p className="mt-1 text-sm text-sg-slate/70 dark:text-slate-300">
-            {t("journeySubtitle")}
+            {isSourceBook ? t("sbJourneySubtitle") : t("journeySubtitle")}
           </p>
           <p className="mt-2 text-sm font-medium text-sg-blue dark:text-sky-300">
-            {t("journeySummary")}
+            {isSourceBook ? t("sbJourneySummary") : t("journeySummary")}
           </p>
         </div>
       </div>

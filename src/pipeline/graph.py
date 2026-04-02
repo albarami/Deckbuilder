@@ -491,8 +491,13 @@ async def evidence_curation_node(state: DeckForgeState) -> dict[str, Any]:
     Session accounting is accumulated (summed), not clobbered.
     """
     import asyncio
+    import sys
 
     from src.agents.external_research import agent as external_research_agent
+
+    with open("trace.log", "a") as _tf:
+        _tf.write(f"[{__import__('datetime').datetime.now().isoformat()}] evidence_curation_node ENTERED\n")
+        _tf.flush()
 
     # Run both agents concurrently
     analysis_task = asyncio.create_task(analysis_node(state))
@@ -501,6 +506,10 @@ async def evidence_curation_node(state: DeckForgeState) -> dict[str, Any]:
     analysis_result, external_result = await asyncio.gather(
         analysis_task, external_task, return_exceptions=True,
     )
+
+    with open("trace.log", "a") as _tf:
+        _tf.write(f"[{__import__('datetime').datetime.now().isoformat()}] GATHER DONE analysis_exc={isinstance(analysis_result, Exception)} external_exc={isinstance(external_result, Exception)}\n")
+        _tf.flush()
 
     # Merge results — session accounting must be accumulated, not clobbered
     updates: dict[str, Any] = {}
@@ -522,6 +531,16 @@ async def evidence_curation_node(state: DeckForgeState) -> dict[str, Any]:
         for key, value in external_result.items():
             if key != "session":
                 updates[key] = value
+
+        # Capture session-safe snapshots of process-global query telemetry.
+        # These globals are cleared per-run by the external research agent,
+        # so we must copy them now before another session can overwrite them.
+        from src.agents.external_research.agent import (
+            _QUERY_EXECUTION_LOG,
+            _QUERY_THEME_MAP,
+        )
+        updates["captured_query_execution_log"] = list(_QUERY_EXECUTION_LOG)
+        updates["captured_query_theme_map"] = dict(_QUERY_THEME_MAP)
 
         # Accumulate session accounting from both branches
         if "session" in updates and "session" in external_result:
@@ -747,7 +766,26 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     final_sb = current_state.source_book
     if final_sb:
         try:
-            ledger_entries = await extract_evidence_ledger(final_sb)
+            _ledger_result = await extract_evidence_ledger(final_sb)
+            if isinstance(_ledger_result, tuple):
+                ledger_entries, extractor_usage = _ledger_result
+            else:
+                # Backward compat: old return shape
+                ledger_entries = _ledger_result
+                extractor_usage = None
+
+            # Propagate extractor cost to session
+            if extractor_usage:
+                from src.services.session_accounting import update_session_from_raw
+                current_state = current_state.model_copy(
+                    update={"session": update_session_from_raw(
+                        current_state.session,
+                        input_tokens=extractor_usage["input_tokens"],
+                        output_tokens=extractor_usage["output_tokens"],
+                        cost_usd=extractor_usage["cost_usd"],
+                    )},
+                )
+
             if ledger_entries:
                 from src.models.source_book import EvidenceLedger
 

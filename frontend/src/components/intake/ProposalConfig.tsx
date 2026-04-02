@@ -77,6 +77,10 @@ export function ProposalConfig({
     onChange({ ...values, [field]: value });
   };
 
+  // Hide the old mode dropdown when Source Book mode is active —
+  // the SourceBookModeSelector card above is the single mode control.
+  const isSourceBookMode = values.proposalMode === "source_book_only";
+
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-sg-navy dark:text-slate-100">
@@ -99,20 +103,22 @@ export function ProposalConfig({
           ))}
         </SelectField>
 
-        {/* Proposal Mode */}
-        <SelectField
-          id="config-mode"
-          label={t("proposalMode")}
-          value={values.proposalMode}
-          onChange={(v) => update("proposalMode", v)}
-          disabled={disabled}
-        >
-          {MODE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {t(opt.labelKey)}
-            </option>
-          ))}
-        </SelectField>
+        {/* Proposal Mode — hidden when Source Book mode is set via SourceBookModeSelector */}
+        {!isSourceBookMode && (
+          <SelectField
+            id="config-mode"
+            label={t("proposalMode")}
+            value={values.proposalMode}
+            onChange={(v) => update("proposalMode", v)}
+            disabled={disabled}
+          >
+            {MODE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {t(opt.labelKey)}
+              </option>
+            ))}
+          </SelectField>
+        )}
 
         {/* Sector */}
         <SelectField
