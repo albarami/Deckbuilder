@@ -108,6 +108,30 @@ async def advance_pipeline_session(
             patch.start()
 
     try:
+        # Pre-invoke optimistic broadcast for immediate UI feedback after gate approval
+        if resume_payload is not None and resume_payload.get("approved"):
+            last_gate = session.completed_gates[-1] if session.completed_gates else None
+            if last_gate:
+                next_stage_key, next_stage_label, next_step = _optimistic_next_stage(
+                    last_gate.gate_number
+                )
+                session_manager.update_stage(
+                    session.session_id, next_stage_key,
+                    stage_label=next_stage_label, step_number=next_step,
+                )
+                await broadcaster.broadcast(
+                    session.session_id,
+                    _build_event(
+                        "stage_change",
+                        session_id=session.session_id,
+                        stage=next_stage_key,
+                        stage_key=next_stage_key,
+                        stage_label=next_stage_label,
+                        step_number=next_step,
+                        message=next_stage_label,
+                    ),
+                )
+
         if resume_payload is None:
             state = session.graph_state or _build_initial_state(session, session_manager)
             result = await graph.ainvoke(state, config)
@@ -975,7 +999,13 @@ def _build_initial_state(
             )
         )
 
-    ai_summary = session.text_input or _brief_to_summary(session.rfp_brief)
+    ai_summary = session.text_input or ""
+    if not ai_summary and uploaded_documents:
+        ai_summary = "\n\n---\n\n".join(
+            f"[{doc.filename}]\n{doc.content_text[:5000]}"
+            for doc in uploaded_documents
+            if doc.content_text
+        )
 
     return DeckForgeState(
         ai_assist_summary=ai_summary,
@@ -1080,6 +1110,28 @@ async def _sync_session_from_result(
 
     deliverables = _derive_deliverables(session.session_id, state)
     session_manager.set_deliverables(session.session_id, deliverables)
+
+    # Post-invoke broadcast with real agent state + session metadata
+    _status_session = session_manager.get(session.session_id)
+    _metadata_dict = None
+    if _status_session:
+        _sr = _status_session.to_status_response()
+        _metadata_dict = _sr.session_metadata.model_dump() if _sr.session_metadata else None
+
+    await broadcaster.broadcast(
+        session.session_id,
+        _build_event(
+            "stage_change",
+            session_id=session.session_id,
+            stage=stage_key,
+            stage_key=stage_key,
+            stage_label=stage_label,
+            step_number=step_number,
+            agent_runs=[r.model_dump() for r in agent_runs],
+            session_metadata=_metadata_dict,
+            message=stage_label,
+        ),
+    )
 
     if state.last_error:
         session_manager.set_error(
@@ -1709,6 +1761,17 @@ def _map_stage(stage: Any) -> tuple[str, str, int | None]:
     )
 
 
+def _optimistic_next_stage(gate_number: int) -> tuple[str, str, int]:
+    """Return (stage_key, stage_label, step_number) for the stage after a gate approval."""
+    return {
+        1: ("source_research", "Knowledge Retrieval", 3),
+        2: ("analysis", "Deep Analysis", 4),
+        3: ("slide_rendering", "Iterative Slide Builder", 6),
+        4: ("quality_assurance", "Quality Assurance", 8),
+        5: ("finalized", "Finalization & Export", 10),
+    }.get(gate_number, ("running", "Processing", 0))
+
+
 def _gate_number_from_stage(stage: Any) -> int | None:
     stage_value = stage.value if hasattr(stage, "value") else str(stage)
     return {
@@ -1732,17 +1795,6 @@ def _default_gate_summary(gate_number: int) -> str:
     }.get(gate_number, "Review required.")
 
 
-def _brief_to_summary(brief: RfpBriefInput | None) -> str:
-    if brief is None:
-        return ""
-    summary_parts = [
-        brief.rfp_name.en,
-        brief.issuing_entity,
-        brief.mandate_summary,
-        "Scope: " + "; ".join(brief.scope_requirements[:5]) if brief.scope_requirements else "",
-        "Deliverables: " + "; ".join(brief.deliverables[:5]) if brief.deliverables else "",
-    ]
-    return "\n".join(part for part in summary_parts if part)
 
 
 def _to_language(value: str) -> Language:

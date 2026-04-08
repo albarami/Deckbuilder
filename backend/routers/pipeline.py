@@ -165,7 +165,7 @@ async def start_pipeline(
             ).model_dump(),
         )
 
-    rfp_brief = body.rfp_brief or _build_fallback_brief(body)
+    rfp_brief = body.rfp_brief
 
     try:
         session = sm.create(
@@ -190,6 +190,7 @@ async def start_pipeline(
         )
 
     session.upload_ids = [document.upload_id for document in body.documents]
+    session.upload_filenames = [document.filename for document in body.documents]
     session.text_input = body.text_input
     sm.set_agent_runs(session.session_id, _build_initial_agent_runs())
     sm.set_deliverables(session.session_id, _build_deliverables(session.session_id, ready=False))
@@ -336,34 +337,6 @@ def _build_event(event_type: str, **kwargs: Any) -> SSEEvent:
     )
 
 
-def _build_fallback_brief(body: StartPipelineRequest) -> RfpBriefInput:
-    summary = (body.text_input or "").strip()
-    if not summary:
-        summary = (
-            f"Proposal request for the {body.sector or 'general'} sector in "
-            f"{body.geography or 'KSA'}."
-        )
-
-    return RfpBriefInput(
-        rfp_name={"en": "Mock RFP", "ar": ""},
-        issuing_entity="Mock Government Entity",
-        procurement_platform="BD Station",
-        mandate_summary=summary,
-        scope_requirements=[
-            "Deliver a transformation roadmap",
-            "Recommend implementation governance",
-            "Define milestones and success metrics",
-        ],
-        deliverables=[
-            "Proposal deck",
-            "Research report",
-            "Source index",
-        ],
-        mandatory_compliance=[
-            "Arabic/English delivery support",
-            "Government-ready governance model",
-        ],
-    )
 
 
 

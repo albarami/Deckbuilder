@@ -96,6 +96,7 @@ class PipelineSession:
 
         self.sse_events: list[SSEEvent] = []
         self.upload_ids: list[str] = []
+        self.upload_filenames: list[str] = []
 
         self.slides_data: list[dict[str, Any]] = []
         self.thumbnail_mode: ThumbnailMode = ThumbnailMode.METADATA_ONLY
@@ -123,7 +124,9 @@ class PipelineSession:
             return self.graph_state.rfp_context.rfp_name.en
         if self.rfp_brief and self.rfp_brief.rfp_name.en:
             return self.rfp_brief.rfp_name.en
-        return "Untitled RFP"
+        if self.upload_filenames:
+            return self.upload_filenames[0].rsplit(".", 1)[0]
+        return ""
 
     @property
     def issuing_entity(self) -> str:

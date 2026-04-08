@@ -10,11 +10,82 @@ scoring and rewrite instructions.
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Literal
 
 from pydantic import Field, model_validator
 
 from .common import DeckForgeBaseModel
+
+
+# ──────────────────────────────────────────────────────────────
+# Assertion classification (Engine 1 evidence discipline)
+# ──────────────────────────────────────────────────────────────
+
+
+class AssertionLabel(str, Enum):
+    """Classification label for every substantive claim in the source book.
+
+    DIRECT_RFP_FACT: explicitly grounded in uploaded RFP text.
+    INFERENCE: reasoned conclusion from RFP structure/patterns, not stated.
+    EXTERNAL_BENCHMARK: sourced from external research, support only.
+    INTERNAL_PROOF_PLACEHOLDER: flags future internal enrichment, not proof.
+    """
+
+    DIRECT_RFP_FACT = "DIRECT_RFP_FACT"
+    INFERENCE = "INFERENCE"
+    EXTERNAL_BENCHMARK = "EXTERNAL_BENCHMARK"
+    INTERNAL_PROOF_PLACEHOLDER = "INTERNAL_PROOF_PLACEHOLDER"
+
+
+class ClassifiedClaim(DeckForgeBaseModel):
+    """A substantive claim with its assertion classification."""
+
+    claim_text: str = ""
+    label: AssertionLabel = AssertionLabel.INFERENCE
+    basis: str = ""  # What grounds this claim (RFP clause, pattern, source)
+    confidence: Literal["high", "medium", "low"] = "medium"
+
+
+class ComplianceRow(DeckForgeBaseModel):
+    """Structured compliance-to-requirement row for evaluator-facing matrices."""
+
+    requirement_id: str = ""  # e.g. COMP-001
+    requirement_text: str = ""
+    sg_response: str = ""
+    evidence_ref: str = ""  # CLM-xxxx / EXT-xxx
+    label: AssertionLabel = AssertionLabel.DIRECT_RFP_FACT
+
+
+class DeliveryControlRow(DeckForgeBaseModel):
+    """Delivery-control matrix row for requirement-dense RFPs."""
+
+    control_area: str = ""
+    rfp_requirement: str = ""
+    proposed_mechanism: str = ""
+    verification_method: str = ""
+    label: AssertionLabel = AssertionLabel.DIRECT_RFP_FACT
+
+
+class EvaluationHypothesis(DeckForgeBaseModel):
+    """Structured evaluation model row — used when weights absent from RFP."""
+
+    criterion: str = ""
+    basis: str = ""  # Why we believe this criterion matters
+    confidence: Literal["high", "medium", "low"] = "medium"
+    label: AssertionLabel = AssertionLabel.INFERENCE
+    weight_estimate: str = ""  # e.g. "~30%" or "unknown"
+
+
+class CoherenceResult(DeckForgeBaseModel):
+    """Output of the cross-section coherence validator."""
+
+    issues: list[str] = Field(default_factory=list)
+    governance_naming_consistent: bool = True
+    evidence_posture_consistent: bool = True
+    compliance_carried_through: bool = True
+    absolutes_found: list[str] = Field(default_factory=list)
+    absolutes_softened: int = 0
 
 # ──────────────────────────────────────────────────────────────
 # Source Book sections (7 sections per design doc Section 7.1)
@@ -29,6 +100,15 @@ class RFPInterpretation(DeckForgeBaseModel):
     unstated_evaluator_priorities: str = ""
     probable_scoring_logic: str = ""
     key_compliance_requirements: list[str] = Field(default_factory=list)
+    # Structured evidence fields (Engine 1 discipline)
+    explicit_requirements: list[ClassifiedClaim] = Field(default_factory=list)
+    inferred_requirements: list[ClassifiedClaim] = Field(default_factory=list)
+    external_support: list[ClassifiedClaim] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    ambiguities: list[str] = Field(default_factory=list)
+    compliance_rows: list[ComplianceRow] = Field(default_factory=list)
+    delivery_control_rows: list[DeliveryControlRow] = Field(default_factory=list)
+    evaluation_hypotheses: list[EvaluationHypothesis] = Field(default_factory=list)
 
 
 class ClientProblemFraming(DeckForgeBaseModel):
@@ -148,6 +228,8 @@ class ProposedSolution(DeckForgeBaseModel):
     governance_framework: str = ""
     timeline_logic: str = ""
     value_case_and_differentiation: str = ""
+    # Structured evidence fields for benchmark governance
+    benchmark_references: list[ClassifiedClaim] = Field(default_factory=list)
 
 
 class SlideBlueprintEntry(DeckForgeBaseModel):
@@ -227,6 +309,8 @@ class SourceBook(DeckForgeBaseModel):
     # Iteration metadata
     pass_number: int = 1
     reviewer_feedback: str = ""
+    requirement_density: Literal["high", "medium", "low"] = "medium"
+    coherence: CoherenceResult = Field(default_factory=CoherenceResult)
 
 
 class SourceBookSections67(DeckForgeBaseModel):
@@ -291,6 +375,7 @@ class SourceBookSection1(DeckForgeBaseModel):
     language: str = "en"
     generation_date: str = ""
     rfp_interpretation: RFPInterpretation = Field(default_factory=RFPInterpretation)
+    requirement_density: Literal["high", "medium", "low"] = "medium"
 
 
 class SourceBookSection2(DeckForgeBaseModel):

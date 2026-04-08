@@ -5,6 +5,10 @@
 - [x] Write an implementation-based technical document describing the actual built DeckForge system and the remaining work required to complete it.
 - [x] Semantic Scholar integration: `x-api-key` auth, bulk search + recommendations, no silent keyless retry after authenticated failure; optional `SEMANTIC_SCHOLAR_API_KEY` in `.env`.
 - [x] Implement template-locked blueprint contract with canonical section order, ownership-aware schema, and validator tests.
+- [x] Refine Source Book Reviewer: assertion classification, requirement-density detection, benchmark governance, coherence validation, absolute-language sanitizer.
+- [x] Engine 1 artifact-level fix: typed-field-driven rendering, matrix-first export, export-time sanitizer, expanded absolute/inference patterns, artifact-level tests.
+- [x] Engine 1 fact-preservation: classification-aware sanitizer, fact-citation guards, stacked-hedge deduplication, evaluation hypothesis label fix, 17 new fact-preservation tests.
+- [x] Engine 1 clause-level guard: move from sentence-level to clause-level fact guarding, fix section-number citation splitting, 10 new mixed-clause tests.
 
 ## Discovered During Work
 

@@ -1432,6 +1432,22 @@ async def run(
 
     shared_ctx = _build_shared_context(state, reviewer_feedback=reviewer_feedback)
 
+    # ── Pre-generation: requirement density detection ──────
+    from .requirement_detector import detect_requirement_density
+    density_analysis = detect_requirement_density(state)
+    shared_ctx["requirement_density"] = density_analysis.density
+    shared_ctx["density_signals"] = density_analysis.signals
+    shared_ctx["should_generate_compliance_matrix"] = density_analysis.should_generate_compliance_matrix
+    shared_ctx["should_generate_delivery_matrix"] = density_analysis.should_generate_delivery_matrix
+    shared_ctx["should_generate_ambiguity_table"] = density_analysis.should_generate_ambiguity_table
+    logger.info(
+        "Requirement density: %s (prescriptive=%d, deliverables=%d, eval=%d)",
+        density_analysis.density,
+        density_analysis.prescriptive_count,
+        density_analysis.deliverable_count,
+        density_analysis.evaluation_count,
+    )
+
     # Inject pack context into shared context if available
     if pack_context:
         shared_ctx["pack_context"] = pack_context
@@ -1488,6 +1504,7 @@ async def run(
             external_evidence=s4.external_evidence,
             proposed_solution=s5.proposed_solution,
             pass_number=current_pass,
+            requirement_density=getattr(s1, "requirement_density", density_analysis.density),
         )
 
         # Deduplicate projects by case-insensitive name
@@ -1567,6 +1584,35 @@ async def run(
                     accumulated_session = update_session_from_llm(accumulated_session, hedge_llm_2)
         else:
             logger.info("Hedge scanner: zero banned phrases found")
+
+        # ── Assertion classification enforcement ──────────────
+        from .assertion_classifier import enforce_classification
+        classification_report = enforce_classification(source_book)
+        logger.info(
+            "Assertion classifier: claims=%d, fixed=%d, absolutes=%d, "
+            "benchmark_gov=%d, inference_render=%d",
+            classification_report.total_claims_checked,
+            classification_report.misclassified_fixed,
+            classification_report.absolutes_softened,
+            classification_report.benchmark_governance_fixes,
+            classification_report.inference_rendering_fixes,
+        )
+
+        # ── Cross-section coherence validation ────────────────
+        from .coherence_validator import validate_coherence
+        coherence_result = validate_coherence(source_book)
+        if coherence_result.issues:
+            logger.warning(
+                "Coherence validator: %d issues found: %s",
+                len(coherence_result.issues),
+                "; ".join(coherence_result.issues[:5]),
+            )
+        if coherence_result.absolutes_found:
+            logger.warning(
+                "Coherence validator: %d unsupported absolutes remain: %s",
+                len(coherence_result.absolutes_found),
+                "; ".join(coherence_result.absolutes_found[:3]),
+            )
 
         logger.info(
             "Source Book written: pass=%d, blueprints=%d, evidence=%d, capabilities=%d",

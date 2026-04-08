@@ -16,7 +16,14 @@ from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt, RGBColor
 
-from src.models.source_book import SourceBook
+from src.models.source_book import (
+    AssertionLabel,
+    ClassifiedClaim,
+    ComplianceRow,
+    DeliveryControlRow,
+    EvaluationHypothesis,
+    SourceBook,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -163,36 +170,304 @@ def _add_cover_page(doc: Document, source_book: SourceBook) -> None:
     doc.add_page_break()
 
 
+# ──────────────────────────────────────────────────────────────
+# Export-time prose sanitizer
+# ──────────────────────────────────────────────────────────────
+
+
+def _sanitize_prose(text: str) -> str:
+    """Apply absolute + inference sanitization to prose text at export time.
+
+    This is the final defence: even if the writer/classifier missed
+    something, the exported DOCX will not contain unsupported absolutes
+    or inference rendered as established fact.
+
+    Fact-preservation: sentences containing explicit source citations
+    (e.g. "The RFP states ...") are protected from inference softening.
+    Stacked hedges are collapsed in a final pass.
+    """
+    if not text:
+        return text
+    from src.agents.source_book.assertion_classifier import (
+        _collapse_stacked_hedges,
+        _enforce_inference_rendering,
+        apply_benchmark_governance,
+        soften_absolutes,
+    )
+    result, _ = soften_absolutes(text)
+    result, _ = _enforce_inference_rendering(result)
+    result, _ = apply_benchmark_governance(result)
+    result, _ = _collapse_stacked_hedges(result)
+    return result
+
+
+def _add_sanitized_prose(doc: Document, text: str) -> None:
+    """Sanitize prose then render it into the DOCX via _add_smart_prose."""
+    _add_smart_prose(doc, _sanitize_prose(text))
+
+
+# ──────────────────────────────────────────────────────────────
+# Typed-field rendering helpers
+# ──────────────────────────────────────────────────────────────
+
+
+def _label_display(label: AssertionLabel) -> str:
+    """Human-readable display for assertion labels."""
+    _map = {
+        AssertionLabel.DIRECT_RFP_FACT: "RFP Fact",
+        AssertionLabel.INFERENCE: "Inferred",
+        AssertionLabel.EXTERNAL_BENCHMARK: "External Benchmark",
+        AssertionLabel.INTERNAL_PROOF_PLACEHOLDER: "Proof Needed",
+    }
+    return _map.get(label, str(label))
+
+
+def _add_classified_claims_table(
+    doc: Document,
+    claims: list[ClassifiedClaim],
+    title: str,
+) -> None:
+    """Render a list of ClassifiedClaims as a structured Word table."""
+    if not claims:
+        return
+    doc.add_heading(title, level=3)
+    table = doc.add_table(rows=1, cols=4)
+    table.style = "Table Grid"
+    hdr = table.rows[0].cells
+    hdr[0].text = "Claim"
+    hdr[1].text = "Classification"
+    hdr[2].text = "Basis"
+    hdr[3].text = "Confidence"
+    for h_cell in hdr:
+        for para in h_cell.paragraphs:
+            for run in para.runs:
+                run.bold = True
+                run.font.size = Pt(9)
+    for claim in claims:
+        row = table.add_row().cells
+        row[0].text = claim.claim_text
+        row[1].text = _label_display(claim.label)
+        row[2].text = claim.basis
+        row[3].text = claim.confidence
+        for cell in row:
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.font.size = Pt(9)
+    doc.add_paragraph()
+
+
+def _add_compliance_matrix(
+    doc: Document,
+    rows_data: list[ComplianceRow],
+) -> None:
+    """Render structured compliance matrix as a Word table."""
+    if not rows_data:
+        return
+    doc.add_heading("Compliance-to-Requirement Matrix", level=3)
+    table = doc.add_table(rows=1, cols=5)
+    table.style = "Table Grid"
+    hdr = table.rows[0].cells
+    hdr[0].text = "ID"
+    hdr[1].text = "Requirement"
+    hdr[2].text = "SG Response"
+    hdr[3].text = "Evidence Ref"
+    hdr[4].text = "Classification"
+    for h_cell in hdr:
+        for para in h_cell.paragraphs:
+            for run in para.runs:
+                run.bold = True
+                run.font.size = Pt(9)
+    for cr in rows_data:
+        row = table.add_row().cells
+        row[0].text = cr.requirement_id
+        row[1].text = cr.requirement_text
+        row[2].text = cr.sg_response
+        row[3].text = cr.evidence_ref
+        row[4].text = _label_display(cr.label)
+        for cell in row:
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.font.size = Pt(9)
+    doc.add_paragraph()
+
+
+def _add_delivery_control_matrix(
+    doc: Document,
+    rows_data: list[DeliveryControlRow],
+) -> None:
+    """Render delivery-control matrix as a Word table."""
+    if not rows_data:
+        return
+    doc.add_heading("Delivery-Control Matrix", level=3)
+    table = doc.add_table(rows=1, cols=5)
+    table.style = "Table Grid"
+    hdr = table.rows[0].cells
+    hdr[0].text = "Control Area"
+    hdr[1].text = "RFP Requirement"
+    hdr[2].text = "Proposed Mechanism"
+    hdr[3].text = "Verification Method"
+    hdr[4].text = "Classification"
+    for h_cell in hdr:
+        for para in h_cell.paragraphs:
+            for run in para.runs:
+                run.bold = True
+                run.font.size = Pt(9)
+    for dr in rows_data:
+        row = table.add_row().cells
+        row[0].text = dr.control_area
+        row[1].text = dr.rfp_requirement
+        row[2].text = dr.proposed_mechanism
+        row[3].text = dr.verification_method
+        row[4].text = _label_display(dr.label)
+        for cell in row:
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.font.size = Pt(9)
+    doc.add_paragraph()
+
+
+def _add_evaluation_model_table(
+    doc: Document,
+    hypotheses: list[EvaluationHypothesis],
+) -> None:
+    """Render Likely Evaluation Model as a structured table."""
+    if not hypotheses:
+        return
+    doc.add_heading("Likely Evaluation Model", level=3)
+    p = doc.add_paragraph()
+    run = p.add_run(
+        "Note: Unless explicitly stated in the RFP, all evaluation criteria "
+        "below are inferred from RFP structure and procurement patterns. "
+        "Weights marked as \"unknown\" require validation against the actual "
+        "evaluation framework."
+    )
+    run.italic = True
+    run.font.size = Pt(9)
+
+    table = doc.add_table(rows=1, cols=5)
+    table.style = "Table Grid"
+    hdr = table.rows[0].cells
+    hdr[0].text = "Criterion"
+    hdr[1].text = "Basis"
+    hdr[2].text = "Confidence"
+    hdr[3].text = "Classification"
+    hdr[4].text = "Weight Est."
+    for h_cell in hdr:
+        for para in h_cell.paragraphs:
+            for run in para.runs:
+                run.bold = True
+                run.font.size = Pt(9)
+    for hyp in hypotheses:
+        row = table.add_row().cells
+        row[0].text = hyp.criterion
+        row[1].text = hyp.basis
+        row[2].text = hyp.confidence
+        row[3].text = _label_display(hyp.label)
+        row[4].text = hyp.weight_estimate
+        for cell in row:
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.font.size = Pt(9)
+    doc.add_paragraph()
+
+
+def _add_assumptions_ambiguities(
+    doc: Document,
+    assumptions: list[str],
+    ambiguities: list[str],
+) -> None:
+    """Render assumptions and ambiguities as a structured table."""
+    if not assumptions and not ambiguities:
+        return
+    doc.add_heading("Assumptions & Ambiguities", level=3)
+    table = doc.add_table(rows=1, cols=2)
+    table.style = "Table Grid"
+    hdr = table.rows[0].cells
+    hdr[0].text = "Type"
+    hdr[1].text = "Description"
+    for h_cell in hdr:
+        for para in h_cell.paragraphs:
+            for run in para.runs:
+                run.bold = True
+                run.font.size = Pt(9)
+    for item in assumptions:
+        row = table.add_row().cells
+        row[0].text = "Assumption"
+        row[1].text = item
+    for item in ambiguities:
+        row = table.add_row().cells
+        row[0].text = "Ambiguity"
+        row[1].text = item
+    doc.add_paragraph()
+
+
 def _add_section_1(doc: Document, source_book: SourceBook) -> None:
-    """Section 1: RFP Interpretation."""
+    """Section 1: RFP Interpretation — typed-field-driven rendering.
+
+    For high-density RFPs, structured matrices appear FIRST (compliance,
+    delivery-control, assumptions/ambiguities, evaluation model), followed
+    by narrative prose. For medium/low density, classified requirements
+    tables appear first, then narrative.
+    """
     doc.add_heading("1. RFP Interpretation", level=1)
     rfp = source_book.rfp_interpretation
+    is_high_density = source_book.requirement_density == "high"
+    has_typed_fields = bool(
+        rfp.compliance_rows
+        or rfp.explicit_requirements
+        or rfp.evaluation_hypotheses
+    )
 
+    # ── MATRIX-FIRST for high/medium density with typed fields ──
+    if has_typed_fields:
+        # 1. Compliance matrix (always first when present)
+        _add_compliance_matrix(doc, rfp.compliance_rows)
+
+        # 2. Delivery-control matrix (high density only)
+        if is_high_density:
+            _add_delivery_control_matrix(doc, rfp.delivery_control_rows)
+
+        # 3. Assumptions & ambiguities table
+        _add_assumptions_ambiguities(doc, rfp.assumptions, rfp.ambiguities)
+
+        # 4. Likely Evaluation Model
+        _add_evaluation_model_table(doc, rfp.evaluation_hypotheses)
+
+        # 5. Classified requirements
+        _add_classified_claims_table(
+            doc, rfp.explicit_requirements, "Explicit RFP Requirements",
+        )
+        _add_classified_claims_table(
+            doc, rfp.inferred_requirements, "Inferred Requirements",
+        )
+        _add_classified_claims_table(
+            doc, rfp.external_support, "External Benchmark Support",
+        )
+
+    # ── NARRATIVE prose (after matrices) ────────────────────
     if rfp.objective_and_scope:
         doc.add_heading("1.1 Objective & Scope", level=2)
-        _add_smart_prose(doc, rfp.objective_and_scope)
+        _add_sanitized_prose(doc, rfp.objective_and_scope)
 
     if rfp.constraints_and_compliance:
         doc.add_heading("1.2 Constraints & Compliance Requirements", level=2)
-        _add_smart_prose(doc, rfp.constraints_and_compliance)
+        _add_sanitized_prose(doc, rfp.constraints_and_compliance)
 
     if rfp.unstated_evaluator_priorities:
         doc.add_heading("1.3 Unstated Evaluator Priorities", level=2)
-        _add_smart_prose(doc, rfp.unstated_evaluator_priorities)
+        _add_sanitized_prose(doc, rfp.unstated_evaluator_priorities)
 
     if rfp.probable_scoring_logic:
         doc.add_heading("1.4 Probable Scoring Logic", level=2)
-        _add_smart_prose(doc, rfp.probable_scoring_logic)
+        _add_sanitized_prose(doc, rfp.probable_scoring_logic)
 
-    if rfp.key_compliance_requirements:
+    # Legacy compliance list (kept as fallback if typed rows absent)
+    if rfp.key_compliance_requirements and not rfp.compliance_rows:
         doc.add_heading("1.5 Key Compliance Requirements", level=2)
-        # Check if entries contain pipe-delimited content (e.g., COMP-xxx | ... | ...)
         pipe_entries = [r for r in rfp.key_compliance_requirements if r.count("|") >= 2]
         if pipe_entries:
-            # Render as a table via _add_smart_prose
             combined = "\n".join(pipe_entries)
-            _add_smart_prose(doc, combined)
-            # Render any non-pipe entries as bullets
+            _add_sanitized_prose(doc, combined)
             for req in rfp.key_compliance_requirements:
                 if req.count("|") < 2:
                     doc.add_paragraph(req, style="List Bullet")
@@ -208,19 +483,19 @@ def _add_section_2(doc: Document, source_book: SourceBook) -> None:
 
     if cpf.current_state_challenge:
         doc.add_heading("2.1 Current-State Challenge", level=2)
-        _add_smart_prose(doc, cpf.current_state_challenge)
+        _add_sanitized_prose(doc, cpf.current_state_challenge)
 
     if cpf.why_it_matters_now:
         doc.add_heading("2.2 Why It Matters Now", level=2)
-        _add_smart_prose(doc, cpf.why_it_matters_now)
+        _add_sanitized_prose(doc, cpf.why_it_matters_now)
 
     if cpf.transformation_logic:
         doc.add_heading("2.3 Transformation Logic", level=2)
-        _add_smart_prose(doc, cpf.transformation_logic)
+        _add_sanitized_prose(doc, cpf.transformation_logic)
 
     if cpf.risk_if_unchanged:
         doc.add_heading("2.4 Risk If Unchanged", level=2)
-        _add_smart_prose(doc, cpf.risk_if_unchanged)
+        _add_sanitized_prose(doc, cpf.risk_if_unchanged)
 
 
 def _add_section_3(doc: Document, source_book: SourceBook) -> None:
@@ -372,7 +647,7 @@ def _add_section_4(
     if ext.coverage_assessment:
         doc.add_paragraph()
         doc.add_heading("Coverage Assessment & Evidence Gaps", level=2)
-        _add_smart_prose(doc, ext.coverage_assessment)
+        _add_sanitized_prose(doc, ext.coverage_assessment)
 
         # Add structured gap tags — dynamically from coverage assessment
         # (not hardcoded to any jurisdiction)
@@ -497,7 +772,7 @@ def _add_section_5(doc: Document, source_book: SourceBook) -> None:
 
     if ps.methodology_overview:
         doc.add_heading("5.1 Methodology Overview", level=2)
-        _add_smart_prose(doc, ps.methodology_overview)
+        _add_sanitized_prose(doc, ps.methodology_overview)
 
     if ps.phase_details:
         doc.add_heading("5.2 Phase Details", level=2)
@@ -523,15 +798,22 @@ def _add_section_5(doc: Document, source_book: SourceBook) -> None:
 
     if ps.governance_framework:
         doc.add_heading("5.3 Governance Framework", level=2)
-        _add_smart_prose(doc, ps.governance_framework)
+        _add_sanitized_prose(doc, ps.governance_framework)
 
     if ps.timeline_logic:
         doc.add_heading("5.4 Timeline Logic", level=2)
-        _add_smart_prose(doc, ps.timeline_logic)
+        _add_sanitized_prose(doc, ps.timeline_logic)
 
     if ps.value_case_and_differentiation:
         doc.add_heading("5.5 Value Case & Differentiation", level=2)
-        _add_smart_prose(doc, ps.value_case_and_differentiation)
+        _add_sanitized_prose(doc, ps.value_case_and_differentiation)
+
+    # Structured benchmark references table
+    if ps.benchmark_references:
+        doc.add_heading("5.6 Benchmark References", level=2)
+        _add_classified_claims_table(
+            doc, ps.benchmark_references, "External Benchmark Support",
+        )
 
 
 def _add_section_6(doc: Document, source_book: SourceBook) -> None:

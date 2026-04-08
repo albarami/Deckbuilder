@@ -77,6 +77,50 @@ Hard rules:
 - No certainty language when proof is absent
 *** END EVIDENCE CLASSIFICATION POLICY ***
 
+*** ASSERTION CLASSIFICATION — MANDATORY FOR ALL SECTIONS ***
+Every substantive claim you write MUST be mentally classified as one of:
+
+1. DIRECT_RFP_FACT — explicitly stated in uploaded RFP text.
+   → Write with full authority: "The RFP requires..." / "As stated in clause X..."
+   → Populate explicit_requirements where the schema supports it.
+
+2. INFERENCE — reasoned from RFP patterns/structure, not stated.
+   → Signal inference: "This suggests..." / "Based on the evaluation structure..."
+   → NEVER present inference as established fact.
+   → Populate inferred_requirements where the schema supports it.
+
+3. EXTERNAL_BENCHMARK — sourced from EXT-xxx research.
+   → Frame as supporting analogue, NEVER as proof of SG capability.
+   → "International best practice [EXT-xxx] supports this approach..."
+   → NEVER: "EXT-xxx proves SG can deliver..."
+
+4. INTERNAL_PROOF_PLACEHOLDER — flags need for future internal proof.
+   → Mark as evidence gap, describe what proof Engine 2 must supply.
+   → NEVER write placeholder content as if it were established proof.
+
+Rendering rules:
+- Section 1: separate explicit RFP facts from inferred evaluator logic.
+- Section 1 probable_scoring_logic: if weights are absent from RFP,
+  label every criterion as INFERENCE with confidence level.
+- Section 4/5: external benchmarks are analogues, not proof of SG.
+- Section 3: internal proof placeholders flag Engine 2 requirements.
+- No unsupported absolute language: avoid "guarantees", "ensures 100%",
+  "zero risk", "will certainly", unless grounded in uploaded RFP text.
+*** END ASSERTION CLASSIFICATION ***
+
+*** BENCHMARK GOVERNANCE RULES ***
+External benchmarks (EXT-xxx) from international sources:
+- CAN: support methodology design, frame best practice, anchor SLAs,
+  provide evaluation context, establish international standards.
+- CANNOT: prove SG has delivered similar work, confirm SG capabilities,
+  validate SG team qualifications, demonstrate SG track record.
+- FRAMING: "International precedent [EXT-xxx] supports..." not
+  "As proven by [EXT-xxx], SG can deliver..."
+- GOVERNANCE: max 3 external citations per claim. Prefer depth over breadth.
+  Each benchmark must state HOW it supports the methodology, not just THAT
+  it exists.
+*** END BENCHMARK GOVERNANCE RULES ***
+
 1. EVERY claim MUST cite its source:
    - Internal evidence: CLM-xxxx (from reference_index)
    - External evidence: EXT-xxx (from external_evidence_pack)
@@ -176,6 +220,70 @@ will actually use — even if the RFP doesn't state it explicitly.
   This is the compliance-to-RFP mapping that evaluators check FIRST.
   Include: organizational requirements, technical requirements,
   staffing requirements, certification requirements, experience requirements.
+
+═══════════════════════════════════════════════════
+STRUCTURED CLASSIFICATION FIELDS (populate ALL)
+═══════════════════════════════════════════════════
+
+- explicit_requirements: List of ClassifiedClaim objects for requirements
+  DIRECTLY STATED in the RFP text. Each must have:
+  * claim_text: the requirement as stated
+  * label: "DIRECT_RFP_FACT"
+  * basis: RFP clause/section reference
+  * confidence: "high"
+  Extract at least 5 explicit requirements.
+
+- inferred_requirements: List of ClassifiedClaim objects for requirements
+  INFERRED from RFP structure/patterns but not explicitly stated. Each:
+  * claim_text: the inferred requirement
+  * label: "INFERENCE"
+  * basis: what pattern/structure leads to this inference
+  * confidence: "high"/"medium"/"low"
+  Extract at least 3 inferred requirements.
+
+- external_support: List of ClassifiedClaim objects for claims supported
+  by external evidence. Each must have:
+  * claim_text: the supported claim
+  * label: "EXTERNAL_BENCHMARK"
+  * basis: EXT-xxx reference and how it supports the claim
+  * confidence: "high"/"medium"
+
+- assumptions: List of strings for assumptions made during interpretation.
+  Example: "Assumes evaluation committee includes technical evaluators."
+
+- ambiguities: List of strings for RFP ambiguities that need clarification.
+  Example: "RFP does not specify whether cloud infrastructure is in scope."
+
+- compliance_rows: Structured compliance matrix. Each ComplianceRow:
+  * requirement_id: COMP-xxx
+  * requirement_text: from the RFP
+  * sg_response: how SG addresses it
+  * evidence_ref: CLM-xxxx or EXT-xxx
+  * label: DIRECT_RFP_FACT (for explicit requirements)
+  Generate at least 8 rows from explicit RFP requirements.
+
+- delivery_control_rows: ONLY if the requirement_density context says "high".
+  Each DeliveryControlRow:
+  * control_area: e.g. "Reporting", "QA", "Knowledge Transfer"
+  * rfp_requirement: specific RFP requirement
+  * proposed_mechanism: how SG will implement
+  * verification_method: how compliance will be verified
+  * label: DIRECT_RFP_FACT
+
+- evaluation_hypotheses: Likely Evaluation Model. Each EvaluationHypothesis:
+  * criterion: evaluation criterion name
+  * basis: why you believe this criterion matters (RFP structure, past patterns)
+  * confidence: "high" if stated in RFP, "medium"/"low" if inferred
+  * label: "INFERENCE" for inferred, "DIRECT_RFP_FACT" if stated
+  * weight_estimate: estimated weight (e.g. "~30%") or "unknown"
+  If the RFP states scoring weights, use them with label=DIRECT_RFP_FACT.
+  If weights are ABSENT, generate a "Likely Evaluation Model" with ALL
+  criteria labeled as INFERENCE with their confidence and basis.
+
+- requirement_density: Set to "high" if the RFP has 10+ prescriptive
+  requirements, detailed deliverables, and explicit evaluation criteria.
+  Set to "medium" for moderate structure. Set to "low" for open-ended RFPs.
+  This controls whether compliance/delivery matrices are generated.
 
 Output ONLY valid JSON matching the SourceBookSection1 schema.
 FILL EVERY FIELD with substantive content. Do not leave empty strings."""
@@ -418,6 +526,15 @@ Curate external evidence that supports the proposal:
   * How should the proposal prioritize evidence usage?
   * Separate PRIMARY evidence (directly usable) from SECONDARY/ANALOGICAL
 
+BENCHMARK GOVERNANCE (MANDATORY):
+- Frame every entry as a supporting analogue, NEVER as proof of SG capability.
+- GOOD: "McKinsey [EXT-001] recommends 4-phase transformation, supporting
+  our proposed methodology"
+- BAD: "McKinsey [EXT-001] proves SG can deliver digital transformation"
+- Max 3 external citations per claim. Depth over breadth.
+- Each key_finding must state HOW it supports the methodology, not just
+  THAT the source exists.
+
 CRITICAL: Only use EXT-xxx IDs that exist in available_ext_ids.
 Do NOT invent EXT-xxx IDs.
 
@@ -580,6 +697,18 @@ this firm over the other 5 bidders?" Build a PERSUASIVE case:
   after the engagement ends
 
 Write this as a closing argument to the evaluation committee.
+
+─────────────────────────────────────
+5.6 BENCHMARK REFERENCES (structured)
+─────────────────────────────────────
+
+- benchmark_references: For each external benchmark used in the methodology,
+  create a ClassifiedClaim:
+  * claim_text: what the benchmark supports in this methodology
+  * label: "EXTERNAL_BENCHMARK"
+  * basis: EXT-xxx reference and how it connects to this specific activity
+  * confidence: "high"/"medium"
+  Frame as supporting analogue per BENCHMARK GOVERNANCE RULES.
 
 Output ONLY valid JSON matching the SourceBookSection5 schema.
 FILL EVERY FIELD with substantive, detailed content. Do NOT leave empty strings.
@@ -880,12 +1009,31 @@ RED FLAGS (automatic score reduction):
 - No compliance-to-RFP mapping in Section 1 → score 2
 - Any "to be confirmed" / "TBD" / "illustrative" → -1 per occurrence
 
+ASSERTION CLASSIFICATION DISCIPLINE (check these):
+- Section 1 MUST have explicit_requirements (labeled DIRECT_RFP_FACT) → -1 if empty
+- Section 1 MUST have inferred_requirements (labeled INFERENCE) → -1 if empty
+- Section 1 evaluation_hypotheses: if weights absent from RFP, every row
+  must be labeled INFERENCE with basis and confidence → -1 if mislabeled
+- Section 1 probable_scoring_logic: inference must NOT read as established
+  fact. Check for "the evaluators will" without "likely" qualifier → -1
+- Section 4/5: external benchmarks must be framed as supporting analogues,
+  NEVER as proof of SG capability. "EXT-xxx proves SG..." → -2
+- Section 3: INTERNAL_PROOF_PLACEHOLDER items must flag Engine 2 needs,
+  not present placeholder content as established proof → -1
+- Unsupported absolute language ("guarantees", "zero risk", "ensures
+  100%") without RFP grounding → -1 per occurrence
+- compliance_rows should be present with at least 5 rows → -1 if fewer
+
 BENCHMARK-GRADE SCORING (what earns score 4-5):
 
 Section 1 (RFP Interpretation):
-- Score 5: 8+ compliance items, specific regulatory refs, forensic RFP analysis
-- Score 4: 5+ compliance items, clear scoring logic, structured interpretation
-- Score 3: General compliance without specific mapping
+- Score 5: 8+ compliance items, specific regulatory refs, forensic RFP analysis,
+  5+ explicit_requirements with DIRECT_RFP_FACT labels, 3+ inferred_requirements
+  with INFERENCE labels, evaluation_hypotheses with confidence levels,
+  compliance_rows populated, assumptions and ambiguities identified
+- Score 4: 5+ compliance items, clear scoring logic, structured interpretation,
+  explicit/inferred requirements separated, evaluation hypotheses present
+- Score 3: General compliance without specific mapping, no structured classification
 
 Section 2 (Client Problem Framing):
 - Score 5: Root cause analysis, urgency drivers, risk quantification, comprehensive
