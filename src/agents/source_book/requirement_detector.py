@@ -83,28 +83,36 @@ def _count_matches(text: str, patterns: list[re.Pattern[str]]) -> int:
     return sum(len(p.findall(text)) for p in patterns)
 
 
+def _to_str(value: object) -> str:
+    """Safely convert a value to str, extracting .en from BilingualText."""
+    if hasattr(value, "en") and getattr(value, "en", None):
+        return str(value.en)
+    if hasattr(value, "ar") and getattr(value, "ar", None):
+        return str(value.ar)
+    return str(value)
+
+
 def _extract_rfp_text(state: DeckForgeState) -> str:
     """Extract all available RFP text for density analysis."""
     parts: list[str] = []
 
     if state.rfp_context:
         rfp = state.rfp_context
-        if rfp.project_title:
-            title = rfp.project_title
-            parts.append(title.en if hasattr(title, "en") and title.en else str(title))
+        if rfp.rfp_name:
+            parts.append(_to_str(rfp.rfp_name))
         if rfp.scope_items:
             for item in rfp.scope_items:
-                parts.append(getattr(item, "description", str(item)))
+                parts.append(_to_str(getattr(item, "description", item)))
         if rfp.compliance_requirements:
             for cr in rfp.compliance_requirements:
-                parts.append(getattr(cr, "requirement_text", str(cr)))
+                parts.append(_to_str(getattr(cr, "requirement_text", cr)))
         if rfp.evaluation_criteria:
             for ec in rfp.evaluation_criteria:
-                desc = getattr(ec, "description", "")
+                desc = _to_str(getattr(ec, "description", ""))
                 parts.append(f"{desc} weight={getattr(ec, 'weight', '')}")
         if rfp.deliverables:
             for d in rfp.deliverables:
-                parts.append(getattr(d, "description", str(d)))
+                parts.append(_to_str(getattr(d, "description", d)))
 
     return "\n".join(parts)
 

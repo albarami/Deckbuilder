@@ -6,8 +6,8 @@
 
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
-import { Info } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { Info, StopCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { PipelineStatus } from "@/lib/types/pipeline";
 
@@ -16,6 +16,7 @@ export interface PipelineHeaderProps {
   status: PipelineStatus | "idle";
   startedAt: string | null;
   elapsedMs: number;
+  onCancel?: () => Promise<boolean>;
 }
 
 const STATUS_BADGE: Record<
@@ -50,10 +51,26 @@ export function PipelineHeader({
   status,
   startedAt,
   elapsedMs,
+  onCancel,
 }: PipelineHeaderProps) {
   const t = useTranslations();
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.idle;
   const shortId = sessionId.slice(0, 8);
+  const [isStopping, setIsStopping] = useState(false);
+
+  const canCancel = status === "running" || status === "gate_pending";
+
+  const handleStop = useCallback(async () => {
+    if (!onCancel || !canCancel) return;
+    const confirmed = window.confirm(t("pipeline.stopConfirm"));
+    if (!confirmed) return;
+    setIsStopping(true);
+    try {
+      await onCancel();
+    } finally {
+      setIsStopping(false);
+    }
+  }, [onCancel, canCancel, t]);
 
   // Live elapsed timer
   const [liveElapsed, setLiveElapsed] = useState(elapsedMs);
@@ -97,6 +114,18 @@ export function PipelineHeader({
         <span className="font-mono text-xs text-sg-slate/60 dark:text-slate-400">
           {formatElapsed(liveElapsed)}
         </span>
+      )}
+
+      {canCancel && onCancel && (
+        <button
+          type="button"
+          onClick={handleStop}
+          disabled={isStopping}
+          className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-950/60"
+        >
+          <StopCircle className="h-3.5 w-3.5" aria-hidden="true" />
+          {isStopping ? t("pipeline.stopping") : t("pipeline.stopRun")}
+        </button>
       )}
     </div>
   );

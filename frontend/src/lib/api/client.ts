@@ -91,6 +91,20 @@ export async function postFormData<T>(
 }
 
 /**
+ * POST request without a body.
+ */
+export async function postEmpty<T>(path: string): Promise<T> {
+  return request<T>(path, { method: "POST" });
+}
+
+/**
+ * DELETE request.
+ */
+export async function del<T>(path: string): Promise<T> {
+  return request<T>(path, { method: "DELETE" });
+}
+
+/**
  * GET request that returns a Blob (for file downloads).
  */
 export async function getBlob(

@@ -25,6 +25,7 @@ import re
 
 from src.config.models import MODEL_MAP
 from src.models.source_book import (
+    ClientProblemFraming,
     EvidenceLedger,
     EvidenceLedgerEntry,
     ProposedSolution,
@@ -38,6 +39,9 @@ from src.models.source_book import (
     SourceBookSection6,
     SourceBookSection7,
     SourceBookSections12,
+    _Section1Classification,
+    _Section1Prose,
+    _Section2Validated,
     _Section5Governance,
     _Section5Methodology,
 )
@@ -45,6 +49,7 @@ from src.models.state import DeckForgeState
 from src.services.llm import call_llm
 
 from .prompts import (
+    STAGE1A_CLASSIFICATION_PROMPT,
     STAGE1A_SECTION1_PROMPT,
     STAGE1B_SECTION2_PROMPT,
     STAGE1B_SECTION3_PROMPT,
@@ -964,6 +969,11 @@ def _build_stage_payload(
 
     This ensures each stage receives only the context it needs, keeping
     the input payload small enough that max_tokens isn't consumed by input.
+
+    On rewrite passes (previous_section_data present), the rfp_context is
+    condensed to essential fields only — the LLM already has the reviewer
+    feedback and previous output telling it what to fix, so the full RFP
+    dump is redundant and wastes token budget needed for output quality.
     """
     if keep_keys:
         payload = {k: shared_ctx[k] for k in keep_keys if k in shared_ctx}
@@ -971,8 +981,29 @@ def _build_stage_payload(
         payload = {k: v for k, v in shared_ctx.items() if k not in drop_keys}
     else:
         payload = dict(shared_ctx)
+
     if previous_section_data:
         payload["previous_section_content"] = previous_section_data
+
+        # Condense rfp_context on rewrite passes to preserve output token budget.
+        # Keep: rfp_name, mandate, scope_items, deliverables, compliance,
+        #        evaluation_criteria, key_dates, team_requirements.
+        # Drop: verbose nested sub-objects that were already digested in pass 1.
+        if "rfp_context" in payload and payload["rfp_context"] is not None:
+            full_ctx = payload["rfp_context"]
+            if isinstance(full_ctx, dict):
+                payload["rfp_context"] = {
+                    k: full_ctx[k]
+                    for k in [
+                        "rfp_name", "issuing_entity", "mandate",
+                        "scope_items", "deliverables",
+                        "compliance_requirements", "evaluation_criteria",
+                        "key_dates", "team_requirements",
+                        "project_timeline", "procurement_platform",
+                    ]
+                    if k in full_ctx
+                }
+
     return json.dumps(payload, ensure_ascii=False, default=str)
 
 
@@ -998,11 +1029,19 @@ async def _generate_section_1(
     shared_ctx: dict,
     model: str,
     previous_book: SourceBook | None = None,
-) -> SourceBookSection1:
+):
     """Stage 1a: Section 1 (RFP Interpretation) + metadata.
 
-    Dedicated call so Section 1 gets full token budget for deep RFP analysis.
-    Drops: knowledge_graph, external_evidence_pack (not needed for RFP interpretation).
+    Split into TWO LLM calls so each gets a focused schema and full token budget:
+      Call 1 (_Section1Prose): 7 fields — forensic prose analysis
+      Call 2 (_Section1Classification): 6 fields — structured evidence rows
+
+    The LLM consistently fills simple types (str, list[str]) but skips complex
+    nested Pydantic models when both are in the same schema. Splitting forces
+    each call to produce quality content for its subset of fields.
+
+    Returns: (SourceBookSection1, LLMResponse_prose, LLMResponse_classification)
+    Caller must accumulate BOTH LLM responses for session accounting.
     """
     prev_data = None
     if previous_book:
@@ -1015,32 +1054,137 @@ async def _generate_section_1(
     )
     logger.info("Stage 1a (Section 1 — RFP Interpretation): input chars=%d", len(payload))
 
-    result = await call_llm(
+    # ── Call 1: Prose interpretation ──────────────────────────────
+    prose_result = await call_llm(
         model=model,
         system_prompt=STAGE1A_SECTION1_PROMPT,
         user_message=payload,
-        response_model=SourceBookSection1,
+        response_model=_Section1Prose,
         max_tokens=16000,
         temperature=0.1,
     )
+    prose = prose_result.parsed
+    logger.info(
+        "Stage 1a-prose complete: scope_words=%d, compliance_items=%d, assumptions=%d, ambiguities=%d",
+        len(prose.objective_and_scope.split()),
+        len(prose.key_compliance_requirements),
+        len(prose.assumptions),
+        len(prose.ambiguities),
+    )
 
-    s1 = result.parsed
+    # ── Call 2: Structured classification ─────────────────────────
+    # On rewrite: build a compact payload with condensed rfp_context +
+    # previous classification output (for improvement) + reviewer feedback.
+    # On first pass: use the same payload as prose (full rfp_context is fine
+    # since there's no previous content inflating the input).
+    if previous_book:
+        # Rewrite: condensed rfp_context + previous classification for improvement
+        rfp_ctx = shared_ctx.get("rfp_context")
+        condensed_rfp = None
+        if rfp_ctx and isinstance(rfp_ctx, dict):
+            condensed_rfp = {
+                k: rfp_ctx[k]
+                for k in [
+                    "rfp_name", "issuing_entity", "mandate",
+                    "scope_items", "deliverables",
+                    "compliance_requirements", "evaluation_criteria",
+                    "key_dates", "team_requirements",
+                    "project_timeline", "procurement_platform",
+                ]
+                if k in rfp_ctx
+            }
+
+        prev_classification = {
+            "explicit_requirements": [r.model_dump(mode="json") for r in previous_book.rfp_interpretation.explicit_requirements],
+            "inferred_requirements": [r.model_dump(mode="json") for r in previous_book.rfp_interpretation.inferred_requirements],
+            "external_support": [r.model_dump(mode="json") for r in previous_book.rfp_interpretation.external_support],
+            "compliance_rows": [r.model_dump(mode="json") for r in previous_book.rfp_interpretation.compliance_rows],
+            "delivery_control_rows": [r.model_dump(mode="json") for r in previous_book.rfp_interpretation.delivery_control_rows],
+            "evaluation_hypotheses": [r.model_dump(mode="json") for r in previous_book.rfp_interpretation.evaluation_hypotheses],
+        }
+
+        classification_payload = json.dumps({
+            "rfp_context": condensed_rfp,
+            "previous_classification": prev_classification,
+            "requirement_density": shared_ctx.get("requirement_density", "medium"),
+            "reviewer_feedback": shared_ctx.get("reviewer_feedback"),
+            "output_language": shared_ctx.get("output_language"),
+            "sector": shared_ctx.get("sector"),
+            "geography": shared_ctx.get("geography"),
+        }, ensure_ascii=False, default=str)
+    else:
+        # First pass: same payload as prose (no previous content bloat)
+        classification_payload = _build_stage_payload(
+            shared_ctx, None,
+            drop_keys=["knowledge_graph", "external_evidence_pack"],
+        )
+
+    classification_result = await call_llm(
+        model=model,
+        system_prompt=STAGE1A_CLASSIFICATION_PROMPT,
+        user_message=classification_payload,
+        response_model=_Section1Classification,
+        max_tokens=16000,
+        temperature=0.1,
+    )
+    classification = classification_result.parsed
+    logger.info(
+        "Stage 1a-classification complete: explicit=%d, inferred=%d, compliance_rows=%d, delivery_rows=%d, eval_hypotheses=%d",
+        len(classification.explicit_requirements),
+        len(classification.inferred_requirements),
+        len(classification.compliance_rows),
+        len(classification.delivery_control_rows),
+        len(classification.evaluation_hypotheses),
+    )
+
+    # ── Assemble RFPInterpretation from both calls ────────────────
+    rfp_interp = RFPInterpretation(
+        objective_and_scope=prose.objective_and_scope,
+        constraints_and_compliance=prose.constraints_and_compliance,
+        unstated_evaluator_priorities=prose.unstated_evaluator_priorities,
+        probable_scoring_logic=prose.probable_scoring_logic,
+        key_compliance_requirements=prose.key_compliance_requirements,
+        assumptions=prose.assumptions,
+        ambiguities=prose.ambiguities,
+        explicit_requirements=classification.explicit_requirements,
+        inferred_requirements=classification.inferred_requirements,
+        external_support=classification.external_support,
+        compliance_rows=classification.compliance_rows,
+        delivery_control_rows=classification.delivery_control_rows,
+        evaluation_hypotheses=classification.evaluation_hypotheses,
+    )
+
     logger.info(
         "Stage 1a complete: compliance_items=%d, scope_words=%d",
-        len(s1.rfp_interpretation.key_compliance_requirements),
-        len(s1.rfp_interpretation.objective_and_scope.split()),
+        len(rfp_interp.key_compliance_requirements),
+        len(rfp_interp.objective_and_scope.split()),
     )
-    return s1, result
+
+    # Assemble the wrapper with metadata from state context
+    rfp_ctx = shared_ctx.get("rfp_context") or {}
+    rfp_name = rfp_ctx.get("rfp_name", {})
+    s1 = SourceBookSection1(
+        client_name=rfp_ctx.get("issuing_entity", {}).get("en", "") if isinstance(rfp_ctx.get("issuing_entity"), dict) else str(rfp_ctx.get("issuing_entity", "")),
+        rfp_name=rfp_name.get("en", "") if isinstance(rfp_name, dict) else str(rfp_name),
+        language=str(shared_ctx.get("output_language", "en")),
+        generation_date=__import__("datetime").date.today().isoformat(),
+        rfp_interpretation=rfp_interp,
+        requirement_density=shared_ctx.get("requirement_density", "medium"),
+    )
+    return s1, prose_result, classification_result
 
 
 async def _generate_section_2(
     shared_ctx: dict,
     model: str,
     previous_book: SourceBook | None = None,
-) -> SourceBookSection2:
+):
     """Stage 1b: Section 2 (Client Problem Framing).
 
-    Dedicated call so Section 2 gets full token budget for deep problem diagnosis.
+    Calls the LLM with ClientProblemFraming directly (not SourceBookSection2
+    wrapper) so the model focuses 100% of output tokens on the 4 prose fields.
+    The wrapper is assembled on the Python side.
+
     Drops: knowledge_graph, external_evidence_pack, reference_index (not needed
     for problem framing — this section is about the client's situation).
     """
@@ -1062,13 +1206,19 @@ async def _generate_section_2(
         model=model,
         system_prompt=STAGE1B_SECTION2_PROMPT,
         user_message=payload,
-        response_model=SourceBookSection2,
-        max_tokens=12000,
+        response_model=_Section2Validated,
+        max_tokens=16000,
         temperature=0.1,
     )
 
-    s2 = result.parsed
-    cpf = s2.client_problem_framing
+    validated = result.parsed
+    cpf = ClientProblemFraming(
+        current_state_challenge=validated.current_state_challenge,
+        why_it_matters_now=validated.why_it_matters_now,
+        transformation_logic=validated.transformation_logic,
+        risk_if_unchanged=validated.risk_if_unchanged,
+    )
+    s2 = SourceBookSection2(client_problem_framing=cpf)
     total_words = sum(
         len(getattr(cpf, f, "").split())
         for f in ["current_state_challenge", "why_it_matters_now",
@@ -1471,9 +1621,10 @@ async def run(
         accumulated_session = state.session.model_copy(deep=True)
 
         # ── Stage 1a: Section 1 (RFP Interpretation) ──────────
-        # No per-stage fallback. If a stage fails, the whole pass fails.
-        s1, s1_llm = await _generate_section_1(shared_ctx, model, previous_book)
-        accumulated_session = update_session_from_llm(accumulated_session, s1_llm)
+        # Split into 2 calls: prose + classification. Both return LLM responses.
+        s1, s1_prose_llm, s1_class_llm = await _generate_section_1(shared_ctx, model, previous_book)
+        accumulated_session = update_session_from_llm(accumulated_session, s1_prose_llm)
+        accumulated_session = update_session_from_llm(accumulated_session, s1_class_llm)
 
         # ── Stage 1b: Section 2 (Client Problem Framing) ──────
         s2, s2_llm = await _generate_section_2(shared_ctx, model, previous_book)

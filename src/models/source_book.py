@@ -92,8 +92,64 @@ class CoherenceResult(DeckForgeBaseModel):
 # ──────────────────────────────────────────────────────────────
 
 
+class _Section1Prose(DeckForgeBaseModel):
+    """Split call 1: RFP interpretation prose fields.
+
+    Focused schema so the LLM dedicates full output budget to substantive
+    forensic analysis instead of splitting attention with complex nested types.
+    """
+
+    objective_and_scope: str = ""
+    constraints_and_compliance: str = ""
+    unstated_evaluator_priorities: str = ""
+    probable_scoring_logic: str = ""
+    key_compliance_requirements: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    ambiguities: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _reject_empty_prose(self) -> "_Section1Prose":
+        """Reject empty prose — forces LLM retry."""
+        word_count = len(self.objective_and_scope.split())
+        if word_count < 20:
+            raise ValueError(
+                f"objective_and_scope is empty or too short ({word_count} words). "
+                f"Must produce 4-5 paragraphs of forensic RFP analysis."
+            )
+        return self
+
+
+class _Section1Classification(DeckForgeBaseModel):
+    """Split call 2: RFP interpretation structured classification fields.
+
+    Focused schema so the LLM dedicates full output budget to producing
+    rich structured evidence rows instead of competing with prose fields.
+    """
+
+    explicit_requirements: list[ClassifiedClaim] = Field(default_factory=list)
+    inferred_requirements: list[ClassifiedClaim] = Field(default_factory=list)
+    external_support: list[ClassifiedClaim] = Field(default_factory=list)
+    compliance_rows: list[ComplianceRow] = Field(default_factory=list)
+    delivery_control_rows: list[DeliveryControlRow] = Field(default_factory=list)
+    evaluation_hypotheses: list[EvaluationHypothesis] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _reject_empty_classification(self) -> "_Section1Classification":
+        """Reject empty classification — forces LLM retry."""
+        if len(self.compliance_rows) < 3:
+            raise ValueError(
+                f"compliance_rows has only {len(self.compliance_rows)} rows. "
+                f"Must produce at least 8 structured compliance rows."
+            )
+        return self
+
+
 class RFPInterpretation(DeckForgeBaseModel):
-    """Section 1: RFP Interpretation."""
+    """Section 1: RFP Interpretation.
+
+    Assembled from two split LLM calls (_Section1Prose + _Section1Classification)
+    so each call gets a focused schema and full token budget.
+    """
 
     objective_and_scope: str = ""
     constraints_and_compliance: str = ""
@@ -112,12 +168,51 @@ class RFPInterpretation(DeckForgeBaseModel):
 
 
 class ClientProblemFraming(DeckForgeBaseModel):
-    """Section 2: Client Problem Framing."""
+    """Section 2: Client Problem Framing.
+
+    No validator here — this class is used as a default_factory in SourceBook
+    and SourceBookSection2, so it must be constructable with empty defaults.
+    """
 
     current_state_challenge: str = ""
     why_it_matters_now: str = ""
     transformation_logic: str = ""
     risk_if_unchanged: str = ""
+
+
+class _Section2Validated(DeckForgeBaseModel):
+    """LLM response model for Section 2 — validated wrapper.
+
+    Used as response_model in call_llm() so the validator fires on LLM output.
+    NOT used for default construction or storage — only for LLM calls.
+    """
+
+    current_state_challenge: str = ""
+    why_it_matters_now: str = ""
+    transformation_logic: str = ""
+    risk_if_unchanged: str = ""
+
+    @model_validator(mode="after")
+    def _reject_empty_framing(self) -> "_Section2Validated":
+        """Reject empty or partial problem framing — forces LLM retry.
+
+        All 4 fields must have substantive content. Partial truncation
+        (e.g., only current_state_challenge filled) is rejected.
+        """
+        fields = {
+            "current_state_challenge": self.current_state_challenge,
+            "why_it_matters_now": self.why_it_matters_now,
+            "transformation_logic": self.transformation_logic,
+            "risk_if_unchanged": self.risk_if_unchanged,
+        }
+        for name, value in fields.items():
+            word_count = len(value.split())
+            if word_count < 15:
+                raise ValueError(
+                    f"{name} is empty or too short ({word_count} words). "
+                    f"All 4 problem framing fields must have substantive content."
+                )
+        return self
 
 
 class CapabilityMapping(DeckForgeBaseModel):
@@ -432,6 +527,17 @@ class _Section5Methodology(DeckForgeBaseModel):
 
     methodology_overview: str = ""
     phase_details: list[PhaseDetail] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _reject_empty_phases(self) -> "_Section5Methodology":
+        """Reject empty phase_details — methodology must have execution structure."""
+        if len(self.phase_details) < 2:
+            raise ValueError(
+                f"Section 5 phase_details has only {len(self.phase_details)} phases. "
+                "The methodology must include at least 3-4 phases with activities, "
+                "deliverables, and governance. Retry with full phase structure."
+            )
+        return self
 
 
 class _Section5Governance(DeckForgeBaseModel):

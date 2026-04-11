@@ -2,7 +2,7 @@
  * Pipeline API module — start, status, and gate decision calls.
  */
 
-import { get, post } from "./client";
+import { get, post, postEmpty, del } from "./client";
 import type {
   StartPipelineRequest,
   StartPipelineResponse,
@@ -54,6 +54,30 @@ export function decideGate(
  */
 export function listSessions(): Promise<SessionHistoryResponse> {
   return get<SessionHistoryResponse>("/api/pipeline/sessions");
+}
+
+/**
+ * Cancel a running pipeline session.
+ * POST /api/pipeline/{id}/cancel
+ */
+export function cancelPipeline(
+  sessionId: string,
+): Promise<{ status: string; session_id: string }> {
+  return postEmpty<{ status: string; session_id: string }>(
+    `/api/pipeline/${sessionId}/cancel`,
+  );
+}
+
+/**
+ * Remove a session from the store.
+ * DELETE /api/pipeline/{id}
+ */
+export function removePipeline(
+  sessionId: string,
+): Promise<{ status: string; session_id: string }> {
+  return del<{ status: string; session_id: string }>(
+    `/api/pipeline/${sessionId}`,
+  );
 }
 
 /**

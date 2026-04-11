@@ -420,6 +420,37 @@ class SessionManager:
             self.set_deliverables(session_id, deliverables)
         session.touch()
 
+    def cancel_session(self, session_id: str) -> bool:
+        """Cancel a running session and remove it from the active set.
+
+        Returns:
+            True if the session was found and cancelled, False otherwise.
+        """
+        session = self._sessions.get(session_id)
+        if not session:
+            return False
+        if session.status in (PipelineStatus.COMPLETE, PipelineStatus.ERROR):
+            return False
+        session.status = PipelineStatus.ERROR
+        session.current_stage = "cancelled"
+        session.current_stage_label = "Cancelled"
+        session.error_info = {"agent": "user", "message": "Cancelled by user."}
+        session.completed_at = datetime.now(UTC)
+        session.touch()
+        return True
+
+    def remove_session(self, session_id: str) -> bool:
+        """Remove a session from the store entirely.
+
+        Returns:
+            True if the session was found and removed, False otherwise.
+        """
+        session = self._sessions.pop(session_id, None)
+        if not session:
+            return False
+        self._thread_map.pop(session.thread_id, None)
+        return True
+
     def set_error(self, session_id: str, agent: str, message: str) -> None:
         session = self._sessions.get(session_id)
         if not session:

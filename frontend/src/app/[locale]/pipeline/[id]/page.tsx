@@ -127,6 +127,7 @@ export default function PipelineSessionPage() {
         status={pipeline.status}
         startedAt={pipeline.startedAt}
         elapsedMs={pipeline.elapsedMs}
+        onCancel={pipeline.cancel}
       />
 
       {pipeline.error && pipeline.status === "error" && (

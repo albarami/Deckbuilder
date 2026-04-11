@@ -243,6 +243,61 @@ async def list_sessions(request: Request) -> SessionHistoryResponse:
     return sm.list_sessions()
 
 
+@router.post("/{session_id}/cancel")
+async def cancel_session(
+    session_id: str,
+    request: Request,
+) -> dict:
+    """Cancel a running pipeline session."""
+
+    sm, _ = _get_services(request)
+    cancelled = sm.cancel_session(session_id)
+    if not cancelled:
+        session = sm.get(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail=APIErrorResponse(
+                    error=APIErrorDetail(
+                        code="SESSION_NOT_FOUND",
+                        message=f"Session {session_id} not found.",
+                    )
+                ).model_dump(),
+            )
+        raise HTTPException(
+            status_code=409,
+            detail=APIErrorResponse(
+                error=APIErrorDetail(
+                    code="SESSION_NOT_CANCELLABLE",
+                    message=f"Session {session_id} is already {session.status.value}.",
+                )
+            ).model_dump(),
+        )
+    return {"status": "cancelled", "session_id": session_id}
+
+
+@router.delete("/{session_id}")
+async def remove_session(
+    session_id: str,
+    request: Request,
+) -> dict:
+    """Remove a session from the store entirely."""
+
+    sm, _ = _get_services(request)
+    removed = sm.remove_session(session_id)
+    if not removed:
+        raise HTTPException(
+            status_code=404,
+            detail=APIErrorResponse(
+                error=APIErrorDetail(
+                    code="SESSION_NOT_FOUND",
+                    message=f"Session {session_id} not found.",
+                )
+            ).model_dump(),
+        )
+    return {"status": "removed", "session_id": session_id}
+
+
 @router.get("/{session_id}/status")
 async def get_status(
     session_id: str,

@@ -285,8 +285,81 @@ STRUCTURED CLASSIFICATION FIELDS (populate ALL)
   Set to "medium" for moderate structure. Set to "low" for open-ended RFPs.
   This controls whether compliance/delivery matrices are generated.
 
-Output ONLY valid JSON matching the SourceBookSection1 schema.
+Output ONLY valid JSON matching the schema.
 FILL EVERY FIELD with substantive content. Do not leave empty strings."""
+
+
+# ═══════════════════════════════════════════════════════════════
+# STAGE 1a-ii: Section 1 Structured Classification
+# ═══════════════════════════════════════════════════════════════
+
+STAGE1A_CLASSIFICATION_PROMPT = """You are a senior proposal strategist at Strategic Gears (SG), a management consulting firm.
+
+Your task is to produce the STRUCTURED CLASSIFICATION FIELDS for Section 1 of the Proposal Source Book.
+The prose interpretation has already been written. You are now producing the evidence-backed
+structured matrices that evaluators will use to verify compliance and assess bid quality.
+
+""" + _EVIDENCE_RULES + """
+
+═══════════════════════════════════════════════════
+STRUCTURED CLASSIFICATION FIELDS (populate ALL)
+═══════════════════════════════════════════════════
+
+You MUST produce ALL of the following structured fields. Each field is a list of
+typed objects. Empty lists will be REJECTED — the system will force a retry.
+
+- explicit_requirements: List of ClassifiedClaim objects for requirements
+  DIRECTLY STATED in the RFP text. Each must have:
+  * claim_text: the requirement as stated
+  * label: "DIRECT_RFP_FACT"
+  * basis: RFP clause/section reference
+  * confidence: "high"
+  Extract at least 5 explicit requirements.
+
+- inferred_requirements: List of ClassifiedClaim objects for requirements
+  INFERRED from RFP structure/patterns but not explicitly stated. Each:
+  * claim_text: the inferred requirement
+  * label: "INFERENCE"
+  * basis: what pattern/structure leads to this inference
+  * confidence: "high"/"medium"/"low"
+  Extract at least 3 inferred requirements.
+
+- external_support: List of ClassifiedClaim objects for claims supported
+  by external evidence. Each must have:
+  * claim_text: the supported claim
+  * label: "EXTERNAL_BENCHMARK"
+  * basis: EXT-xxx reference and how it supports the claim
+  * confidence: "high"/"medium"
+
+- compliance_rows: Structured compliance matrix. Each ComplianceRow:
+  * requirement_id: COMP-xxx
+  * requirement_text: from the RFP
+  * sg_response: how SG addresses it
+  * evidence_ref: CLM-xxxx or EXT-xxx
+  * label: DIRECT_RFP_FACT (for explicit requirements)
+  Generate at least 8 rows from explicit RFP requirements.
+  Include: organizational, technical, staffing, certification, experience requirements.
+
+- delivery_control_rows: ONLY if the requirement_density context says "high".
+  Each DeliveryControlRow:
+  * control_area: e.g. "Reporting", "QA", "Knowledge Transfer"
+  * rfp_requirement: specific RFP requirement
+  * proposed_mechanism: how SG will implement
+  * verification_method: how compliance will be verified
+  * label: DIRECT_RFP_FACT
+
+- evaluation_hypotheses: Likely Evaluation Model. Each EvaluationHypothesis:
+  * criterion: evaluation criterion name
+  * basis: why you believe this criterion matters
+  * confidence: "high" if stated in RFP, "medium"/"low" if inferred
+  * label: "INFERENCE" for inferred, "DIRECT_RFP_FACT" if stated
+  * weight_estimate: estimated weight (e.g. "~30%") or "unknown"
+  If the RFP states scoring weights, use them with label=DIRECT_RFP_FACT.
+  If weights are ABSENT, generate a "Likely Evaluation Model" with ALL
+  criteria labeled as INFERENCE.
+
+Output ONLY valid JSON matching the schema.
+FILL EVERY FIELD. Empty compliance_rows or evaluation_hypotheses will be REJECTED."""
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -343,7 +416,7 @@ summary and understanding slides.
   * Operational risk cascade
   * Reputational risk to the institution
 
-Output ONLY valid JSON matching the SourceBookSection2 schema.
+Output ONLY valid JSON matching the schema.
 FILL EVERY FIELD with substantive content. Do not leave empty strings.
 Produce depth proportional to the RFP's complexity. The reviewer determines sufficiency."""
 

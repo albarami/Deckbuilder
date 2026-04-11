@@ -20,12 +20,23 @@ T = TypeVar("T", bound=DeckForgeBaseModel)
 
 _RETRY_DELAYS = [2, 4, 8]
 
+
+class LLMValidationError(Exception):
+    """Raised when structured output passes parsing but fails model validation.
+
+    This is retryable — the LLM should produce different output on the next attempt.
+    Examples: Pydantic model_validator rejects empty content, field constraints not met.
+    """
+    pass
+
+
 _RETRYABLE_ERRORS = (
     openai.APITimeoutError,
     openai.RateLimitError,
     openai.InternalServerError,
     anthropic.APITimeoutError,
     anthropic.RateLimitError,
+    LLMValidationError,
     anthropic.InternalServerError,
 )
 
@@ -315,19 +326,14 @@ async def _call_anthropic(  # noqa: UP047
                     response_model.__name__,
                 )
             except Exception as retry_err:
-                raise LLMError(
-                    model=model, attempts=1,
-                    last_error=ValueError(
-                        f"Structured output validation failed after "
-                        f"string-to-dict fix: {retry_err}"
-                    ),
+                raise LLMValidationError(
+                    f"Structured output validation failed after "
+                    f"string-to-dict fix for {response_model.__name__}: {retry_err}"
                 ) from retry_err
         else:
-            raise LLMError(
-                model=model, attempts=1,
-                last_error=ValueError(
-                    f"Structured output validation failed: {first_err}"
-                ),
+            raise LLMValidationError(
+                f"Structured output validation failed for "
+                f"{response_model.__name__}: {first_err}"
             ) from first_err
     return parsed, response.usage.input_tokens, response.usage.output_tokens
 

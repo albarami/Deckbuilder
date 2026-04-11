@@ -18,6 +18,7 @@ import {
 import {
   startPipeline as apiStartPipeline,
   getStatus as apiGetStatus,
+  cancelPipeline as apiCancelPipeline,
 } from "@/lib/api/pipeline";
 import type { StartPipelineRequest } from "@/lib/types/pipeline";
 import { APIError } from "@/lib/types/api";
@@ -77,6 +78,21 @@ export function usePipeline() {
     [store],
   );
 
+  const cancel = useCallback(
+    async (): Promise<boolean> => {
+      const id = store.sessionId;
+      if (!id) return false;
+      try {
+        await apiCancelPipeline(id);
+        store.setError({ agent: "user", message: "Cancelled by user." });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [store],
+  );
+
   return {
     // State (readonly convenience accessors)
     sessionId: store.sessionId,
@@ -100,6 +116,7 @@ export function usePipeline() {
     // Actions
     start,
     resume,
+    cancel,
     reset: store.reset,
   };
 }
