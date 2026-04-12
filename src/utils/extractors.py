@@ -30,6 +30,38 @@ logger = logging.getLogger(__name__)
 _SUPPORTED_EXTENSIONS = {".pptx", ".pdf", ".docx", ".xlsx"}
 
 
+def _normalize_arabic_text(text: str) -> str:
+    """Normalize Arabic presentation forms and collapse extra whitespace.
+
+    Many Arabic PDFs (especially from Etimad platform HTML-to-PDF renders)
+    use Unicode Arabic Presentation Forms (FB50-FDFF, FE70-FEFF) instead of
+    standard Arabic characters (0600-06FF). This makes keyword matching,
+    LLM extraction, and NLP processing fail because the characters look
+    identical visually but are different codepoints.
+
+    NFKC normalization maps presentation forms to their standard equivalents.
+    We also collapse multiple spaces (common in these PDFs) to single spaces
+    while preserving line breaks.
+    """
+    import re
+    import unicodedata
+
+    if not text:
+        return text
+
+    # NFKC: maps presentation forms → standard Arabic, decomposes ligatures
+    normalized = unicodedata.normalize("NFKC", text)
+
+    # Collapse runs of 2+ spaces to single space (preserve newlines)
+    normalized = re.sub(r"[ \t]{2,}", " ", normalized)
+
+    # Strip leading/trailing spaces per line
+    lines = normalized.splitlines()
+    normalized = "\n".join(line.strip() for line in lines)
+
+    return normalized
+
+
 def _compute_hash(text: str) -> str:
     """Compute SHA-256 hex digest of text content."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -140,7 +172,7 @@ def extract_pptx(filepath: str) -> ExtractedDocument:
         slide_text_parts = [p for p in [title, body_text, speaker_notes] if p]
         full_parts.append(f"[Slide {idx}] " + " | ".join(slide_text_parts))
 
-    full_text = "\n\n".join(full_parts)
+    full_text = _normalize_arabic_text("\n\n".join(full_parts))
 
     return ExtractedDocument(
         filepath=filepath,
@@ -197,13 +229,14 @@ def extract_pdf(filepath: str) -> ExtractedDocument:
     except Exception as e:
         return _make_error_doc(filepath, f"Failed to extract PDF: {e}", "pdf")
 
-    # Map OCR pages to ExtractedPage objects
+    # Normalize Arabic presentation forms → standard Arabic + collapse extra spaces
+    full_text = _normalize_arabic_text(ocr_result.full_text)
+
+    # Map OCR pages to ExtractedPage objects with normalized text
     pages = [
-        ExtractedPage(page_number=p.page_number, text=p.text)
+        ExtractedPage(page_number=p.page_number, text=_normalize_arabic_text(p.text))
         for p in ocr_result.pages
     ]
-
-    full_text = ocr_result.full_text
 
     # Map quality based on engine and confidence
     if ocr_result.engine_used == "pypdf2" and ocr_result.average_confidence >= 0.7:
@@ -283,7 +316,7 @@ def extract_docx(filepath: str) -> ExtractedDocument:
         if section.text:
             full_parts.append(section.text)
 
-    full_text = "\n\n".join(full_parts)
+    full_text = _normalize_arabic_text("\n\n".join(full_parts))
 
     return ExtractedDocument(
         filepath=filepath,
@@ -346,7 +379,7 @@ def extract_xlsx(filepath: str) -> ExtractedDocument:
         full_parts.append(f"[Sheet: {sheet_name}]\n{text}")
 
     wb.close()
-    full_text = "\n\n".join(full_parts)
+    full_text = _normalize_arabic_text("\n\n".join(full_parts))
 
     return ExtractedDocument(
         filepath=filepath,
