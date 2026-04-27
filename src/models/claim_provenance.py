@@ -160,3 +160,203 @@ class ClaimProvenance(DeckForgeBaseModel):
             and not is_formal,
         )
         return self
+
+
+# ── Claim Registry ───────────────────────────────────────────────
+
+
+class ClaimRegistry(DeckForgeBaseModel):
+    """One canonical claim store. Typed ledgers are views over this registry."""
+
+    claims: dict[str, ClaimProvenance] = Field(default_factory=dict)
+
+    def register(self, claim: ClaimProvenance) -> None:
+        self.claims[claim.claim_id] = claim
+
+    def get(self, claim_id: str) -> ClaimProvenance | None:
+        return self.claims.get(claim_id)
+
+    def resolve_proof_point(self, proof: str) -> ClaimProvenance | None:
+        """Resolve a proof point (ID or text snippet) to a claim."""
+        if proof in self.claims:
+            return self.claims[proof]
+        for claim in self.claims.values():
+            if proof in claim.text or claim.text in proof:
+                return claim
+        return None
+
+    @property
+    def rfp_facts(self) -> list[ClaimProvenance]:
+        return [c for c in self.claims.values() if c.claim_kind == "rfp_fact"]
+
+    @property
+    def bidder_claims(self) -> list[ClaimProvenance]:
+        return [
+            c for c in self.claims.values()
+            if c.claim_kind == "internal_company_claim"
+        ]
+
+    @property
+    def external_methodology(self) -> list[ClaimProvenance]:
+        return [
+            c for c in self.claims.values()
+            if c.claim_kind == "external_methodology"
+        ]
+
+    @property
+    def proposal_options(self) -> list[ClaimProvenance]:
+        return [c for c in self.claims.values() if c.claim_kind == "proposal_option"]
+
+    @property
+    def generated_inferences(self) -> list[ClaimProvenance]:
+        return [
+            c for c in self.claims.values()
+            if c.claim_kind == "generated_inference"
+        ]
+
+
+# ── Typed Ledgers (validated views) ──────────────────────────────
+
+
+class RFPFactLedger(DeckForgeBaseModel):
+    """Facts extracted directly from the RFP booklet. Never sent to Engine 2."""
+
+    entries: list[ClaimProvenance] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_kinds(self) -> "RFPFactLedger":
+        for claim in self.entries:
+            assert claim.claim_kind == "rfp_fact", (
+                f"RFPFactLedger entry {claim.claim_id} has wrong kind: {claim.claim_kind}"
+            )
+            assert claim.source_kind == "rfp_document", (
+                f"RFPFactLedger entry {claim.claim_id} has wrong source: {claim.source_kind}"
+            )
+            assert claim.verification_status == "verified_from_rfp", (
+                f"RFPFactLedger entry {claim.claim_id} has wrong status: {claim.verification_status}"
+            )
+        return self
+
+
+class BidderEvidenceLedger(DeckForgeBaseModel):
+    """Company-side proof claims. Default internal_unverified until Engine 2."""
+
+    entries: list[ClaimProvenance] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_kinds(self) -> "BidderEvidenceLedger":
+        for claim in self.entries:
+            assert claim.claim_kind == "internal_company_claim", (
+                f"BidderEvidenceLedger entry {claim.claim_id} has wrong kind: {claim.claim_kind}"
+            )
+            assert claim.source_kind == "internal_backend", (
+                f"BidderEvidenceLedger entry {claim.claim_id} has wrong source: {claim.source_kind}"
+            )
+        return self
+
+
+class ExternalMethodologyLedger(DeckForgeBaseModel):
+    """External academic/industry sources with relevance classification."""
+
+    entries: list[ClaimProvenance] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_kinds(self) -> "ExternalMethodologyLedger":
+        for claim in self.entries:
+            assert claim.claim_kind == "external_methodology", (
+                f"ExternalMethodologyLedger entry {claim.claim_id} has wrong kind: {claim.claim_kind}"
+            )
+            assert claim.source_kind == "external_source", (
+                f"ExternalMethodologyLedger entry {claim.claim_id} has wrong source: {claim.source_kind}"
+            )
+        return self
+
+
+class ProposalOptionLedger(DeckForgeBaseModel):
+    """Design choices and numeric commitments. Not facts, not proof."""
+
+    entries: list[ClaimProvenance] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_kinds(self) -> "ProposalOptionLedger":
+        for claim in self.entries:
+            assert claim.claim_kind == "proposal_option", (
+                f"ProposalOptionLedger entry {claim.claim_id} has wrong kind: {claim.claim_kind}"
+            )
+        return self
+
+
+# ── Compliance Index ─────────────────────────────────────────────
+
+
+class ComplianceIndexEntry(DeckForgeBaseModel):
+    """Structured compliance check for one hard requirement."""
+
+    requirement_id: str
+    requirement_text: str
+
+    response_status: Literal[
+        "covered_pending_attachment",
+        "covered_by_declaration",
+        "covered_by_response_text",
+        "missing",
+        "not_applicable",
+    ]
+
+    content_conformance_pass: bool = False
+    submission_pack_ready: bool = False
+
+    response_section: str = ""
+    attachment_required: bool = False
+    attachment_name: str = ""
+    attachment_verified: bool = False
+
+    not_applicable_rationale: str = ""
+
+    owner: str = ""
+    arabic_aliases: list[str] = Field(default_factory=list)
+
+    rfp_requirement_claim_id: str = ""
+    bidder_response_claim_id: str | None = None
+    attachment_claim_id: str | None = None
+
+    @model_validator(mode="after")
+    def derive_gates(self) -> "ComplianceIndexEntry":
+        """Derive content_conformance_pass and submission_pack_ready."""
+        content_pass = False
+        submission_ready = False
+
+        if self.response_status in (
+            "covered_by_declaration",
+            "covered_by_response_text",
+        ):
+            content_pass = True
+        elif self.response_status == "covered_pending_attachment":
+            content_pass = True
+            submission_ready = self.attachment_verified
+        elif self.response_status == "not_applicable":
+            content_pass = bool(self.not_applicable_rationale)
+
+        object.__setattr__(self, "content_conformance_pass", content_pass)
+        object.__setattr__(self, "submission_pack_ready", submission_ready)
+        return self
+
+
+class ComplianceIndex(DeckForgeBaseModel):
+    """Structured compliance index — consumed by validator before text scanning."""
+
+    entries: list[ComplianceIndexEntry] = Field(default_factory=list)
+
+
+# ── Claim Ledger Bundle ──────────────────────────────────────────
+
+
+class ClaimLedgerBundle(DeckForgeBaseModel):
+    """Single canonical claim package passed through the pipeline."""
+
+    registry: ClaimRegistry
+    rfp_fact_ledger: RFPFactLedger
+    bidder_evidence_ledger: BidderEvidenceLedger
+    external_methodology_ledger: ExternalMethodologyLedger
+    proposal_option_ledger: ProposalOptionLedger
+    compliance_index: ComplianceIndex | None = None
