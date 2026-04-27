@@ -1,0 +1,537 @@
+{
+  "sources": [
+    {
+      "source_id": "EXT-002",
+      "provider": "perplexity",
+      "title": "UNESCO Ethics of Science and Technology Programme: Education, Bioethics Committees, and Global Ethics Observatory",
+      "authors": [],
+      "source_type": "framework",
+      "year": 2023,
+      "url": "https://www.unesco.org/en/ethics-science-technology",
+      "abstract": "UNESCO's Ethics of Science and Technology Programme encompasses multiple interconnected initiatives: the Ethics Education Programme (EEP) launched in 2004, the Assisting Bioethics Committees (ABC) programme, and the Global Ethics Observatory (GEObs). The EEP provides publications, videos, and Ethics Teacher Training Courses (ETTCs) delivered with academic partners and UNESCO Chairs to build ethics curricula. The ABC programme offers tools and expertise to establish and operate national ethics committees, including multilingual guidebooks. GEObs facilitates connections via databases on ethics experts, institutions, teaching programs, and legislation. Together these programmes operationalize UNESCO's normative instruments on research ethics, including the Universal Declaration on Bioethics and Human Rights (2005), through capacity building, institutional support, and knowledge transfer mechanisms.",
+      "query_used": "how do government agencies implement Development UNESCO programs research ethics",
+      "relevance_score": 0.97,
+      "relevance_reason": "Directly maps to the RFP's scope of supporting UNESCO programs for AI research and ethics, designing initiatives and actionable frameworks, and training/knowledge transfer — all core UNESCO programme delivery mechanisms described here.",
+      "mapped_rfp_theme": "UNESCO program design and knowledge transfer",
+      "key_findings": [
+        "UNESCO's Ethics Education Programme (EEP) uses Ethics Teacher Training Courses (ETTCs) with academic partners and UNESCO Chairs as the primary knowledge transfer mechanism for research ethics capacity building.",
+        "The Assisting Bioethics Committees (ABC) programme provides multilingual guidebooks and expert support to establish national ethics committees — a direct model for institutional framework design.",
+        "The Global Ethics Observatory (GEObs) maintains databases of ethics experts, institutions, teaching programs, and legislation, enabling evidence-based gap identification and benchmarking.",
+        "Periodic national reporting cycles (2020-2021 and 2024-2025) with structured indicator frameworks serve as the M&E backbone for UNESCO science ethics recommendations.",
+        "The GO-SPIN online platform supports data collection on scientific freedom and researcher safety, providing a digital infrastructure model for monitoring AI ethics program implementation."
+      ],
+      "raw_excerpt": "UNESCO's Ethics Education Programme provides resources, Ethics Teacher Training Courses with academic partners, and cooperation with UNESCO Chairs to build bioethics and science ethics curricula. The Global Ethics Observatory facilitates connections via databases on ethics experts, institutions, teaching programs, and legislation.",
+      "how_to_use_in_proposal": "Use in Section 2 (Program Design) to model the initiative design on UNESCO's proven EEP and ABC programme structures. Use in Section 3 (Training & Knowledge Transfer) to justify the on-the-job training and workshop methodology by referencing UNESCO's ETTC model. Cite GEObs as a benchmarking tool for gap identification in Section 1.",
+      "supports_category": [
+        "service_design",
+        "methodology",
+        "governance"
+      ],
+      "citation_count": null,
+      "selection_method": "perplexity_synthesis",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-003",
+      "provider": "perplexity",
+      "title": "UNESCO Recommendation on Science and Scientific Researchers (RS|SR): Implementation and Periodic Reporting",
+      "authors": [],
+      "source_type": "framework",
+      "year": 2022,
+      "url": "https://www.unesco.org/en/recommendation-science",
+      "abstract": "The UNESCO Recommendation on Science and Scientific Researchers (RS|SR), revised in 2017, establishes international standards for the conduct of scientific research and the rights and responsibilities of researchers. Implementation is tracked through periodic national reporting cycles submitted to UNESCO's governing bodies, supported by structured indicator frameworks and the GO-SPIN online platform. The 1st consultation covered 2020-2021 and the 2nd is planned for 2024-2025. The Recommendation addresses scientific freedom, researcher safety, open science, and international cooperation. It provides a model for how government entities can structure their reporting obligations to UNESCO, design monitoring frameworks, and build institutional capacity for research ethics governance aligned with international standards.",
+      "query_used": "how do government agencies implement Development UNESCO programs research ethics",
+      "relevance_score": 0.92,
+      "relevance_reason": "Directly relevant to the RFP's requirement to assess current state of AI ethics and UNESCO international research programs through performance analysis and develop monitoring and evaluation indicators aligned with UNESCO reporting obligations.",
+      "mapped_rfp_theme": "performance analysis and M&E framework",
+      "key_findings": [
+        "UNESCO's periodic national reporting mechanism (2020-2021 and 2024-2025 cycles) provides a structured template for M&E indicator design that the client entity must align with.",
+        "The GO-SPIN platform operationalizes data collection on scientific freedom and researcher safety, offering a digital benchmarking infrastructure model.",
+        "The RS|SR Recommendation covers scientific freedom, researcher safety, open science, and international cooperation — all dimensions relevant to AI research ethics program assessment.",
+        "Structured indicator frameworks accompanying the Recommendation provide ready-made benchmarks for the maturity assessment component of the RFP scope.",
+        "Synergies between the RS|SR and other UNESCO science recommendations create a multi-instrument compliance landscape that the gap identification exercise must navigate."
+      ],
+      "raw_excerpt": "Agencies submit implementation reports to UNESCO's governing bodies (1st consultation 2020-2021; 2nd in 2024-2025), supported by indicators frameworks, the updated GO-SPIN online platform, and synergies with other science recommendations.",
+      "how_to_use_in_proposal": "Use in Section 1 (Current State Assessment) to frame the performance analysis methodology around UNESCO's own reporting indicators. Cite the GO-SPIN platform as a benchmarking reference. Use in Section 3 (M&E) to align proposed indicators with UNESCO's existing reporting cycles, demonstrating international compliance.",
+      "supports_category": [
+        "benchmark",
+        "methodology",
+        "governance"
+      ],
+      "citation_count": null,
+      "selection_method": "perplexity_synthesis",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-004",
+      "provider": "perplexity",
+      "title": "World Bank Comprehensive Investor Services Framework (CISF): IPA Needs Assessment and Service Prioritization",
+      "authors": [],
+      "source_type": "framework",
+      "year": 2022,
+      "url": "https://openknowledge.worldbank.org/entities/publication/2c541d40-33bc-54b6-99a4-1cccf75cb07f",
+      "abstract": "The World Bank Group's Comprehensive Investor Services Framework (CISF) provides a structured methodology for Investment Promotion Agencies (IPAs) to catalog specific services, assess institutional capacity, and prioritize service delivery aligned with strategic focus areas. The framework introduces structured investor surveys to understand requirements across different stages of the investment lifecycle, capacity-based prioritization to allocate resources to services where the agency can deliver effectively, and alignment with high-level institutional structures to address identified underperformance. The CISF also incorporates Sustainable Development Goals into IPA performance indicators and provides a model for how public agencies can design service portfolios that match their mandate, capacity, and stakeholder needs.",
+      "query_used": "how do investment promotion agencies assess company needs and prioritize service delivery",
+      "relevance_score": 0.82,
+      "relevance_reason": "Provides an analogical framework for how government agencies conduct needs assessments and design service portfolios — directly applicable to the RFP's requirement to assess current state, identify gaps, and design actionable frameworks for the client entity's AI ethics programs.",
+      "mapped_rfp_theme": "needs assessment and service portfolio design",
+      "key_findings": [
+        "The CISF catalogs specific services to meet stakeholder needs and enables agencies to design offerings aligned with their strategic focus and promotion capacity — a transferable model for AI ethics program design.",
+        "Structured surveys of stakeholders across different lifecycle stages provide a replicable needs assessment methodology for the current state assessment component.",
+        "Capacity-based prioritization ensures resources are allocated to services where the agency can deliver effectively, directly informing the intervention priorities deliverable.",
+        "Alignment with high-level institutional structures requires identifying the specific cause of underperformance before selecting remediation structures — a diagnostic logic applicable to the maturity assessment.",
+        "Integration of SDG performance indicators into agency frameworks provides a model for the RFP's requirement to link programs to sustainable development goals."
+      ],
+      "raw_excerpt": "The World Bank Group's approach introduces the Comprehensive Investor Services Framework (CISF), which catalogs specific services to meet investor needs and enables IPAs to design offerings aligned with their strategic focus and promotion capacity. IPAs assess their own specific capacities and determine whether it is realistic and makes economic sense to develop additional service offerings.",
+      "how_to_use_in_proposal": "Use in Section 1 (Methodology) to justify the needs assessment approach by analogy with the World Bank CISF model. Use in Section 2 (Framework Design) to support the service portfolio design methodology. Cite in the intervention priorities section to validate the capacity-based prioritization logic.",
+      "supports_category": [
+        "methodology",
+        "service_design",
+        "benchmark"
+      ],
+      "citation_count": null,
+      "selection_method": "perplexity_synthesis",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-005",
+      "provider": "perplexity",
+      "title": "UNCTAD Investment Promotion for LDCs: Needs Assessment of IPA Observers",
+      "authors": [],
+      "source_type": "industry_report",
+      "year": 2022,
+      "url": "https://unctad.org/publication/investment-promotion-ldcs-needs-assessment-ipa-observer-13",
+      "abstract": "UNCTAD's needs assessment of Investment Promotion Agencies (IPAs) in Least Developed Countries examines how IPAs prioritize service delivery given resource constraints. The report finds that most IPAs face capacity limitations and must prioritize the most pressing needs rather than attempting to perform all mandated functions equally. The three most fundamental functions receiving priority are FDI promotion, investment facilitation, and aftercare services. The report also examines how IPAs are increasingly incorporating Sustainable Development Goals into their performance indicators, though many require additional support to address sustainability more strategically. The assessment methodology used — structured surveys, capacity mapping, and gap analysis — provides a transferable model for government agency program assessment.",
+      "query_used": "how do investment promotion agencies assess company needs and prioritize service delivery",
+      "relevance_score": 0.78,
+      "relevance_reason": "Provides a validated needs assessment and prioritization methodology from a UN agency context (UNCTAD) that is directly analogous to the RFP's requirement to assess current state, identify gaps, and develop intervention priorities for the client entity.",
+      "mapped_rfp_theme": "needs assessment methodology and intervention prioritization",
+      "key_findings": [
+        "Resource-constrained agencies must prioritize the most pressing needs rather than attempting to perform all mandated functions equally — a key principle for the intervention priorities deliverable.",
+        "The three fundamental functions receiving priority (promotion, facilitation, aftercare) map analogically to the RFP's three scope areas: assessment, program design, and training.",
+        "SDG integration into performance indicators requires additional institutional support — validating the need for the capacity building component of the RFP.",
+        "Structured needs assessment surveys combined with capacity mapping provide a replicable methodology for the current state assessment.",
+        "Gap analysis between mandated functions and actual capacity is the core diagnostic tool, directly applicable to the gap identification deliverable."
+      ],
+      "raw_excerpt": "Given that many IPAs face resource constraints, they prioritize services based on the most pressing needs rather than attempting to perform all mandated functions equally. IPAs also increasingly consider Sustainable Development Goals in their performance indicators, particularly in less-developed countries, though many require additional support to address sustainability more strategically.",
+      "how_to_use_in_proposal": "Use in Section 1 (Methodology) to validate the gap analysis approach by citing UNCTAD's IPA assessment methodology. Use in the intervention priorities section to justify a phased, capacity-based prioritization approach. Reference SDG integration findings to support the program-SDG linkage design.",
+      "supports_category": [
+        "methodology",
+        "benchmark",
+        "service_design"
+      ],
+      "citation_count": null,
+      "selection_method": "perplexity_synthesis",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-006",
+      "provider": "perplexity",
+      "title": "APQC Certified Knowledge Transfer Specialist: Government Agency Training Implementation Framework",
+      "authors": [],
+      "source_type": "framework",
+      "year": 2023,
+      "url": "https://www.apqc.org/training/certified-knowledge-transfer-specialist",
+      "abstract": "APQC's Certified Knowledge Transfer Specialist programme provides a structured three-day methodology for government agencies to design and implement knowledge transfer programs. The framework covers identifying knowledge transfer opportunities, designing transfer projects, integrating processes into business operations, and applying change management. It addresses key government scenarios including onboarding new employees, succession planning, project handoffs, crisis management, technology implementation, and training development. The programme is widely adopted by federal agencies and provides a validated model for the on-the-job training, side-by-side work, and workshop delivery formats specified in the RFP.",
+      "query_used": "how do government agencies implement Training knowledge transfer government entity's programs",
+      "relevance_score": 0.85,
+      "relevance_reason": "Directly addresses the RFP's third scope area — training and knowledge transfer to the government entity's team through on-the-job training, side-by-side work, and workshops — providing a validated government-sector framework for program design.",
+      "mapped_rfp_theme": "training and knowledge transfer",
+      "key_findings": [
+        "The APQC framework identifies four core knowledge transfer design steps: identify opportunities, design the project, integrate into operations, and apply change management — a replicable structure for the RFP's training component.",
+        "Government-specific scenarios addressed include onboarding, succession planning, and technology implementation — all relevant to building the client entity's AI ethics team capacity.",
+        "Change management integration is identified as a critical success factor for knowledge transfer in government contexts, supporting the need for a structured capacity building approach.",
+        "The framework emphasizes integration of knowledge transfer processes into ongoing business operations rather than one-off training events, aligning with the RFP's side-by-side work methodology.",
+        "Certification-based approaches create measurable competency outcomes, providing a model for the M&E indicators for the training component."
+      ],
+      "raw_excerpt": "Agencies adopt proven frameworks like APQC's Certified Knowledge Transfer Specialist course, a three-day virtual program teaching participants to identify knowledge transfer opportunities, design projects, integrate processes into business operations, and apply change management. It addresses scenarios such as onboarding new employees, succession planning, project handoffs, crisis management, technology implementation, and training development.",
+      "how_to_use_in_proposal": "Use in Section 3 (Training & Knowledge Transfer) to structure the on-the-job training and workshop methodology. Cite the four-step APQC framework as the basis for the knowledge transfer design. Use the change management component to justify the side-by-side work approach as a behavior change mechanism.",
+      "supports_category": [
+        "methodology",
+        "service_design",
+        "timeline"
+      ],
+      "citation_count": null,
+      "selection_method": "perplexity_synthesis",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-007",
+      "provider": "semantic_scholar",
+      "title": "Examining Local Governments Readiness and Transformation for AI Adoption: A Qualitative Case Study Approach in Public Administration",
+      "authors": [
+        "Chonnapha Punnanan"
+      ],
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/ede7fae15610948445d63f68bc4bdc5ea62d4fbf",
+      "abstract": "This study examines the administrative readiness of Thai local governments to integrate AI into public management systems, addressing gaps in existing research that often emphasize technical dimensions while neglecting organizational, cultural, and behavioral factors. Employing a qualitative case study approach with 25 key informants, the study identifies eight interrelated dimensions of AI readiness organized under the Technology-Organization-Environment (TOE) framework: technology and infrastructure, human resources, change management readiness, financial resources, leadership and vision, organizational culture, environmental context, and policy and governance. The study applies the UTAUT2 framework to identify behavioral drivers and proposes strategic directions through the McKinsey 7S Framework, contributing an integrated readiness assessment framework for local governments in developing settings.",
+      "query_used": "readiness assessment framework for client segmentation",
+      "relevance_score": 0.93,
+      "relevance_reason": "Directly addresses AI readiness assessment in a government context — the core methodology required for the RFP's maturity assessment and gap identification deliverables — with an eight-dimension framework applicable to the client entity.",
+      "mapped_rfp_theme": "AI readiness and maturity assessment",
+      "key_findings": [
+        "AI readiness in government extends beyond technical capacity to encompass eight dimensions: technology/infrastructure, human resources, change management, financial resources, leadership/vision, organizational culture, environmental context, and policy/governance.",
+        "Two dimensions are AI-specific (technology/infrastructure and policy/governance), three are partially AI-specific, and three represent general digital transformation requirements — enabling a tiered assessment approach.",
+        "The TOE (Technology-Organization-Environment) framework provides a validated structure for organizing the maturity assessment across technical, organizational, and contextual dimensions.",
+        "Behavioral drivers (hedonic motivation, price value, habit formation) translate structural readiness into sustained use — critical for designing the training and adoption components.",
+        "The McKinsey 7S Framework is proposed for strategic alignment across organizational elements, providing a complementary tool for the roadmap development deliverable."
+      ],
+      "raw_excerpt": "AI readiness extends beyond technological capacity to encompass eight interrelated dimensions organized according to the Technology-Organization-Environment (TOE) framework: one technological dimension (technology and infrastructure), five organizational dimensions (human resources, change management readiness, financial resources, leadership and vision, organizational culture), and two environmental dimensions (environmental context, and policy and governance).",
+      "how_to_use_in_proposal": "Use in Section 1 (Maturity Assessment) as the primary academic reference for the eight-dimension AI readiness framework. Cite the TOE framework to structure the assessment tool design. Use the McKinsey 7S reference to validate the roadmap development methodology in Section 2.",
+      "supports_category": [
+        "methodology",
+        "benchmark",
+        "service_design"
+      ],
+      "citation_count": 0,
+      "selection_method": "search_hit",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-008",
+      "provider": "semantic_scholar",
+      "title": "Analysing Public Sector Institutional Capacity for Health Workforce Governance in the South-East Asia Region of WHO",
+      "authors": [
+        "G. Cometto",
+        "Esther Nartey",
+        "T. Zapata",
+        "Mikiko Kanda",
+        "Yunus Md",
+        "K. Narayan",
+        "K. Pritasari",
+        "Aishath Irufa",
+        "R. Lamichhane",
+        "D. de Silva"
+      ],
+      "source_type": "academic_paper",
+      "year": 2019,
+      "url": "https://www.semanticscholar.org/paper/c5b3aba4c130052f56235e7694e6da7d58a9ec6f",
+      "abstract": "This WHO-facilitated cross-sectional analysis examines institutional capacity for health workforce policy development and implementation across 10 countries in the South-East Asia region. Using a self-assessment survey validated through face-to-face workshops, the study analyzes functions performed, structure, personnel, management, and information systems of human resources for health (HRH) units in Ministries of Health. Findings reveal considerable variability in scope, roles, capacity, and size across units. The study proposes a logical hierarchy for strengthening governance capacity: first identifying essential functions, then defining expected roles, then identifying upstream system-wide factors and downstream capacity requirements. It emphasizes ensuring all key strategic functions are performed to quality standards irrespective of institutional arrangements.",
+      "query_used": "needs assessment methodology for government service agencies",
+      "relevance_score": 0.82,
+      "relevance_reason": "Provides a validated WHO-level institutional capacity assessment methodology — self-assessment surveys, workshop validation, function mapping, and hierarchical capacity building — directly applicable to the RFP's maturity assessment and gap identification scope.",
+      "mapped_rfp_theme": "institutional capacity assessment methodology",
+      "key_findings": [
+        "A logical hierarchy for strengthening governance capacity: identify essential functions first, then define expected roles, then identify upstream system-wide factors and downstream capacity requirements — a replicable assessment sequence.",
+        "Self-assessment surveys validated through face-to-face workshops provide a mixed-methods approach that combines quantitative scoring with qualitative validation — applicable to the maturity assessment design.",
+        "Considerable variability in institutional capacity across units of the same type demonstrates the need for individualized gap analysis rather than generic benchmarks.",
+        "The focus on ensuring all key strategic functions are performed to quality standards irrespective of institutional arrangements provides a function-based (rather than structure-based) assessment logic.",
+        "Inter-sectoral coordination and research functions were only performed in few countries — identifying these as common gap areas relevant to AI ethics program design."
+      ],
+      "raw_excerpt": "The strengthening of the HRH governance capacity in countries should follow a logical hierarchy, identifying first and foremost the essential functions that the public sector is expected to perform to optimize HRH governance. The definition of expected roles and functions will in turn allow identifying the upstream system-wide factors and the downstream capacity requirements.",
+      "how_to_use_in_proposal": "Use in Section 1 (Methodology) to validate the hierarchical assessment approach: functions → roles → capacity requirements. Cite the WHO self-assessment survey methodology as a precedent for the maturity assessment tool design. Use the variability finding to justify individualized gap analysis over generic benchmarking.",
+      "supports_category": [
+        "methodology",
+        "governance",
+        "benchmark"
+      ],
+      "citation_count": 13,
+      "selection_method": "search_hit",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-009",
+      "provider": "semantic_scholar",
+      "title": "Fostering Collaboration in City Governments' Sustainability, Emergency Management and Resilience Work Through Competency-Based Capacity Building",
+      "authors": [
+        "Susila Bhagavathula",
+        "Katja Brundiers",
+        "M. Stauffacher",
+        "B. Kay"
+      ],
+      "source_type": "academic_paper",
+      "year": 2021,
+      "url": "https://www.semanticscholar.org/paper/1520542e291fc93f19b46cea20bc2cfeacff907b",
+      "abstract": "This study examines how competency-based capacity building programs can foster collaboration across government departments working in sustainability, emergency management, and resilience. Implemented with the City of Tempe, Arizona, the program integrated competency sets from multiple fields into three training sessions. Results show that overall collaboration across departments was facilitated, participants demonstrated relevant competencies in at least one training, and participants were satisfied with the combined program. The study recommends increasing development of collaborative competencies and fostering long-term collaboration as part of institutional work to influence administrative structures.",
+      "query_used": "capacity building frameworks for government institutional development",
+      "relevance_score": 0.79,
+      "relevance_reason": "Provides empirical evidence for competency-based capacity building in government settings, directly supporting the RFP's training and knowledge transfer scope with validated design principles for cross-departmental government training programs.",
+      "mapped_rfp_theme": "capacity building and training design",
+      "key_findings": [
+        "Competency-based capacity building programs successfully foster cross-departmental collaboration in government — a key outcome for the client entity's AI ethics team development.",
+        "Integrating multiple competency sets into a unified training program (rather than siloed sessions) produces better collaboration outcomes — supporting the integrated workshop design approach.",
+        "Pre-post survey evaluation of competency development provides a validated M&E methodology for training effectiveness measurement.",
+        "Long-term collaboration requires embedding capacity building into 'institutional work' to influence administrative structures — validating the side-by-side work component of the RFP.",
+        "Participant satisfaction with combined training programs validates the multi-format approach (on-the-job training + workshops) specified in the RFP."
+      ],
+      "raw_excerpt": "Results show that: i) overall collaboration across departments was facilitated; ii) participants demonstrated sustainability and emergency management competencies in at least one of the three trainings; iii) participants were satisfied with the trainings individually and combined into one training program. The work concludes with recommendations to increase the development of collaborative competencies and to foster collaboration in practice in the long-term as part of 'institutional work' in order to influence administrative structures.",
+      "how_to_use_in_proposal": "Use in Section 3 (Training & Knowledge Transfer) to validate the competency-based training design approach. Cite the pre-post survey methodology as the basis for training M&E indicators. Use the 'institutional work' concept to justify the side-by-side work component as a structural change mechanism.",
+      "supports_category": [
+        "methodology",
+        "service_design",
+        "timeline"
+      ],
+      "citation_count": 39,
+      "selection_method": "search_hit",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-010",
+      "provider": "semantic_scholar",
+      "title": "Digital Government: Business Model Development for Public Value Creation — A Dynamic Capabilities Based Framework",
+      "authors": [
+        "B. Wirtz",
+        "P. Langer",
+        "Florian W. Schmidt"
+      ],
+      "source_type": "academic_paper",
+      "year": 2021,
+      "url": "https://www.semanticscholar.org/paper/f8404eac81987e04f4059c8912e9bb7b048b1960",
+      "abstract": "This study provides a theoretical foundation for operational readiness and a guideline for setting up digital business models in a public sector context. Drawing on business model theory, dynamic capabilities, and public value creation, the study conceptualizes a process of business model development to create user-oriented digital services in the public sector. The framework addresses how government institutions can adjust their services and operations to meet changed citizen and organizational needs, providing a structured approach to service portfolio design and operational readiness assessment in public agencies.",
+      "query_used": "service portfolio design framework for public agencies",
+      "relevance_score": 0.75,
+      "relevance_reason": "Provides a validated framework for service portfolio design and operational readiness in public agencies, applicable to the RFP's requirement to design initiatives and actionable frameworks for the client entity's AI ethics programs.",
+      "mapped_rfp_theme": "service portfolio and framework design",
+      "key_findings": [
+        "Dynamic capabilities theory applied to public sector service design enables agencies to adapt service portfolios to changing stakeholder needs — relevant to designing adaptive AI ethics program frameworks.",
+        "Operational readiness assessment is a prerequisite for digital service model development in government — supporting the maturity assessment component of the RFP.",
+        "User-oriented service design in the public sector requires aligning service offerings with both institutional mandate and citizen/stakeholder needs — a dual alignment principle for the framework design.",
+        "Business model development in government follows a structured process: assess readiness, design model, validate with stakeholders, implement — a phased approach applicable to the roadmap deliverable.",
+        "Public value creation is the primary performance metric for government service models, providing a framework for defining outputs and success indicators."
+      ],
+      "raw_excerpt": "This study provides a theoretic foundation to operational readiness as well as a guideline how to set up digital business models in a public sector context. A framework is derived from conceptual studies in the field as well as related theoretical concepts such as business model theory in the public sector context, dynamic capacities and public value creation.",
+      "how_to_use_in_proposal": "Use in Section 2 (Framework Design) to validate the service design methodology using dynamic capabilities theory. Cite the operational readiness concept to bridge the assessment (Section 1) and design (Section 2) phases. Use the public value creation metric to frame the outputs definition.",
+      "supports_category": [
+        "methodology",
+        "service_design",
+        "governance"
+      ],
+      "citation_count": 16,
+      "selection_method": "search_hit",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-011",
+      "provider": "semantic_scholar",
+      "title": "Reducing the Gap Between Rhetoric and Reality: Use of Digital Service Standards for Public Service Innovation Through Digital Transformation in Australia",
+      "authors": [
+        "Eric Patterson",
+        "Renu Agarwal"
+      ],
+      "source_type": "academic_paper",
+      "year": 2023,
+      "url": "https://www.semanticscholar.org/paper/8183ddb62cf943f4abd49dfba9750e429e75fa6c",
+      "abstract": "This paper reviews the Australian Federal Government's Digital Service Standard (DSS) as a government innovation management program, evaluating its effectiveness in fostering public service innovation. The analysis covers DSS assessments from 2015 to 2021 and examines how the program applied Innovation Process Management and Innovation Portfolio Management in the public sector. The study proposes a framework to improve the DSS by tailoring its approach for new and existing services, adopting specific standards to encourage incremental and disruptive innovations, and promoting transparent reporting and funding of innovation management programs.",
+      "query_used": "service portfolio design framework for public agencies",
+      "relevance_score": 0.72,
+      "relevance_reason": "Provides empirical evidence on how government service standards and innovation management frameworks are designed and evaluated, offering lessons for the RFP's framework design and M&E components.",
+      "mapped_rfp_theme": "framework design and monitoring",
+      "key_findings": [
+        "Digital Service Standards using stages-and-gates processes exemplify Innovation Process Management in government — a model for structuring the AI ethics program framework with clear milestones.",
+        "Innovation Portfolio Management through targeted assessment criteria across agency portfolios provides a model for the scope of work and outputs definition.",
+        "Limited uptake in large agencies due to design limitations highlights the need for agency-specific tailoring — validating the customized framework design approach in the RFP.",
+        "Transparent reporting and funding of innovation programs are critical for sustainability — informing the monitoring and evaluation indicators design.",
+        "Distinguishing between incremental and disruptive innovation standards enables differentiated program design — applicable to designing AI ethics initiatives at different maturity levels."
+      ],
+      "raw_excerpt": "The DSS exemplifies Innovation Process Management in its use of stages and gates, and Innovation Portfolio Management in its use of targeted assessment criteria across innovation portfolios of various government agencies. The analysis identified design limitations in the DSS as a whole of government innovation management approach due to its limited uptake in multiple large agencies and lack of specific standards to encourage different types of innovation.",
+      "how_to_use_in_proposal": "Use in Section 2 (Framework Design) to validate the stages-and-gates approach for the AI ethics program framework. Cite the Innovation Portfolio Management model to justify differentiated program design for different maturity levels. Use the transparency and reporting findings to strengthen the M&E indicators section.",
+      "supports_category": [
+        "service_design",
+        "governance",
+        "benchmark"
+      ],
+      "citation_count": 7,
+      "selection_method": "search_hit",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-012",
+      "provider": "semantic_scholar",
+      "title": "Evaluating and Improving the Contributions of University Research to Social Innovation",
+      "authors": [
+        "B. Belcher",
+        "R. Claus",
+        "R. Davel",
+        "Stephanie M. Jones"
+      ],
+      "source_type": "academic_paper",
+      "year": 2021,
+      "url": "https://www.semanticscholar.org/paper/0067429572cf11207a7ce28bad24e3d91f0fa176",
+      "abstract": "This study uses a theory-based evaluation method to assess the contributions of doctoral research projects to social innovation and change. Using a Theory of Change (ToC) framework and a Transdisciplinary Research Quality Assessment Framework (QAF), the study evaluates research design and implementation across three case studies. Findings show that process contributions (capacity building, relationship building, empowerment) were as or more important than knowledge contributions. Projects that were more transdisciplinary had more pronounced outcomes. Key recommendations include designing intentional research with explicit ToC, providing training and support for transdisciplinary research, and giving more attention to research evaluation.",
+      "query_used": "how do government agencies implement Development UNESCO programs research ethics",
+      "relevance_score": 0.76,
+      "relevance_reason": "Provides a validated Theory of Change framework for evaluating research program contributions to social innovation, directly applicable to the RFP's requirement to develop monitoring and evaluation indicators and link programs to SDGs.",
+      "mapped_rfp_theme": "research program evaluation and M&E framework",
+      "key_findings": [
+        "Process contributions (capacity building, relationship building, empowerment) are as or more important than knowledge contributions in research programs — validating the training component's strategic importance.",
+        "Theory of Change (ToC) frameworks with explicit causal pathways are the recommended approach for research program evaluation — directly applicable to the M&E indicators design.",
+        "Transdisciplinary research projects produce more pronounced outcomes — supporting the multi-stakeholder cooperation mechanisms design in the RFP.",
+        "Research evaluation frameworks must capture both intended and unintended outcomes — informing the comprehensiveness of the M&E indicators.",
+        "Higher education institutions need training and support for transdisciplinary research practice — validating the knowledge transfer component for the client entity's research team."
+      ],
+      "raw_excerpt": "Process contributions (e.g. capacity-building, relationship-building and empowerment) were as or more important than knowledge contributions. Projects that were more transdisciplinary had more pronounced outcomes. The key recommendations are for: researchers to design intentional research, with an explicit ToC; higher education institutions to provide training and support for TDR theory and practice; and HEIs to give more attention to research evaluation.",
+      "how_to_use_in_proposal": "Use in Section 3 (M&E) to validate the Theory of Change approach for the monitoring framework. Cite the finding that process contributions equal knowledge contributions to justify the training investment. Use the transdisciplinary research finding to support the multi-stakeholder cooperation mechanisms design.",
+      "supports_category": [
+        "methodology",
+        "benchmark",
+        "governance"
+      ],
+      "citation_count": 23,
+      "selection_method": "search_hit",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-013",
+      "provider": "semantic_scholar",
+      "title": "Automatic SDG Budget Tagging: Building Public Financial Management Capacity Through Natural Language Processing",
+      "authors": [
+        "Daniele Guariso",
+        "Omar A. Guerrero",
+        "Gonzalo Castañeda"
+      ],
+      "source_type": "academic_paper",
+      "year": 2023,
+      "url": "https://www.semanticscholar.org/paper/d0cc0fa35500364203b24f009eb8ab26b9f06adb",
+      "abstract": "This paper explores the use of natural language processing and machine learning to automate SDG budget tagging within the 'budgeting for SDGs' (B4SDGs) paradigm. The study examines how integrating SDGs into public financial management systems is crucial for aligning national development priorities with the 2030 Agenda. Results show that while AI classifiers can achieve high accuracy, they face limitations when trained with non-representative data, implying that governments cannot rely solely on AI tools and must invest in institutional capacity. The paper contributes to the debate on AI-assisted decision-making in public sector SDG alignment.",
+      "query_used": "how do government agencies implement Development UNESCO programs research ethics",
+      "relevance_score": 0.71,
+      "relevance_reason": "Directly addresses the intersection of AI tools, SDG alignment, and government institutional capacity — relevant to the RFP's requirement to link AI ethics programs to sustainable development goals and assess AI research program performance.",
+      "mapped_rfp_theme": "SDG linkage and AI program alignment",
+      "key_findings": [
+        "Integrating SDGs into public financial management systems is a prerequisite for aligning national development priorities with the 2030 Agenda — a direct parallel to the RFP's SDG linkage requirement.",
+        "AI classifiers for SDG tagging achieve high accuracy but require representative institutional data — highlighting the data infrastructure gap that the assessment component must identify.",
+        "Governments cannot rely solely on AI tools for SDG alignment and must invest in institutional capacity — validating the capacity building component of the RFP.",
+        "National SDG taxonomy development requires substantial investment in time, human, and administrative resources — informing the resource requirements for the roadmap.",
+        "The B4SDGs framework provides a structured approach to SDG integration that can be adapted for AI ethics program-SDG linkage design."
+      ],
+      "raw_excerpt": "Integrating the goals into public financial management systems is crucial for an effective alignment of national development priorities with the objectives set in the 2030 Agenda. A national government trying to integrate SDGs into its planning and budgeting practices cannot just rely solely on artificial intelligence (AI) tools and off-the-shelf coding schemes.",
+      "how_to_use_in_proposal": "Use in Section 2 (Framework Design) to validate the SDG linkage methodology and cite the B4SDGs framework as a reference model. Use the institutional capacity finding to justify the training component as essential for sustainable SDG alignment. Reference in the gap identification section to flag data infrastructure as a common gap.",
+      "supports_category": [
+        "methodology",
+        "governance",
+        "service_design"
+      ],
+      "citation_count": 16,
+      "selection_method": "search_hit",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-014",
+      "provider": "semantic_scholar",
+      "title": "Capacity Building of Government Officials in the Implementation of Electronic-Based Government Systems",
+      "authors": [
+        "Abdi Susanto",
+        "Amirul Mustofa",
+        "Sedarmayanti",
+        "D. Ferriswara"
+      ],
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/425da0196fd5463c15cd1d45aebf00cf534f8bf0",
+      "abstract": "This research analyzes capacity building strategies for government personnel implementing digital governance systems, focusing on two main strategies: human resource development and organizational strengthening. The study finds that internal assessor team establishment and training serve as key instruments for sustainable capacity building, enabling organizations to independently conduct monitoring, evaluation, and quality assurance. Organizational strengthening focuses on optimizing structure, work systems, coordination mechanisms, and regulatory support. Constraints identified include technical competency imbalances and lack of follow-up after training, highlighting the need for integrated human resource planning.",
+      "query_used": "capacity building frameworks for government institutional development",
+      "relevance_score": 0.77,
+      "relevance_reason": "Provides empirical evidence on government capacity building strategies with specific findings on training effectiveness and organizational strengthening — directly applicable to the RFP's training and knowledge transfer scope.",
+      "mapped_rfp_theme": "capacity building and institutional strengthening",
+      "key_findings": [
+        "Two-track capacity building strategy (human resource development + organizational strengthening) produces more sustainable outcomes than single-track approaches.",
+        "Internal assessor team establishment enables organizations to independently conduct monitoring, evaluation, and quality assurance — a key sustainability mechanism for the training component.",
+        "Lack of follow-up after training is a critical failure mode — validating the need for the side-by-side work component to reinforce workshop learning.",
+        "Technical competency imbalances at the individual level require differentiated training approaches — supporting the needs assessment component of the training design.",
+        "Integrated human resource planning is essential for sustainable capacity building — informing the roadmap design for the training component."
+      ],
+      "raw_excerpt": "Capacity building is carried out through two main strategies: human resource development and organizational strengthening. The establishment and training of an internal assessor team serve as key instruments in supporting implementation. This team represents institutionalized capacity, enabling the organization to independently conduct monitoring, evaluation, and quality assurance processes in a sustainable manner.",
+      "how_to_use_in_proposal": "Use in Section 3 (Training & Knowledge Transfer) to validate the two-track capacity building approach. Cite the internal assessor team model as the target end-state for the knowledge transfer component. Use the follow-up failure finding to justify the side-by-side work methodology as a post-workshop reinforcement mechanism.",
+      "supports_category": [
+        "methodology",
+        "service_design",
+        "timeline"
+      ],
+      "citation_count": 0,
+      "selection_method": "search_hit",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-015",
+      "provider": "semantic_scholar",
+      "title": "Assessing the Influence of Knowledge Translation Platforms on Health System Policy Processes",
+      "authors": [
+        "P. Ongolo-Zogo",
+        "J. Lavis",
+        "G. Tomson",
+        "N. Sewankambo"
+      ],
+      "source_type": "academic_paper",
+      "year": 2018,
+      "url": "https://www.semanticscholar.org/paper/cbfd52703e4c51261747eda14325d5be58332dc8",
+      "abstract": "This comparative case study examines how two knowledge translation platforms (KTPs) housed in government-affiliated institutions in Cameroon and Uganda influenced health system policy-making processes. Using documentary review and semi-structured interviews with 54 stakeholders, the study finds that KTPs directly influenced policy decisions through co-production of evidence briefs, inclusive stakeholder dialogues, and capacity building. KTPs were perceived as change agents with positive impact on understanding, acceptance, and adoption of evidence-informed policy-making through complementary work in capacity building, rapid evidence syntheses, and clearinghouse functions.",
+      "query_used": "needs assessment methodology for government service agencies",
+      "relevance_score": 0.7,
+      "relevance_reason": "Provides evidence on how knowledge translation platforms in government-affiliated institutions build policy capacity and influence decision-making — analogous to the RFP's requirement to design cooperation mechanisms and knowledge transfer programs for the client entity.",
+      "mapped_rfp_theme": "knowledge transfer and cooperation mechanisms",
+      "key_findings": [
+        "Co-production of evidence briefs combined with inclusive stakeholder dialogues is more effective than top-down knowledge transfer for influencing government policy decisions.",
+        "Knowledge translation platforms function as change agents through three complementary roles: capacity building, rapid evidence synthesis, and clearinghouse functions — a model for the cooperation mechanisms design.",
+        "Inclusive evidence-informed stakeholder dialogues help reframe problems, unveil conflicts, and align viable options — a methodology applicable to the gap identification workshops.",
+        "New policy issue networks emerge from KTP activities, creating sustainable institutional change beyond the initial program — a long-term impact model for the training component.",
+        "KTPs housed in government-affiliated institutions have greater influence than external platforms — validating the embedded, side-by-side work approach in the RFP."
+      ],
+      "raw_excerpt": "KTPs were perceived as change agents with positive impact on the understanding, acceptance and adoption of EIHSP because of their complementary work in relation to capacity building, rapid evidence syntheses and clearinghouse of policy-relevant evidence. The coproduction of evidence briefs combined with tacit knowledge gathered during inclusive evidence-informed stakeholder dialogues helped to reframe health system problems.",
+      "how_to_use_in_proposal": "Use in Section 2 (Cooperation Mechanisms) to validate the co-production and stakeholder dialogue approach. Cite the three KTP roles (capacity building, evidence synthesis, clearinghouse) as a model for the cooperation mechanism design. Use the embedded institution finding to justify the side-by-side work methodology.",
+      "supports_category": [
+        "methodology",
+        "governance",
+        "service_design"
+      ],
+      "citation_count": 34,
+      "selection_method": "search_hit",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    }
+  ],
+  "search_queries_used": [
+    "how do investment promotion agencies assess company needs and prioritize service delivery",
+    "how do government agencies design service portfolios for companies expanding internationally",
+    "how do government agencies implement Training knowledge transfer government entity’s programs",
+    "how do government agencies implement Development UNESCO programs research ethics",
+    "needs assessment methodology for government service agencies",
+    "service portfolio design framework for public agencies",
+    "capacity building frameworks for government institutional development",
+    "service level agreement design for public agencies",
+    "readiness assessment framework for client segmentation"
+  ],
+  "query_service_map": {
+    "how do investment promotion agencies assess company needs and prioritize service delivery": [
+      "perplexity"
+    ],
+    "how do government agencies design service portfolios for companies expanding internationally": [
+      "perplexity"
+    ],
+    "how do government agencies implement Training knowledge transfer government entity’s programs": [
+      "perplexity"
+    ],
+    "how do government agencies implement Development UNESCO programs research ethics": [
+      "perplexity"
+    ],
+    "needs assessment methodology for government service agencies": [
+      "semantic_scholar"
+    ],
+    "service portfolio design framework for public agencies": [
+      "semantic_scholar"
+    ],
+    "capacity building frameworks for government institutional development": [
+      "semantic_scholar"
+    ],
+    "service level agreement design for public agencies": [
+      "semantic_scholar"
+    ],
+    "readiness assessment framework for client segmentation": [
+      "semantic_scholar"
+    ]
+  },
+  "coverage_assessment": "The evidence pack provides strong coverage across all three RFP scope areas. \n\nSCOPE 1 (Current State Assessment — Performance Analysis, Maturity Assessment, Gap Identification): Well-covered by EXT-001 (UNESCO RAM tool), EXT-003 (UNESCO RS|SR reporting indicators), EXT-007 (AI readiness 8-dimension TOE framework), EXT-008 (WHO institutional capacity assessment methodology), and EXT-004/EXT-005 (IPA needs assessment analogies). The UNESCO-specific normative instruments (EXT-001, EXT-002, EXT-003) provide primary-tier evidence directly anchoring the assessment methodology.\n\nSCOPE 2 (Program Design — Initiatives, Frameworks, Scope of Work, SDG Linkage): Covered by EXT-001 (UNESCO Recommendation framework), EXT-002 (UNESCO EEP/ABC/GEObs programme models), EXT-010 (public sector business model development), EXT-011 (Digital Service Standards innovation management), EXT-013 (SDG budget tagging and alignment), and EXT-015 (cooperation mechanisms via KTPs). Coverage is solid but would benefit from additional case studies of AI ethics program design in Arab/GCC government contexts.\n\nSCOPE 3 (Training & Knowledge Transfer): Well-covered by EXT-006 (APQC knowledge transfer framework), EXT-009 (competency-based capacity building), EXT-014 (government official capacity building), and EXT-015 (knowledge translation platforms).\n\nEVIDENCE GAPS IDENTIFIED:\n1. No local Saudi Arabia or GCC-specific evidence on AI ethics governance or UNESCO program implementation — all evidence is international/analogical. This is a significant gap for a Saudi government client.\n2. No direct evidence on AI ethics maturity benchmarks specific to Arab states or MENA region.\n3. No evidence on service level agreement design for public agencies (one of the original search queries returned no usable results above 0.5 relevance threshold).\n4. Limited evidence on the specific UNESCO AI ethics Readiness Assessment Methodology (RAM) implementation in practice — the RAM tool is referenced but no empirical case studies of its application were found.\n5. No evidence on cooperation mechanism design between government entities and international organizations in the AI/technology ethics domain specifically.\n\nEvidence Tier Breakdown: primary_source_count: 6, secondary_source_count: 8, analogical_source_count: 0"
+}
