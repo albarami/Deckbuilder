@@ -31,6 +31,8 @@ class RFPClassification(DeckForgeBaseModel):
     ] = "unknown"
     client_type: str = ""  # e.g. "ministry", "authority", "private_enterprise"
     domain: str = ""  # e.g. "investment_promotion", "digital_transformation"
+    primary_domains: list[str] = Field(default_factory=list)
+    secondary_domains: list[str] = Field(default_factory=list)
     subdomain: str = ""  # e.g. "export_support", "smart_government"
     regulatory_frame: str = ""  # e.g. "vision_2030", "nds_2030", "none_identified"
     evaluator_pattern: str = ""  # e.g. "technical_financial_split", "quality_cost_based"
@@ -124,6 +126,17 @@ class ContextPack(DeckForgeBaseModel):
     classification_keywords: dict[str, dict[str, list[str]]] = Field(
         default_factory=dict,
     )
+
+    # Tiered classification keywords (strong/medium/weak) for weighted scoring.
+    # Shape: {"domain": {"<domain_id>": {"strong": [...], "medium": [...], "weak": [...]}}}
+    tiered_classification_keywords: dict[
+        str, dict[str, dict[str, list[str]]]
+    ] = Field(default_factory=dict)
+
+    # Skeleton pack flags — set on packs that ship classification keywords only,
+    # without enriched evaluator/methodology/regulatory content.
+    status: Literal["active", "skeleton"] = "active"
+    requires_enrichment: bool = False
 
     # Localization
     local_terminology: dict[str, str] = Field(default_factory=dict)

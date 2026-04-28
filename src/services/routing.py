@@ -32,27 +32,31 @@ def _discover_pack_files() -> tuple[
     dict[str, list[str]],
     dict[str, list[str]],
     dict[str, list[str]],
+    dict[str, dict[str, list[str]]],
 ]:
     """Scan the packs directory for *.json files.
 
     Returns:
-        Tuple of (pack_registry, jurisdiction_kw, sector_kw, domain_kw).
+        Tuple of (pack_registry, jurisdiction_kw, sector_kw, domain_kw, domain_tiered_kw).
         - pack_registry: pack_id → filename
         - jurisdiction_kw: jurisdiction_name → keyword list
         - sector_kw: sector_name → keyword list
-        - domain_kw: domain_name → keyword list
+        - domain_kw: domain_name → flat keyword list (back-compat)
+        - domain_tiered_kw: domain_name → {"strong": [...], "medium": [...], "weak": [...]}
 
     Keywords are extracted from the optional "classification_keywords" field
-    in each pack JSON file.
+    in each pack JSON file. Tiered keywords come from the optional
+    "tiered_classification_keywords" field used by skeleton domain packs.
     """
     registry: dict[str, str] = {}
     jurisdiction_kw: dict[str, list[str]] = {}
     sector_kw: dict[str, list[str]] = {}
     domain_kw: dict[str, list[str]] = {}
+    domain_tiered_kw: dict[str, dict[str, list[str]]] = {}
 
     if not _PACKS_DIR.is_dir():
         logger.warning("Packs directory not found: %s", _PACKS_DIR)
-        return registry, jurisdiction_kw, sector_kw, domain_kw
+        return registry, jurisdiction_kw, sector_kw, domain_kw, domain_tiered_kw
 
     for pack_path in sorted(_PACKS_DIR.glob("*.json")):
         try:
@@ -75,6 +79,15 @@ def _discover_pack_files() -> tuple[
             for dom_name, kw_list in ck.get("domain", {}).items():
                 domain_kw.setdefault(dom_name, []).extend(kw_list)
 
+            # Extract tiered_classification_keywords if present (skeleton packs)
+            tk = data.get("tiered_classification_keywords", {})
+            for dom_name, tiers in tk.get("domain", {}).items():
+                bucket = domain_tiered_kw.setdefault(
+                    dom_name, {"strong": [], "medium": [], "weak": []},
+                )
+                for tier in ("strong", "medium", "weak"):
+                    bucket[tier].extend(tiers.get(tier, []))
+
         except Exception as e:
             logger.error("Failed to read pack file %s: %s", pack_path.name, e)
 
@@ -82,14 +95,23 @@ def _discover_pack_files() -> tuple[
     for d in (jurisdiction_kw, sector_kw, domain_kw):
         for key in d:
             d[key] = list(dict.fromkeys(d[key]))
+    for dom in domain_tiered_kw:
+        for tier in ("strong", "medium", "weak"):
+            domain_tiered_kw[dom][tier] = list(
+                dict.fromkeys(domain_tiered_kw[dom][tier])
+            )
 
-    return registry, jurisdiction_kw, sector_kw, domain_kw
+    return registry, jurisdiction_kw, sector_kw, domain_kw, domain_tiered_kw
 
 
 # Auto-discovered pack registry (built at import time)
-_PACK_FILES, _PACK_JURISDICTION_KW, _PACK_SECTOR_KW, _PACK_DOMAIN_KW = (
-    _discover_pack_files()
-)
+(
+    _PACK_FILES,
+    _PACK_JURISDICTION_KW,
+    _PACK_SECTOR_KW,
+    _PACK_DOMAIN_KW,
+    _PACK_DOMAIN_TIERED_KW,
+) = _discover_pack_files()
 
 # ──────────────────────────────────────────────────────────────
 # Classification keywords: built ENTIRELY from pack JSON files.
@@ -101,6 +123,24 @@ _PACK_FILES, _PACK_JURISDICTION_KW, _PACK_SECTOR_KW, _PACK_DOMAIN_KW = (
 _JURISDICTION_KEYWORDS: dict[str, list[str]] = dict(_PACK_JURISDICTION_KW)
 _SECTOR_KEYWORDS: dict[str, list[str]] = dict(_PACK_SECTOR_KW)
 _DOMAIN_KEYWORDS: dict[str, list[str]] = dict(_PACK_DOMAIN_KW)
+_DOMAIN_TIERED_KEYWORDS: dict[str, dict[str, list[str]]] = dict(_PACK_DOMAIN_TIERED_KW)
+
+# Tier weights for weighted domain scoring (Slice 1.2)
+_TIER_WEIGHTS: dict[str, int] = {"strong": 5, "medium": 3, "weak": 1}
+_DEFAULT_KEYWORD_WEIGHT: int = 3  # weight for untiered keyword hits
+_DOMAIN_SCORE_THRESHOLD: float = 3.0  # min weighted score to qualify a domain
+
+# Generic vs specific domains for primary/secondary demotion logic.
+# When a specific domain qualifies, generic domains are demoted to secondary.
+_GENERIC_DOMAINS: set[str] = {"digital_transformation", "performance_management"}
+_SPECIFIC_DOMAINS: set[str] = {
+    "ai_governance_ethics",
+    "unesco_unesco_ram",
+    "international_research_collaboration",
+    "government_capacity_building",
+    "knowledge_transfer",
+    "research_program_evaluation",
+}
 
 
 def _reload_pack_keywords() -> None:
@@ -110,17 +150,47 @@ def _reload_pack_keywords() -> None:
     and verify the classifier picks up the new keywords.
     """
     global _PACK_FILES, _PACK_JURISDICTION_KW, _PACK_SECTOR_KW, _PACK_DOMAIN_KW
+    global _PACK_DOMAIN_TIERED_KW
     global _JURISDICTION_KEYWORDS, _SECTOR_KEYWORDS, _DOMAIN_KEYWORDS
+    global _DOMAIN_TIERED_KEYWORDS
 
-    _PACK_FILES, _PACK_JURISDICTION_KW, _PACK_SECTOR_KW, _PACK_DOMAIN_KW = (
-        _discover_pack_files()
-    )
+    (
+        _PACK_FILES,
+        _PACK_JURISDICTION_KW,
+        _PACK_SECTOR_KW,
+        _PACK_DOMAIN_KW,
+        _PACK_DOMAIN_TIERED_KW,
+    ) = _discover_pack_files()
     _JURISDICTION_KEYWORDS.clear()
     _JURISDICTION_KEYWORDS.update(_PACK_JURISDICTION_KW)
     _SECTOR_KEYWORDS.clear()
     _SECTOR_KEYWORDS.update(_PACK_SECTOR_KW)
     _DOMAIN_KEYWORDS.clear()
     _DOMAIN_KEYWORDS.update(_PACK_DOMAIN_KW)
+    _DOMAIN_TIERED_KEYWORDS.clear()
+    _DOMAIN_TIERED_KEYWORDS.update(_PACK_DOMAIN_TIERED_KW)
+
+
+def _score_domain(dom_name: str, search_text: str) -> float:
+    """Compute weighted domain score for `search_text`.
+
+    If the domain has tiered keywords (skeleton packs), strong/medium/weak
+    matches are scored at 5/3/1. Otherwise each keyword hit scores
+    `_DEFAULT_KEYWORD_WEIGHT`.
+    """
+    if dom_name in _DOMAIN_TIERED_KEYWORDS:
+        score = 0.0
+        for tier in ("strong", "medium", "weak"):
+            weight = _TIER_WEIGHTS[tier]
+            for kw in _DOMAIN_TIERED_KEYWORDS[dom_name].get(tier, []):
+                if kw.lower() in search_text:
+                    score += weight
+        return score
+    score = 0.0
+    for kw in _DOMAIN_KEYWORDS.get(dom_name, []):
+        if kw.lower() in search_text:
+            score += _DEFAULT_KEYWORD_WEIGHT
+    return score
 
 
 # Subdomain keywords mapped from scope text
@@ -279,16 +349,38 @@ def classify_rfp(state: DeckForgeState) -> RFPClassification:
             sector = sec
             sector_score = hits
 
-    # Classify domain
-    domain = ""
-    domain_score = 0.0
+    # Classify domain — weighted multi-label scoring (Slice 1.2)
+    # Each domain is scored either via tiered strong/medium/weak weights
+    # or, for legacy packs without tiered keywords, via flat default weight.
     domain_scores: dict[str, float] = {}
-    for dom, keywords in _DOMAIN_KEYWORDS.items():
-        hits = sum(1 for kw in keywords if kw.lower() in search_text)
-        domain_scores[dom] = hits
-        if hits > domain_score:
-            domain = dom
-            domain_score = hits
+    for dom in _DOMAIN_KEYWORDS:
+        domain_scores[dom] = _score_domain(dom, search_text)
+
+    # Qualifying domains: score above threshold, sorted by score desc.
+    qualifying = sorted(
+        [(d, s) for d, s in domain_scores.items() if s >= _DOMAIN_SCORE_THRESHOLD],
+        key=lambda x: -x[1],
+    )
+    qualifying_ids = [d for d, _ in qualifying]
+
+    # Demote generic domains to secondary when any specific domain qualifies.
+    primary_domains: list[str] = []
+    secondary_domains: list[str] = []
+    if any(d in _SPECIFIC_DOMAINS for d in qualifying_ids):
+        primary_domains = [d for d in qualifying_ids if d not in _GENERIC_DOMAINS]
+        secondary_domains = [d for d in qualifying_ids if d in _GENERIC_DOMAINS]
+    else:
+        primary_domains = list(qualifying_ids)
+        secondary_domains = []
+
+    # Back-compat: legacy `domain` field exposes the top primary (or top qualifying).
+    if primary_domains:
+        domain = primary_domains[0]
+    elif qualifying_ids:
+        domain = qualifying_ids[0]
+    else:
+        domain = ""
+    domain_score = domain_scores.get(domain, 0.0)
 
     # B.5: Extract subdomain from scope keywords
     subdomain = ""
@@ -403,6 +495,8 @@ def classify_rfp(state: DeckForgeState) -> RFPClassification:
         sector=sector,
         client_type=client_type,
         domain=domain,
+        primary_domains=primary_domains,
+        secondary_domains=secondary_domains,
         subdomain=subdomain,
         regulatory_frame=regulatory_frame,
         evaluator_pattern=evaluator_pattern,
@@ -445,9 +539,16 @@ def select_packs(classification: RFPClassification) -> tuple[list[str], list[str
             classification.jurisdiction, classification.sector, fb,
         )
 
-    # 2. Domain pack
-    if classification.domain and classification.domain in _PACK_FILES:
-        selected.append(classification.domain)
+    # 2. Domain packs — multi-label selection (Slice 1.2).
+    # Include every primary and secondary domain pack that exists.
+    domain_candidates: list[str] = list(classification.primary_domains) + list(
+        classification.secondary_domains
+    )
+    if not domain_candidates and classification.domain:
+        domain_candidates = [classification.domain]
+    for dom in domain_candidates:
+        if dom in _PACK_FILES and dom not in selected:
+            selected.append(dom)
 
     # 3. Client-type pack (B.2)
     if classification.client_type:
