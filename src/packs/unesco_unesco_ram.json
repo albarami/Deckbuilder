@@ -1,0 +1,70 @@
+{
+  "pack_id": "unesco_unesco_ram",
+  "pack_type": "domain",
+  "pack_name": "UNESCO RAM (Readiness Assessment Methodology)",
+  "version": "0.1",
+  "status": "skeleton",
+  "requires_enrichment": true,
+  "classification_keywords": {
+    "domain": {
+      "unesco_unesco_ram": [
+        "اليونسكو",
+        "منهجية تقييم الجاهزية",
+        "تقييم الجاهزية",
+        "RAM",
+        "UNESCO",
+        "unesco ram",
+        "readiness assessment methodology",
+        "ai readiness assessment",
+        "recommendation on the ethics of artificial intelligence",
+        "توصية أخلاقيات الذكاء الاصطناعي",
+        "ai ethics readiness",
+        "ramework"
+      ]
+    }
+  },
+  "tiered_classification_keywords": {
+    "domain": {
+      "unesco_unesco_ram": {
+        "strong": [
+          "اليونسكو",
+          "منهجية تقييم الجاهزية",
+          "UNESCO",
+          "unesco ram",
+          "readiness assessment methodology"
+        ],
+        "medium": [
+          "RAM",
+          "ai readiness assessment",
+          "recommendation on the ethics of artificial intelligence",
+          "توصية أخلاقيات الذكاء الاصطناعي"
+        ],
+        "weak": [
+          "تقييم الجاهزية",
+          "ai ethics readiness"
+        ]
+      }
+    }
+  },
+  "regulatory_references": [],
+  "compliance_patterns": [],
+  "evaluator_insights": [],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "UNESCO RAM AI ethics country reports",
+    "UNESCO Recommendation Ethics of AI implementation",
+    "UNESCO Readiness Assessment Methodology dimensions",
+    "UNESCO AI ethics assessment country case studies"
+  ],
+  "recommended_s2_queries": [
+    "UNESCO AI ethics readiness assessment",
+    "UNESCO RAM methodology evaluation",
+    "AI readiness national policy"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume the RAM methodology is identical to OECD AI Principles or NIST AI RMF — RAM has its own dimensional structure",
+    "Do NOT assume past UNESCO partnership unless explicitly cited in bidder's verified portfolio"
+  ],
+  "local_terminology": {}
+}

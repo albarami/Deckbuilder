@@ -1,0 +1,71 @@
+{
+  "pack_id": "international_research_collaboration",
+  "pack_type": "domain",
+  "pack_name": "International Research Collaboration",
+  "version": "0.1",
+  "status": "skeleton",
+  "requires_enrichment": true,
+  "classification_keywords": {
+    "domain": {
+      "international_research_collaboration": [
+        "تعاون بحثي دولي",
+        "شراكات بحثية دولية",
+        "أبحاث مشتركة",
+        "international research collaboration",
+        "international research partnership",
+        "joint research",
+        "multilateral research",
+        "cross-border research",
+        "research consortium",
+        "global research initiative",
+        "research diplomacy",
+        "international study"
+      ]
+    }
+  },
+  "tiered_classification_keywords": {
+    "domain": {
+      "international_research_collaboration": {
+        "strong": [
+          "international research collaboration",
+          "international research partnership",
+          "تعاون بحثي دولي",
+          "شراكات بحثية دولية"
+        ],
+        "medium": [
+          "joint research",
+          "multilateral research",
+          "cross-border research",
+          "research consortium",
+          "أبحاث مشتركة"
+        ],
+        "weak": [
+          "global research initiative",
+          "research diplomacy",
+          "international study"
+        ]
+      }
+    }
+  },
+  "regulatory_references": [],
+  "compliance_patterns": [],
+  "evaluator_insights": [],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "international research collaboration governance models",
+    "multi-country research partnership frameworks",
+    "international research program evaluation",
+    "research consortium funding mechanisms"
+  ],
+  "recommended_s2_queries": [
+    "international research collaboration governance",
+    "multilateral research partnership",
+    "research consortium effectiveness"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume the partner country count without scope confirmation — partner-country counts are commitments that need verification",
+    "Do NOT assume an existing UNESCO/UN agency partnership is in place unless the RFP explicitly states one"
+  ],
+  "local_terminology": {}
+}

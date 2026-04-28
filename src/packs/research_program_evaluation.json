@@ -1,0 +1,71 @@
+{
+  "pack_id": "research_program_evaluation",
+  "pack_type": "domain",
+  "pack_name": "Research Program Evaluation",
+  "version": "0.1",
+  "status": "skeleton",
+  "requires_enrichment": true,
+  "classification_keywords": {
+    "domain": {
+      "research_program_evaluation": [
+        "تقييم البرامج البحثية",
+        "تقييم برنامج بحثي",
+        "تقييم أثر البحث",
+        "research program evaluation",
+        "program evaluation",
+        "research impact assessment",
+        "research outcomes evaluation",
+        "research portfolio evaluation",
+        "evaluation framework research",
+        "logic model evaluation",
+        "theory of change evaluation",
+        "monitoring and evaluation"
+      ]
+    }
+  },
+  "tiered_classification_keywords": {
+    "domain": {
+      "research_program_evaluation": {
+        "strong": [
+          "research program evaluation",
+          "research impact assessment",
+          "تقييم البرامج البحثية",
+          "تقييم برنامج بحثي"
+        ],
+        "medium": [
+          "research outcomes evaluation",
+          "research portfolio evaluation",
+          "evaluation framework research",
+          "تقييم أثر البحث"
+        ],
+        "weak": [
+          "program evaluation",
+          "logic model evaluation",
+          "theory of change evaluation",
+          "monitoring and evaluation"
+        ]
+      }
+    }
+  },
+  "regulatory_references": [],
+  "compliance_patterns": [],
+  "evaluator_insights": [],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "research program evaluation framework",
+    "research impact assessment methodology",
+    "academic research portfolio evaluation",
+    "research outcomes monitoring framework"
+  ],
+  "recommended_s2_queries": [
+    "research program evaluation methodology",
+    "research impact assessment framework",
+    "research portfolio outcomes"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume a specific evaluation framework (e.g., REF, ERA) without explicit RFP reference",
+    "Do NOT conflate research program evaluation with general policy evaluation — research programs have distinct outcome logic"
+  ],
+  "local_terminology": {}
+}

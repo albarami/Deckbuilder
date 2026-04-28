@@ -1,0 +1,71 @@
+{
+  "pack_id": "knowledge_transfer",
+  "pack_type": "domain",
+  "pack_name": "Knowledge Transfer",
+  "version": "0.1",
+  "status": "skeleton",
+  "requires_enrichment": true,
+  "classification_keywords": {
+    "domain": {
+      "knowledge_transfer": [
+        "نقل المعرفة",
+        "نقل المهارات",
+        "خطة نقل المعرفة",
+        "knowledge transfer",
+        "knowledge transfer plan",
+        "skills transfer",
+        "capability transfer",
+        "shadowing program",
+        "twinning arrangement",
+        "knowledge handover",
+        "post-engagement knowledge transfer",
+        "كادر التشغيل"
+      ]
+    }
+  },
+  "tiered_classification_keywords": {
+    "domain": {
+      "knowledge_transfer": {
+        "strong": [
+          "knowledge transfer",
+          "knowledge transfer plan",
+          "نقل المعرفة",
+          "خطة نقل المعرفة"
+        ],
+        "medium": [
+          "skills transfer",
+          "capability transfer",
+          "knowledge handover",
+          "نقل المهارات"
+        ],
+        "weak": [
+          "shadowing program",
+          "twinning arrangement",
+          "post-engagement knowledge transfer",
+          "كادر التشغيل"
+        ]
+      }
+    }
+  },
+  "regulatory_references": [],
+  "compliance_patterns": [],
+  "evaluator_insights": [],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "knowledge transfer methodology consulting engagements",
+    "knowledge transfer plan public sector advisory",
+    "skills handover protocol consulting",
+    "structured knowledge transfer framework"
+  ],
+  "recommended_s2_queries": [
+    "knowledge transfer effectiveness consulting",
+    "skills transfer post-project",
+    "consulting engagement knowledge handover"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT classify training and knowledge transfer as a formal pricing-line deliverable unless it appears in the BoQ or deliverables annex",
+    "Do NOT assume a fixed number of training sessions or beneficiaries — these are commitments requiring explicit approval"
+  ],
+  "local_terminology": {}
+}

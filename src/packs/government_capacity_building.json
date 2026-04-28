@@ -1,0 +1,71 @@
+{
+  "pack_id": "government_capacity_building",
+  "pack_type": "domain",
+  "pack_name": "Government Capacity Building",
+  "version": "0.1",
+  "status": "skeleton",
+  "requires_enrichment": true,
+  "classification_keywords": {
+    "domain": {
+      "government_capacity_building": [
+        "بناء القدرات الحكومية",
+        "تنمية القدرات",
+        "بناء القدرات",
+        "تطوير قدرات الجهات الحكومية",
+        "government capacity building",
+        "public sector capacity development",
+        "institutional strengthening",
+        "civil servant training",
+        "government training program",
+        "public administration capacity",
+        "capacity strengthening",
+        "capability uplift"
+      ]
+    }
+  },
+  "tiered_classification_keywords": {
+    "domain": {
+      "government_capacity_building": {
+        "strong": [
+          "government capacity building",
+          "public sector capacity development",
+          "بناء القدرات الحكومية",
+          "تطوير قدرات الجهات الحكومية"
+        ],
+        "medium": [
+          "institutional strengthening",
+          "civil servant training",
+          "public administration capacity",
+          "تنمية القدرات",
+          "بناء القدرات"
+        ],
+        "weak": [
+          "government training program",
+          "capacity strengthening",
+          "capability uplift"
+        ]
+      }
+    }
+  },
+  "regulatory_references": [],
+  "compliance_patterns": [],
+  "evaluator_insights": [],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "government capacity building methodology",
+    "public sector institutional strengthening",
+    "civil service capacity development program design",
+    "government training needs assessment framework"
+  ],
+  "recommended_s2_queries": [
+    "government capacity building effectiveness",
+    "public sector institutional development",
+    "civil service training outcomes"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume a Western public administration model — many jurisdictions follow distinct civil service traditions",
+    "Do NOT assume training scale (number of trainees, sessions, countries) without explicit RFP scope — these are commitments requiring approval"
+  ],
+  "local_terminology": {}
+}

@@ -1,0 +1,76 @@
+{
+  "pack_id": "ai_governance_ethics",
+  "pack_type": "domain",
+  "pack_name": "AI Governance & Ethics",
+  "version": "0.1",
+  "status": "skeleton",
+  "requires_enrichment": true,
+  "classification_keywords": {
+    "domain": {
+      "ai_governance_ethics": [
+        "أخلاقيات الذكاء الاصطناعي",
+        "حوكمة الذكاء الاصطناعي",
+        "الذكاء الاصطناعي المسؤول",
+        "الذكاء الاصطناعي الجدير بالثقة",
+        "ai ethics",
+        "ai governance",
+        "responsible ai",
+        "trustworthy ai",
+        "ai policy",
+        "ai risk",
+        "ai assurance",
+        "ai principles",
+        "algorithmic accountability",
+        "ai readiness"
+      ]
+    }
+  },
+  "tiered_classification_keywords": {
+    "domain": {
+      "ai_governance_ethics": {
+        "strong": [
+          "أخلاقيات الذكاء الاصطناعي",
+          "حوكمة الذكاء الاصطناعي",
+          "ai ethics",
+          "ai governance",
+          "responsible ai",
+          "trustworthy ai"
+        ],
+        "medium": [
+          "الذكاء الاصطناعي المسؤول",
+          "الذكاء الاصطناعي الجدير بالثقة",
+          "ai policy",
+          "ai principles",
+          "ai assurance",
+          "algorithmic accountability"
+        ],
+        "weak": [
+          "ai risk",
+          "ai readiness"
+        ]
+      }
+    }
+  },
+  "regulatory_references": [],
+  "compliance_patterns": [],
+  "evaluator_insights": [],
+  "methodology_patterns": [],
+  "benchmark_references": [],
+  "recommended_search_queries": [
+    "AI ethics governance framework public sector",
+    "responsible AI governance practitioner reports",
+    "AI assurance framework standards",
+    "AI principles operationalization case study"
+  ],
+  "recommended_s2_queries": [
+    "AI ethics governance framework",
+    "responsible AI principles operationalization",
+    "AI risk assessment methodology"
+  ],
+  "forbidden_assumptions": [
+    "Do NOT assume the AI ethics framework is the OECD AI Principles unless the RFP explicitly cites them",
+    "Do NOT assume the client wants a Western-style AI ethics charter — many jurisdictions have their own AI ethics charters",
+    "Do NOT assume AI governance equals data governance — they are related but distinct"
+  ],
+  "local_terminology": {}
+}
