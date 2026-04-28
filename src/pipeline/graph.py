@@ -659,10 +659,28 @@ async def evidence_curation_node(state: DeckForgeState) -> dict[str, Any]:
                 len(coverage.requirements),
             )
         except Exception as e:
+            # Slice 3.6: fail closed. Do NOT silently swallow — write a
+            # synthetic fail-status coverage report so the downstream
+            # acceptance gate rejects.
             logger.error(
-                "Slice 3.5 external-methodology wiring failed: %s", e,
+                "Slice 3.5/3.6 external-methodology wiring failed; "
+                "writing fail-closed coverage: %s", e,
             )
-            # Non-fatal — pipeline continues without coverage gating.
+            updates["evidence_coverage_report"] = {
+                "requirements": [{
+                    "topic": "external_methodology_pipeline_exception",
+                    "minimum_direct_sources": 1,
+                    "found_direct": 0,
+                    "found_adjacent": 0,
+                    "found_analogical": 0,
+                    "status": "not_met",
+                    "missing_reason": (
+                        f"register_external_methodology raised: "
+                        f"{type(e).__name__}: {e}"
+                    ),
+                }],
+                "status": "fail",
+            }
 
     return updates
 
@@ -792,6 +810,39 @@ def _build_gate3_feedback_for_writer(state: DeckForgeState) -> str:
             parts.append("")
 
     return "\n".join(parts)
+
+
+def _call_acceptance_gate(
+    state: DeckForgeState,
+    review: Any,
+    conformance_report: Any,
+) -> bool:
+    """Slice 3.6: dispatch the orchestrator's acceptance gate with the
+    state-attached evidence coverage report.
+
+    coverage_required is True when external evidence was attempted —
+    either the routing produced any primary domain, or the
+    external_evidence_pack carries any source. In both cases the
+    pipeline expected to gather methodology evidence and the gate must
+    not pass without a confirmed coverage report.
+    """
+    from src.agents.source_book import orchestrator
+
+    routing_dict = state.routing_report or {}
+    classification = routing_dict.get("classification") or {}
+    primary_domains = classification.get("primary_domains") or []
+    pack = state.external_evidence_pack
+    pack_has_sources = bool(
+        pack is not None and getattr(pack, "sources", []),
+    )
+    coverage_required = bool(primary_domains or pack_has_sources)
+
+    return orchestrator.should_accept_source_book(
+        review,
+        conformance_report,
+        evidence_coverage_report=state.evidence_coverage_report,
+        coverage_required=coverage_required,
+    )
 
 
 async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
@@ -971,10 +1022,10 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
 
         # ── Acceptance check (requires BOTH conformance + reviewer) ──
         if conformance_report and hard_requirements:
-            if orchestrator.should_accept_source_book(review, conformance_report):
+            if _call_acceptance_gate(current_state, review, conformance_report):
                 logger.info(
                     "Source Book ACCEPTED at pass %d "
-                    "(conformance pass + reviewer threshold)",
+                    "(conformance pass + reviewer threshold + coverage)",
                     pass_num,
                 )
                 break

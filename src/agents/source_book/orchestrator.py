@@ -84,6 +84,9 @@ def should_continue_iteration(
 def should_accept_source_book(
     review: SourceBookReview,
     conformance_report: ConformanceReport,
+    *,
+    evidence_coverage_report: dict | None = None,
+    coverage_required: bool = False,
 ) -> bool:
     """Determine whether to accept the Source Book.
 
@@ -91,6 +94,9 @@ def should_accept_source_book(
     - review.pass_threshold_met == True
     - conformance_report.conformance_status == "pass"
     - No critical missing inputs with source_book scope
+    - When ``coverage_required`` is True (Slice 3.6), the supplied
+      ``evidence_coverage_report`` must parse and have status == "pass".
+      Missing or malformed coverage fails closed.
 
     Acceptance is validator-first: if conformance fails, reviewer score
     is irrelevant. This prevents high-quality but non-conformant books
@@ -120,12 +126,41 @@ def should_accept_source_book(
         )
         return False
 
+    # Slice 3.6: Evidence coverage gate (tertiary)
+    # Fail closed when coverage was required but missing/malformed/fail.
+    if coverage_required:
+        if evidence_coverage_report is None:
+            logger.info(
+                "Acceptance: REJECTED — coverage required but "
+                "evidence_coverage_report missing"
+            )
+            return False
+        try:
+            from src.services.artifact_gates import EvidenceCoverageReport
+
+            parsed = EvidenceCoverageReport.model_validate(
+                evidence_coverage_report,
+            )
+        except Exception as e:
+            logger.info(
+                "Acceptance: REJECTED — malformed evidence_coverage_report: %s",
+                e,
+            )
+            return False
+        if parsed.status != "pass":
+            logger.info(
+                "Acceptance: REJECTED — evidence_coverage status=%s",
+                parsed.status,
+            )
+            return False
+
     logger.info(
         "Acceptance: ACCEPTED — conformance pass + reviewer threshold met "
-        "(score=%d, checked=%d, passed=%d)",
+        "(score=%d, checked=%d, passed=%d, coverage_required=%s)",
         review.overall_score,
         conformance_report.hard_requirements_checked,
         conformance_report.hard_requirements_passed,
+        coverage_required,
     )
     return True
 
