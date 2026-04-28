@@ -22,7 +22,11 @@ from typing import Literal
 
 from pydantic import Field
 
-from src.models.claim_provenance import ClaimRegistry, ComplianceIndex
+from src.models.claim_provenance import (
+    ClaimRegistry,
+    ComplianceIndex,
+    ProposalOptionRegistry,
+)
 from src.models.common import DeckForgeBaseModel
 from src.models.conformance import (
     ConformanceFailure,
@@ -624,15 +628,17 @@ async def validate_conformance(
     uploaded_documents: list[UploadedDocument],
     compliance_index: ComplianceIndex | None = None,
     claim_registry: ClaimRegistry | None = None,
+    proposal_options: ProposalOptionRegistry | None = None,
 ) -> ConformanceReport:
     """Validate Source Book conformance against hard requirements.
 
-    Five-pass architecture:
+    Six-pass architecture:
       Pass 1: Deterministic checks (ComplianceIndex-first when provided)
       Pass 2: Forbidden absolute-claim scan
       Pass 3: LLM-assisted semantic checks
       Pass 4: Missing annex detection
       Pass 5: Section-aware forbidden internal-claim leakage scan (Slice 2.2)
+      Pass 6: Numeric commitment + unapproved-option scan (Slice 4.3)
     """
     # Filter to source_book scope
     sb_reqs = [hr for hr in hard_requirements if hr.validation_scope == "source_book"]
@@ -708,6 +714,104 @@ async def validate_conformance(
         )
     forbidden_claims.extend(leakage_failures)
 
+    # Pass 6: Numeric commitment + unapproved-option scan (Slice 4.3)
+    # Each unresolved numeric range/unit in client-facing text becomes a
+    # critical UNRESOLVED_COMMITMENT failure. Each text match for a
+    # proposal_option claim whose linked option is not approved for
+    # external use becomes a critical UNAPPROVED_OPTION failure.
+    if claim_registry is not None or proposal_options is not None:
+        from src.services.numeric_commitment_detector import (
+            detect_numeric_commitments,
+        )
+
+        active_claims = claim_registry or ClaimRegistry()
+        active_options = proposal_options or ProposalOptionRegistry()
+
+        commitment_failures: list[ConformanceFailure] = []
+        option_failures: list[ConformanceFailure] = []
+
+        commitments = detect_numeric_commitments(
+            rendered, active_claims, active_options,
+        )
+        for nc in commitments:
+            if nc.resolution != "unresolved":
+                continue
+            commitment_failures.append(ConformanceFailure(
+                requirement_id="UNRESOLVED_COMMITMENT",
+                requirement_text=(
+                    f"Numeric commitment {nc.canonical!r} in {nc.section_type}"
+                ),
+                failure_reason=(
+                    f"Commitment {nc.text!r} (canonical {nc.canonical!r}) at "
+                    f"{nc.section_path} did not resolve to an RFP fact or an "
+                    f"approved proposal option."
+                ),
+                severity="critical",
+                source_book_section=nc.section_path,
+                suggested_fix=(
+                    "Either register this commitment as a proposal_option with "
+                    "approved_for_external_use=True (priced + approved_by set), "
+                    "or remove the numeric range from client-facing text."
+                ),
+            ))
+
+        # Unapproved-option text scan: for every proposal_option claim
+        # whose linked ProposalOption is not approved_for_external_use,
+        # flag any client-facing section that contains the claim's text.
+        unapproved_option_claims = []
+        for c in active_claims.proposal_options:
+            opt = active_options.get(c.claim_id)
+            if opt is None:
+                # Treat absence as unapproved (fail closed).
+                unapproved_option_claims.append((c, None))
+            elif not opt.approved_for_external_use:
+                unapproved_option_claims.append((c, opt))
+
+        client_facing_types = {
+            "client_facing_body", "proof_column",
+            "slide_body", "slide_proof_points",
+        }
+        for section in rendered:
+            if section.section_type not in client_facing_types:
+                continue
+            for claim, opt in unapproved_option_claims:
+                claim_text = (claim.text or "").strip()
+                if not claim_text:
+                    continue
+                if claim_text in section.text:
+                    option_failures.append(ConformanceFailure(
+                        requirement_id="UNAPPROVED_OPTION",
+                        requirement_text=(
+                            f"proposal_option {claim.claim_id} in {section.section_type}"
+                        ),
+                        failure_reason=(
+                            f"proposal_option {claim.claim_id!r} appears in "
+                            f"{section.section_path} but its linked "
+                            f"ProposalOption is not approved_for_external_use."
+                        ),
+                        severity="critical",
+                        source_book_section=section.section_path,
+                        suggested_fix=(
+                            "Approve the option (set approved_for_external_use=True, "
+                            "priced=True or set pricing_impact_note, fill approved_by) "
+                            "before client-facing publication, or relocate the text "
+                            "to internal_bid_notes / proposal_option_ledger."
+                        ),
+                    ))
+
+        if commitment_failures:
+            logger.warning(
+                "Pass 6: %d unresolved numeric commitments detected",
+                len(commitment_failures),
+            )
+        if option_failures:
+            logger.warning(
+                "Pass 6: %d unapproved proposal_option leaks detected",
+                len(option_failures),
+            )
+        forbidden_claims.extend(commitment_failures)
+        forbidden_claims.extend(option_failures)
+
     # Compute totals — deduplicate by requirement_id so the same root issue
     # appearing in both missing_commitments and forbidden_claims is counted once.
     total_checked = len(sb_reqs)
@@ -718,9 +822,17 @@ async def validate_conformance(
         all_failure_ids.add(f.requirement_id)
     for f in structural_mismatches:
         all_failure_ids.add(f.requirement_id)
-    # Remove generic IDs that don't map to specific HRs (e.g., FORBIDDEN-ABS,
-    # FORBIDDEN-LEAKAGE) — these are overlays, not unique requirement failures.
-    total_failed = len(all_failure_ids - {"FORBIDDEN-ABS", "FORBIDDEN-LEAKAGE"})
+    # Remove generic IDs that don't map to specific HRs — these are
+    # overlays, not unique requirement failures. They still drive the
+    # status logic via has_critical_failure below; only the count
+    # arithmetic ignores them so the "passed N/M" headline isn't
+    # corrupted by overlay severity.
+    total_failed = len(all_failure_ids - {
+        "FORBIDDEN-ABS",
+        "FORBIDDEN-LEAKAGE",
+        "UNRESOLVED_COMMITMENT",
+        "UNAPPROVED_OPTION",
+    })
     total_passed = total_checked - total_failed
     if total_passed < 0:
         total_passed = 0

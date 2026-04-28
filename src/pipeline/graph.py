@@ -960,6 +960,8 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
                     hard_requirements=hard_requirements,
                     rfp_context=state.rfp_context,
                     uploaded_documents=list(state.uploaded_documents),
+                    claim_registry=current_state.claim_registry,
+                    proposal_options=current_state.proposal_options,
                 )
                 logger.info(
                     "Conformance pass %d: status=%s, checked=%d, failed=%d",
