@@ -22,6 +22,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from src.models.claim_provenance import ComplianceIndex
 from src.models.common import DeckForgeBaseModel
 from src.models.conformance import (
     ConformanceFailure,
@@ -89,8 +90,15 @@ def _pass1_deterministic(
     source_book: SourceBook,
     hard_requirements: list[HardRequirement],
     rfp_context: RFPContext,
+    compliance_index: ComplianceIndex | None = None,
 ) -> tuple[list[ConformanceFailure], list[ConformanceFailure], int, int]:
     """Deterministic conformance checks.
+
+    When ``compliance_index`` is provided, compliance-category HRs are
+    resolved against the structured index first. Entries with
+    ``content_conformance_pass`` are counted as passed without running the
+    legacy English keyword scan (which produces false negatives on Arabic
+    Source Books). Entries with ``response_status="missing"`` still fail.
 
     Returns (missing_commitments, structural_mismatches, passed, failed).
     """
@@ -106,8 +114,37 @@ def _pass1_deterministic(
         default=str,
     )
 
+    # Build compliance-index lookup once
+    compliance_lookup: dict[str, "object"] = {}
+    if compliance_index is not None:
+        compliance_lookup = {e.requirement_id: e for e in compliance_index.entries}
+
     for hr in hard_requirements:
         if hr.validation_scope != "source_book":
+            continue
+
+        # ComplianceIndex-first: a compliance HR with a structured index entry
+        # bypasses the brittle English keyword scan.
+        if hr.category == "compliance" and hr.requirement_id in compliance_lookup:
+            entry = compliance_lookup[hr.requirement_id]
+            if getattr(entry, "content_conformance_pass", False):
+                passed += 1
+                continue
+            failures.append(ConformanceFailure(
+                requirement_id=hr.requirement_id,
+                requirement_text=f"Compliance: {hr.value_text[:100]}",
+                failure_reason=(
+                    f"ComplianceIndex marks requirement as "
+                    f"{getattr(entry, 'response_status', 'unknown')}"
+                ),
+                severity=hr.severity,
+                source_book_section="rfp_interpretation",
+                suggested_fix=(
+                    f"Address compliance requirement in Section 1: "
+                    f"{hr.value_text[:100]}"
+                ),
+            ))
+            failed += 1
             continue
 
         found = False
@@ -585,11 +622,12 @@ async def validate_conformance(
     hard_requirements: list[HardRequirement],
     rfp_context: RFPContext,
     uploaded_documents: list[UploadedDocument],
+    compliance_index: ComplianceIndex | None = None,
 ) -> ConformanceReport:
     """Validate Source Book conformance against hard requirements.
 
     Four-pass architecture:
-      Pass 1: Deterministic checks
+      Pass 1: Deterministic checks (ComplianceIndex-first when provided)
       Pass 2: Forbidden claim scan
       Pass 3: LLM-assisted semantic checks
       Pass 4: Missing annex detection
@@ -606,7 +644,7 @@ async def validate_conformance(
 
     # Pass 1: Deterministic
     missing_commitments, structural_mismatches, passed, p1_failed = _pass1_deterministic(
-        source_book, sb_reqs, rfp_context,
+        source_book, sb_reqs, rfp_context, compliance_index=compliance_index,
     )
 
     # Pass 2: Forbidden claims
