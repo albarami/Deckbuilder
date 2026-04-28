@@ -266,3 +266,134 @@ async def test_leakage_failures_are_critical() -> None:
     assert len(leakage_failures) >= 1
     for f in leakage_failures:
         assert f.severity == "critical"
+
+
+# ── Slice 2.5: leakage must force conformance fail + reject ───────────
+
+
+@pytest.mark.asyncio
+async def test_leakage_blocks_acceptance_with_no_hrs() -> None:
+    """Even when there are zero hard requirements, a forbidden-leakage
+    failure in client-facing body forces conformance_status=fail and
+    final_acceptance_decision=reject. Prevents the 'no HRs → auto-pass'
+    bypass that existed before Slice 2.2."""
+    sb = SourceBook(
+        rfp_name="X",
+        client_name="X",
+        rfp_interpretation=RFPInterpretation(
+            objective_and_scope="PRJ-001 leaked into client body.",
+        ),
+    )
+    with _patch_pass3():
+        report = await validate_conformance(
+            source_book=sb,
+            hard_requirements=[],
+            rfp_context=_minimal_rfp(),
+            uploaded_documents=[],
+        )
+    assert report.conformance_status == "fail"
+    assert report.final_acceptance_decision == "reject"
+
+
+@pytest.mark.asyncio
+async def test_leakage_blocks_acceptance_alongside_passing_hrs() -> None:
+    """Even when every hard requirement passes, a single PRJ leak in
+    client-facing content must still produce conformance fail + reject."""
+    hr = HardRequirement(
+        requirement_id="HR-DUMMY-001",
+        category="contract_duration",
+        subject="Contract duration",
+        value_text="6",
+        value_number=6.0,
+        validation_scope="source_book",
+        severity="major",
+    )
+    sb = SourceBook(
+        rfp_name="X",
+        client_name="X",
+        rfp_interpretation=RFPInterpretation(
+            objective_and_scope="Contract is 6 months. Bidder has PRJ-001.",
+        ),
+    )
+    rfp = _minimal_rfp()
+    with _patch_pass3():
+        report = await validate_conformance(
+            source_book=sb,
+            hard_requirements=[hr],
+            rfp_context=rfp,
+            uploaded_documents=[],
+        )
+    leakage_failures = [
+        f for f in report.forbidden_claims
+        if f.requirement_id == "FORBIDDEN-LEAKAGE"
+    ]
+    assert len(leakage_failures) >= 1
+    assert report.conformance_status == "fail"
+    assert report.final_acceptance_decision == "reject"
+
+
+@pytest.mark.asyncio
+async def test_clean_source_book_with_zero_hrs_passes() -> None:
+    """Counterfactual: with no leakage AND no HRs, the validator returns
+    pass/accept. This isolates the leakage signal as the rejection cause."""
+    sb = SourceBook(
+        rfp_name="X",
+        client_name="X",
+        rfp_interpretation=RFPInterpretation(
+            objective_and_scope="Clean text without internal identifiers.",
+        ),
+    )
+    with _patch_pass3():
+        report = await validate_conformance(
+            source_book=sb,
+            hard_requirements=[],
+            rfp_context=_minimal_rfp(),
+            uploaded_documents=[],
+        )
+    assert report.conformance_status == "pass"
+    assert report.final_acceptance_decision == "accept"
+
+
+@pytest.mark.asyncio
+async def test_final_artifact_gate_rejects_on_leakage() -> None:
+    """final_artifact_gate must produce decision=reject when the
+    conformance report carries any forbidden-leakage failure."""
+    from src.models.source_book import SourceBookReview
+    from src.services.artifact_gates import (
+        EvidenceCoverageReport,
+        EvidenceCoverageRequirement,
+        final_artifact_gate,
+    )
+
+    sb = SourceBook(
+        rfp_name="X",
+        client_name="X",
+        rfp_interpretation=RFPInterpretation(
+            objective_and_scope="PRJ-001 leaked into client body.",
+        ),
+    )
+    with _patch_pass3():
+        conf = await validate_conformance(
+            source_book=sb,
+            hard_requirements=[],
+            rfp_context=_minimal_rfp(),
+            uploaded_documents=[],
+        )
+
+    review = SourceBookReview(
+        overall_score=4, pass_threshold_met=True,
+        competitive_viability="adequate",
+    )
+    coverage = EvidenceCoverageReport(
+        requirements=[EvidenceCoverageRequirement(
+            topic="dummy", minimum_direct_sources=1, found_direct=1, status="met",
+        )],
+        status="pass",
+    )
+
+    decision = final_artifact_gate(
+        conf, review, coverage, [], ClaimRegistry(), [],
+    )
+    assert decision.decision == "reject"
+    assert decision.proposal_ready is False
+    assert "DRAFT" in decision.artifact_label

@@ -1675,29 +1675,34 @@ instead of: "يستوفي", "موثقة", "مثبتة", "كامل"
     logger.info("Stage 2a produced: %d blueprints", len(section6.slide_blueprints))
 
     # ── Slice 2.3: gate every proof_point against the ClaimRegistry ──
-    # Drop any proof_point or must_have_evidence whose linked claim is
-    # not registered AND verified+permissioned. PRJ-/CLI-/CLM- identifiers
-    # cannot survive this gate without a backing internal_verified claim.
-    if state is not None and state.claim_registry.claims:
-        from src.services.artifact_gates import gate_slide_proof_points
+    # The gate ALWAYS runs (Slice 2.5 fix). Missing/empty registry behaves
+    # as an empty registry: every PRJ-/CLI-/CLM- proof_point is unresolved
+    # and therefore dropped. There is no bypass path: a writer call without
+    # state, or with an empty claim_registry, must still strip unverified
+    # internal-claim references from the blueprints.
+    from src.models.claim_provenance import ClaimRegistry
+    from src.services.artifact_gates import gate_slide_proof_points
 
-        gated, violations = gate_slide_proof_points(
-            section6.slide_blueprints, state.claim_registry,
+    registry = state.claim_registry if state is not None else ClaimRegistry()
+    gated, violations = gate_slide_proof_points(
+        section6.slide_blueprints, registry,
+    )
+    if violations:
+        unresolved = sum(
+            1 for v in violations if v.reason == "unresolved_in_registry"
         )
-        if violations:
-            unresolved = sum(
-                1 for v in violations if v.reason == "unresolved_in_registry"
-            )
-            blocked = sum(
-                1 for v in violations if v.reason == "not_a_proof_point"
-            )
-            slides_affected = len({v.slide_number for v in violations})
-            logger.warning(
-                "Slice 2.3: dropped %d proof points across %d slides "
-                "(%d unresolved, %d not a proof point)",
-                len(violations), slides_affected, unresolved, blocked,
-            )
-            section6.slide_blueprints = gated
+        blocked = sum(
+            1 for v in violations if v.reason == "not_a_proof_point"
+        )
+        slides_affected = len({v.slide_number for v in violations})
+        logger.warning(
+            "Slice 2.3: dropped %d proof points across %d slides "
+            "(%d unresolved, %d not a proof point)",
+            len(violations), slides_affected, unresolved, blocked,
+        )
+    # Always assign the gated blueprints — even when no violations, this is
+    # a no-op model_copy round-trip and keeps a single, deterministic path.
+    section6.slide_blueprints = gated
     return section6, result
 
 

@@ -209,3 +209,173 @@ def test_violation_carries_full_context() -> None:
     assert v.claim_id == "BIDDER-X"
     assert v.reason == "not_a_proof_point"
     assert v.verification_status == "internal_unverified"
+
+
+# ── Slice 2.5: writer-level bypass closure ─────────────────────────────
+
+
+def test_helper_drops_prj_when_registry_is_empty() -> None:
+    """Empty registry must not bypass the gate — PRJ-001 must drop."""
+    bp = SlideBlueprintEntry(
+        slide_number=1,
+        title="Capability proof",
+        proof_points=["PRJ-001", "EXT-007"],
+    )
+    registry = ClaimRegistry()  # empty
+    gated, violations = gate_slide_proof_points([bp], registry)
+    assert "PRJ-001" not in gated[0].proof_points
+    assert "EXT-007" not in gated[0].proof_points  # also unresolved
+    assert len(violations) == 2
+    assert all(v.reason == "unresolved_in_registry" for v in violations)
+
+
+def test_writer_stage2a_strips_prj_with_empty_registry() -> None:
+    """Mock _generate_blueprints LLM output → PRJ-001 must NOT survive
+    when state.claim_registry is the default (empty) registry."""
+    import asyncio
+    from dataclasses import dataclass
+    from unittest.mock import patch
+
+    from src.agents.source_book import writer as writer_mod
+    from src.models.source_book import SourceBook, SourceBookSection6
+    from src.models.state import DeckForgeState
+
+    @dataclass
+    class _Resp:
+        parsed: SourceBookSection6
+        input_tokens: int = 0
+        output_tokens: int = 0
+        model: str = "test"
+        latency_ms: float = 0.0
+        cost_usd: float = 0.0
+
+    section6 = SourceBookSection6(slide_blueprints=[
+        SlideBlueprintEntry(
+            slide_number=1,
+            title="Why us",
+            proof_points=["PRJ-001", "CLI-002", "CLM-099"],
+            must_have_evidence=["PRJ-001"],
+        ),
+        SlideBlueprintEntry(
+            slide_number=2,
+            title="Benchmark",
+            proof_points=["EXT-007"],  # also unresolved when registry is empty
+        ),
+    ])
+
+    state = DeckForgeState()  # default empty ClaimRegistry
+    sb = SourceBook(rfp_name="X", client_name="X")
+
+    async def _fake_call_llm(*_a, **_kw):
+        return _Resp(parsed=section6)
+
+    async def _run() -> SourceBookSection6:
+        with patch.object(writer_mod, "call_llm", _fake_call_llm):
+            result, _llm = await writer_mod._generate_blueprints(
+                sb, model="test-model", state=state,
+            )
+        return result
+
+    out = asyncio.run(_run())
+    survivors = [
+        p
+        for bp in out.slide_blueprints
+        for p in bp.proof_points + bp.must_have_evidence
+    ]
+    assert all(
+        not p.startswith(("PRJ-", "CLI-", "CLM-")) for p in survivors
+    ), f"PRJ/CLI/CLM survived empty registry: {survivors}"
+
+
+def test_writer_stage2a_strips_prj_with_state_none() -> None:
+    """state=None must behave like an empty registry: every unverified
+    proof reference dropped."""
+    import asyncio
+    from dataclasses import dataclass
+    from unittest.mock import patch
+
+    from src.agents.source_book import writer as writer_mod
+    from src.models.source_book import SourceBook, SourceBookSection6
+
+    @dataclass
+    class _Resp:
+        parsed: SourceBookSection6
+        input_tokens: int = 0
+        output_tokens: int = 0
+        model: str = "test"
+        latency_ms: float = 0.0
+        cost_usd: float = 0.0
+
+    section6 = SourceBookSection6(slide_blueprints=[
+        SlideBlueprintEntry(
+            slide_number=1,
+            title="Why us",
+            proof_points=["PRJ-001"],
+            must_have_evidence=["PRJ-001"],
+        ),
+    ])
+    sb = SourceBook(rfp_name="X", client_name="X")
+
+    async def _fake_call_llm(*_a, **_kw):
+        return _Resp(parsed=section6)
+
+    async def _run() -> SourceBookSection6:
+        with patch.object(writer_mod, "call_llm", _fake_call_llm):
+            result, _llm = await writer_mod._generate_blueprints(
+                sb, model="test-model", state=None,
+            )
+        return result
+
+    out = asyncio.run(_run())
+    survivors = [
+        p
+        for bp in out.slide_blueprints
+        for p in bp.proof_points + bp.must_have_evidence
+    ]
+    assert "PRJ-001" not in survivors
+
+
+def test_writer_stage2a_keeps_verified_when_registry_has_entry() -> None:
+    """Sanity check: with a verified internal claim registered, PRJ-001
+    survives the writer's gate. Confirms the fix is targeted, not blanket."""
+    import asyncio
+    from dataclasses import dataclass
+    from unittest.mock import patch
+
+    from src.agents.source_book import writer as writer_mod
+    from src.models.source_book import SourceBook, SourceBookSection6
+    from src.models.state import DeckForgeState
+
+    @dataclass
+    class _Resp:
+        parsed: SourceBookSection6
+        input_tokens: int = 0
+        output_tokens: int = 0
+        model: str = "test"
+        latency_ms: float = 0.0
+        cost_usd: float = 0.0
+
+    section6 = SourceBookSection6(slide_blueprints=[
+        SlideBlueprintEntry(
+            slide_number=1,
+            title="Why us",
+            proof_points=["PRJ-001"],
+            must_have_evidence=["PRJ-001"],
+        ),
+    ])
+    state = DeckForgeState()
+    state.claim_registry.register(_verified_internal("PRJ-001", "SDAIA program"))
+    sb = SourceBook(rfp_name="X", client_name="X")
+
+    async def _fake_call_llm(*_a, **_kw):
+        return _Resp(parsed=section6)
+
+    async def _run() -> SourceBookSection6:
+        with patch.object(writer_mod, "call_llm", _fake_call_llm):
+            result, _llm = await writer_mod._generate_blueprints(
+                sb, model="test-model", state=state,
+            )
+        return result
+
+    out = asyncio.run(_run())
+    assert "PRJ-001" in out.slide_blueprints[0].proof_points
