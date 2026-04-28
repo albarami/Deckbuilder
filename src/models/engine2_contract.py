@@ -10,11 +10,14 @@ and disclosure permissions — it does not change the pipeline rules.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
 from src.models.common import DeckForgeBaseModel
+
+if TYPE_CHECKING:
+    from src.models.claim_provenance import ClaimProvenance, ClaimRegistry
 
 
 class Engine2ProofRequest(DeckForgeBaseModel):
@@ -80,3 +83,81 @@ def default_engine2_response(
             "Claim blocked from proposal-facing use."
         ),
     )
+
+
+def _infer_proof_type(claim: "ClaimProvenance") -> str:
+    """Infer the requested_proof_type for a bidder evidence claim."""
+    text = claim.text.lower()
+    if "cv" in text or "consultant" in text or "team" in text:
+        return "consultant_cv"
+    if "certificate" in text or "شهادة" in claim.text:
+        return "company_certificate"
+    if "case study" in text or "case_study" in text:
+        return "case_study"
+    if "permission" in text or "naming" in text:
+        return (
+            "partner_permission"
+            if claim.requires_partner_naming_permission
+            else "client_permission"
+        )
+    if "client reference" in text or "reference" in text:
+        return "client_reference"
+    if "legal" in text or "registration" in text or "license" in text:
+        return "legal_document"
+    return "prior_project"
+
+
+def build_engine2_shopping_list(
+    registry: "ClaimRegistry",
+) -> list[Engine2ProofRequest]:
+    """Build the Engine 2 proof-shopping list from the ClaimRegistry.
+
+    Filters on claim properties (not ID prefixes). Only emits requests for
+    bidder evidence claims that are still ``internal_unverified``. RFP
+    facts, external methodology, proposal options, and generated
+    inferences are NEVER added — that is the core invariant of Slice 1.
+    """
+    requests: list[Engine2ProofRequest] = []
+    for claim in registry.claims.values():
+        if claim.claim_kind != "internal_company_claim":
+            continue
+        if claim.source_kind != "internal_backend":
+            continue
+        if claim.verification_status != "internal_unverified":
+            continue
+
+        internal_ref = (
+            claim.source_refs[0].evidence_id
+            if claim.source_refs
+            else None
+        )
+        requests.append(
+            Engine2ProofRequest(
+                claim_id=claim.claim_id,
+                claim_text=claim.text,
+                requested_proof_type=_infer_proof_type(claim),
+                internal_ref=internal_ref,
+                requested_external_contexts=(
+                    list(claim.requested_external_contexts)
+                    if claim.requested_external_contexts
+                    else ["source_book"]
+                ),
+                requires_client_naming_permission=(
+                    claim.requires_client_naming_permission
+                ),
+                requires_partner_naming_permission=(
+                    claim.requires_partner_naming_permission
+                ),
+                requires_scope_summary_permission=(
+                    claim.scope_summary_allowed_for_proposal is not None
+                ),
+            )
+        )
+
+    # Defensive invariant: no non-bidder claim may ever appear here.
+    for r in requests:
+        c = registry.get(r.claim_id)
+        assert c is not None and c.claim_kind == "internal_company_claim", (
+            f"build_engine2_shopping_list invariant violated for {r.claim_id}"
+        )
+    return requests

@@ -66,6 +66,7 @@ async def context_node(state: DeckForgeState) -> dict[str, Any]:
 
     # ── Hard Requirement Extraction (Conformance Architecture) ──
     rfp_context = result.rfp_context
+    claim_registry = state.claim_registry
     if rfp_context is not None:
         try:
             from src.services.hard_requirement_extractor import extract_hard_requirements
@@ -89,8 +90,24 @@ async def context_node(state: DeckForgeState) -> dict[str, Any]:
             logger.error("Hard requirement extraction failed: %s", e)
             # Non-fatal — pipeline continues without hard requirements
 
+        # ── RFP fact registration (Slice 1.5) ──
+        # Register every RFP-side fact (dates, bid bond, deliverables,
+        # compliance, evaluation criteria, duration, language) as
+        # rfp_fact ClaimProvenance entries. These never go to Engine 2.
+        try:
+            from src.services.rfp_fact_registrar import register_rfp_facts
+
+            register_rfp_facts(rfp_context, claim_registry)
+            logger.info(
+                "RFP fact registration: %d rfp_fact claims in registry",
+                len(claim_registry.rfp_facts),
+            )
+        except Exception as e:
+            logger.error("RFP fact registration failed: %s", e)
+
     return {
         "rfp_context": rfp_context,
+        "claim_registry": claim_registry,
         "current_stage": result.current_stage,
         "session": result.session,
         "errors": result.errors,
