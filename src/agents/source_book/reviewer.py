@@ -37,10 +37,52 @@ def _build_user_message(state: DeckForgeState) -> str:
             "claim_ids": [c.claim_id for c in state.reference_index.claims[:200]],
         }
 
+    # Hard requirements summary for conformance-aware scoring
+    hard_requirements_summary = None
+    if state.rfp_context and state.rfp_context.hard_requirements:
+        hard_requirements_summary = [
+            {
+                "id": hr.requirement_id,
+                "obligation": f"{hr.subject} {hr.operator} {hr.value_text} ({hr.unit})",
+                "severity": hr.severity,
+                "category": hr.category,
+            }
+            for hr in state.rfp_context.hard_requirements
+            if hr.validation_scope == "source_book"
+        ]
+
+    # Conformance report summary (from previous validator pass)
+    conformance_report_summary = None
+    if state.conformance_report:
+        cr = state.conformance_report
+        failures = (
+            cr.missing_required_commitments
+            + cr.forbidden_claims
+            + cr.structural_mismatches
+        )
+        if failures:
+            conformance_report_summary = {
+                "status": cr.conformance_status,
+                "failures": [
+                    {
+                        "requirement_id": f.requirement_id,
+                        "failure_reason": f.failure_reason[:200],
+                        "severity": f.severity,
+                        "section": f.source_book_section,
+                    }
+                    for f in failures[:20]
+                ],
+                "checked": cr.hard_requirements_checked,
+                "passed": cr.hard_requirements_passed,
+                "failed": cr.hard_requirements_failed,
+            }
+
     payload = {
         "source_book": source_book_dump,
         "rfp_context": rfp_dump,
         "reference_index_summary": ref_index_summary,
+        "hard_requirements_summary": hard_requirements_summary,
+        "conformance_report_summary": conformance_report_summary,
     }
 
     return json.dumps(payload, ensure_ascii=False, default=str)

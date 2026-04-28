@@ -34,6 +34,7 @@ async def run(state: DeckForgeState) -> DeckForgeState:
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             response_model=RFPContext,
+            max_tokens=16000,  # RFPContext with 13 fields needs more than default 4K
         )
         state.rfp_context = result.parsed
         state.current_stage = PipelineStage.CONTEXT_REVIEW
@@ -49,6 +50,7 @@ async def run(state: DeckForgeState) -> DeckForgeState:
                     system_prompt=SYSTEM_PROMPT,
                     user_message=user_message,
                     response_model=RFPContext,
+                    max_tokens=16000,
                 )
                 state.rfp_context = retry_result.parsed
                 state.current_stage = PipelineStage.CONTEXT_REVIEW

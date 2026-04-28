@@ -1,8 +1,11 @@
 """RFP context models — output of the Context Agent."""
 
+from typing import Literal
+
 from pydantic import Field
 
 from .common import BilingualText, DeckForgeBaseModel
+from .conformance import HardRequirement
 from .enums import GapSeverity, Language
 
 
@@ -23,9 +26,33 @@ class EvaluationCategory(DeckForgeBaseModel):
 
 
 class EvaluationCriteria(DeckForgeBaseModel):
+    """Evaluation criteria extracted from the RFP.
+
+    award_mechanism: How the RFP awards the contract. Determines the entire
+    proposal strategy — a pass/fail model requires different positioning than
+    a weighted model.
+
+    technical_passing_threshold: The minimum technical score required to proceed
+    to financial evaluation (or to be considered at all). This is the canonical
+    field. The legacy `passing_score` is kept as a backward-compatible alias:
+    - If only `passing_score` is set, treat it as the threshold
+    - If both are set, `technical_passing_threshold` takes precedence
+    """
+
+    award_mechanism: Literal[
+        "pass_fail_then_lowest_price",  # technical gate -> lowest price wins
+        "weighted_technical_financial",  # combined scoring with weights
+        "technical_only",               # quality-based, no price factor
+        "lowest_price_only",            # price-weighted, minimal technical
+        "multi_stage",                  # multiple evaluation gates
+        "unknown",                      # RFP silent on mechanism
+    ] = "unknown"
+
     technical: EvaluationCategory | None = None
     financial: EvaluationCategory | None = None
-    passing_score: float | None = None
+
+    technical_passing_threshold: float | None = None  # canonical: e.g. 70.0
+    passing_score: float | None = None  # legacy alias — see docstring
 
 
 class ScopeItem(DeckForgeBaseModel):
@@ -126,3 +153,4 @@ class RFPContext(DeckForgeBaseModel):
     gaps: list[RFPGap] = Field(default_factory=list)
     source_language: Language = Language.EN
     completeness: Completeness = Field(default_factory=Completeness)
+    hard_requirements: list[HardRequirement] = Field(default_factory=list)

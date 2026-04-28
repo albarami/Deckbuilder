@@ -1,0 +1,97 @@
+{
+  "timestamp": "2026-04-14T03:53:59",
+  "semantic_scholar_results": [
+    {
+      "source_id": "EXT-005",
+      "title": "Reducing the gap between rhetoric and reality: Use of Digital Service Standards for public service innovation through digital transformation in Australia",
+      "source_type": "academic_paper",
+      "year": 2023,
+      "url": "https://www.semanticscholar.org/paper/8183ddb62cf943f4abd49dfba9750e429e75fa6c",
+      "relevance_score": 0.82,
+      "relevance_reason": "Provides a directly applicable framework for designing quality service portfolios in the public/non-profit sector, including Innovation Process Management and Portfolio Management approaches. Relevant to the RFP's requirement to design quality services and products for the non-profit sector using international leading practices."
+    },
+    {
+      "source_id": "EXT-006",
+      "title": "The story so far: a mixed-methods evaluation of county-level behavioral health needs, policies, and programs",
+      "source_type": "academic_paper",
+      "year": 2020,
+      "url": "https://www.semanticscholar.org/paper/9f57032b4b1aff66745f0bae231e4b7e279711b7",
+      "relevance_score": 0.79,
+      "relevance_reason": "Provides a validated mixed-methods needs assessment methodology directly applicable to the RFP's requirement to analyze developmental needs and link them to proposed innovative quality products and services. The CNA model demonstrates how to connect community needs to service design recommendations."
+    },
+    {
+      "source_id": "EXT-007",
+      "title": "The model of zakat management in the health sector for the welfare of mustahik in Indonesia",
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/0c5525cb2a29a173d2fe99473b39016da35daf08",
+      "relevance_score": 0.85,
+      "relevance_reason": "Highly relevant to the RFP as it directly addresses non-profit sector service design (zakat/endowment management) in an Islamic context, covering fundraising, endowment, and service delivery forms explicitly mentioned in the RFP scope. Provides a model applicable to Saudi Arabia's non-profit landscape."
+    },
+    {
+      "source_id": "EXT-008",
+      "title": "Health Technology Assessment System in Tanzania: Is it a championing system or still a system lagging behind?",
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/3ac08240365c3038fca40c7e2c46e637b468c617",
+      "relevance_score": 0.65,
+      "relevance_reason": "Provides a systems-thinking framework for assessing and classifying service quality standards within a specific sector (health), applicable to the RFP's requirement to study classifications and standards relevant to each sector/activity. The HTA institutionalization model offers lessons for establishing quality standards in non-profit sector activities."
+    },
+    {
+      "source_id": "EXT-009",
+      "title": "Monitoring Systems for Public Health Program and Policy Implementation in Community Settings: Features and Suggested Actions from a Scoping Review",
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/5ac38e131f010b4106ff929fd0183b26a5e8451c",
+      "relevance_score": 0.68,
+      "relevance_reason": "Relevant to the RFP's requirement to design a project work plan with governance and timeline. Provides evidence on monitoring system design for program implementation, applicable to the governance and performance tracking components of the non-profit sector study."
+    },
+    {
+      "source_id": "EXT-010",
+      "title": "Digital Transformation and Collaborative Innovation in Public Health Services in Indonesia: A Qualitative Study",
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/6c575b92e3839afc2b5202804e0294e1d3ec7e03",
+      "relevance_score": 0.67,
+      "relevance_reason": "Provides evidence on collaborative innovation frameworks for public service design, applicable to the RFP's requirement to design innovative quality products and services for the non-profit sector. The multi-stakeholder qualitative methodology is directly transferable to the Saudi non-profit sector study design."
+    }
+  ],
+  "perplexity_results": [
+    {
+      "source_id": "EXT-001",
+      "title": "Government Agency Study Methodology and Required Data Information Programs: Implementation Best Practices",
+      "source_type": "web_analysis",
+      "year": 2024,
+      "url": "https://hdsr.mitpress.mit.edu/pub/605i9bgg",
+      "relevance_score": 0.88,
+      "relevance_reason": "Directly addresses the RFP requirement to develop a study methodology and identify required data and information sources for the non-profit sector study. Provides a structured framework for how government-commissioned studies are designed, validated, and executed."
+    },
+    {
+      "source_id": "EXT-002",
+      "title": "Inventory Quality Products and Services Across Government Programs: Implementation Strategies",
+      "source_type": "web_analysis",
+      "year": 2024,
+      "url": "https://www.businessofgovernment.org/sites/default/files/Ten%20Actions%20to%20Improve%20Inventory%20Management%20in%20Government.pdf",
+      "relevance_score": 0.92,
+      "relevance_reason": "Directly maps to the RFP scope requirement to inventory quality products and services across at least 5 priority sectors and economic activities. Provides a replicable framework for cataloguing, classifying, and assessing service quality across diverse sectors."
+    },
+    {
+      "source_id": "EXT-003",
+      "title": "Industry Classification Standards for Sector/Activity Analysis: NAICS, ISIC, and NACE Implementation by Government Agencies",
+      "source_type": "web_analysis",
+      "year": 2024,
+      "url": "https://www.census.gov/programs-surveys/economic-census/year/2022/guidance/understanding-naics.html",
+      "relevance_score": 0.91,
+      "relevance_reason": "Directly addresses the RFP requirement to study classifications and standards relevant to each sector/activity, including international leading practices in no fewer than 5 countries. Provides the international classification frameworks (NAICS, ISIC, NACE) that can be benchmarked against Saudi non-profit sector classifications."
+    },
+    {
+      "source_id": "EXT-004",
+      "title": "Stakeholder Landscape Analysis for Government Products, Services, and Programs: Multi-Stakeholder Partnership Models",
+      "source_type": "web_analysis",
+      "year": 2024,
+      "url": "https://www.fws.gov/stakeholder-engagement/resources",
+      "relevance_score": 0.87,
+      "relevance_reason": "Directly supports the RFP requirement to analyze stakeholders and the current landscape of products and services in the Kingdom across forms such as fundraising, volunteering, endowment, and hosting. Provides a structured multi-stakeholder engagement framework applicable to the Saudi non-profit sector landscape analysis."
+    }
+  ]
+}

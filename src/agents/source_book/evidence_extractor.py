@@ -8,6 +8,9 @@ and verifiability descriptions.
 
 This replaces the generic auto-builder that produced
 "Auto-extracted citation CLM-xxxx" placeholder entries.
+
+D1: Migrated to call_llm for unified cost tracking, retries, and provider
+accounting. No more direct Anthropic client creation.
 """
 
 from __future__ import annotations
@@ -16,12 +19,21 @@ import json
 import logging
 from typing import Any
 
+from pydantic import Field
+
+from src.models.common import DeckForgeBaseModel
 from src.models.source_book import (
     EvidenceLedgerEntry,
     SourceBook,
 )
+from src.services.llm import call_llm
 
 logger = logging.getLogger(__name__)
+
+
+class _EvidenceLedgerRawOutput(DeckForgeBaseModel):
+    """Pydantic wrapper for structured LLM output — list of evidence entries."""
+    entries: list[dict[str, Any]] = Field(default_factory=list)
 
 EVIDENCE_EXTRACTOR_PROMPT = """\
 You are an evidence auditor for a management consulting proposal.
@@ -88,7 +100,8 @@ SG corporate website press releases."
   }
 ]
 
-Output ONLY the JSON array. No markdown, no commentary."""
+Output a JSON object with an "entries" array containing the claim objects.
+No markdown, no commentary."""
 
 
 class _LedgerEntryRaw:
@@ -202,7 +215,9 @@ async def extract_evidence_ledger(
     and makes a dedicated LLM call to audit every claim and produce
     rich ledger entries with real claim text and specific sources.
 
-    Returns a list of EvidenceLedgerEntry objects.
+    D1: Uses call_llm for unified cost tracking and retries.
+
+    Returns a tuple of (list of EvidenceLedgerEntry, usage_dict or None).
     """
     sb_text = _source_book_to_text(source_book)
     logger.info(
@@ -211,51 +226,22 @@ async def extract_evidence_ledger(
     )
 
     try:
-        import anthropic
-
-        from src.config.settings import get_settings
-
-        settings = get_settings()
-        client = anthropic.AsyncAnthropic(
-            api_key=settings.anthropic_api_key.get_secret_value(),
-            timeout=600.0,
-        )
-
-        response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
+        llm_result = await call_llm(
+            model="claude-sonnet-4-6",
+            system_prompt=EVIDENCE_EXTRACTOR_PROMPT,
+            user_message=sb_text,
+            response_model=_EvidenceLedgerRawOutput,
             max_tokens=8000,
             temperature=0.1,
-            system=EVIDENCE_EXTRACTOR_PROMPT,
-            messages=[{"role": "user", "content": sb_text}],
         )
 
-        # Extract token usage for session accounting
-        _extractor_usage = None
-        if hasattr(response, "usage") and response.usage:
-            from src.services.llm import _compute_cost
-            _ext_in = response.usage.input_tokens
-            _ext_out = response.usage.output_tokens
-            _ext_cost = _compute_cost("claude-sonnet-4-20250514", _ext_in, _ext_out)
-            _extractor_usage = {
-                "input_tokens": _ext_in,
-                "output_tokens": _ext_out,
-                "cost_usd": _ext_cost,
-            }
+        _extractor_usage = {
+            "input_tokens": llm_result.input_tokens,
+            "output_tokens": llm_result.output_tokens,
+            "cost_usd": llm_result.cost_usd,
+        }
 
-        raw_text = response.content[0].text
-        # Parse the JSON array from the response
-        # Strip markdown fences if present
-        text = raw_text.strip()
-        if text.startswith("```"):
-            # Remove ```json ... ``` wrapping
-            lines = text.split("\n")
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            text = "\n".join(lines)
-
-        entries_raw: list[dict] = json.loads(text)
+        entries_raw: list[dict] = llm_result.parsed.entries
         logger.info(
             "Evidence extractor: LLM returned %d raw entries",
             len(entries_raw),
@@ -372,13 +358,8 @@ async def extract_evidence_ledger(
         )
         return filtered, _extractor_usage
 
-    except json.JSONDecodeError as e:
-        logger.error("Evidence extractor: JSON parse failed: %s", e)
-        # Preserve usage — the LLM call succeeded even if output was malformed
-        return [], _extractor_usage
     except Exception as e:
         logger.error("Evidence extractor: failed: %s", e)
-        # Preserve usage if the Anthropic call succeeded before the failure
         try:
             return [], _extractor_usage
         except NameError:

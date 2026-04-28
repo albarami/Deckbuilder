@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     perplexity_api_key: SecretStr = SecretStr("")
 
     # Model names (overridable per env)
-    openai_model_gpt54: str = "gpt-5.4"
-    anthropic_model_opus: str = "claude-opus-4-6"
+    openai_model_gpt54: str = "gpt-5.5"
+    anthropic_model_opus: str = "claude-opus-4-7"
     anthropic_model_sonnet: str = "claude-sonnet-4-6"
 
     # Azure (optional for local dev)

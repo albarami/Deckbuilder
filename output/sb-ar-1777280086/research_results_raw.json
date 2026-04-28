@@ -1,0 +1,133 @@
+{
+  "timestamp": "2026-04-27T16:49:33",
+  "semantic_scholar_results": [
+    {
+      "source_id": "EXT-007",
+      "title": "Examining Local Governments Readiness and Transformation for AI Adoption: A Qualitative Case Study Approach in Public Administration",
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/ede7fae15610948445d63f68bc4bdc5ea62d4fbf",
+      "relevance_score": 0.93,
+      "relevance_reason": "Directly addresses AI readiness assessment in a government context — the core methodology required for the RFP's maturity assessment and gap identification deliverables — with an eight-dimension framework applicable to the client entity."
+    },
+    {
+      "source_id": "EXT-008",
+      "title": "Analysing Public Sector Institutional Capacity for Health Workforce Governance in the South-East Asia Region of WHO",
+      "source_type": "academic_paper",
+      "year": 2019,
+      "url": "https://www.semanticscholar.org/paper/c5b3aba4c130052f56235e7694e6da7d58a9ec6f",
+      "relevance_score": 0.82,
+      "relevance_reason": "Provides a validated WHO-level institutional capacity assessment methodology — self-assessment surveys, workshop validation, function mapping, and hierarchical capacity building — directly applicable to the RFP's maturity assessment and gap identification scope."
+    },
+    {
+      "source_id": "EXT-009",
+      "title": "Fostering Collaboration in City Governments' Sustainability, Emergency Management and Resilience Work Through Competency-Based Capacity Building",
+      "source_type": "academic_paper",
+      "year": 2021,
+      "url": "https://www.semanticscholar.org/paper/1520542e291fc93f19b46cea20bc2cfeacff907b",
+      "relevance_score": 0.79,
+      "relevance_reason": "Provides empirical evidence for competency-based capacity building in government settings, directly supporting the RFP's training and knowledge transfer scope with validated design principles for cross-departmental government training programs."
+    },
+    {
+      "source_id": "EXT-010",
+      "title": "Digital Government: Business Model Development for Public Value Creation — A Dynamic Capabilities Based Framework",
+      "source_type": "academic_paper",
+      "year": 2021,
+      "url": "https://www.semanticscholar.org/paper/f8404eac81987e04f4059c8912e9bb7b048b1960",
+      "relevance_score": 0.75,
+      "relevance_reason": "Provides a validated framework for service portfolio design and operational readiness in public agencies, applicable to the RFP's requirement to design initiatives and actionable frameworks for the client entity's AI ethics programs."
+    },
+    {
+      "source_id": "EXT-011",
+      "title": "Reducing the Gap Between Rhetoric and Reality: Use of Digital Service Standards for Public Service Innovation Through Digital Transformation in Australia",
+      "source_type": "academic_paper",
+      "year": 2023,
+      "url": "https://www.semanticscholar.org/paper/8183ddb62cf943f4abd49dfba9750e429e75fa6c",
+      "relevance_score": 0.72,
+      "relevance_reason": "Provides empirical evidence on how government service standards and innovation management frameworks are designed and evaluated, offering lessons for the RFP's framework design and M&E components."
+    },
+    {
+      "source_id": "EXT-012",
+      "title": "Evaluating and Improving the Contributions of University Research to Social Innovation",
+      "source_type": "academic_paper",
+      "year": 2021,
+      "url": "https://www.semanticscholar.org/paper/0067429572cf11207a7ce28bad24e3d91f0fa176",
+      "relevance_score": 0.76,
+      "relevance_reason": "Provides a validated Theory of Change framework for evaluating research program contributions to social innovation, directly applicable to the RFP's requirement to develop monitoring and evaluation indicators and link programs to SDGs."
+    },
+    {
+      "source_id": "EXT-013",
+      "title": "Automatic SDG Budget Tagging: Building Public Financial Management Capacity Through Natural Language Processing",
+      "source_type": "academic_paper",
+      "year": 2023,
+      "url": "https://www.semanticscholar.org/paper/d0cc0fa35500364203b24f009eb8ab26b9f06adb",
+      "relevance_score": 0.71,
+      "relevance_reason": "Directly addresses the intersection of AI tools, SDG alignment, and government institutional capacity — relevant to the RFP's requirement to link AI ethics programs to sustainable development goals and assess AI research program performance."
+    },
+    {
+      "source_id": "EXT-014",
+      "title": "Capacity Building of Government Officials in the Implementation of Electronic-Based Government Systems",
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/425da0196fd5463c15cd1d45aebf00cf534f8bf0",
+      "relevance_score": 0.77,
+      "relevance_reason": "Provides empirical evidence on government capacity building strategies with specific findings on training effectiveness and organizational strengthening — directly applicable to the RFP's training and knowledge transfer scope."
+    },
+    {
+      "source_id": "EXT-015",
+      "title": "Assessing the Influence of Knowledge Translation Platforms on Health System Policy Processes",
+      "source_type": "academic_paper",
+      "year": 2018,
+      "url": "https://www.semanticscholar.org/paper/cbfd52703e4c51261747eda14325d5be58332dc8",
+      "relevance_score": 0.7,
+      "relevance_reason": "Provides evidence on how knowledge translation platforms in government-affiliated institutions build policy capacity and influence decision-making — analogous to the RFP's requirement to design cooperation mechanisms and knowledge transfer programs for the client entity."
+    }
+  ],
+  "perplexity_results": [
+    {
+      "source_id": "EXT-002",
+      "title": "UNESCO Ethics of Science and Technology Programme: Education, Bioethics Committees, and Global Ethics Observatory",
+      "source_type": "framework",
+      "year": 2023,
+      "url": "https://www.unesco.org/en/ethics-science-technology",
+      "relevance_score": 0.97,
+      "relevance_reason": "Directly maps to the RFP's scope of supporting UNESCO programs for AI research and ethics, designing initiatives and actionable frameworks, and training/knowledge transfer — all core UNESCO programme delivery mechanisms described here."
+    },
+    {
+      "source_id": "EXT-003",
+      "title": "UNESCO Recommendation on Science and Scientific Researchers (RS|SR): Implementation and Periodic Reporting",
+      "source_type": "framework",
+      "year": 2022,
+      "url": "https://www.unesco.org/en/recommendation-science",
+      "relevance_score": 0.92,
+      "relevance_reason": "Directly relevant to the RFP's requirement to assess current state of AI ethics and UNESCO international research programs through performance analysis and develop monitoring and evaluation indicators aligned with UNESCO reporting obligations."
+    },
+    {
+      "source_id": "EXT-004",
+      "title": "World Bank Comprehensive Investor Services Framework (CISF): IPA Needs Assessment and Service Prioritization",
+      "source_type": "framework",
+      "year": 2022,
+      "url": "https://openknowledge.worldbank.org/entities/publication/2c541d40-33bc-54b6-99a4-1cccf75cb07f",
+      "relevance_score": 0.82,
+      "relevance_reason": "Provides an analogical framework for how government agencies conduct needs assessments and design service portfolios — directly applicable to the RFP's requirement to assess current state, identify gaps, and design actionable frameworks for the client entity's AI ethics programs."
+    },
+    {
+      "source_id": "EXT-005",
+      "title": "UNCTAD Investment Promotion for LDCs: Needs Assessment of IPA Observers",
+      "source_type": "industry_report",
+      "year": 2022,
+      "url": "https://unctad.org/publication/investment-promotion-ldcs-needs-assessment-ipa-observer-13",
+      "relevance_score": 0.78,
+      "relevance_reason": "Provides a validated needs assessment and prioritization methodology from a UN agency context (UNCTAD) that is directly analogous to the RFP's requirement to assess current state, identify gaps, and develop intervention priorities for the client entity."
+    },
+    {
+      "source_id": "EXT-006",
+      "title": "APQC Certified Knowledge Transfer Specialist: Government Agency Training Implementation Framework",
+      "source_type": "framework",
+      "year": 2023,
+      "url": "https://www.apqc.org/training/certified-knowledge-transfer-specialist",
+      "relevance_score": 0.85,
+      "relevance_reason": "Directly addresses the RFP's third scope area — training and knowledge transfer to the government entity's team through on-the-job training, side-by-side work, and workshops — providing a validated government-sector framework for program design."
+    }
+  ]
+}

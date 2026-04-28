@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 
+from src.models.conformance import ConformanceReport
 from src.models.source_book import SourceBook, SourceBookReview
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,34 @@ def should_continue_iteration(
         return False
 
     if review.pass_threshold_met and not review.rewrite_required:
+        # Check for critical context contradictions in coherence issues.
+        # These override the threshold — the Source Book must not pass
+        # with a fundamental misread of the evaluation model, timeline,
+        # or phase structure when the structured context says otherwise.
+        _CRITICAL_CONTRADICTION_KEYWORDS = [
+            "misreads the evaluation model",
+            "evaluation model",
+            "award mechanism",
+            "weighted scoring",
+            "pass/fail",
+            "lowest price",
+            "timeline contradict",
+            "phase structure contradict",
+        ]
+        critical_contradictions = [
+            issue for issue in review.coherence_issues
+            if any(kw.lower() in issue.lower() for kw in _CRITICAL_CONTRADICTION_KEYWORDS)
+        ]
+        if critical_contradictions and current_pass < max_passes:
+            logger.warning(
+                "Overriding threshold: %d critical context contradiction(s) "
+                "force rewrite despite score=%d. Issues: %s",
+                len(critical_contradictions),
+                review.overall_score,
+                "; ".join(c[:100] for c in critical_contradictions),
+            )
+            return True  # Force another pass
+
         logger.info(
             "Stopping iteration: threshold met (score=%d, pass=%d)",
             review.overall_score,
@@ -48,6 +77,55 @@ def should_continue_iteration(
         review.pass_threshold_met,
         current_pass,
         max_passes,
+    )
+    return True
+
+
+def should_accept_source_book(
+    review: SourceBookReview,
+    conformance_report: ConformanceReport,
+) -> bool:
+    """Determine whether to accept the Source Book.
+
+    Requires ALL:
+    - review.pass_threshold_met == True
+    - conformance_report.conformance_status == "pass"
+    - No critical missing inputs with source_book scope
+
+    Acceptance is validator-first: if conformance fails, reviewer score
+    is irrelevant. This prevents high-quality but non-conformant books
+    from being accepted.
+    """
+    # Conformance gate (primary)
+    if conformance_report.conformance_status == "blocked":
+        logger.info(
+            "Acceptance: BLOCKED — missing critical inputs"
+        )
+        return False
+
+    if conformance_report.conformance_status == "fail":
+        logger.info(
+            "Acceptance: REJECTED — %d critical conformance failures "
+            "(reviewer score irrelevant)",
+            conformance_report.hard_requirements_failed,
+        )
+        return False
+
+    # Reviewer gate (secondary)
+    if not review.pass_threshold_met:
+        logger.info(
+            "Acceptance: REJECTED — conformance passed but reviewer "
+            "threshold not met (score=%d)",
+            review.overall_score,
+        )
+        return False
+
+    logger.info(
+        "Acceptance: ACCEPTED — conformance pass + reviewer threshold met "
+        "(score=%d, checked=%d, passed=%d)",
+        review.overall_score,
+        conformance_report.hard_requirements_checked,
+        conformance_report.hard_requirements_passed,
     )
     return True
 

@@ -14,6 +14,15 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+# D2: Module-level call counter for provider usage tracking
+_PERPLEXITY_CALL_COUNT: int = 0
+
+
+def get_perplexity_usage() -> dict:
+    """Return Perplexity API call count for provider usage reporting."""
+    return {"calls": _PERPLEXITY_CALL_COUNT}
+
+
 # ── Configuration ─────────────────────────────────────────────────────
 
 PERPLEXITY_BASE_URL = "https://api.perplexity.ai"
@@ -95,12 +104,14 @@ def search_web(
     }
 
     try:
+        global _PERPLEXITY_CALL_COUNT
         with httpx.Client(timeout=timeout) as client:
             response = client.post(
                 f"{PERPLEXITY_BASE_URL}/chat/completions",
                 json=payload,
                 headers=headers,
             )
+            _PERPLEXITY_CALL_COUNT += 1
             response.raise_for_status()
             data = response.json()
             logger.info(

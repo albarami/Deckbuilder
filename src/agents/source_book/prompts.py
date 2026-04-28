@@ -108,6 +108,24 @@ Rendering rules:
   "zero risk", "will certainly", unless grounded in uploaded RFP text.
 *** END ASSERTION CLASSIFICATION ***
 
+*** DOMINANCE RULE ***
+DIRECT_RFP_FACT always overrides INFERENCE for the same topic.
+
+The following items MUST be classified as DIRECT_RFP_FACT (never INFERENCE)
+when stated in the RFP text — even if partially stated:
+- Evaluation rules (scoring weights, award mechanism, passing threshold)
+- Submission format (envelope split, delivery method, language requirements)
+- Language rules (Arabic-only, bilingual requirements)
+- Bank guarantees / insurance requirements
+- Statutory certificates (commercial register, GOSI, tax, etc.)
+- Contract duration and phase structure
+- Required outputs / named deliverables
+- Team qualification requirements
+
+If the RFP explicitly states any of these, do NOT infer a different value.
+Use the RFP-stated value as DIRECT_RFP_FACT with full authority.
+*** END DOMINANCE RULE ***
+
 *** BENCHMARK GOVERNANCE RULES ***
 External benchmarks (EXT-xxx) from international sources:
 - CAN: support methodology design, frame best practice, anchor SLAs,
@@ -207,8 +225,19 @@ will actually use — even if the RFP doesn't state it explicitly.
 
 - probable_scoring_logic: (2-3 paragraphs)
   How will they likely score? Reference evaluation criteria from the RFP:
-  * Technical vs financial split and weighting
-  * Per-criterion weighting if stated
+  * IF evaluation_model_summary is present in the context payload, use that
+    EXACT model as DIRECT_RFP_FACT — do NOT infer a different scoring model.
+    The evaluation_model_summary contains the structured award_mechanism,
+    weights, and passing threshold extracted by the Context Agent.
+  * CRITICAL CONSTRAINT: If award_mechanism is "pass_fail_then_lowest_price",
+    you MUST NOT introduce weighted technical-financial scoring language,
+    subcriteria percentages, or combined-score logic. The RFP awards to the
+    lowest-price bidder among those who PASS the technical evaluation.
+    In this model: technical is a gate (pass/fail), financial is lowest price.
+    Do NOT write "70% technical / 30% financial" or similar weighted language
+    unless the RFP explicitly states weighted scoring.
+  * If the model IS weighted (weighted_technical_financial), then describe
+    the technical vs financial split, per-criterion weighting, and scoring logic.
   * Which criteria are eliminatory vs scoring
   * What past scoring patterns suggest (for government entities in this geography)
   * Which criteria are "must-win" vs "nice-to-have" for SG
@@ -354,6 +383,10 @@ typed objects. Empty lists will be REJECTED — the system will force a retry.
   * confidence: "high" if stated in RFP, "medium"/"low" if inferred
   * label: "INFERENCE" for inferred, "DIRECT_RFP_FACT" if stated
   * weight_estimate: estimated weight (e.g. "~30%") or "unknown"
+  CRITICAL: If evaluation_model_summary is present in the context payload,
+  your hypotheses MUST reflect that stated model — not generic inference.
+  If the RFP uses pass_fail_then_lowest_price, do NOT present weighted
+  scoring criteria. Use the stated model as DIRECT_RFP_FACT.
   If the RFP states scoring weights, use them with label=DIRECT_RFP_FACT.
   If weights are ABSENT, generate a "Likely Evaluation Model" with ALL
   criteria labeled as INFERENCE.
@@ -384,6 +417,12 @@ SECTION 2: CLIENT PROBLEM FRAMING (depth proportional to RFP complexity)
 Frame the client's challenge so persuasively that the evaluator thinks
 "they truly understand our situation." This section drives the executive
 summary and understanding slides.
+
+DELIVERABLE GROUNDING: If scope_deliverables_summary is present in the
+context payload, your problem framing MUST be anchored to those specific
+deliverables. Root causes must explain WHY those specific deliverables
+are needed. Do not frame generic problems — frame the specific problems
+that justify the specific outputs the RFP demands.
 
 - current_state_challenge: (3-4 paragraphs)
   * Explicit current-state diagnosis — what is broken, misaligned, or missing
@@ -829,6 +868,13 @@ will do, but WHY this approach wins over alternatives:
 phase_details (4-5 phases, depth per phase proportional to scope)
 ─────────────────────────────────────
 
+METHODOLOGY ANCHORING: IF mandatory_phase_structure is present in the
+context payload, your phase_details MUST mirror that structure. The RFP
+has stated specific phases/milestones — your methodology must align with
+them, not invent a different phasing. Use the RFP phase names and due
+dates as the backbone, then add depth (activities, deliverables,
+governance) for each.
+
 You MUST produce 4-5 distinct phases. For EACH phase:
 
 * phase_name: Specific to this engagement (NOT generic "Phase 1")
@@ -1085,6 +1131,10 @@ RED FLAGS (automatic score reduction):
 ASSERTION CLASSIFICATION DISCIPLINE (check these):
 - Section 1 MUST have explicit_requirements (labeled DIRECT_RFP_FACT) → -1 if empty
 - Section 1 MUST have inferred_requirements (labeled INFERENCE) → -1 if empty
+- Section 1 evaluation_hypotheses MUST correctly reflect the RFP's stated
+  award_mechanism. If the RFP uses pass/fail then lowest-price, the Source
+  Book must NOT present a weighted scoring model. Mismatched evaluation
+  model → -2 (critical misread)
 - Section 1 evaluation_hypotheses: if weights absent from RFP, every row
   must be labeled INFERENCE with basis and confidence → -1 if mislabeled
 - Section 1 probable_scoring_logic: inference must NOT read as established
@@ -1178,6 +1228,22 @@ and IDENTIFY what proof is needed. Engine 2 fills the proof later.
 - rewrite_required=False when score >= 4
 - competitive_viability: "adequate" when design is strong but proof
   gaps exist; "strong" when design AND available evidence are excellent
+
+CONFORMANCE-AWARE SCORING:
+If a conformance_report_summary is provided in the input, use it to adjust
+your scoring. The Conformance Validator has already checked the Source Book
+against extracted hard requirements. Your role is advisory — acceptance
+depends on the validator, not your score alone.
+
+QUANTIFIED-MISS SCORING CAPS (mandatory):
+- Numeric minimum omitted or weakened (e.g., RFP says >= 5 sectors but
+  Source Book commits to fewer or is vague) → that section max score = 2
+- Technical-offer packaging requirements missing (e.g., required items
+  not listed in Section 1) → Section 1 max score = 2
+- Unverified technical threshold stated as fact (e.g., "we will score 85%"
+  without RFP basis) → that section max score = 2
+- Phase structure materially diverges from RFP (e.g., RFP specifies 5
+  phases but Source Book has 3) → Section 5 max score = 2
 
 PASS THRESHOLD:
 - overall_score >= 4

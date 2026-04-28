@@ -317,22 +317,37 @@ def classify_rfp(state: DeckForgeState) -> RFPClassification:
             regulatory_frame = frame_name
             break
 
-    # B.5: Detect evaluator pattern from evaluation_criteria
+    # B.5: Detect evaluator pattern from evaluation_criteria (single object, not list)
     evaluator_pattern = ""
-    eval_criteria = getattr(rfp, "evaluation_criteria", [])
-    if eval_criteria:
-        criteria_text = " ".join(
-            str(getattr(ec, "criterion", "")) + " " + str(getattr(ec, "weight", ""))
-            for ec in eval_criteria
-        ).lower()
-        if "technical" in criteria_text and "financial" in criteria_text:
-            evaluator_pattern = "technical_financial_split"
-        elif "quality" in criteria_text and "cost" in criteria_text:
-            evaluator_pattern = "quality_cost_based"
-        elif "technical" in criteria_text:
-            evaluator_pattern = "technical_weighted"
-        elif "price" in criteria_text or "financial" in criteria_text:
-            evaluator_pattern = "price_weighted"
+    ec = getattr(rfp, "evaluation_criteria", None)
+    if ec:
+        # Use structured award_mechanism if available
+        if hasattr(ec, "award_mechanism") and ec.award_mechanism != "unknown":
+            evaluator_pattern = ec.award_mechanism
+        else:
+            # Fallback inference from structure
+            has_threshold = bool(
+                getattr(ec, "technical_passing_threshold", None)
+                or getattr(ec, "passing_score", None)
+            )
+            has_weights = bool(
+                getattr(ec, "technical", None) and getattr(ec, "financial", None)
+                and getattr(ec.technical, "weight_pct", None)
+                and getattr(ec.financial, "weight_pct", None)
+            )
+            if has_weights and has_threshold:
+                evaluator_pattern = "weighted_technical_financial"
+            elif has_weights:
+                evaluator_pattern = "weighted_technical_financial"
+            elif has_threshold and not has_weights:
+                # Threshold without weights — check for financial signal
+                has_financial_signal = bool(getattr(ec, "financial", None)) or bool(
+                    getattr(ec, "passing_score", None)
+                )
+                if has_financial_signal:
+                    evaluator_pattern = "pass_fail_then_lowest_price"
+                else:
+                    evaluator_pattern = "technical_only"
 
     # B.5: Detect proof_types_needed from team_requirements and compliance
     proof_types_needed: list[str] = []

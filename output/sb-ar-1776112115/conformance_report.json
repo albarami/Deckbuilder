@@ -1,0 +1,104 @@
+{
+  "missing_required_commitments": [
+    {
+      "requirement_id": "HR-L1-001",
+      "requirement_text": "Award mechanism is pass_fail_then_lowest_price",
+      "failure_reason": "Source Book contains weighted scoring language but award mechanism is pass/fail then lowest price",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Remove all weighted scoring references (70%/30%, combined score, etc.) and describe pass/fail gate followed by lowest-price award"
+    },
+    {
+      "requirement_id": "HR-L1-009",
+      "requirement_text": "Compliance: Valid commercial registration",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: Valid commercial registration"
+    },
+    {
+      "requirement_id": "HR-L1-010",
+      "requirement_text": "Compliance: Zakat certificate",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: Zakat certificate"
+    },
+    {
+      "requirement_id": "HR-L1-011",
+      "requirement_text": "Compliance: Tax certificate",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: Tax certificate"
+    },
+    {
+      "requirement_id": "HR-L1-012",
+      "requirement_text": "Compliance: Social insurance certificate",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: Social insurance certificate"
+    },
+    {
+      "requirement_id": "HR-L1-013",
+      "requirement_text": "Compliance: Chamber of Commerce subscription certificate",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: Chamber of Commerce subscription certificate"
+    },
+    {
+      "requirement_id": "HR-L1-014",
+      "requirement_text": "Compliance: Saudization certificate",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: Saudization certificate"
+    },
+    {
+      "requirement_id": "HR-L1-049",
+      "requirement_text": "Mandatory deliverable: Incentive package document",
+      "failure_reason": "Mandatory deliverable not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "proposed_solution",
+      "suggested_fix": "Include deliverable in proposed solution phases: Incentive package document"
+    },
+    {
+      "requirement_id": "HR-L1-050",
+      "requirement_text": "Mandatory deliverable: Product/service cards for priority items",
+      "failure_reason": "Mandatory deliverable not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "proposed_solution",
+      "suggested_fix": "Include deliverable in proposed solution phases: Product/service cards for priority items"
+    }
+  ],
+  "forbidden_claims": [
+    {
+      "requirement_id": "HR-L1-001",
+      "requirement_text": "Award mechanism is pass_fail_then_lowest_price",
+      "failure_reason": "Source Book presents weighted scoring model but RFP uses pass/fail then lowest price",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Remove all weighted scoring language and describe the pass/fail technical gate followed by lowest-price award"
+    }
+  ],
+  "structural_mismatches": [],
+  "missing_inputs": [
+    {
+      "input_name": "annex_Team members as per the qualifications and experience table in Annex 2",
+      "requirement_ids": [
+        "HR-L1-018"
+      ],
+      "blocker_type": "missing_annex",
+      "message": "Requirement HR-L1-018 references an annex for 'Team members as per the qualifications and experience table in Annex 2' but no matching content found in uploaded documents",
+      "severity": "major",
+      "validation_scope": "source_book"
+    }
+  ],
+  "conformance_status": "fail",
+  "final_acceptance_decision": "reject",
+  "hard_requirements_checked": 41,
+  "hard_requirements_passed": 32,
+  "hard_requirements_failed": 9
+}

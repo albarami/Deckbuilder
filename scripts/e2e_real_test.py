@@ -133,6 +133,10 @@ async def run_e2e() -> None:
         if ec.financial:
             print(f"  Financial: weight={ec.financial.weight_pct}%")
         print(f"  Passing Score: {ec.passing_score}")
+        if hasattr(ec, "award_mechanism"):
+            print(f"  Award Mechanism: {ec.award_mechanism}")
+        if hasattr(ec, "technical_passing_threshold") and ec.technical_passing_threshold:
+            print(f"  Technical Passing Threshold: {ec.technical_passing_threshold}")
     else:
         print("Evaluation Criteria: Not specified in RFP")
 

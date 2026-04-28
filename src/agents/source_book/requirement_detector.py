@@ -107,9 +107,20 @@ def _extract_rfp_text(state: DeckForgeState) -> str:
             for cr in rfp.compliance_requirements:
                 parts.append(_to_str(getattr(cr, "requirement_text", cr)))
         if rfp.evaluation_criteria:
-            for ec in rfp.evaluation_criteria:
-                desc = _to_str(getattr(ec, "description", ""))
-                parts.append(f"{desc} weight={getattr(ec, 'weight', '')}")
+            ec = rfp.evaluation_criteria
+            # EvaluationCriteria is a single object, not a list
+            if hasattr(ec, "award_mechanism") and ec.award_mechanism != "unknown":
+                parts.append(f"award_mechanism={ec.award_mechanism}")
+            if ec.technical:
+                parts.append(f"technical weight={ec.technical.weight_pct}")
+                for sub in ec.technical.sub_criteria:
+                    parts.append(f"{sub.name} weight={sub.weight_pct}")
+            if ec.financial:
+                parts.append(f"financial weight={ec.financial.weight_pct}")
+            if ec.technical_passing_threshold:
+                parts.append(f"passing_threshold={ec.technical_passing_threshold}")
+            elif ec.passing_score:
+                parts.append(f"passing_score={ec.passing_score}")
         if rfp.deliverables:
             for d in rfp.deliverables:
                 parts.append(_to_str(getattr(d, "description", d)))
@@ -143,6 +154,16 @@ def detect_requirement_density(state: DeckForgeState) -> DensityAnalysis:
     prescriptive = _count_matches(rfp_text, _COMPILED_PRESCRIPTIVE)
     deliverables = _count_matches(rfp_text, _COMPILED_DELIVERABLES)
     evaluation = _count_matches(rfp_text, _COMPILED_EVALUATION)
+
+    # Structured evaluation signal: if context agent parsed award_mechanism,
+    # count it as a strong signal (replaces fragile regex for parsed RFPs)
+    if (
+        state.rfp_context
+        and state.rfp_context.evaluation_criteria
+        and hasattr(state.rfp_context.evaluation_criteria, "award_mechanism")
+        and state.rfp_context.evaluation_criteria.award_mechanism != "unknown"
+    ):
+        evaluation += 3  # strong structured signal
 
     compliance_count = 0
     if state.rfp_context and state.rfp_context.compliance_requirements:

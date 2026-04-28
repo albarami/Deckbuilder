@@ -1,0 +1,211 @@
+{
+  "entries": [
+    {
+      "claim_id": "CLAIM-003",
+      "claim_text": "آخر موعد للاستفسارات 1447/11/08، موعد تقديم العروض 1447/11/11، فتح المظاريف 1447/11/11، الترسية المتوقعة 1447/12/02، وبدء الخدمة 1448/01/06",
+      "source_type": "internal",
+      "source_reference": "DIRECT_RFP_FACT",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من الجدول الزمني للمنافسة في وثيقة المنافسة الأصلية"
+    },
+    {
+      "claim_id": "CLAIM-004",
+      "claim_text": "يجب أن تقدم العروض باللغة العربية؛ في حال التعارض يُؤخذ بالنص العربي",
+      "source_type": "internal",
+      "source_reference": "CR-1 / HR-L1-001",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من متطلبات كراسة الشروط CR-1"
+    },
+    {
+      "claim_id": "CLAIM-005",
+      "claim_text": "ضمان ابتدائي 1% من قيمة العرض الإجمالية",
+      "source_type": "internal",
+      "source_reference": "HR-L1-016/017",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من متطلبات الضمان البنكي في كراسة الشروط"
+    },
+    {
+      "claim_id": "CLAIM-006",
+      "claim_text": "التدريب على رأس العمل، العمل جنباً إلى جنب، وورش العمل التدريبية",
+      "source_type": "internal",
+      "source_reference": "SI-3 / D-3",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من متطلبات نقل المعرفة المحددة في نطاق العمل SI-3"
+    },
+    {
+      "claim_id": "CLAIM-007",
+      "claim_text": "اعتمدت اليونسكو توصيتها بشأن أخلاقيات الذكاء الاصطناعي في نوفمبر 2021 كأول أداة معيارية عالمية في هذا المجال",
+      "source_type": "external",
+      "source_reference": "EXT-003",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "تحقق من موقع اليونسكو الرسمي أو قاعدة بيانات قرارات اليونسكو"
+    },
+    {
+      "claim_id": "CLAIM-008",
+      "claim_text": "يعتمد برنامج تعليم الأخلاقيات في اليونسكو على دورات تدريب المعلمين (ETTCs) بالشراكة مع مؤسسات أكاديمية وكراسي اليونسكو كآلية رئيسية لنقل المعرفة",
+      "source_type": "external",
+      "source_reference": "EXT-002: UNESCO Ethics of Science and Technology Programme",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "تحقق من وثائق برنامج أخلاقيات العلوم والتكنولوجيا في اليونسكو"
+    },
+    {
+      "claim_id": "CLAIM-009",
+      "claim_text": "جاهزية الذكاء الاصطناعي في الحكومة تمتد عبر ثمانية أبعاد مُنظمة وفق إطار TOE: البنية التحتية التقنية، الموارد البشرية، جاهزية إدارة التغيير، الموارد المالية، القيادة والرؤية، الثقافة التنظيمية، السياق البيئي، والسياسات والحوكمة",
+      "source_type": "external",
+      "source_reference": "EXT-007: Examining Local Governments Readiness and Transformation for AI Adoption",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "تحقق من البحث الأكاديمي المنشور في إدارة القطاع العام"
+    },
+    {
+      "claim_id": "CLAIM-010",
+      "claim_text": "تعزيز قدرات الحوكمة يجب أن يتبع تسلسلاً منطقياً: تحديد الوظائف الأساسية أولاً، ثم تعريف الأدوار المتوقعة، ثم تحديد العوامل النظامية العليا ومتطلبات القدرات الفرعية",
+      "source_type": "external",
+      "source_reference": "EXT-008: Analysing Public Sector Institutional Capacity for Health Workforce Governance in the South-East Asia Region of WHO",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "تحقق من منشورات منظمة الصحة العالمية حول تقييم القدرات المؤسسية"
+    },
+    {
+      "claim_id": "CLAIM-011",
+      "claim_text": "يُحدد إطار APQC أربع خطوات أساسية لنقل المعرفة: تحديد الفرص، تصميم المشروع، الدمج في العمليات التشغيلية، وتطبيق إدارة التغيير",
+      "source_type": "external",
+      "source_reference": "EXT-006: APQC Certified Knowledge Transfer Specialist",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "تحقق من موقع APQC الرسمي أو منشوراتهم في إدارة المعرفة"
+    },
+    {
+      "claim_id": "CLAIM-012",
+      "claim_text": "المساهمات العملية (بناء القدرات، بناء العلاقات، التمكين) تُعادل أو تفوق أهمية المساهمات المعرفية في البرامج البحثية",
+      "source_type": "external",
+      "source_reference": "EXT-012: Evaluating and Improving the Contributions of University Research to Social Innovation",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "تحقق من البحث المنشور حول تقييم مساهمات البحث الجامعي في الابتكار الاجتماعي"
+    },
+    {
+      "claim_id": "CLAIM-013",
+      "claim_text": "دمج أهداف التنمية المستدامة في أنظمة الإدارة المالية العامة شرط مسبق لمواءمة أولويات التنمية الوطنية مع أجندة 2030",
+      "source_type": "external",
+      "source_reference": "EXT-013: Automatic SDG Budget Tagging",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "تحقق من البحث المنشور حول ربط الميزانيات بأهداف التنمية المستدامة"
+    },
+    {
+      "claim_id": "CLAIM-014",
+      "claim_text": "مشروع PRJ-001 مع سدايا واليونسكو تضمّن إعداد تقييم معياري لأداء برامج بحثية في أبحاث وأخلاقيات الذكاء الاصطناعي",
+      "source_type": "internal",
+      "source_reference": "PRJ-001",
+      "confidence": 0.6,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من سجلات المشروع الداخلية CLM-xxxx وأرشيف المشاريع"
+    },
+    {
+      "claim_id": "CLAIM-015",
+      "claim_text": "ستراتيجيك قيرز شركة استشارية سعودية المقر والتشغيل",
+      "source_type": "internal",
+      "source_reference": "معلومات الشركة الأساسية",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من السجل التجاري وشهادة الغرفة التجارية"
+    },
+    {
+      "claim_id": "CLAIM-016",
+      "claim_text": "خبرة موثقة في العمل مع الهيئة السعودية للبيانات والذكاء الاصطناعي (سدايا)",
+      "source_type": "internal",
+      "source_reference": "PRJ-001",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من سجلات المشروع PRJ-001 وخطابات إنجاز من سدايا"
+    },
+    {
+      "claim_id": "CLAIM-017",
+      "claim_text": "خبرة موثقة في التعاون مع اليونسكو في مجال أبحاث وأخلاقيات الذكاء الاصطناعي",
+      "source_type": "internal",
+      "source_reference": "CLI-003, PRJ-001",
+      "confidence": 0.6,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من سجلات التعاون مع اليونسكو في قاعدة بيانات المشاريع"
+    },
+    {
+      "claim_id": "CLAIM-018",
+      "claim_text": "خبرة موثقة في العمل مع وزارة المالية",
+      "source_type": "internal",
+      "source_reference": "CLI-002",
+      "confidence": 0.6,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من سجلات المشاريع مع وزارة المالية في قاعدة بيانات العملاء"
+    },
+    {
+      "claim_id": "CLAIM-019",
+      "claim_text": "منهجية رباعية المراحل مع مسار حوكمة مستمر مُوحَّد، مُصمَّمة تحديداً لتلبية متطلبات نطاق العمل الثلاثة المنصوص عليها في كراسة الشروط",
+      "source_type": "internal",
+      "source_reference": "تصميم المنهجية المقترحة",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من وثيقة المنهجية المفصلة في العرض الفني"
+    },
+    {
+      "claim_id": "CLAIM-020",
+      "claim_text": "تطبيق مصفوفة التقييم المؤسسي الهرمي المبنية على منهجية WHO مُكيَّفة لسياق برامج اليونسكو في أخلاقيات الذكاء الاصطناعي",
+      "source_type": "internal",
+      "source_reference": "تصميم أدوات التقييم المقترحة مع مرجع EXT-008",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "تحقق من وثيقة أدوات التقييم المفصلة في المرحلة الأولى"
+    },
+    {
+      "claim_id": "CLAIM-021",
+      "claim_text": "إجراء 15-20 مقابلة مُعمَّقة مع أصحاب المصلحة الرئيسيين، مُوزَّعة على ثلاث فئات",
+      "source_type": "internal",
+      "source_reference": "خطة المقابلات في المرحلة الأولى",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من خطة جمع البيانات التفصيلية في وثيقة المنهجية"
+    },
+    {
+      "claim_id": "CLAIM-022",
+      "claim_text": "تصميم 3-5 مبادرات بحثية مُفصَّلة في أبحاث وأخلاقيات الذكاء الاصطناعي",
+      "source_type": "internal",
+      "source_reference": "مخرجات المرحلة الثانية D-2",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من وثيقة تصميم المبادرات في المرحلة الثانية"
+    },
+    {
+      "claim_id": "CLAIM-023",
+      "claim_text": "تنفيذ سلسلة من 4-6 ورش عمل تدريبية مُهيكلة، كل ورشة مدتها يوم كامل",
+      "source_type": "internal",
+      "source_reference": "برنامج التدريب في المرحلة الثالثة D-3",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من خطة التدريب التفصيلية في المرحلة الثالثة"
+    },
+    {
+      "claim_id": "CLAIM-024",
+      "claim_text": "يُخصص ما يعادل 10% من الجهد الاستشاري الإجمالي كاحتياطي للمخاطر",
+      "source_type": "internal",
+      "source_reference": "نهج احتياطي المخاطر في إطار الحوكمة",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من وثيقة إدارة المخاطر في إطار الحوكمة"
+    },
+    {
+      "claim_id": "CLAIM-025",
+      "claim_text": "هيكل حوكمة ثلاثي المستويات (لجنة توجيهية، مكتب إدارة المشروع، فرق العمل الفنية)",
+      "source_type": "internal",
+      "source_reference": "إطار الحوكمة الشامل",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "تحقق من وثيقة إطار الحوكمة المفصلة"
+    }
+  ]
+}

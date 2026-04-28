@@ -1,0 +1,202 @@
+{
+  "entries": [
+    {
+      "claim_id": "CLAIM-001",
+      "claim_text": "مدة العقد 12 شهراً بالضبط من تاريخ إشعار البدء بالعمل",
+      "source_type": "internal",
+      "source_reference": "HR-L1-002",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check HR-L1-002 in reference_index for contract duration specification"
+    },
+    {
+      "claim_id": "CLAIM-002",
+      "claim_text": "آلية الترسية هي اجتياز فني ثنائي (ناجح/راسب) ثم أقل سعر بين المجتازين فنياً",
+      "source_type": "internal",
+      "source_reference": "HR-L1-001",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check HR-L1-001 in reference_index for award mechanism details"
+    },
+    {
+      "claim_id": "CLAIM-003",
+      "claim_text": "المشروع يُنتج 23 مخرجاً إلزامياً (D-1 إلى D-23) جميعها mandatory=true",
+      "source_type": "internal",
+      "source_reference": "HR-L1-030 إلى HR-L1-052",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check HR-L1-030 through HR-L1-052 in reference_index for complete deliverables list"
+    },
+    {
+      "claim_id": "CLAIM-004",
+      "claim_text": "تغطية 5 قطاعات كحد أدنى في حصر المنتجات والخدمات",
+      "source_type": "internal",
+      "source_reference": "SI-2",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check SI-2 in reference_index for sector coverage requirements"
+    },
+    {
+      "claim_id": "CLAIM-005",
+      "claim_text": "دراسة الممارسات الدولية في 5 دول كحد أدنى",
+      "source_type": "internal",
+      "source_reference": "SI-3",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check SI-3 in reference_index for international benchmarking requirements"
+    },
+    {
+      "claim_id": "CLAIM-006",
+      "claim_text": "تدريب وتطوير العاملين في المركز قبل المشروع وفي كافة مراحله",
+      "source_type": "internal",
+      "source_reference": "SI-8",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check SI-8 in reference_index for capacity building requirements"
+    },
+    {
+      "claim_id": "CLAIM-007",
+      "claim_text": "الأشكال السائدة حالياً تشمل جمع التبرعات والتطوع والوقف والاستضافة",
+      "source_type": "internal",
+      "source_reference": "SI-4",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check SI-4 in reference_index for current service forms specification"
+    },
+    {
+      "claim_id": "CLAIM-008",
+      "claim_text": "جميع وثائق العرض بالعربية. الوثائق الداعمة بالإنجليزية مقبولة مع ترجمة. النص العربي يسود عند التعارض",
+      "source_type": "internal",
+      "source_reference": "CR-1 / HR-L1-008",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check CR-1 and HR-L1-008 in reference_index for language requirements"
+    },
+    {
+      "claim_id": "CLAIM-009",
+      "claim_text": "أصل خطاب الضمان البنكي بنسبة 1% يُرفق في ملف العرض المالي",
+      "source_type": "internal",
+      "source_reference": "CR-8 / HR-L1-015",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check CR-8 and HR-L1-015 in reference_index for initial guarantee requirements"
+    },
+    {
+      "claim_id": "CLAIM-010",
+      "claim_text": "ضمان نهائي بنسبة 5% من قيمة العقد خلال 15 يوم عمل من تاريخ إبلاغ الترسية",
+      "source_type": "internal",
+      "source_reference": "CR-9 / HR-L1-016",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check CR-9 and HR-L1-016 in reference_index for final guarantee requirements"
+    },
+    {
+      "claim_id": "CLAIM-011",
+      "claim_text": "سريان العرض 90 يوماً من تاريخ التسليم",
+      "source_type": "internal",
+      "source_reference": "CR-10 / HR-L1-017",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check CR-10 and HR-L1-017 in reference_index for offer validity period"
+    },
+    {
+      "claim_id": "CLAIM-012",
+      "claim_text": "الوكالات الحكومية تطبق مناهج متعددة التخصصات (إحصاء، علم نفس، علم اجتماع، علوم بيانات) لتصميم المسوح وتقليل أخطاء القياس",
+      "source_type": "external",
+      "source_reference": "EXT-001: Government Agency Study Methodology and Required Data Information Programs: Implementation Best Practices (2024)",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "Verify against EXT-001 external source for government study methodology best practices"
+    },
+    {
+      "claim_id": "CLAIM-013",
+      "claim_text": "منهجية DMAIC من Six Sigma تُحسّن عمليات حصر الخدمات من خلال خمس مراحل منظمة (التعريف، القياس، التحليل، التحسين، الضبط)",
+      "source_type": "external",
+      "source_reference": "EXT-002: Inventory Quality Products and Services Across Government Programs: Implementation Strategies (2024)",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "Verify against EXT-002 external source for DMAIC methodology application"
+    },
+    {
+      "claim_id": "CLAIM-014",
+      "claim_text": "أنظمة التصنيف الدولية الثلاثة (NAICS بالتعاون بين أمريكا وكندا والمكسيك، ISIC من الأمم المتحدة، NACE من الاتحاد الأوروبي) تُبنى بشكل تشاركي مع مراجعات دورية كل 5 سنوات",
+      "source_type": "external",
+      "source_reference": "EXT-003: Industry Classification Standards for Sector/Activity Analysis: NAICS, ISIC, and NACE Implementation by Government Agencies (2024)",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "Verify against EXT-003 external source for international classification systems"
+    },
+    {
+      "claim_id": "CLAIM-015",
+      "claim_text": "أدوات المشاركة المتاحة تضم 68+ أداة تمكّن من الرسم المنهجي للمصالح والأولويات والفجوات الخدمية عبر فئات الأطراف المتنوعة",
+      "source_type": "external",
+      "source_reference": "EXT-004: Stakeholder Landscape Analysis for Government Products, Services, and Programs: Multi-Stakeholder Partnership Models (2024)",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "Verify against EXT-004 external source for stakeholder engagement tools"
+    },
+    {
+      "claim_id": "CLAIM-016",
+      "claim_text": "معيار الخدمة الرقمية الأسترالي (DSS) يطبق إدارة عمليات الابتكار عبر منهجية البوابات المرحلية (Stages-and-Gates) وإدارة محفظة الابتكار",
+      "source_type": "external",
+      "source_reference": "EXT-005: Reducing the gap between rhetoric and reality: Use of Digital Service Standards for public service innovation through digital transformation in Australia (2023)",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "Verify against EXT-005 external source for Australian digital service standards"
+    },
+    {
+      "claim_id": "CLAIM-017",
+      "claim_text": "تقييمات الاحتياجات المجتمعية (CNA) باستخدام المناهج المختلطة (مسوح + جلسات استماع) تحدد بفعالية الفجوات الخدمية والعوائق عبر الفئات الاجتماعية والاقتصادية",
+      "source_type": "external",
+      "source_reference": "EXT-006: The story so far: a mixed-methods evaluation of county-level behavioral health needs, policies, and programs (2020)",
+      "confidence": 0.9,
+      "verifiability_status": "partially_verified",
+      "verification_note": "Verify against EXT-006 external source for community needs assessment methodology"
+    },
+    {
+      "claim_id": "CLAIM-018",
+      "claim_text": "منهجية عملية الشبكة التحليلية (ANP) فعالة في ترتيب أولويات تحديات وحلول خدمات القطاع غير الربحي بمشاركة 10 خبراء",
+      "source_type": "external",
+      "source_reference": "EXT-007: The model of zakat management in the health sector for the welfare of mustahik in Indonesia (2026)",
+      "confidence": 0.6,
+      "verifiability_status": "partially_verified",
+      "verification_note": "Verify against EXT-007 external source for ANP methodology in nonprofit sector - note future publication date requires verification"
+    },
+    {
+      "claim_id": "CLAIM-019",
+      "claim_text": "أنظمة المراقبة الفعالة لتنفيذ البرامج تتطلب ميزات محددة بوضوح تشمل بروتوكولات جمع البيانات وآليات الإبلاغ وحلقات التغذية الراجعة",
+      "source_type": "external",
+      "source_reference": "EXT-009: Monitoring Systems for Public Health Program and Policy Implementation in Community Settings: Features and Suggested Actions from a Scoping Review (2026)",
+      "confidence": 0.6,
+      "verifiability_status": "partially_verified",
+      "verification_note": "Verify against EXT-009 external source for monitoring systems - note future publication date requires verification"
+    },
+    {
+      "claim_id": "CLAIM-021",
+      "claim_text": "تشترط كراسة الشروط تأمين فريق عمل وفق جدول مواصفات فريق العمل المرفق في الملحق 2",
+      "source_type": "internal",
+      "source_reference": "HR-L1-018, الملحق 2",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check HR-L1-018 and retrieve complete Annex 2 from original RFP documents for detailed team specifications"
+    },
+    {
+      "claim_id": "CLAIM-022",
+      "claim_text": "آخر موعد للاستفسارات 2021-11-03، موعد تسليم العروض 2021-11-10، فتح المظاريف 2021-11-10، الترسية المتوقعة 2021-11-27، بدء الخدمة المتوقع 2021-12-20",
+      "source_type": "internal",
+      "source_reference": "RFP timeline specifications",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Check original RFP documents for complete procurement timeline and key dates"
+    },
+    {
+      "claim_id": "CLAIM-025",
+      "claim_text": "Strategic Gears تقدم منهجية من خمس مراحل متسلسلة مصممة لتسليم جميع المخرجات الإلزامية الثلاثة والعشرين (D-1 إلى D-23) خلال مدة العقد البالغة اثني عشر شهراً",
+      "source_type": "internal",
+      "source_reference": "SG proposed methodology design",
+      "confidence": 0.9,
+      "verifiability_status": "gap",
+      "verification_note": "Cross-reference with detailed methodology section and deliverables timeline in proposal"
+    }
+  ]
+}

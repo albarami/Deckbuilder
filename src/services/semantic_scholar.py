@@ -21,6 +21,15 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+# D2: Module-level call counter for provider usage tracking
+_S2_CALL_COUNT: int = 0
+
+
+def get_s2_usage() -> dict:
+    """Return Semantic Scholar API call count for provider usage reporting."""
+    return {"calls": _S2_CALL_COUNT}
+
+
 S2_GRAPH_BASE = "https://api.semanticscholar.org/graph/v1"
 S2_RECOMMENDATIONS_BASE = "https://api.semanticscholar.org/recommendations/v1"
 S2_BULK_SEARCH_URL = f"{S2_GRAPH_BASE}/paper/search/bulk"
@@ -174,11 +183,13 @@ class SemanticScholarClient:
 
     async def _get(self, url: str, params: dict) -> dict:
         """Authenticated GET with retry on 429/500. Raises on persistent failure."""
+        global _S2_CALL_COUNT
         for attempt in range(3):
             await self._rate_limit()
             headers = {"x-api-key": self._api_key}
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 resp = await client.get(url, params=params, headers=headers)
+            _S2_CALL_COUNT += 1
             logger.info("S2 GET %s: %s params=%s", resp.status_code, url, params)
             if resp.status_code == 200:
                 return resp.json()
@@ -194,11 +205,13 @@ class SemanticScholarClient:
 
     async def _post(self, url: str, params: dict, json_data: dict) -> dict:
         """Authenticated POST with retry on 429/500. Raises on persistent failure."""
+        global _S2_CALL_COUNT
         for attempt in range(3):
             await self._rate_limit()
             headers = {"x-api-key": self._api_key}
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 resp = await client.post(url, params=params, json=json_data, headers=headers)
+            _S2_CALL_COUNT += 1
             logger.info("S2 POST %s: %s", resp.status_code, url)
             if resp.status_code == 200:
                 return resp.json()

@@ -3,7 +3,7 @@
 Section 06 ("Project Governance") defines the governance framework,
 steering committee structure, escalation paths, and reporting cadence.
 
-**Model:** Opus 4.6
+**Model:** Opus 4.7
 **Budget:** 2 b_variable slides (fixed by G2 spec)
 **Layouts:**
   - Slide 1: layout_heading_and_4_boxes_of_content (inject_multi_body)
@@ -39,7 +39,7 @@ from .g2_schemas import (
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-opus-4-6"
+MODEL = "claude-opus-4-7"
 
 # ── Placeholder index maps ───────────────────────────────────────────
 # Derived from catalog_lock_en.json

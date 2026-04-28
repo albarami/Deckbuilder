@@ -9,6 +9,7 @@ from pydantic import Field
 from .actions import ConversationResponse
 from .claims import ReferenceIndex
 from .common import DeckForgeBaseModel
+from .conformance import ConformanceReport
 from .enums import DeckMode, Language, PipelineStage, PresentationType, RendererMode, UserRole
 from .external_evidence import ExternalEvidencePack
 from .knowledge import KnowledgeGraph
@@ -126,6 +127,7 @@ class DeckForgeState(DeckForgeBaseModel):
     proposal_strategy: ProposalStrategy | None = None
     source_book: SourceBook | None = None
     source_book_review: SourceBookReview | None = None
+    conformance_report: ConformanceReport | None = None
     fallback_events: list[dict] = Field(default_factory=list)
 
     # ─── Gate 3: Research Report ───

@@ -231,6 +231,24 @@ def _scope_to_research_question(scope_en: str) -> tuple[str, str] | None:
         (["knowledge transfer", "capacity building"],
          "knowledge transfer methodologies for consulting engagements with government agencies",
          "methodology"),
+        (["stakeholder", "mapping", "engagement", "analysis"],
+         "stakeholder mapping and engagement frameworks for public sector transformation programs",
+         "methodology"),
+        (["incentive", "design", "reward", "motivation"],
+         "incentive design frameworks for government program participant engagement",
+         "service_portfolio_design"),
+        (["impact", "measurement", "outcome", "result"],
+         "impact measurement frameworks for government consulting programs",
+         "evaluation"),
+        (["activation", "launch", "rollout", "deployment"],
+         "program activation and rollout strategies for government service delivery",
+         "strategic_support"),
+        (["capacity", "building", "training", "development"],
+         "capacity building program design for government agencies",
+         "methodology"),
+        (["monitor", "evaluation", "m&e", "tracking"],
+         "monitoring and evaluation frameworks for public sector development programs",
+         "evaluation"),
     ]
 
     for keywords, question, theme in _CONCEPT_MAP:
@@ -391,6 +409,10 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
          "operating model design for government support agencies"),
         (["stakeholder", "engagement", "communication"],
          "stakeholder engagement framework for public programs"),
+        (["incentive", "design", "reward", "motivation"],
+         "incentive design models for public sector program participation"),
+        (["capacity", "building", "training", "development"],
+         "capacity building frameworks for government institutional development"),
     ]
     for keywords, query in _BUCKET_B:
         if sum(1 for kw in keywords if kw in scope_text) >= 2:
@@ -406,6 +428,10 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
          "readiness assessment framework for client segmentation"),
         (["monitor", "evaluation", "quality", "measurement"],
          "program evaluation methodology for public services"),
+        (["impact", "measurement", "outcome", "result"],
+         "impact measurement and outcome evaluation for development programs"),
+        (["benchmark", "standard", "comparison", "baseline"],
+         "benchmarking methodology for public sector service delivery"),
     ]
     for keywords, query in _BUCKET_C:
         if sum(1 for kw in keywords if kw in scope_text) >= 2:
@@ -427,6 +453,21 @@ def _generate_s2_queries(state: DeckForgeState) -> list[str]:
             if query not in queries:
                 queries.append(query)
                 _QUERY_THEME_MAP[query] = "analogical_domain"
+
+    # 6. Bucket E — Program design/activation queries (theme: program_design)
+    _BUCKET_E = [
+        (["activation", "launch", "rollout", "deployment"],
+         "program activation strategies for public sector initiatives"),
+        (["design", "program", "intervention", "initiative"],
+         "program design methodology for government development initiatives"),
+        (["stakeholder", "mapping", "analysis", "engagement"],
+         "stakeholder mapping methodology for multi-party government programs"),
+    ]
+    for keywords, query in _BUCKET_E:
+        if sum(1 for kw in keywords if kw in scope_text) >= 2:
+            if query not in queries:
+                queries.append(query)
+                _QUERY_THEME_MAP[query] = "program_design"
 
     if not queries:
         queries.append("consulting methodology evaluation framework")
@@ -623,6 +664,96 @@ async def _gather_raw_evidence(
     }
 
 
+def _decontaminate_queries(
+    queries: list[str],
+    state: DeckForgeState,
+) -> list[str]:
+    """C1: Strip or rephrase queries that overlap >70% with the current RFP title.
+
+    Prevents search engines from returning the current RFP document itself
+    as "external evidence."
+    """
+    if not state.rfp_context or not state.rfp_context.rfp_name:
+        return queries
+
+    rfp_title_tokens: set[str] = set()
+    for text in (
+        getattr(state.rfp_context.rfp_name, "en", "") or "",
+        getattr(state.rfp_context.rfp_name, "ar", "") or "",
+    ):
+        if text:
+            rfp_title_tokens.update(
+                t.lower().strip() for t in text.split() if len(t) > 3
+            )
+
+    if not rfp_title_tokens:
+        return queries
+
+    clean: list[str] = []
+    for q in queries:
+        q_tokens = {t.lower().strip() for t in q.split() if len(t) > 3}
+        if not q_tokens:
+            clean.append(q)
+            continue
+        overlap = len(q_tokens & rfp_title_tokens) / len(q_tokens)
+        if overlap > 0.7:
+            logger.info(
+                "Query decontamination: stripped query with %.0f%% RFP overlap: %s",
+                overlap * 100, q[:80],
+            )
+        else:
+            clean.append(q)
+    return clean
+
+
+def _decontaminate_evidence_pack(
+    pack: ExternalEvidencePack,
+    state: DeckForgeState,
+) -> ExternalEvidencePack:
+    """C2: Remove sources whose title overlaps >60% with the current RFP title.
+
+    Prevents the current RFP document from appearing as external evidence.
+    """
+    if not state.rfp_context or not state.rfp_context.rfp_name:
+        return pack
+
+    rfp_title_tokens: set[str] = set()
+    for text in (
+        getattr(state.rfp_context.rfp_name, "en", "") or "",
+        getattr(state.rfp_context.rfp_name, "ar", "") or "",
+    ):
+        if text:
+            rfp_title_tokens.update(
+                t.lower().strip() for t in text.split() if len(t) > 3
+            )
+
+    if not rfp_title_tokens:
+        return pack
+
+    clean_sources: list[ExternalSource] = []
+    for source in pack.sources:
+        title = (source.title or "").strip()
+        if not title:
+            clean_sources.append(source)
+            continue
+        title_tokens = {t.lower().strip() for t in title.split() if len(t) > 3}
+        if not title_tokens:
+            clean_sources.append(source)
+            continue
+        overlap = len(title_tokens & rfp_title_tokens) / len(title_tokens)
+        if overlap > 0.6:
+            logger.warning(
+                "Evidence decontamination: stripped source '%s' "
+                "(%.0f%% title overlap with current RFP)",
+                title[:80], overlap * 100,
+            )
+        else:
+            clean_sources.append(source)
+
+    pack.sources = clean_sources
+    return pack
+
+
 async def run(state: DeckForgeState) -> dict:
     """Run the External Research Agent with two-pass coverage strategy.
 
@@ -640,6 +771,11 @@ async def run(state: DeckForgeState) -> dict:
 
     pplx_queries = _generate_pplx_queries(state)
     s2_queries = _generate_s2_queries(state)
+
+    # C1: Query decontamination — strip queries that are just the RFP title
+    pplx_queries = _decontaminate_queries(pplx_queries, state)
+    s2_queries = _decontaminate_queries(s2_queries, state)
+
     all_queries = _deduplicate(pplx_queries + s2_queries)
 
     # Build per-query service map — tracks which service each query is sent to
@@ -741,7 +877,7 @@ async def run(state: DeckForgeState) -> dict:
     try:
         model = MODEL_MAP.get(
             "external_research_agent",
-            MODEL_MAP.get("conversation_manager", "claude-sonnet-4-20250514"),
+            MODEL_MAP.get("conversation_manager", "claude-sonnet-4-6"),
         )
         llm_result = await call_llm(
             model=model,
@@ -753,6 +889,10 @@ async def run(state: DeckForgeState) -> dict:
         evidence_pack = llm_result.parsed
         evidence_pack.search_queries_used = queries
         evidence_pack.query_service_map = _query_service_map
+
+        # C2: Evidence pack decontamination — remove current-RFP self-references
+        evidence_pack = _decontaminate_evidence_pack(evidence_pack, state)
+
         _classify_evidence_tiers(evidence_pack)
         _append_tier_counts(evidence_pack)
 

@@ -56,10 +56,41 @@ logger = logging.getLogger(__name__)
 
 
 async def context_node(state: DeckForgeState) -> dict[str, Any]:
-    """Run Context Agent — parse RFP intake into structured context."""
+    """Run Context Agent — parse RFP intake into structured context.
+
+    After context extraction succeeds, runs the Hard Requirement Extractor
+    to populate rfp_context.hard_requirements for downstream conformance
+    validation.
+    """
     result = await context_agent.run(state)
+
+    # ── Hard Requirement Extraction (Conformance Architecture) ──
+    rfp_context = result.rfp_context
+    if rfp_context is not None:
+        try:
+            from src.services.hard_requirement_extractor import extract_hard_requirements
+
+            # Build raw text from uploaded documents for Layer 2
+            rfp_raw_text = "\n\n".join(
+                doc.content_text for doc in state.uploaded_documents
+                if doc.content_text
+            )
+            output_language = state.output_language or "en"
+
+            hard_reqs = await extract_hard_requirements(
+                rfp_context, rfp_raw_text, output_language,
+            )
+            rfp_context.hard_requirements = hard_reqs
+            logger.info(
+                "Hard requirement extraction: %d requirements extracted",
+                len(hard_reqs),
+            )
+        except Exception as e:
+            logger.error("Hard requirement extraction failed: %s", e)
+            # Non-fatal — pipeline continues without hard requirements
+
     return {
-        "rfp_context": result.rfp_context,
+        "rfp_context": rfp_context,
         "current_stage": result.current_stage,
         "session": result.session,
         "errors": result.errors,
@@ -586,6 +617,88 @@ async def proposal_strategy_node(state: DeckForgeState) -> dict[str, Any]:
     return await proposal_strategy_agent.run(state)
 
 
+def _build_compact_repair_plan(report: Any) -> str:
+    """Build a bounded conformance repair plan for the writer's rewrite pass.
+
+    Unlike the full format_conformance_for_writer() which grows unboundedly,
+    this produces a compact, section-grouped plan with only:
+    - All unresolved CRITICAL failures (mandatory)
+    - Top 5 MAJOR failures (if space permits)
+    - No forbidden-claim prose dump (just the count + directive)
+    - Total budget: ~1500 chars max
+
+    This keeps the rewrite payload bounded across passes instead of
+    accumulating prior feedback indefinitely.
+    """
+    lines: list[str] = []
+
+    # Count by severity
+    all_failures = (
+        report.missing_required_commitments
+        + report.forbidden_claims
+        + report.structural_mismatches
+    )
+    critical = [f for f in all_failures if f.severity == "critical"]
+    major = [f for f in all_failures if f.severity == "major"]
+
+    lines.append(f"CONFORMANCE REPAIR ({len(critical)} critical, {len(major)} major failures)")
+
+    # Group critical failures by section — compact one-liner per failure
+    section_fixes: dict[str, list[str]] = {}
+    for f in critical:
+        section = f.source_book_section or "general"
+        section_fixes.setdefault(section, [])
+        # Use suggested_fix if available, otherwise a truncated failure_reason
+        fix = f.suggested_fix[:100] if f.suggested_fix else f.failure_reason[:100]
+        section_fixes[section].append(f"{f.requirement_id}: {fix}")
+
+    for section, fixes in sorted(section_fixes.items()):
+        lines.append(f"\n[{section}]")
+        for fix in fixes[:8]:  # Cap at 8 per section
+            lines.append(f"  • {fix}")
+
+    # Forbidden claims: just count + directive, no prose dump
+    forbidden_count = len(report.forbidden_claims)
+    if forbidden_count > 0:
+        lines.append(f"\nFORBIDDEN: {forbidden_count} absolute/contradictory claims. "
+                      "Remove ALL unverified certainty language.")
+
+    # Top major failures (cap at 5)
+    if major:
+        lines.append(f"\nMAJOR ({len(major)} total, showing top 5):")
+        for f in major[:5]:
+            fix = f.suggested_fix[:80] if f.suggested_fix else f.failure_reason[:80]
+            lines.append(f"  • {f.requirement_id}: {fix}")
+
+    # Targeted injection directives for the most common remaining gaps
+    compliance_misses = [
+        f for f in critical
+        if "compliance" in (f.source_book_section or "").lower()
+        or "compliance" in f.failure_reason.lower()
+    ]
+    if compliance_misses:
+        lines.append(
+            f"\nSECTION 1 COMPLIANCE DIRECTIVE: {len(compliance_misses)} compliance items "
+            "are not findable by the validator. For each, add it EXPLICITLY to "
+            "key_compliance_requirements as a COMP-xxx entry with the EXACT RFP wording. "
+            "Also add a matching compliance_row if not already present."
+        )
+
+    deliverable_misses = [
+        f for f in critical
+        if "deliverable" in f.failure_reason.lower()
+    ]
+    if deliverable_misses:
+        lines.append(
+            f"\nSECTION 5 DELIVERABLE DIRECTIVE: {len(deliverable_misses)} mandatory "
+            "deliverables are not findable by the validator. For each, add it to the "
+            "matching phase's deliverables list with the EXACT RFP deliverable name. "
+            "The validator checks phase_details[].deliverables for each mandatory HR."
+        )
+
+    return "\n".join(lines)
+
+
 def _build_gate3_feedback_for_writer(state: DeckForgeState) -> str:
     """Build feedback string combining Gate 3 human feedback and Red Team review.
 
@@ -620,10 +733,13 @@ def _build_gate3_feedback_for_writer(state: DeckForgeState) -> str:
 
 
 async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
-    """Source Book — iterative Writer/Reviewer loop producing Source Book DOCX.
+    """Source Book — iterative Writer/Conformance/Reviewer loop.
 
-    Runs the Source Book Writer, then Reviewer, iterating up to 5 passes
-    until the review threshold is met (overall >= 4, no section < 3).
+    Restructured iteration loop (Conformance Architecture):
+      Writer → Conformance Validator → Reviewer
+    Each pass feeds conformance failures + forbidden claims to the next
+    writer pass. Acceptance requires BOTH conformance pass + reviewer threshold.
+
     Exports DOCX and populates report_markdown from the approved Source Book.
 
     On Gate 3 rejection rewrite: the first pass includes Gate 3 human
@@ -631,6 +747,10 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     priority labeling so the writer addresses it first.
     """
     from src.agents.source_book import orchestrator, reviewer, writer
+    from src.agents.source_book.conformance_validator import (
+        format_conformance_for_reviewer,
+        validate_conformance,
+    )
     from src.services.routing import route_rfp
     from src.services.source_book_export import export_source_book_docx
 
@@ -648,12 +768,18 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     max_passes = 5
     current_state = state
     all_fallback_events: list[dict[str, Any]] = []
+    conformance_report = None
+
+    # Extract hard requirements for conformance validation
+    hard_requirements = []
+    if state.rfp_context and state.rfp_context.hard_requirements:
+        hard_requirements = state.rfp_context.hard_requirements
 
     # Gate 3 rejection feedback — inject into first pass if present
     gate3_feedback = _build_gate3_feedback_for_writer(state)
 
     for pass_num in range(1, max_passes + 1):
-        # Writer pass
+        # Writer pass (receives conformance failures from previous iteration)
         reviewer_feedback = ""
         if pass_num == 1 and gate3_feedback:
             # First pass after Gate 3 rejection: use merged feedback
@@ -662,6 +788,13 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
             reviewer_feedback = orchestrator.build_reviewer_feedback(
                 current_state.source_book_review
             )
+            # Append compact conformance repair plan — NOT the full prose
+            # feedback. Only unresolved critical + top major failures, grouped
+            # by section. Keeps rewrite payload bounded across passes.
+            if conformance_report and conformance_report.conformance_status != "pass":
+                repair_lines = _build_compact_repair_plan(conformance_report)
+                if repair_lines:
+                    reviewer_feedback = reviewer_feedback + "\n\n" + repair_lines
 
         writer_result = await writer.run(
             current_state,
@@ -698,13 +831,38 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
                 break
             return updates
 
-        # Temporarily update state for reviewer
+        # Temporarily update state for conformance + reviewer
         current_state = state.model_copy(
             update={
                 "source_book": source_book,
                 "session": updates.get("session", state.session),
             },
         )
+
+        # ── Conformance Validation (runs BEFORE reviewer) ──
+        if hard_requirements:
+            try:
+                conformance_report = await validate_conformance(
+                    source_book=source_book,
+                    hard_requirements=hard_requirements,
+                    rfp_context=state.rfp_context,
+                    uploaded_documents=list(state.uploaded_documents),
+                )
+                logger.info(
+                    "Conformance pass %d: status=%s, checked=%d, failed=%d",
+                    pass_num,
+                    conformance_report.conformance_status,
+                    conformance_report.hard_requirements_checked,
+                    conformance_report.hard_requirements_failed,
+                )
+
+                # Store conformance report on state for downstream use
+                current_state = current_state.model_copy(
+                    update={"conformance_report": conformance_report},
+                )
+            except Exception as e:
+                logger.error("Conformance validation failed on pass %d: %s", pass_num, e)
+                conformance_report = None
 
         # Reviewer pass
         review_result = await reviewer.run(current_state)
@@ -749,11 +907,31 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
                 "; ".join(review.coherence_issues[:3]),
             )
 
-        # Check if we should stop
-        if not orchestrator.should_continue_iteration(
-            review, current_pass=pass_num, max_passes=max_passes
-        ):
-            break
+        # ── Acceptance check (requires BOTH conformance + reviewer) ──
+        if conformance_report and hard_requirements:
+            if orchestrator.should_accept_source_book(review, conformance_report):
+                logger.info(
+                    "Source Book ACCEPTED at pass %d "
+                    "(conformance pass + reviewer threshold)",
+                    pass_num,
+                )
+                break
+            elif pass_num >= max_passes:
+                logger.warning(
+                    "Source Book NOT accepted after %d passes "
+                    "(conformance=%s, reviewer=%s)",
+                    pass_num,
+                    conformance_report.conformance_status,
+                    review.pass_threshold_met,
+                )
+                break
+            # else: continue to next pass
+        else:
+            # Fallback to legacy acceptance (no hard requirements extracted)
+            if not orchestrator.should_continue_iteration(
+                review, current_pass=pass_num, max_passes=max_passes
+            ):
+                break
 
     # ── Dedicated evidence ledger extraction ─────────────────────
     # After all Writer/Reviewer passes, run a dedicated LLM call to
@@ -787,6 +965,62 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
                 )
 
             if ledger_entries:
+                # Decontaminate: strip ledger claims that reference the
+                # current RFP as if it were a prior project.
+                import re as _re
+
+                def _clean_tokens(text: str) -> set[str]:
+                    """Tokenize with punctuation stripping + Arabic و prefix."""
+                    # Strip punctuation (parens, colons, dashes, etc.)
+                    cleaned = _re.sub(r"[():\-\[\]{}،؛.,'\"«»/]", " ", text)
+                    tokens = set(t.lower() for t in cleaned.split() if len(t) > 2)
+                    # Expand Arabic conjunctive prefix و
+                    expanded = set()
+                    for t in tokens:
+                        expanded.add(t)
+                        if t.startswith("و") and len(t) > 3:
+                            expanded.add(t[1:])
+                    return expanded
+
+                # Build RFP title tokens — use Arabic title only to avoid
+                # inflating the denominator with English translations
+                rfp_title_tokens: set[str] = set()
+                if state.rfp_context:
+                    ar_title = state.rfp_context.rfp_name.ar or ""
+                    if ar_title:
+                        rfp_title_tokens = _clean_tokens(ar_title)
+                    if not rfp_title_tokens:
+                        # Fallback to English if no Arabic title
+                        en_title = state.rfp_context.rfp_name.en or ""
+                        if en_title:
+                            rfp_title_tokens = _clean_tokens(en_title)
+
+                if rfp_title_tokens:
+                    clean_entries = []
+                    stripped = 0
+                    for entry in ledger_entries:
+                        claim_tokens = _clean_tokens(
+                            entry.claim_text + " " + entry.source_reference
+                        )
+                        smaller = min(len(rfp_title_tokens), len(claim_tokens)) or 1
+                        overlap = len(rfp_title_tokens & claim_tokens) / smaller
+                        if overlap >= 0.5 and entry.source_type == "internal":
+                            stripped += 1
+                            logger.warning(
+                                "Evidence extractor decontamination: stripped "
+                                "claim '%s' (%.0f%% overlap with current RFP)",
+                                entry.claim_id, overlap * 100,
+                            )
+                        else:
+                            clean_entries.append(entry)
+                    if stripped:
+                        logger.info(
+                            "Evidence extractor decontamination: %d claims "
+                            "stripped, %d retained",
+                            stripped, len(clean_entries),
+                        )
+                    ledger_entries = clean_entries
+
                 from src.models.source_book import EvidenceLedger
 
                 final_sb.evidence_ledger = EvidenceLedger(
@@ -877,6 +1111,7 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     result: dict[str, Any] = {
         "source_book": current_state.source_book,
         "source_book_review": current_state.source_book_review,
+        "conformance_report": conformance_report,
         "report_markdown": report_md,
         "report_docx_path": exported_docx_path,
         "session": current_state.session,

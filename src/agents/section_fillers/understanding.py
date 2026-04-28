@@ -3,7 +3,7 @@
 Section 01 ("Understanding") demonstrates deep comprehension of the
 client's challenge, strategic context, and desired outcomes.
 
-**Model:** Opus 4.6
+**Model:** Opus 4.7
 **Budget:** 3 b_variable slides (fixed by G2 spec)
 **Layouts:**
   - Slide 1: layout_heading_and_two_content_with_tiltes (inject_multi_body)
@@ -36,7 +36,7 @@ from .g2_schemas import (
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-opus-4-6"
+MODEL = "claude-opus-4-7"
 
 # ── Placeholder index maps ───────────────────────────────────────────
 # Derived from catalog_lock_en.json

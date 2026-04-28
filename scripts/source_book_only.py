@@ -36,6 +36,11 @@ if sys.platform == "win32":
 
 from dotenv import load_dotenv  # noqa: E402
 
+# D3: Key-source diagnostic BEFORE load_dotenv merges .env into process env
+from src.services.key_audit import print_key_diagnostic  # noqa: E402
+
+print_key_diagnostic()
+
 load_dotenv(override=True)
 
 logging.basicConfig(
@@ -275,6 +280,7 @@ async def run_source_book_only(
     # ── Extract all Source Book data ──
     source_book = result.get("source_book")
     source_book_review = result.get("source_book_review")
+    conformance_report = result.get("conformance_report")
     ext_evidence = result.get("external_evidence_pack")
     knowledge_graph = result.get("knowledge_graph")
     docx_path = result.get("report_docx_path")
@@ -341,7 +347,20 @@ async def run_source_book_only(
             for v in blueprint_violations[:5]:
                 print(f"      - {v}")
 
-    # 4. external_evidence_pack.json
+    # 4. conformance_report.json
+    conformance_path = None
+    conformance_status = "not_run"
+    if conformance_report:
+        cr_data = conformance_report.model_dump(mode="json")
+        conformance_status = cr_data.get("conformance_status", "unknown")
+        conformance_path = str(output_dir / "conformance_report.json")
+        Path(conformance_path).write_text(
+            json.dumps(cr_data, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        print(f"  Conformance report: {conformance_path} (status={conformance_status})")
+
+    # 5. external_evidence_pack.json
     ext_path = None
     ext_source_count = 0
     if ext_evidence:
@@ -548,9 +567,29 @@ async def run_source_book_only(
         )
     if source_book_review and not reviewer_threshold_met:
         failures.append(
-            f"Reviewer never passed threshold after {pass_number} passes "
+            f"Reviewer threshold not met "
             f"(final score={review_score}/5, threshold_met={reviewer_threshold_met}, "
             f"viability={competitive_viability})"
+        )
+    if conformance_report and conformance_status == "fail":
+        critical_count = sum(
+            1 for f in conformance_report.missing_required_commitments
+            if f.severity == "critical"
+        )
+        forbidden_count = len(conformance_report.forbidden_claims)
+        failures.append(
+            f"Conformance validation failed: {conformance_report.hard_requirements_failed} "
+            f"requirements failed ({critical_count} critical, {forbidden_count} forbidden claims). "
+            f"Decision: {conformance_report.final_acceptance_decision}"
+        )
+    elif conformance_report and conformance_status == "blocked":
+        blocked_inputs = [
+            mi.input_name for mi in conformance_report.missing_inputs
+            if mi.severity == "critical" and mi.validation_scope == "source_book"
+        ]
+        failures.append(
+            f"Conformance blocked by missing inputs: {', '.join(blocked_inputs) or 'unknown'}. "
+            f"Decision: {conformance_report.final_acceptance_decision}"
         )
 
     if index_status == "DEGRADED" and not source_book:
@@ -593,6 +632,16 @@ async def run_source_book_only(
     if source_book_review and source_book_review.rewrite_required:
         print(f"  Rewrite still required:          True")
 
+    print("\n  --- Conformance ---")
+    print(f"  Conformance status:              {conformance_status}")
+    if conformance_report:
+        print(f"  Requirements checked:            {conformance_report.hard_requirements_checked}")
+        print(f"  Requirements passed:             {conformance_report.hard_requirements_passed}")
+        print(f"  Requirements failed:             {conformance_report.hard_requirements_failed}")
+        print(f"  Forbidden claims:                {len(conformance_report.forbidden_claims)}")
+        print(f"  Missing inputs:                  {len(conformance_report.missing_inputs)}")
+        print(f"  Final acceptance:                {conformance_report.final_acceptance_decision}")
+
     print("\n  --- Fallback Usage ---")
     if fallback_events:
         for fe in fallback_events:
@@ -622,6 +671,7 @@ async def run_source_book_only(
         ("Source Book DOCX", docx_path),
         ("Evidence Ledger JSON", ledger_path),
         ("Slide Blueprint JSON", blueprint_path),
+        ("Conformance Report JSON", conformance_path),
         ("External Evidence Pack", ext_path),
         ("Research Query Log", query_log_path),
         ("Research Results Raw", raw_path),
@@ -639,6 +689,13 @@ async def run_source_book_only(
     for label, elapsed in stages:
         print(f"    {elapsed:7.1f}s  {label}")
     print(f"    {total_time:7.1f}s  TOTAL")
+
+    # ── Provider Usage (D2) ──
+    from src.services.perplexity import get_perplexity_usage
+    from src.services.semantic_scholar import get_s2_usage
+
+    perplexity_usage = get_perplexity_usage()
+    s2_usage = get_s2_usage()
 
     # ── API Cost Summary ──
     cost_data = get_cost_summary()
@@ -697,12 +754,23 @@ async def run_source_book_only(
         "reviewer_final_score": review_score,
         "reviewer_threshold_met": reviewer_threshold_met,
         "competitive_viability": competitive_viability,
+        "conformance_status": conformance_status,
+        "conformance_decision": conformance_report.final_acceptance_decision if conformance_report else "not_run",
+        "conformance_checked": conformance_report.hard_requirements_checked if conformance_report else 0,
+        "conformance_passed": conformance_report.hard_requirements_passed if conformance_report else 0,
+        "conformance_failed": conformance_report.hard_requirements_failed if conformance_report else 0,
+        "conformance_forbidden_claims": len(conformance_report.forbidden_claims) if conformance_report else 0,
         "fallback_events": fallback_events,
         "routing_report": routing_report,
         "total_time": total_time,
         "docx_path": docx_path,
         "artifacts": {k: v for k, v in artifacts},
         "cost": cost_data,
+        "provider_usage": {
+            **cost_data.get("provider_breakdown", {}),
+            "perplexity": perplexity_usage,
+            "semantic_scholar": s2_usage,
+        },
     }
 
 

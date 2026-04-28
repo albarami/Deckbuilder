@@ -1,0 +1,101 @@
+{
+  "missing_required_commitments": [
+    {
+      "requirement_id": "HR-L1-002",
+      "requirement_text": "Compliance: Valid commercial registration.",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: Valid commercial registration."
+    },
+    {
+      "requirement_id": "HR-L1-003",
+      "requirement_text": "Compliance: Valid Zakat certificate.",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: Valid Zakat certificate."
+    },
+    {
+      "requirement_id": "HR-L1-004",
+      "requirement_text": "Compliance: Valid Chamber of Commerce membership certificate.",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: Valid Chamber of Commerce membership certificate."
+    },
+    {
+      "requirement_id": "HR-L1-005",
+      "requirement_text": "Compliance: Valid Saudization certificate.",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: Valid Saudization certificate."
+    },
+    {
+      "requirement_id": "HR-L1-008",
+      "requirement_text": "Compliance: Confidentiality and non-disclosure of competition information without written approval.",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: Confidentiality and non-disclosure of competition information without written approval."
+    },
+    {
+      "requirement_id": "HR-L1-009",
+      "requirement_text": "Compliance: No alternative bids are accepted.",
+      "failure_reason": "Compliance requirement not addressed in Source Book",
+      "severity": "critical",
+      "source_book_section": "rfp_interpretation",
+      "suggested_fix": "Address compliance requirement in Section 1: No alternative bids are accepted."
+    },
+    {
+      "requirement_id": "HR-L2-001",
+      "requirement_text": "The Source Book (proposal document) does not include any mention of the government entity announcing the winning bid on the portal and notifying the winner. This is a procurement procedural requiremen",
+      "failure_reason": "The Source Book (proposal document) does not include any mention of the government entity announcing the winning bid on the portal and notifying the winner. This is a procurement procedural requirement that is not addressed in the proposal's methodology, phases, or governance sections.",
+      "severity": "major",
+      "source_book_section": "rfp_interpretation > constraints_and_compliance",
+      "suggested_fix": "Add an acknowledgment in the compliance/constraints section that the proposer understands and accepts that SDAIA will announce the winning bid on the government procurement portal (منافسات) and notify the winner per Article requirements. This is typically a procuring-entity obligation, but the proposal should reference awareness of this process."
+    },
+    {
+      "requirement_id": "HR-L2-002",
+      "requirement_text": "The Source Book does not reference the minimum content requirements for the award announcement (winner identity, competition information, contract duration and location). No section addresses or ackno",
+      "failure_reason": "The Source Book does not reference the minimum content requirements for the award announcement (winner identity, competition information, contract duration and location). No section addresses or acknowledges these announcement content requirements.",
+      "severity": "major",
+      "source_book_section": "rfp_interpretation > constraints_and_compliance",
+      "suggested_fix": "Include in the compliance section an acknowledgment that the award announcement will contain the minimum required information: the winning bidder's identity, competition details, and contract execution duration and location. Ensure the proposal provides clear information (e.g., contract duration, execution location) so SDAIA can fulfill this announcement requirement."
+    },
+    {
+      "requirement_id": "HR-L2-003",
+      "requirement_text": "The Source Book does not mention the requirement to notify other competitors of the competition results. There is no reference to this procedural obligation anywhere in the proposal.",
+      "failure_reason": "The Source Book does not mention the requirement to notify other competitors of the competition results. There is no reference to this procedural obligation anywhere in the proposal.",
+      "severity": "major",
+      "source_book_section": "rfp_interpretation > constraints_and_compliance",
+      "suggested_fix": "Add a statement in the compliance/constraints section acknowledging that other competitors will be notified of the competition results as per government procurement regulations. This is primarily a procuring-entity obligation but should be acknowledged for completeness."
+    },
+    {
+      "requirement_id": "HR-L2-004",
+      "requirement_text": "The Source Book does not address the rule that a competitor who refuses to reprice their bid will be excluded from the competition. There is no mention of repricing procedures or exclusion consequence",
+      "failure_reason": "The Source Book does not address the rule that a competitor who refuses to reprice their bid will be excluded from the competition. There is no mention of repricing procedures or exclusion consequences in any section of the proposal.",
+      "severity": "major",
+      "source_book_section": "rfp_interpretation > constraints_and_compliance",
+      "suggested_fix": "Add a clause in the compliance/constraints section acknowledging the repricing rule: if the bidder is asked to reprice and refuses, they will be excluded from the competition and their guarantee returned. The proposal should explicitly state the bidder's willingness to comply with repricing requests if applicable."
+    }
+  ],
+  "forbidden_claims": [
+    {
+      "requirement_id": "FORBIDDEN-ABS",
+      "requirement_text": "No absolute/unverifiable claims",
+      "failure_reason": "Absolute claim detected: ...n_content\": [\"أسماء مستشارين غير مؤكدين\", \"ادعاء 'مطابقة 100%'\", \"سير ذاتية بدون تأكيد من Engine 2\"]}, {\"slide_...",
+      "severity": "major",
+      "source_book_section": "multiple",
+      "suggested_fix": "Replace absolute claim with qualified language"
+    }
+  ],
+  "structural_mismatches": [],
+  "missing_inputs": [],
+  "conformance_status": "fail",
+  "final_acceptance_decision": "reject",
+  "hard_requirements_checked": 16,
+  "hard_requirements_passed": 6,
+  "hard_requirements_failed": 10
+}

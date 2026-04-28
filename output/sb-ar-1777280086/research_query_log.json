@@ -1,0 +1,149 @@
+{
+  "timestamp": "2026-04-27T16:49:33",
+  "queries_sent": [
+    {
+      "query": "how do investment promotion agencies assess company needs and prioritize service delivery",
+      "query_theme": "needs_assessment",
+      "services_requested": [
+        "perplexity"
+      ],
+      "services_actual": [
+        "perplexity"
+      ],
+      "retained_sources_count": 2
+    },
+    {
+      "query": "how do government agencies design service portfolios for companies expanding internationally",
+      "query_theme": "service_portfolio_design",
+      "services_requested": [
+        "perplexity"
+      ],
+      "services_actual": [
+        "perplexity"
+      ],
+      "retained_sources_count": 0
+    },
+    {
+      "query": "how do government agencies implement Training knowledge transfer government entity’s programs",
+      "query_theme": "methodology",
+      "services_requested": [
+        "perplexity"
+      ],
+      "services_actual": [
+        "perplexity"
+      ],
+      "retained_sources_count": 0
+    },
+    {
+      "query": "how do government agencies implement Development UNESCO programs research ethics",
+      "query_theme": "unclassified",
+      "services_requested": [
+        "perplexity"
+      ],
+      "services_actual": [
+        "perplexity"
+      ],
+      "retained_sources_count": 4
+    },
+    {
+      "query": "needs assessment methodology for government service agencies",
+      "query_theme": "methodology",
+      "services_requested": [
+        "semantic_scholar"
+      ],
+      "services_actual": [
+        "semantic_scholar"
+      ],
+      "retained_sources_count": 2
+    },
+    {
+      "query": "service portfolio design framework for public agencies",
+      "query_theme": "methodology",
+      "services_requested": [
+        "semantic_scholar"
+      ],
+      "services_actual": [
+        "semantic_scholar"
+      ],
+      "retained_sources_count": 2
+    },
+    {
+      "query": "capacity building frameworks for government institutional development",
+      "query_theme": "institutional_model",
+      "services_requested": [
+        "semantic_scholar"
+      ],
+      "services_actual": [
+        "semantic_scholar"
+      ],
+      "retained_sources_count": 2
+    },
+    {
+      "query": "service level agreement design for public agencies",
+      "query_theme": "evaluation",
+      "services_requested": [
+        "semantic_scholar"
+      ],
+      "services_actual": [
+        "semantic_scholar"
+      ],
+      "retained_sources_count": 0
+    },
+    {
+      "query": "readiness assessment framework for client segmentation",
+      "query_theme": "evaluation",
+      "services_requested": [
+        "semantic_scholar"
+      ],
+      "services_actual": [
+        "semantic_scholar"
+      ],
+      "retained_sources_count": 1
+    }
+  ],
+  "theme_coverage": {
+    "needs_assessment": {
+      "retained_sources": 2,
+      "status": "weak"
+    },
+    "service_portfolio_design": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "institutional_framework": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "strategic_support": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "methodology": {
+      "retained_sources": 4,
+      "status": "covered"
+    },
+    "institutional_model": {
+      "retained_sources": 2,
+      "status": "weak"
+    },
+    "evaluation": {
+      "retained_sources": 1,
+      "status": "weak"
+    },
+    "analogical_domain": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "pack_curated": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "local_public_context": {
+      "retained_sources": 0,
+      "status": "gap"
+    }
+  },
+  "snippet_enrichment_status": "available_but_not_invoked",
+  "author_enrichment_status": "available_but_not_invoked",
+  "coverage_assessment": "The evidence pack provides strong coverage across all three RFP scope areas. \n\nSCOPE 1 (Current State Assessment — Performance Analysis, Maturity Assessment, Gap Identification): Well-covered by EXT-001 (UNESCO RAM tool), EXT-003 (UNESCO RS|SR reporting indicators), EXT-007 (AI readiness 8-dimension TOE framework), EXT-008 (WHO institutional capacity assessment methodology), and EXT-004/EXT-005 (IPA needs assessment analogies). The UNESCO-specific normative instruments (EXT-001, EXT-002, EXT-003) provide primary-tier evidence directly anchoring the assessment methodology.\n\nSCOPE 2 (Program Design — Initiatives, Frameworks, Scope of Work, SDG Linkage): Covered by EXT-001 (UNESCO Recommendation framework), EXT-002 (UNESCO EEP/ABC/GEObs programme models), EXT-010 (public sector business model development), EXT-011 (Digital Service Standards innovation management), EXT-013 (SDG budget tagging and alignment), and EXT-015 (cooperation mechanisms via KTPs). Coverage is solid but would benefit from additional case studies of AI ethics program design in Arab/GCC government contexts.\n\nSCOPE 3 (Training & Knowledge Transfer): Well-covered by EXT-006 (APQC knowledge transfer framework), EXT-009 (competency-based capacity building), EXT-014 (government official capacity building), and EXT-015 (knowledge translation platforms).\n\nEVIDENCE GAPS IDENTIFIED:\n1. No local Saudi Arabia or GCC-specific evidence on AI ethics governance or UNESCO program implementation — all evidence is international/analogical. This is a significant gap for a Saudi government client.\n2. No direct evidence on AI ethics maturity benchmarks specific to Arab states or MENA region.\n3. No evidence on service level agreement design for public agencies (one of the original search queries returned no usable results above 0.5 relevance threshold).\n4. Limited evidence on the specific UNESCO AI ethics Readiness Assessment Methodology (RAM) implementation in practice — the RAM tool is referenced but no empirical case studies of its application were found.\n5. No evidence on cooperation mechanism design between government entities and international organizations in the AI/technology ethics domain specifically.\n\nEvidence Tier Breakdown: primary_source_count: 6, secondary_source_count: 8, analogical_source_count: 0"
+}

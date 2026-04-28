@@ -296,11 +296,53 @@ def _engine1_guard(
             len(kg_names),
         )
 
+    # ── Guard: Project-evidence leakage (B6) ────────────────
+    # Build current RFP identifiers to detect self-referential project evidence
+    current_rfp_identifiers: set[str] = set()
+    if state.rfp_context:
+        for field_name in ("rfp_name", "issuing_entity"):
+            val = getattr(state.rfp_context, field_name, None)
+            if val:
+                en = getattr(val, "en", "") or ""
+                ar = getattr(val, "ar", "") or ""
+                for text in (en, ar):
+                    if text:
+                        tokens = {t.lower().strip() for t in text.split() if len(t) > 3}
+                        current_rfp_identifiers.update(tokens)
+        # Add scope keywords (first 3 words of each scope item)
+        for si in (state.rfp_context.scope_items or [])[:5]:
+            desc = si.description
+            en = getattr(desc, "en", "") or ""
+            if en:
+                tokens = {t.lower().strip() for t in en.split()[:3] if len(t) > 3}
+                current_rfp_identifiers.update(tokens)
+
+    def _rfp_token_overlap(project_name: str) -> float:
+        """Compute token overlap ratio between project name and current RFP."""
+        if not current_rfp_identifiers or not project_name:
+            return 0.0
+        proj_tokens = {t.lower().strip() for t in project_name.split() if len(t) > 3}
+        if not proj_tokens:
+            return 0.0
+        overlap = proj_tokens & current_rfp_identifiers
+        return len(overlap) / len(proj_tokens)
+
     # ── Guard: Projects ───────────────────────────────────
     real_projects = []
     fabricated_projects: list[str] = []
+    leakage_stripped: list[str] = []
     for pe in wsg.project_experience:
         proj_lower = pe.project_name.strip().lower() if pe.project_name else ""
+        # B6: Check for current-RFP leakage (project that IS the current opportunity)
+        overlap = _rfp_token_overlap(pe.project_name or "")
+        if overlap > 0.6:
+            leakage_stripped.append(pe.project_name or "(unnamed)")
+            logger.warning(
+                "Engine 1 guard: stripped leaked project '%s' "
+                "(%.0f%% token overlap with current RFP)",
+                pe.project_name, overlap * 100,
+            )
+            continue
         if kg_project_names and proj_lower in kg_project_names:
             real_projects.append(pe)
         elif not kg_project_names:
@@ -316,6 +358,12 @@ def _engine1_guard(
             len(fabricated_projects),
             len(kg_project_names),
             fabricated_projects[:5],
+        )
+    if leakage_stripped:
+        logger.warning(
+            "Engine 1 guard: stripped %d leaked projects (current RFP self-references): %s",
+            len(leakage_stripped),
+            leakage_stripped[:5],
         )
     wsg.project_experience = real_projects
 
@@ -936,9 +984,100 @@ def _build_shared_context(
             if sid:
                 available_ext_ids.append(sid)
 
+    # B3: Extract mandatory phase structure from deliverable_schedule
+    mandatory_phase_structure = None
+    if state.rfp_context and state.rfp_context.project_timeline:
+        pt = state.rfp_context.project_timeline
+        if pt.deliverable_schedule:
+            phase_parts = []
+            for ds in pt.deliverable_schedule:
+                desc = ds.description
+                en = getattr(desc, "en", "") or ""
+                ar = getattr(desc, "ar", "") or ""
+                text = en or ar or ds.deliverable_id
+                if text:
+                    due = ds.due_at or "unspecified"
+                    phase_parts.append(f"- {text} (due: {due})")
+            if phase_parts:
+                mandatory_phase_structure = "\n".join(phase_parts)
+
+    # B1: Pre-format evaluation model summary from structured evaluation_criteria
+    evaluation_model_summary = None
+    if state.rfp_context and state.rfp_context.evaluation_criteria:
+        ec = state.rfp_context.evaluation_criteria
+        parts = []
+        if ec.award_mechanism and ec.award_mechanism != "unknown":
+            parts.append(f"Award mechanism: {ec.award_mechanism}")
+        if ec.technical and ec.technical.weight_pct is not None:
+            parts.append(f"Technical weight: {ec.technical.weight_pct}%")
+        if ec.financial and ec.financial.weight_pct is not None:
+            parts.append(f"Financial weight: {ec.financial.weight_pct}%")
+        threshold = ec.technical_passing_threshold or ec.passing_score
+        if threshold is not None:
+            parts.append(f"Technical passing threshold: {threshold}%")
+        if parts:
+            evaluation_model_summary = " | ".join(parts)
+
+    # B4: Pre-format scope deliverables summary for problem framing grounding
+    scope_deliverables_summary = None
+    if state.rfp_context:
+        deliv_parts = []
+        if state.rfp_context.deliverables:
+            for d in state.rfp_context.deliverables[:15]:
+                desc = d.description
+                en = getattr(desc, "en", "") or ""
+                ar = getattr(desc, "ar", "") or ""
+                text = en or ar
+                if text:
+                    mand = " [MANDATORY]" if d.mandatory else ""
+                    deliv_parts.append(f"- {d.id}: {text}{mand}")
+        if state.rfp_context.scope_items:
+            for si in state.rfp_context.scope_items[:10]:
+                desc = si.description
+                en = getattr(desc, "en", "") or ""
+                ar = getattr(desc, "ar", "") or ""
+                text = en or ar
+                if text:
+                    deliv_parts.append(f"- {si.id}: {text}")
+        if deliv_parts:
+            scope_deliverables_summary = "\n".join(deliv_parts)
+
+    # ── Hard Requirements Summary (conformance architecture) ──────
+    # Build compact summary from extracted hard requirements.
+    # Filtered to validation_scope == "source_book" only.
+    hard_requirements_summary = None
+    if state.rfp_context and state.rfp_context.hard_requirements:
+        from src.models.conformance import (
+            HardRequirementsSummary,
+            HardRequirementSummaryItem,
+        )
+
+        source_book_reqs = [
+            hr for hr in state.rfp_context.hard_requirements
+            if hr.validation_scope == "source_book"
+        ]
+        items = [
+            HardRequirementSummaryItem(
+                id=hr.requirement_id,
+                obligation=f"{hr.subject} {hr.operator} {hr.value_text} ({hr.unit})",
+                severity=hr.severity,
+                phase=hr.phase,
+            )
+            for hr in source_book_reqs
+        ]
+        hard_requirements_summary = HardRequirementsSummary(
+            requirements=items,
+            total_count=len(items),
+            critical_count=sum(1 for hr in source_book_reqs if hr.severity == "critical"),
+        ).model_dump(mode="json")
+
     return {
         "mandatory_constraints": mandatory_constraints or None,
         "available_ext_ids": available_ext_ids or None,
+        "evaluation_model_summary": evaluation_model_summary,
+        "scope_deliverables_summary": scope_deliverables_summary,
+        "mandatory_phase_structure": mandatory_phase_structure,
+        "hard_requirements_summary": hard_requirements_summary,
         "rfp_context": rfp_dump,
         "rfp_project_timeline": rfp_timeline_dump,
         "rfp_team_requirements": rfp_team_requirements_dump,
@@ -975,6 +1114,13 @@ def _build_stage_payload(
     feedback and previous output telling it what to fix, so the full RFP
     dump is redundant and wastes token budget needed for output quality.
     """
+    # INVARIANT: hard_requirements_summary is NEVER dropped from context.
+    # This ensures the writer always sees the full obligation list.
+    if drop_keys and "hard_requirements_summary" in drop_keys:
+        drop_keys = [k for k in drop_keys if k != "hard_requirements_summary"]
+    if keep_keys and "hard_requirements_summary" not in keep_keys:
+        keep_keys = [*keep_keys, "hard_requirements_summary"]
+
     if keep_keys:
         payload = {k: shared_ctx[k] for k in keep_keys if k in shared_ctx}
     elif drop_keys:
@@ -1384,13 +1530,25 @@ async def _generate_section_5(
     If either call fails, the entire stage fails (no partial results).
     """
     # Previous data for rewrite passes — split by ownership
+    # Condense phase_details to skeleton (names + durations) to avoid
+    # inflating the rewrite payload beyond the output token budget.
     prev_methodology = None
     prev_governance = None
     if previous_book:
         ps = previous_book.proposed_solution
+        condensed_phases = [
+            {
+                "phase_name": p.phase_name,
+                "duration": getattr(p, "duration", ""),
+                "activities_count": len(getattr(p, "activities", [])),
+                "deliverables_count": len(getattr(p, "deliverables", [])),
+            }
+            for p in ps.phase_details
+        ]
         prev_methodology = {
-            "methodology_overview": ps.methodology_overview,
-            "phase_details": [p.model_dump(mode="json") for p in ps.phase_details],
+            "methodology_overview": ps.methodology_overview[:2000],
+            "phase_skeleton": condensed_phases,
+            "original_phase_count": len(ps.phase_details),
         }
         prev_governance = {
             "governance_framework": ps.governance_framework,

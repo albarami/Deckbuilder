@@ -3,7 +3,7 @@
 Section 02 ("Why Strategic Gears") is primarily A1 clones (institutional),
 but may have 0-2 supplementary b_variable slides tailored to the RFP.
 
-**Model:** Opus 4.6
+**Model:** Opus 4.7
 **Budget:** 0-2 b_variable slides (from SlideBudgeter)
 **Layouts:** content_heading_desc (narrative)
 **External enrichment:** None (uses SourcePack evidence only)
@@ -26,7 +26,7 @@ from .base import BaseSectionFiller, SectionFillerInput, make_variable_entry
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-opus-4-6"
+MODEL = "claude-opus-4-7"
 
 
 # ── LLM output model ─────────────────────────────────────────────────

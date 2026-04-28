@@ -1,0 +1,401 @@
+{
+  "sources": [
+    {
+      "source_id": "EXT-001",
+      "provider": "perplexity",
+      "title": "Government Agency Study Methodology and Required Data Information Programs: Implementation Best Practices",
+      "authors": [],
+      "source_type": "web_analysis",
+      "year": 2024,
+      "url": "https://hdsr.mitpress.mit.edu/pub/605i9bgg",
+      "abstract": "A synthesis of how government agencies implement study methodologies through qualitative, quantitative, and mixed-methods approaches, guided by legal mandates such as the U.S. Foundations for Evidence-Based Policymaking Act of 2018. Agencies establish required data information programs via data stewardship policies, administrative data systems, and interagency collaborations. Key techniques include cognitive testing, focus groups, usability testing, expert reviews, field observations, and split-ballot experiments. The Evidence Act requires agencies to foster program-statistical office collaboration, document data quality controls, and use administrative records alongside machine learning for emerging data sources. Performance evaluations use evidence-driven reviews with increased training and communication of results.",
+      "query_used": "how do government agencies implement study methodology, required data information programs",
+      "relevance_score": 0.88,
+      "relevance_reason": "Directly addresses the RFP requirement to develop a study methodology and identify required data and information sources for the non-profit sector study. Provides a structured framework for how government-commissioned studies are designed, validated, and executed.",
+      "mapped_rfp_theme": "study methodology",
+      "key_findings": [
+        "Agencies apply interdisciplinary methods from statistics, psychology, sociology, and data science to design surveys and reduce measurement error.",
+        "Mixed-methods approaches (qualitative + quantitative) are standard for complex policy questions, enabling triangulation and richer insights.",
+        "The U.S. Evidence Act mandates structured data stewardship, quality documentation, and administrative data policies for all government-commissioned studies.",
+        "Performance evaluations require evidence-driven reviews with documented data quality controls and communication of results to stakeholders.",
+        "Machine learning and administrative records are increasingly integrated into government data programs to supplement traditional survey methods."
+      ],
+      "raw_excerpt": "Agencies such as the U.S. Census Bureau apply interdisciplinary methods from statistics, psychology, sociology, and data science to design surveys, reduce measurement error, and evaluate data products. Common techniques include cognitive testing, focus groups, usability testing, debriefings, expert reviews, field observations, behavior coding, and split-ballot experiments.",
+      "how_to_use_in_proposal": "Use in Section 2 (Study Methodology) to justify the proposed mixed-methods research design. Cite as international best practice for government-commissioned studies, demonstrating that the proposed methodology aligns with globally recognized standards for data collection, quality assurance, and evidence-based policymaking.",
+      "supports_category": [
+        "methodology",
+        "general"
+      ],
+      "citation_count": null,
+      "selection_method": "perplexity_synthesis",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-002",
+      "provider": "perplexity",
+      "title": "Inventory Quality Products and Services Across Government Programs: Implementation Strategies",
+      "authors": [],
+      "source_type": "web_analysis",
+      "year": 2024,
+      "url": "https://www.businessofgovernment.org/sites/default/files/Ten%20Actions%20to%20Improve%20Inventory%20Management%20in%20Government.pdf",
+      "abstract": "A synthesis of how government agencies implement quality inventories of products and services across programs, drawing on standardized guidelines, performance measurement frameworks, Six Sigma/Lean methodologies, and technology adoption. Agencies such as the U.S. Department of Defense and General Services Administration publish handbooks with specific inventory procedures. Key strategies include performance metrics, communities of practice, predictive analytics, cloud-based platforms, and ABC classification methods. Case examples include Georgia's 15% cost reduction and San Diego's 30% faster procurement cycles via data analytics.",
+      "query_used": "how do government agencies implement Inventory quality products services across programs",
+      "relevance_score": 0.92,
+      "relevance_reason": "Directly maps to the RFP scope requirement to inventory quality products and services across at least 5 priority sectors and economic activities. Provides a replicable framework for cataloguing, classifying, and assessing service quality across diverse sectors.",
+      "mapped_rfp_theme": "service design",
+      "key_findings": [
+        "Standardized guidelines and handbooks are essential for consistent inventory procedures across agencies and sectors.",
+        "Six Sigma's DMAIC framework optimizes service inventories by reducing lead times, improving supplier quality, and enhancing classification accuracy.",
+        "Technology adoption (predictive analytics, cloud platforms, track-and-trace systems) enables real-time visibility and audit-compliant inventories.",
+        "ABC classification methods allow agencies to prioritize high-value services and products for deeper quality assessment.",
+        "Georgia achieved 15% cost reduction and San Diego achieved 30% faster procurement cycles through data analytics-driven inventory management."
+      ],
+      "raw_excerpt": "Agencies establish metrics to monitor processes, benchmark performance, and create communities of practice; the General Services Administration (GSA) mandates tracking excess personal property to avoid waste, with procedures for retention justifications and post-inventory reviews.",
+      "how_to_use_in_proposal": "Use in Section 3 (Inventory of Quality Products and Services) to justify the proposed sector-by-sector inventory methodology. Cite the DMAIC framework and ABC classification as structured tools for cataloguing non-profit sector services across the 5+ priority sectors. Reference the technology-enabled audit trail as a governance best practice.",
+      "supports_category": [
+        "methodology",
+        "service_design",
+        "benchmark"
+      ],
+      "citation_count": null,
+      "selection_method": "perplexity_synthesis",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-003",
+      "provider": "perplexity",
+      "title": "Industry Classification Standards for Sector/Activity Analysis: NAICS, ISIC, and NACE Implementation by Government Agencies",
+      "authors": [],
+      "source_type": "web_analysis",
+      "year": 2024,
+      "url": "https://www.census.gov/programs-surveys/economic-census/year/2022/guidance/understanding-naics.html",
+      "abstract": "A synthesis of how government agencies implement industry classification standards (NAICS, ISIC, NACE) to categorize economic activities by sector, ensuring consistent data collection, analysis, and cross-border comparability. Systems are developed collaboratively with periodic revisions based on expert consultations and stakeholder input. Establishments are grouped by primary economic activity and production processes into hierarchical levels: sectors, subsectors, industry groups, and detailed industries. Used in surveys and censuses to classify businesses, publish aggregated statistics, and track trends in GDP, employment, and performance by sector/activity.",
+      "query_used": "how do government agencies implement Study classifications standards relevant sector/activity",
+      "relevance_score": 0.91,
+      "relevance_reason": "Directly addresses the RFP requirement to study classifications and standards relevant to each sector/activity, including international leading practices in no fewer than 5 countries. Provides the international classification frameworks (NAICS, ISIC, NACE) that can be benchmarked against Saudi non-profit sector classifications.",
+      "mapped_rfp_theme": "institutional framework",
+      "key_findings": [
+        "NAICS, ISIC, and NACE are the three dominant international classification systems used by government agencies to categorize economic activities across sectors.",
+        "Classifications are developed collaboratively (e.g., NAICS by U.S., Canada, Mexico) with revisions every 5 years based on expert consultations and stakeholder workshops.",
+        "Establishments are grouped by primary economic activity into hierarchical levels: sectors, subsectors, industry groups, and detailed industries.",
+        "2022 NAICS updates reflect evolving activities (e.g., deemphasizing online vs. physical retail), demonstrating adaptability to new economic forms.",
+        "Classification systems are used to publish aggregated statistics and track trends in GDP, employment, and performance by sector/activity, enabling cross-country comparability."
+      ],
+      "raw_excerpt": "Systems are created collaboratively (e.g., NAICS by U.S., Canada, Mexico) or internationally (e.g., ISIC by UN), with periodic revisions based on expert consultations, stakeholder input via questionnaires/workshops, and harmonization with national needs. Revisions occur every 5 years for NAICS or as approved by bodies like the UN Statistical Commission.",
+      "how_to_use_in_proposal": "Use in Section 4 (Classifications and Standards) to establish the international benchmarking framework. Reference NAICS, ISIC, and NACE as the global standards against which Saudi non-profit sector classifications will be assessed. Use the 5-country comparison requirement to map these systems to specific country implementations (e.g., USA, EU, UK, Canada, Australia).",
+      "supports_category": [
+        "methodology",
+        "benchmark",
+        "market_context"
+      ],
+      "citation_count": null,
+      "selection_method": "perplexity_synthesis",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-004",
+      "provider": "perplexity",
+      "title": "Stakeholder Landscape Analysis for Government Products, Services, and Programs: Multi-Stakeholder Partnership Models",
+      "authors": [],
+      "source_type": "web_analysis",
+      "year": 2024,
+      "url": "https://www.fws.gov/stakeholder-engagement/resources",
+      "abstract": "A synthesis of how government agencies implement stakeholder landscape analyses for products, services, and programs through multi-stakeholder partnerships, voluntary assistance mechanisms, priority funding, and collaborative planning. Agencies form coalitions with state, local, tribal governments, NGOs, and private sector entities. Technical and financial assistance programs are delivered through local field offices. Stakeholder engagement uses toolkits with 68 engagement tools, guides for integrating local participation and social data into landscape conservation planning, and multi-stakeholder strategies to set goals, reconcile interests, and monitor progress.",
+      "query_used": "how do government agencies implement stakeholders current landscape products services programs",
+      "relevance_score": 0.87,
+      "relevance_reason": "Directly supports the RFP requirement to analyze stakeholders and the current landscape of products and services in the Kingdom across forms such as fundraising, volunteering, endowment, and hosting. Provides a structured multi-stakeholder engagement framework applicable to the Saudi non-profit sector landscape analysis.",
+      "mapped_rfp_theme": "stakeholder analysis",
+      "key_findings": [
+        "Multi-stakeholder coalitions (government, NGOs, private sector, community) are the standard model for landscape analysis of products and services.",
+        "Federal Coordinating Committees provide national coordination while regional groups handle on-the-ground implementation tailored to local geography and needs.",
+        "Stakeholder engagement toolkits with 68+ tools enable systematic mapping of interests, priorities, and service gaps across diverse actor groups.",
+        "Landscape/jurisdictional approaches (LA/JAs) set shared goals, reconcile competing interests, and monitor progress via platforms like LandScale.",
+        "Priority consideration and funding mechanisms are used to align stakeholder incentives and ensure comprehensive coverage of all service forms."
+      ],
+      "raw_excerpt": "Agencies use toolkits with 68 engagement tools, guides for integrating local participation and social data into landscape conservation planning (CLC), and multi-stakeholder strategies like landscape/jurisdictional approaches (LA/JAs) to set goals, reconcile interests, monitor progress.",
+      "how_to_use_in_proposal": "Use in Section 5 (Stakeholder and Landscape Analysis) to justify the proposed stakeholder mapping methodology. Reference the multi-stakeholder coalition model as the international best practice for analyzing the current landscape of non-profit services (fundraising, volunteering, endowment, hosting) in Saudi Arabia. Cite the 68-tool engagement toolkit as evidence of methodological rigor.",
+      "supports_category": [
+        "methodology",
+        "market_context",
+        "governance"
+      ],
+      "citation_count": null,
+      "selection_method": "perplexity_synthesis",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-005",
+      "provider": "semantic_scholar",
+      "title": "Reducing the gap between rhetoric and reality: Use of Digital Service Standards for public service innovation through digital transformation in Australia",
+      "authors": [
+        "Eric Patterson",
+        "Renu Agarwal"
+      ],
+      "source_type": "academic_paper",
+      "year": 2023,
+      "url": "https://www.semanticscholar.org/paper/8183ddb62cf943f4abd49dfba9750e429e75fa6c",
+      "abstract": "This paper reviews the impact of Australia's Digital Service Standard (DSS) in fostering public service innovation and presents lessons learned. The DSS was introduced nearly a decade ago for new and redesigned government services, encouraging digital services and disruptive innovations. The research evaluates how the DSS applied Innovation Process Management and Innovation Portfolio Management in the public sector, drawing on DSS assessments from 2015 to 2021. The paper proposes a framework to improve the DSS by tailoring its approach for new and existing services, adopting specific standards to encourage incremental and disruptive innovations, and promoting more transparent reporting and funding of innovation management programs.",
+      "query_used": "service portfolio design framework for public agencies",
+      "relevance_score": 0.82,
+      "relevance_reason": "Provides a directly applicable framework for designing quality service portfolios in the public/non-profit sector, including Innovation Process Management and Portfolio Management approaches. Relevant to the RFP's requirement to design quality services and products for the non-profit sector using international leading practices.",
+      "mapped_rfp_theme": "service design",
+      "key_findings": [
+        "Australia's Digital Service Standard exemplifies Innovation Process Management through stages-and-gates methodology and Innovation Portfolio Management through targeted assessment criteria.",
+        "Government service design requires flexibility to encourage both incremental and disruptive innovations across different service types.",
+        "Transparent reporting and funding of innovation management programs are critical success factors for sustained service quality improvement.",
+        "Design limitations arise when a single standard is applied uniformly across large agencies without differentiation by service type or innovation level.",
+        "Public sector innovation management techniques are emerging but remain immature, requiring sustained institutional commitment and multi-agency coordination."
+      ],
+      "raw_excerpt": "This paper proposes a framework to improve the DSS by tailoring its approach for new and existing services, adopting specific standards to encourage incremental and disruptive innovations, and promoting more transparent reporting and funding of innovation management programs.",
+      "how_to_use_in_proposal": "Use in Section 3 (Service Design Framework) to support the argument that quality service design for the non-profit sector requires differentiated standards for new vs. existing services. Cite Australia's DSS as a leading international practice (one of the 5 required countries) and reference the Innovation Portfolio Management approach as the structural model for organizing the service inventory.",
+      "supports_category": [
+        "service_design",
+        "methodology",
+        "benchmark"
+      ],
+      "citation_count": 7,
+      "selection_method": "search_hit",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-006",
+      "provider": "semantic_scholar",
+      "title": "The story so far: a mixed-methods evaluation of county-level behavioral health needs, policies, and programs",
+      "authors": [
+        "Thomas Agrusti",
+        "J. Bohn",
+        "Elizabeth A Dunn",
+        "Carson Bell",
+        "Audrey Ziegler"
+      ],
+      "source_type": "academic_paper",
+      "year": 2020,
+      "url": "https://www.semanticscholar.org/paper/9f57032b4b1aff66745f0bae231e4b7e279711b7",
+      "abstract": "This study presents a community needs assessment (CNA) methodology applied to eight socio-economically disadvantaged neighborhoods in Hillsborough County, FL. Using a mixed-methods approach combining survey data and community listening sessions, the study identifies barriers to behavioral health services and links unmet needs to policy and program recommendations. The CNA draws on social determinant factors and employs a community-based participatory process. The study serves as a model for academia-government collaboration to extract insights that support policy innovation to meet local service needs.",
+      "query_used": "needs assessment methodology for government service agencies",
+      "relevance_score": 0.79,
+      "relevance_reason": "Provides a validated mixed-methods needs assessment methodology directly applicable to the RFP's requirement to analyze developmental needs and link them to proposed innovative quality products and services. The CNA model demonstrates how to connect community needs to service design recommendations.",
+      "mapped_rfp_theme": "developmental needs analysis",
+      "key_findings": [
+        "Community needs assessments (CNAs) using mixed methods (surveys + listening sessions) effectively identify service gaps and barriers across socio-economic groups.",
+        "Social determinant factors must be mapped to specific service needs to enable targeted program and policy recommendations.",
+        "Academia-government collaboration in CNA design extracts richer insights than government-only approaches, improving policy innovation outcomes.",
+        "Community-based participatory processes surface themes on unmet needs that quantitative surveys alone cannot capture.",
+        "CNAs serve as exemplary models for linking identified needs to specific program and policy interventions at the local level."
+      ],
+      "raw_excerpt": "The community-based participatory process of this CNA drew out important themes on social service needs that, when unmet, are contributing to and compounding, the mental health challenges and needs for services in lower-income communities.",
+      "how_to_use_in_proposal": "Use in Section 6 (Developmental Needs Analysis) to justify the proposed needs assessment methodology. Cite the CNA mixed-methods model as an international best practice for linking developmental needs to innovative service design. Reference the participatory process as a key element of the stakeholder engagement plan.",
+      "supports_category": [
+        "methodology",
+        "service_design",
+        "market_context"
+      ],
+      "citation_count": 5,
+      "selection_method": "search_hit",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-007",
+      "provider": "semantic_scholar",
+      "title": "The model of zakat management in the health sector for the welfare of mustahik in Indonesia",
+      "authors": [
+        "Sri Herianingrum",
+        "M. I. Hapsari",
+        "R. T. Ratnasari",
+        "A. Shofawati",
+        "A. Febriyanti",
+        "Luthfi Akmal Muzakki",
+        "Shahir Akram Hassan"
+      ],
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/0c5525cb2a29a173d2fe99473b39016da35daf08",
+      "abstract": "This study evaluates the model of Amil Zakat Institution management in the health sector, identifying problems and solutions to achieve mustahik welfare in Indonesia. Using the Analytic Network Process method with focus group discussions, interviews, and surveys with 10 expert respondents, the study finds that health-related issues are the most significant challenges in empowering zakat within healthcare. Key solutions include enhancing collaboration with disaster management agencies, adopting technology, building capacity, and offering structured health services. The study supports SDG 10 (Reduced Inequalities) and SDG 3 (Good Health and Well-being).",
+      "query_used": "needs assessment methodology for government service agencies",
+      "relevance_score": 0.85,
+      "relevance_reason": "Highly relevant to the RFP as it directly addresses non-profit sector service design (zakat/endowment management) in an Islamic context, covering fundraising, endowment, and service delivery forms explicitly mentioned in the RFP scope. Provides a model applicable to Saudi Arabia's non-profit landscape.",
+      "mapped_rfp_theme": "service design",
+      "key_findings": [
+        "Zakat institutions can improve health programs by collaborating with accidental service organizations, adopting technology, and building capacity.",
+        "The Analytic Network Process (ANP) method is effective for expert-driven prioritization of non-profit service challenges and solutions.",
+        "Accessing disaster-stricken areas and reaching vulnerable populations (pregnant women, children) are ranked as the top challenges for zakat health programs.",
+        "Integrating zakat into health services improves social justice, increases zakat funding for health, and strengthens community resilience.",
+        "Structured health services and flexible zakat distribution mechanisms are key to responsive non-profit service delivery."
+      ],
+      "raw_excerpt": "This study suggests that zakat institutions can improve their health programs by collaborating with accidental service organizations, adopting technology, building capacity, providing access to remote locations and offering structured health services to distribute zakat flexibly and responsively.",
+      "how_to_use_in_proposal": "Use in Section 5 (Stakeholder and Landscape Analysis) and Section 6 (Developmental Needs Analysis) to provide a directly analogous Islamic non-profit sector case study. Cite as evidence that zakat/endowment service models require structured quality frameworks and cross-sector collaboration. Reference as a regional comparator (Indonesia) for the 5-country international benchmarking requirement.",
+      "supports_category": [
+        "service_design",
+        "market_context",
+        "benchmark"
+      ],
+      "citation_count": 0,
+      "selection_method": "search_hit",
+      "evidence_tier": "primary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-008",
+      "provider": "semantic_scholar",
+      "title": "Health Technology Assessment System in Tanzania: Is it a championing system or still a system lagging behind?",
+      "authors": [
+        "Mwifadhi Mrisho",
+        "Fakih S. Bakar",
+        "Mohammed Alkhaldi",
+        "P. Mushamiri-Kuzviwanza",
+        "Aisha Al Basuoni",
+        "L. Enjalbert",
+        "Rima Kachach",
+        "Mayada Hassan",
+        "Marcel Tanner",
+        "Sara Ahmed"
+      ],
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/3ac08240365c3038fca40c7e2c46e637b468c617",
+      "abstract": "This study examines Tanzania's Health Technology Assessment (HTA) system using a systems thinking and analytical approach, focusing on conceptualization, management, implementation, capacity, and use in policy and decision-making. Six national HTA experts and eight members of HTA-associated organizations participated. Findings show limited knowledge of a central HTA agency, irregular funding, and limited institutionalization. Key values include safety, cost, economic evaluation, feasibility, and community acceptability. The study recommends strengthening HTA awareness, advocacy, implementation, and institutionalization through political commitment and inclusive governance.",
+      "query_used": "how do government agencies implement Study classifications standards relevant sector/activity",
+      "relevance_score": 0.65,
+      "relevance_reason": "Provides a systems-thinking framework for assessing and classifying service quality standards within a specific sector (health), applicable to the RFP's requirement to study classifications and standards relevant to each sector/activity. The HTA institutionalization model offers lessons for establishing quality standards in non-profit sector activities.",
+      "mapped_rfp_theme": "institutional framework",
+      "key_findings": [
+        "Systems thinking is an effective analytical approach for assessing the institutionalization of quality standards within a specific sector.",
+        "Key values for sector-specific quality assessment include safety, cost, economic evaluation, feasibility, and community acceptability.",
+        "Sustainable funding and political commitment are essential prerequisites for institutionalizing quality standards in any sector.",
+        "Inclusive governance structures (involving both governmental and non-governmental organizations) improve the quality and legitimacy of sector standards.",
+        "Limited awareness and advocacy for quality standards are the primary barriers to their effective implementation across sectors."
+      ],
+      "raw_excerpt": "Key values included safety, cost, economic evaluation, feasibility considerations, and community acceptability. HTA reports were used to inform clinical guidance, healthcare coverage, and pricing decisions.",
+      "how_to_use_in_proposal": "Use in Section 4 (Classifications and Standards) to illustrate how sector-specific quality standards are institutionalized in developing country contexts. Reference the systems thinking approach as a methodological tool for assessing existing standards in Saudi non-profit sector activities.",
+      "supports_category": [
+        "methodology",
+        "governance",
+        "benchmark"
+      ],
+      "citation_count": 0,
+      "selection_method": "search_hit",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-009",
+      "provider": "semantic_scholar",
+      "title": "Monitoring Systems for Public Health Program and Policy Implementation in Community Settings: Features and Suggested Actions from a Scoping Review",
+      "authors": [
+        "Alison Zucca",
+        "Cassandra Lane",
+        "William Pascoe",
+        "Belinda Peden",
+        "Carly Gardner",
+        "Adam Shoesmith",
+        "Angelica M Smith",
+        "E. Riley-Gibson",
+        "Andrew Milat",
+        "Tanja Kuchenmüller"
+      ],
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/5ac38e131f010b4106ff929fd0183b26a5e8451c",
+      "abstract": "A scoping review examining monitoring systems for public health program and policy implementation in community settings, identifying key features and suggesting actions for improvement. The review synthesizes evidence on how monitoring frameworks are designed, implemented, and used to track program performance and policy outcomes in community-based settings.",
+      "query_used": "how do government agencies implement Comprehensive study methodology document data programs",
+      "relevance_score": 0.68,
+      "relevance_reason": "Relevant to the RFP's requirement to design a project work plan with governance and timeline. Provides evidence on monitoring system design for program implementation, applicable to the governance and performance tracking components of the non-profit sector study.",
+      "mapped_rfp_theme": "governance",
+      "key_findings": [
+        "Effective monitoring systems for program implementation require clearly defined features including data collection protocols, reporting mechanisms, and feedback loops.",
+        "Community-based monitoring systems must balance comprehensiveness with feasibility, prioritizing indicators that are actionable and linked to program goals.",
+        "Scoping reviews of monitoring systems reveal significant variation in design quality, with best-practice systems incorporating both process and outcome indicators.",
+        "Suggested actions for improving monitoring systems include standardizing data collection tools, building local capacity, and integrating monitoring into program design from the outset.",
+        "Governance structures for monitoring programs should include multi-stakeholder oversight to ensure accountability and continuous improvement."
+      ],
+      "raw_excerpt": "Monitoring systems for public health program and policy implementation in community settings require clearly defined features including data collection protocols, reporting mechanisms, and feedback loops to ensure accountability and continuous improvement.",
+      "how_to_use_in_proposal": "Use in Section 2 (Work Plan and Governance) to justify the proposed monitoring and evaluation framework for the study. Reference the scoping review findings to demonstrate that the proposed governance structure incorporates international best practices for program monitoring.",
+      "supports_category": [
+        "governance",
+        "timeline",
+        "methodology"
+      ],
+      "citation_count": 0,
+      "selection_method": "search_hit",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    },
+    {
+      "source_id": "EXT-010",
+      "provider": "semantic_scholar",
+      "title": "Digital Transformation and Collaborative Innovation in Public Health Services in Indonesia: A Qualitative Study",
+      "authors": [
+        "Suprapto"
+      ],
+      "source_type": "academic_paper",
+      "year": 2026,
+      "url": "https://www.semanticscholar.org/paper/6c575b92e3839afc2b5202804e0294e1d3ec7e03",
+      "abstract": "This qualitative multiple case study explores how digital transformation and collaborative innovation interact in shaping public health service delivery in Indonesia. Data were collected through in-depth interviews, focus group discussions, and document analysis involving 18 stakeholders including policymakers, public health managers, healthcare professionals, IT personnel, and community representatives. Four major themes were identified: digital infrastructure readiness, collaborative innovation among stakeholders, institutional and governance challenges, and perceived impacts on service delivery. The study recommends strengthening digital health governance, promoting cross-sector collaboration, and improving institutional digital capacity.",
+      "query_used": "service portfolio design framework for public agencies",
+      "relevance_score": 0.67,
+      "relevance_reason": "Provides evidence on collaborative innovation frameworks for public service design, applicable to the RFP's requirement to design innovative quality products and services for the non-profit sector. The multi-stakeholder qualitative methodology is directly transferable to the Saudi non-profit sector study design.",
+      "mapped_rfp_theme": "service design",
+      "key_findings": [
+        "Collaborative innovation among diverse stakeholders (policymakers, managers, professionals, IT, community) is essential for effective public service design.",
+        "System interoperability, regulatory fragmentation, and institutional coordination are the primary barriers to integrated service delivery.",
+        "Integrated health information systems improved reporting efficiency and program monitoring when collaborative innovation was present.",
+        "Strengthening digital health governance and cross-sector collaboration are the two most critical enablers of sustainable service improvement.",
+        "Qualitative multiple case study design with 18 stakeholders provides a replicable methodology for assessing service landscape and innovation capacity."
+      ],
+      "raw_excerpt": "The study identified four major themes influencing digital transformation in public health services: digital infrastructure readiness, collaborative innovation among stakeholders, institutional and governance challenges, and perceived impacts on service delivery.",
+      "how_to_use_in_proposal": "Use in Section 6 (Innovative Products and Services Design) to support the argument that innovative non-profit service design requires cross-sector collaboration and governance capacity. Reference the qualitative case study methodology as a model for the stakeholder interviews proposed in the work plan.",
+      "supports_category": [
+        "service_design",
+        "governance",
+        "methodology"
+      ],
+      "citation_count": 0,
+      "selection_method": "search_hit",
+      "evidence_tier": "secondary",
+      "evidence_class": "international_benchmark"
+    }
+  ],
+  "search_queries_used": [
+    "how do government agencies implement study methodology, required data information programs",
+    "how do government agencies implement Inventory quality products services across programs",
+    "how do government agencies implement Study classifications standards relevant sector/activity",
+    "how do government agencies implement stakeholders current landscape products services programs",
+    "how do government agencies implement Comprehensive study methodology document data programs",
+    "how do government agencies implement List local/international market experts sector/activity programs",
+    "needs assessment methodology for government service agencies",
+    "service portfolio design framework for public agencies"
+  ],
+  "query_service_map": {
+    "how do government agencies implement study methodology, required data information programs": [
+      "perplexity"
+    ],
+    "how do government agencies implement Inventory quality products services across programs": [
+      "perplexity"
+    ],
+    "how do government agencies implement Study classifications standards relevant sector/activity": [
+      "perplexity"
+    ],
+    "how do government agencies implement stakeholders current landscape products services programs": [
+      "perplexity"
+    ],
+    "how do government agencies implement Comprehensive study methodology document data programs": [
+      "perplexity"
+    ],
+    "how do government agencies implement List local/international market experts sector/activity programs": [
+      "perplexity"
+    ],
+    "needs assessment methodology for government service agencies": [
+      "semantic_scholar"
+    ],
+    "service portfolio design framework for public agencies": [
+      "semantic_scholar"
+    ]
+  },
+  "coverage_assessment": "The evidence pack provides solid coverage across four of the five core RFP scope areas: (1) Study Methodology — well covered by EXT-001 (government agency mixed-methods frameworks) and EXT-006 (CNA methodology); (2) Inventory of Quality Products and Services — well covered by EXT-002 (government inventory management best practices); (3) Classifications and Standards — covered by EXT-003 (NAICS/ISIC/NACE international standards) and EXT-008 (sector-specific HTA institutionalization); (4) Stakeholder and Landscape Analysis — covered by EXT-004 (multi-stakeholder engagement frameworks) and EXT-010 (collaborative innovation in service design); (5) Developmental Needs and Innovative Services — partially covered by EXT-006, EXT-007 (zakat/non-profit service models), and EXT-005 (service innovation portfolio management).\n\nKEY GAPS IDENTIFIED:\n- Saudi Arabia-specific non-profit sector data: No local Saudi evidence was found on the current landscape of fundraising, volunteering, endowment (waqf), or hosting services. This is a significant evidence gap that will require primary research or consultation with local experts (e.g., MCSA, Zakat, Tax and Customs Authority, Saudi Vision 2030 reports).\n- International country-specific non-profit sector benchmarks: The RFP requires analysis of leading practices in no fewer than 5 countries. The current evidence covers Australia (EXT-005), USA (EXT-001, EXT-002, EXT-003), and Indonesia (EXT-007, EXT-010) but lacks dedicated sources for GCC/MENA comparators, UK, Canada, or other relevant jurisdictions.\n- Waqf (endowment) and volunteering sector-specific quality frameworks: No dedicated academic or industry sources were found on quality standards for waqf management or volunteering program design at an international level.\n- Market expert identification methodology: No specific evidence was found on how to identify and engage market experts for non-profit sector studies, representing a gap in the work plan section.\n- Non-profit sector economic activity classification: No source specifically addresses how non-profit activities are classified within national economic classification systems (e.g., ICNPO — International Classification of Non-Profit Organizations), which is a critical gap for the sector inventory task.\n\nEvidence Tier Breakdown: primary_source_count: 6, secondary_source_count: 4, analogical_source_count: 0"
+}

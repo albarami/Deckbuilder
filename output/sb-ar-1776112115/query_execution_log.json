@@ -1,0 +1,74 @@
+[
+  {
+    "query_id": "q-001",
+    "query": "needs assessment methodology for government service agencies",
+    "query_theme": "methodology",
+    "service_invoked": "semantic_scholar",
+    "execution_metrics": {
+      "semantic_scholar": {
+        "bulk_search_total": 4,
+        "bulk_search_returned": 4
+      }
+    }
+  },
+  {
+    "query_id": "q-002",
+    "query": "service portfolio design framework for public agencies",
+    "query_theme": "methodology",
+    "service_invoked": "semantic_scholar",
+    "execution_metrics": {
+      "semantic_scholar": {
+        "bulk_search_total": 1,
+        "bulk_search_returned": 1
+      }
+    }
+  },
+  {
+    "query_id": "q-003",
+    "query": "how do government agencies implement study methodology, required data information programs",
+    "query_theme": "methodology",
+    "service_invoked": "perplexity",
+    "execution_metrics": {
+      "perplexity": {
+        "answer_returned": true,
+        "citation_count": 8
+      }
+    }
+  },
+  {
+    "query_id": "q-004",
+    "query": "how do government agencies implement Inventory quality products services across programs",
+    "query_theme": "methodology",
+    "service_invoked": "perplexity",
+    "execution_metrics": {
+      "perplexity": {
+        "answer_returned": true,
+        "citation_count": 10
+      }
+    }
+  },
+  {
+    "query_id": "q-005",
+    "query": "how do government agencies implement Study classifications standards relevant sector/activity",
+    "query_theme": "",
+    "service_invoked": "perplexity",
+    "execution_metrics": {
+      "perplexity": {
+        "answer_returned": true,
+        "citation_count": 10
+      }
+    }
+  },
+  {
+    "query_id": "q-006",
+    "query": "how do government agencies implement stakeholders current landscape products services programs",
+    "query_theme": "methodology",
+    "service_invoked": "perplexity",
+    "execution_metrics": {
+      "perplexity": {
+        "answer_returned": true,
+        "citation_count": 10
+      }
+    }
+  }
+]

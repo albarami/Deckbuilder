@@ -4,7 +4,7 @@ Section 00 ("Introduction Message") is a single-slide engagement card
 with structured fields: title, client name, scope, and 4 attributes
 (duration, sector, geography, service line).
 
-**Model:** Opus 4.6
+**Model:** Opus 4.7
 **Budget:** 1 b_variable slide (fixed)
 **Layout:** intro_message — 7 placeholders (1 TITLE + 6 BODY)
 **Renderability:** RENDERABLE_NOW — inject_multi_body handles all
@@ -27,7 +27,7 @@ from .g2_schemas import IntroMessageOutput, IntroMessageSlide
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-opus-4-6"
+MODEL = "claude-opus-4-7"
 
 # ── Placeholder index map ────────────────────────────────────────────────
 # intro_message: 7 placeholders — derived from catalog_lock_en.json

@@ -48,4 +48,39 @@ RULES:
    - rfp_name, issuing_entity, mandate, scope_items[].description, deliverables[].description, compliance_requirements[].requirement
    If input is Arabic, extract Arabic original and provide English translation. If input is English only, set ar to null.
    All other fields (IDs, dates, numbers, enums) remain plain values.
-6. Output ONLY valid JSON matching the schema below. No commentary, no markdown, no explanation."""
+6. Output ONLY valid JSON matching the schema below. No commentary, no markdown, no explanation.
+
+EVALUATION MODEL EXTRACTION (CRITICAL — entire proposal strategy depends on this):
+- Identify the award mechanism from the RFP text:
+  * If the RFP states "pass technical then lowest price", "أقل الأسعار",
+    or a technical gate followed by price selection, set
+    evaluation_criteria.award_mechanism to "pass_fail_then_lowest_price".
+  * If weighted scoring with percentages (e.g., "70% technical, 30% financial"),
+    set to "weighted_technical_financial".
+  * If quality-based with no price factor, set to "technical_only".
+  * If price-weighted with minimal technical review, set to "lowest_price_only".
+  * If multiple evaluation stages/gates, set to "multi_stage".
+  * If unclear, set to "unknown".
+- Extract technical_passing_threshold if stated (e.g., "must score at least
+  70% on technical" → technical_passing_threshold=70.0).
+
+MANDATORY PROCUREMENT FACTS EXTRACTION (fire for any RFP stating these):
+- Language rule: If the RFP states an Arabic-only or bilingual submission
+  requirement, extract it into compliance_requirements with
+  evidence_type="language_rule".
+- Envelope split: If the RFP requires separate technical and financial
+  envelopes, set submission_format.separate_envelopes=True.
+- Submission channel: If portal/email/USB delivery is stated, include in
+  submission_format.additional_requirements.
+- Bank guarantee: If the RFP requires bank guarantee or insurance, set
+  submission_format.bank_guarantee_required=True and include the
+  percentage/amount in additional_requirements.
+- Statutory certificates: Extract ALL required certificates (commercial
+  register, chamber of commerce, GOSI, tax certificates, etc.) as
+  compliance_requirements with evidence_type="statutory_certificate".
+- Contract duration + timeline: Extract VERBATIM from RFP into
+  project_timeline.total_duration. Extract numeric months into
+  total_duration_months. Extract phase milestones into deliverable_schedule.
+- Required outputs: Extract ALL named deliverables into the deliverables
+  list. Each must have description{en,ar} and mandatory=True if the RFP
+  requires them."""

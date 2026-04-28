@@ -1,0 +1,110 @@
+[
+  {
+    "query_id": "q-001",
+    "query": "needs assessment methodology for government service agencies",
+    "query_theme": "methodology",
+    "service_invoked": "semantic_scholar",
+    "execution_metrics": {
+      "semantic_scholar": {
+        "bulk_search_total": 4,
+        "bulk_search_returned": 4
+      }
+    }
+  },
+  {
+    "query_id": "q-002",
+    "query": "service portfolio design framework for public agencies",
+    "query_theme": "methodology",
+    "service_invoked": "semantic_scholar",
+    "execution_metrics": {
+      "semantic_scholar": {
+        "bulk_search_total": 1,
+        "bulk_search_returned": 1
+      }
+    }
+  },
+  {
+    "query_id": "q-003",
+    "query": "capacity building frameworks for government institutional development",
+    "query_theme": "institutional_model",
+    "service_invoked": "semantic_scholar",
+    "execution_metrics": {
+      "semantic_scholar": {
+        "bulk_search_total": 57,
+        "bulk_search_returned": 50
+      }
+    }
+  },
+  {
+    "query_id": "q-004",
+    "query": "service level agreement design for public agencies",
+    "query_theme": "evaluation",
+    "service_invoked": "semantic_scholar",
+    "execution_metrics": {
+      "semantic_scholar": {
+        "bulk_search_total": 1,
+        "bulk_search_returned": 1
+      }
+    }
+  },
+  {
+    "query_id": "q-005",
+    "query": "readiness assessment framework for client segmentation",
+    "query_theme": "evaluation",
+    "service_invoked": "semantic_scholar",
+    "execution_metrics": {
+      "semantic_scholar": {
+        "bulk_search_total": 0,
+        "bulk_search_returned": 0
+      }
+    }
+  },
+  {
+    "query_id": "q-006",
+    "query": "how do investment promotion agencies assess company needs and prioritize service delivery",
+    "query_theme": "needs_assessment",
+    "service_invoked": "perplexity",
+    "execution_metrics": {
+      "perplexity": {
+        "answer_returned": true,
+        "citation_count": 8
+      }
+    }
+  },
+  {
+    "query_id": "q-007",
+    "query": "how do government agencies design service portfolios for companies expanding internationally",
+    "query_theme": "service_portfolio_design",
+    "service_invoked": "perplexity",
+    "execution_metrics": {
+      "perplexity": {
+        "answer_returned": true,
+        "citation_count": 10
+      }
+    }
+  },
+  {
+    "query_id": "q-008",
+    "query": "how do government agencies implement Training knowledge transfer government entity’s programs",
+    "query_theme": "methodology",
+    "service_invoked": "perplexity",
+    "execution_metrics": {
+      "perplexity": {
+        "answer_returned": true,
+        "citation_count": 9
+      }
+    }
+  },
+  {
+    "query_id": "q-009",
+    "query": "how do government agencies implement Development UNESCO programs research ethics",
+    "query_theme": "",
+    "service_invoked": "perplexity",
+    "execution_metrics": {
+      "perplexity": {
+        "answer_returned": true,
+        "citation_count": 8
+      }
+    }
+  }
+]

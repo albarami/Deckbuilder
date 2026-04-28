@@ -4,7 +4,7 @@ The HIGHEST-VALUE filler.  Uses the MethodologyBlueprint (phases, layouts)
 to generate content for methodology_overview, methodology_focused, and
 methodology_detail slides.
 
-**Model:** Opus 4.6
+**Model:** Opus 4.7
 **Layouts:** methodology_overview_4, methodology_focused_4, methodology_detail
   (or 3-phase variants)
 **External enrichment:** Semantic Scholar for framework references,
@@ -40,7 +40,7 @@ from .g2_schemas import (
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-opus-4-6"
+MODEL = "claude-opus-4-7"
 
 
 # ── Placeholder index maps ───────────────────────────────────────────

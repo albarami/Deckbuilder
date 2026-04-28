@@ -1,0 +1,134 @@
+{
+  "timestamp": "2026-04-14T03:53:59",
+  "queries_sent": [
+    {
+      "query": "how do government agencies implement study methodology, required data information programs",
+      "query_theme": "methodology",
+      "services_requested": [
+        "perplexity"
+      ],
+      "services_actual": [
+        "perplexity"
+      ],
+      "retained_sources_count": 1
+    },
+    {
+      "query": "how do government agencies implement Inventory quality products services across programs",
+      "query_theme": "methodology",
+      "services_requested": [
+        "perplexity"
+      ],
+      "services_actual": [
+        "perplexity"
+      ],
+      "retained_sources_count": 1
+    },
+    {
+      "query": "how do government agencies implement Study classifications standards relevant sector/activity",
+      "query_theme": "unclassified",
+      "services_requested": [
+        "perplexity"
+      ],
+      "services_actual": [
+        "perplexity"
+      ],
+      "retained_sources_count": 2
+    },
+    {
+      "query": "how do government agencies implement stakeholders current landscape products services programs",
+      "query_theme": "methodology",
+      "services_requested": [
+        "perplexity"
+      ],
+      "services_actual": [
+        "perplexity"
+      ],
+      "retained_sources_count": 1
+    },
+    {
+      "query": "how do government agencies implement Comprehensive study methodology document data programs",
+      "query_theme": "methodology",
+      "services_requested": [
+        "perplexity"
+      ],
+      "services_actual": [],
+      "retained_sources_count": 1
+    },
+    {
+      "query": "how do government agencies implement List local/international market experts sector/activity programs",
+      "query_theme": "methodology",
+      "services_requested": [
+        "perplexity"
+      ],
+      "services_actual": [],
+      "retained_sources_count": 0
+    },
+    {
+      "query": "needs assessment methodology for government service agencies",
+      "query_theme": "methodology",
+      "services_requested": [
+        "semantic_scholar"
+      ],
+      "services_actual": [
+        "semantic_scholar"
+      ],
+      "retained_sources_count": 2
+    },
+    {
+      "query": "service portfolio design framework for public agencies",
+      "query_theme": "methodology",
+      "services_requested": [
+        "semantic_scholar"
+      ],
+      "services_actual": [
+        "semantic_scholar"
+      ],
+      "retained_sources_count": 2
+    }
+  ],
+  "theme_coverage": {
+    "needs_assessment": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "service_portfolio_design": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "institutional_framework": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "strategic_support": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "methodology": {
+      "retained_sources": 8,
+      "status": "covered"
+    },
+    "institutional_model": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "evaluation": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "analogical_domain": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "pack_curated": {
+      "retained_sources": 0,
+      "status": "gap"
+    },
+    "local_public_context": {
+      "retained_sources": 0,
+      "status": "gap"
+    }
+  },
+  "snippet_enrichment_status": "available_but_not_invoked",
+  "author_enrichment_status": "available_but_not_invoked",
+  "coverage_assessment": "The evidence pack provides solid coverage across four of the five core RFP scope areas: (1) Study Methodology — well covered by EXT-001 (government agency mixed-methods frameworks) and EXT-006 (CNA methodology); (2) Inventory of Quality Products and Services — well covered by EXT-002 (government inventory management best practices); (3) Classifications and Standards — covered by EXT-003 (NAICS/ISIC/NACE international standards) and EXT-008 (sector-specific HTA institutionalization); (4) Stakeholder and Landscape Analysis — covered by EXT-004 (multi-stakeholder engagement frameworks) and EXT-010 (collaborative innovation in service design); (5) Developmental Needs and Innovative Services — partially covered by EXT-006, EXT-007 (zakat/non-profit service models), and EXT-005 (service innovation portfolio management).\n\nKEY GAPS IDENTIFIED:\n- Saudi Arabia-specific non-profit sector data: No local Saudi evidence was found on the current landscape of fundraising, volunteering, endowment (waqf), or hosting services. This is a significant evidence gap that will require primary research or consultation with local experts (e.g., MCSA, Zakat, Tax and Customs Authority, Saudi Vision 2030 reports).\n- International country-specific non-profit sector benchmarks: The RFP requires analysis of leading practices in no fewer than 5 countries. The current evidence covers Australia (EXT-005), USA (EXT-001, EXT-002, EXT-003), and Indonesia (EXT-007, EXT-010) but lacks dedicated sources for GCC/MENA comparators, UK, Canada, or other relevant jurisdictions.\n- Waqf (endowment) and volunteering sector-specific quality frameworks: No dedicated academic or industry sources were found on quality standards for waqf management or volunteering program design at an international level.\n- Market expert identification methodology: No specific evidence was found on how to identify and engage market experts for non-profit sector studies, representing a gap in the work plan section.\n- Non-profit sector economic activity classification: No source specifically addresses how non-profit activities are classified within national economic classification systems (e.g., ICNPO — International Classification of Non-Profit Organizations), which is a critical gap for the sector inventory task.\n\nEvidence Tier Breakdown: primary_source_count: 6, secondary_source_count: 4, analogical_source_count: 0"
+}

@@ -51,14 +51,48 @@ _anthropic_client: anthropic.AsyncAnthropic | None = None
 # ── Global cost tracker ──────────────────────────────────────
 # Per-million-token pricing (USD). Update when models change.
 _MODEL_PRICING: dict[str, dict[str, float]] = {
-    # OpenAI
+    # OpenAI (GPT-5.5 released 2026-04-23, 2x price increase over 5.4)
+    "gpt-5.5":          {"input": 5.00, "output": 30.00},
     "gpt-5.4":          {"input": 2.50, "output": 10.00},
     "gpt-4.1":          {"input": 2.00, "output": 8.00},
     "gpt-4o":           {"input": 2.50, "output": 10.00},
-    # Anthropic
+    # Anthropic (Opus 4.7 released 2026-04-16, significant price drop from 4.6)
+    "claude-opus-4-7":  {"input": 5.00, "output": 25.00},
     "claude-opus-4-6":  {"input": 15.00, "output": 75.00},
     "claude-sonnet-4-6":{"input": 3.00, "output": 15.00},
+    "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00},
+    # Embeddings
+    "text-embedding-3-large": {"input": 0.13, "output": 0.0},
 }
+
+
+_MODEL_PROVIDER: dict[str, str] = {
+    "gpt-5.5": "openai_chat",
+    "gpt-5.4": "openai_chat",
+    "gpt-4.1": "openai_chat",
+    "gpt-4o": "openai_chat",
+    "text-embedding-3-large": "openai_embedding",
+    "claude-opus-4-7": "anthropic_wrapper",
+    "claude-opus-4-6": "anthropic_wrapper",
+    "claude-sonnet-4-6": "anthropic_wrapper",
+    "claude-sonnet-4-20250514": "anthropic_wrapper",
+}
+
+
+def _classify_provider(model: str) -> str:
+    """Classify a model ID to its provider bucket."""
+    provider = _MODEL_PROVIDER.get(model)
+    if provider:
+        return provider
+    # Prefix fallback
+    if model.startswith("gpt"):
+        return "openai_chat"
+    if model.startswith("claude"):
+        return "anthropic_wrapper"
+    if model.startswith("text-embedding"):
+        return "openai_embedding"
+    logger.warning("Unknown model provider for '%s' — classifying as unknown_provider", model)
+    return "unknown_provider"
 
 
 @dataclass
@@ -117,6 +151,26 @@ def get_cost_summary() -> dict:
         by_model[r.model]["output_tokens"] += r.output_tokens
         by_model[r.model]["cost_usd"] += r.cost_usd
 
+    # D2: Provider breakdown — aggregate by provider bucket
+    provider_breakdown: dict[str, dict] = {}
+    for r in _call_log:
+        provider = _classify_provider(r.model)
+        if provider not in provider_breakdown:
+            provider_breakdown[provider] = {
+                "calls": 0, "tokens": 0, "cost_usd": 0.0,
+            }
+        provider_breakdown[provider]["calls"] += 1
+        provider_breakdown[provider]["tokens"] += r.input_tokens + r.output_tokens
+        provider_breakdown[provider]["cost_usd"] += r.cost_usd
+
+    # Round costs
+    for v in provider_breakdown.values():
+        v["cost_usd"] = round(v["cost_usd"], 4)
+
+    # Ensure anthropic_direct is always present (should be 0 after D1 migration)
+    if "anthropic_direct" not in provider_breakdown:
+        provider_breakdown["anthropic_direct"] = {"calls": 0, "tokens": 0, "cost_usd": 0.0}
+
     return {
         "total_calls": len(_call_log),
         "total_input_tokens": total_input,
@@ -128,6 +182,7 @@ def get_cost_summary() -> dict:
             m: {**v, "cost_usd": round(v["cost_usd"], 4)}
             for m, v in by_model.items()
         },
+        "provider_breakdown": provider_breakdown,
         "calls": [
             {
                 "model": r.model, "caller": r.caller,
@@ -349,7 +404,7 @@ async def call_llm(  # noqa: UP047
     """Unified LLM call with provider routing, retries, and structured output.
 
     Args:
-        model: Model string from MODEL_MAP (e.g., "gpt-5.4", "claude-opus-4-6").
+        model: Model string from MODEL_MAP (e.g., "gpt-5.5", "claude-opus-4-7").
         system_prompt: System message for the LLM.
         user_message: User message content.
         response_model: Pydantic model class for structured output parsing.
@@ -407,6 +462,11 @@ async def call_llm(  # noqa: UP047
             raise LLMError(model=model, attempts=attempt + 1, last_error=e) from e
         except _RETRYABLE_ERRORS as e:
             last_error = e
+            logger.warning(
+                "call_llm retry %d/%d for %s: %s",
+                attempt + 1, max_attempts, response_model.__name__,
+                str(e)[:200],
+            )
             if attempt < len(_RETRY_DELAYS):
                 await asyncio.sleep(_RETRY_DELAYS[attempt])
         except Exception as e:  # noqa: BLE001
