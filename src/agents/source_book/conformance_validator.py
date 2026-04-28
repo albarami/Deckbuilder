@@ -22,7 +22,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from src.models.claim_provenance import ComplianceIndex
+from src.models.claim_provenance import ClaimRegistry, ComplianceIndex
 from src.models.common import DeckForgeBaseModel
 from src.models.conformance import (
     ConformanceFailure,
@@ -623,39 +623,90 @@ async def validate_conformance(
     rfp_context: RFPContext,
     uploaded_documents: list[UploadedDocument],
     compliance_index: ComplianceIndex | None = None,
+    claim_registry: ClaimRegistry | None = None,
 ) -> ConformanceReport:
     """Validate Source Book conformance against hard requirements.
 
-    Four-pass architecture:
+    Five-pass architecture:
       Pass 1: Deterministic checks (ComplianceIndex-first when provided)
-      Pass 2: Forbidden claim scan
+      Pass 2: Forbidden absolute-claim scan
       Pass 3: LLM-assisted semantic checks
       Pass 4: Missing annex detection
+      Pass 5: Section-aware forbidden internal-claim leakage scan (Slice 2.2)
     """
     # Filter to source_book scope
     sb_reqs = [hr for hr in hard_requirements if hr.validation_scope == "source_book"]
 
-    if not sb_reqs:
-        logger.info("Conformance validator: no source_book-scope requirements to check")
-        return ConformanceReport(
-            conformance_status="pass",
-            final_acceptance_decision="accept",
+    if sb_reqs:
+        # Pass 1: Deterministic
+        missing_commitments, structural_mismatches, passed, p1_failed = (
+            _pass1_deterministic(
+                source_book, sb_reqs, rfp_context,
+                compliance_index=compliance_index,
+            )
         )
+        # Pass 2: Forbidden claims
+        forbidden_claims = _pass2_forbidden_claims(source_book, hard_requirements)
+        # Pass 3: Semantic (LLM) — only for LLM-extracted reqs with lower confidence
+        semantic_failures = await _pass3_semantic_checks(
+            source_book, hard_requirements,
+        )
+        missing_commitments.extend(semantic_failures)
+        # Pass 4: Missing annexes
+        missing_inputs = _pass4_missing_annexes(
+            hard_requirements, uploaded_documents,
+        )
+    else:
+        logger.info(
+            "Conformance validator: no source_book-scope requirements to check; "
+            "running leakage scan only"
+        )
+        missing_commitments = []
+        structural_mismatches = []
+        forbidden_claims = []
+        missing_inputs = []
+        passed = 0
+        p1_failed = 0
 
-    # Pass 1: Deterministic
-    missing_commitments, structural_mismatches, passed, p1_failed = _pass1_deterministic(
-        source_book, sb_reqs, rfp_context, compliance_index=compliance_index,
+    # Pass 5: Section-aware forbidden internal-claim leakage (Slice 2.2)
+    # Renders the SourceBook into ArtifactSection records and runs the
+    # structured scanner. PRJ-/CLI-/CLM- identifiers and forbidden semantic
+    # phrases in client-facing sections produce critical leakage failures.
+    # When a ClaimRegistry is supplied, semantic phrases linked to a
+    # verified+permissioned bidder claim are allowed.
+    from src.services.artifact_gates import (
+        render_source_book_sections,
+        scan_for_forbidden_leakage,
     )
 
-    # Pass 2: Forbidden claims
-    forbidden_claims = _pass2_forbidden_claims(source_book, hard_requirements)
-
-    # Pass 3: Semantic (LLM) — only for LLM-extracted reqs with lower confidence
-    semantic_failures = await _pass3_semantic_checks(source_book, hard_requirements)
-    missing_commitments.extend(semantic_failures)
-
-    # Pass 4: Missing annexes
-    missing_inputs = _pass4_missing_annexes(hard_requirements, uploaded_documents)
+    leakage_failures: list[ConformanceFailure] = []
+    rendered = render_source_book_sections(source_book)
+    for section in rendered:
+        violations = scan_for_forbidden_leakage(section, claim_registry)
+        for v in violations:
+            leakage_failures.append(ConformanceFailure(
+                requirement_id="FORBIDDEN-LEAKAGE",
+                requirement_text=(
+                    f"Forbidden internal-claim leakage in {v.section_type}"
+                ),
+                failure_reason=(
+                    f"{v.matched_text!r} found in {v.location} "
+                    f"(section_type={v.section_type})"
+                ),
+                severity="critical",
+                source_book_section=v.location,
+                suggested_fix=(
+                    "Move internal identifiers to internal_gap_appendix or "
+                    "internal_bid_notes; replace semantic phrases with "
+                    "verified-and-permissioned claim text only."
+                ),
+            ))
+    if leakage_failures:
+        logger.warning(
+            "Pass 5: %d forbidden internal-claim leakages detected",
+            len(leakage_failures),
+        )
+    forbidden_claims.extend(leakage_failures)
 
     # Compute totals — deduplicate by requirement_id so the same root issue
     # appearing in both missing_commitments and forbidden_claims is counted once.
@@ -667,9 +718,9 @@ async def validate_conformance(
         all_failure_ids.add(f.requirement_id)
     for f in structural_mismatches:
         all_failure_ids.add(f.requirement_id)
-    # Remove generic IDs that don't map to specific HRs (e.g., FORBIDDEN-ABS)
-    # — these are overlays, not unique requirement failures
-    total_failed = len(all_failure_ids - {"FORBIDDEN-ABS"})
+    # Remove generic IDs that don't map to specific HRs (e.g., FORBIDDEN-ABS,
+    # FORBIDDEN-LEAKAGE) — these are overlays, not unique requirement failures.
+    total_failed = len(all_failure_ids - {"FORBIDDEN-ABS", "FORBIDDEN-LEAKAGE"})
     total_passed = total_checked - total_failed
     if total_passed < 0:
         total_passed = 0

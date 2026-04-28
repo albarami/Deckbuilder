@@ -280,6 +280,154 @@ def scan_for_forbidden_leakage(
     return violations
 
 
+# ── Source Book → ArtifactSection adapter ────────────────────────
+
+
+def render_source_book_sections(source_book: object) -> list[ArtifactSection]:
+    """Render a SourceBook into typed ArtifactSection records for scanning.
+
+    Sections are tagged so the forbidden-leakage scanner can apply the
+    correct policy: client_facing_body / proof_column / slide_body /
+    slide_proof_points get scanned; evidence_ledger and the internal
+    appendices are exempt because PRJ/CLI/CLM identifiers are expected
+    there.
+
+    Source: design doc Section 3 (forbidden scanner section-type table).
+    """
+    sections: list[ArtifactSection] = []
+
+    rfp_int = getattr(source_book, "rfp_interpretation", None)
+    if rfp_int is not None:
+        for field in (
+            "objective_and_scope",
+            "constraints_and_compliance",
+            "unstated_evaluator_priorities",
+            "probable_scoring_logic",
+        ):
+            text = getattr(rfp_int, field, "") or ""
+            if text:
+                sections.append(ArtifactSection(
+                    section_path=f"rfp_interpretation/{field}",
+                    section_type="client_facing_body",
+                    text=text,
+                ))
+        for i, item in enumerate(getattr(rfp_int, "key_compliance_requirements", []) or []):
+            sections.append(ArtifactSection(
+                section_path=f"rfp_interpretation/key_compliance[{i}]",
+                section_type="client_facing_body",
+                text=str(item),
+            ))
+
+    framing = getattr(source_book, "client_problem_framing", None)
+    if framing is not None:
+        for field in (
+            "current_state_challenge",
+            "why_it_matters_now",
+        ):
+            text = getattr(framing, field, "") or ""
+            if text:
+                sections.append(ArtifactSection(
+                    section_path=f"client_problem_framing/{field}",
+                    section_type="client_facing_body",
+                    text=text,
+                ))
+
+    why_sg = getattr(source_book, "why_strategic_gears", None)
+    if why_sg is not None:
+        for i, cm in enumerate(getattr(why_sg, "capability_mapping", []) or []):
+            text_bits = []
+            for field in ("capability", "approach", "evidence_summary"):
+                val = getattr(cm, field, "") or ""
+                if val:
+                    text_bits.append(str(val))
+            if text_bits:
+                sections.append(ArtifactSection(
+                    section_path=f"why_strategic_gears/capability_mapping[{i}]",
+                    section_type="proof_column",
+                    text=" ".join(text_bits),
+                ))
+        for i, cert in enumerate(getattr(why_sg, "certifications_and_compliance", []) or []):
+            sections.append(ArtifactSection(
+                section_path=f"why_strategic_gears/certifications[{i}]",
+                section_type="proof_column",
+                text=str(cert),
+            ))
+        for i, pe in enumerate(getattr(why_sg, "project_experience", []) or []):
+            text_bits = []
+            for field in ("project_name", "client", "scope_summary", "outcome_summary"):
+                val = getattr(pe, field, "") or ""
+                if val:
+                    text_bits.append(str(val))
+            if text_bits:
+                sections.append(ArtifactSection(
+                    section_path=f"why_strategic_gears/project_experience[{i}]",
+                    section_type="proof_column",
+                    text=" ".join(text_bits),
+                ))
+
+    proposed = getattr(source_book, "proposed_solution", None)
+    if proposed is not None:
+        for field in (
+            "methodology_overview",
+            "governance_framework",
+            "timeline_logic",
+            "value_case_and_differentiation",
+        ):
+            text = getattr(proposed, field, "") or ""
+            if text:
+                sections.append(ArtifactSection(
+                    section_path=f"proposed_solution/{field}",
+                    section_type="client_facing_body",
+                    text=text,
+                ))
+
+    for i, blueprint in enumerate(getattr(source_book, "slide_blueprints", []) or []):
+        body_bits = []
+        for field in ("title", "key_message", "purpose", "visual_guidance"):
+            val = getattr(blueprint, field, "") or ""
+            if val:
+                body_bits.append(str(val))
+        for bullet in getattr(blueprint, "bullet_logic", []) or []:
+            body_bits.append(str(bullet))
+        if body_bits:
+            sections.append(ArtifactSection(
+                section_path=f"slide_blueprints[{i}]/body",
+                section_type="slide_body",
+                text=" ".join(body_bits),
+            ))
+        proof_bits = []
+        for proof in getattr(blueprint, "proof_points", []) or []:
+            proof_bits.append(str(proof))
+        for must in getattr(blueprint, "must_have_evidence", []) or []:
+            proof_bits.append(str(must))
+        if proof_bits:
+            sections.append(ArtifactSection(
+                section_path=f"slide_blueprints[{i}]/proof_points",
+                section_type="slide_proof_points",
+                text=" ".join(proof_bits),
+            ))
+
+    # Evidence ledger is internal-only — we still emit a section for it so
+    # downstream callers (e.g. final_artifact_gate) see the surface, but
+    # the scanner skips sections of type evidence_ledger.
+    ledger = getattr(source_book, "evidence_ledger", None)
+    if ledger is not None:
+        for i, entry in enumerate(getattr(ledger, "entries", []) or []):
+            text_bits = []
+            for field in ("claim_id", "claim_text", "source_reference"):
+                val = getattr(entry, field, "") or ""
+                if val:
+                    text_bits.append(str(val))
+            if text_bits:
+                sections.append(ArtifactSection(
+                    section_path=f"evidence_ledger/entries[{i}]",
+                    section_type="evidence_ledger",
+                    text=" ".join(text_bits),
+                ))
+
+    return sections
+
+
 # ── Evidence Coverage ────────────────────────────────────────────
 
 
