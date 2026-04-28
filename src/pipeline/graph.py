@@ -105,6 +105,32 @@ async def context_node(state: DeckForgeState) -> dict[str, Any]:
         except Exception as e:
             logger.error("RFP fact registration failed: %s", e)
 
+        # ── Slice 5.5: generated_inference wiring ──
+        # Run the portal guard / deliverable classifier / source-
+        # hierarchy resolver helpers and register their outputs as
+        # generated_inference ClaimProvenance entries. Inputs come from
+        # state.pipeline_extras when present (callers / tests can stash
+        # ExtractedTextSpan, deliverable origin maps, and SourceConflict
+        # lists there). Wiring is a no-op when no extras are supplied.
+        try:
+            from src.services.inference_pipeline_wiring import (
+                wire_generated_inferences,
+            )
+
+            extras = state.pipeline_extras or {}
+            wire_generated_inferences(
+                state,
+                portal_spans=extras.get("portal_spans"),
+                deliverable_origins=extras.get("deliverable_origins"),
+                conflicts=extras.get("conflicts"),
+            )
+            logger.info(
+                "Slice 5.5 wiring: %d generated_inference claim(s) in registry",
+                len(claim_registry.generated_inferences),
+            )
+        except Exception as e:
+            logger.error("Slice 5.5 inference wiring failed: %s", e)
+
     return {
         "rfp_context": rfp_context,
         "claim_registry": claim_registry,

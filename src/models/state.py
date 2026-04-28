@@ -113,6 +113,12 @@ class DeckForgeState(DeckForgeBaseModel):
     proposal_options: ProposalOptionRegistry = Field(
         default_factory=ProposalOptionRegistry,
     )
+    # Slice 5.5 — transient inputs to the inference-wiring helpers that
+    # context_node runs. The pipeline harness or test code can stash
+    # ExtractedTextSpan lists, deliverable origin maps, and source
+    # conflicts here for the wiring to pick up without needing a new
+    # agent. Empty by default; wiring is a no-op when no extras present.
+    pipeline_extras: dict = Field(default_factory=dict)
     gate_1: GateDecision | None = None
 
     # ─── Gate 2: Retrieval ───
