@@ -121,6 +121,13 @@ class DeckForgeState(DeckForgeBaseModel):
     routing_report: dict | None = None  # RoutingReport as dict
     pack_context: dict | None = None  # Merged pack context
 
+    # ─── External methodology coverage (Slice 3.5) ───
+    # Stored as JSON-safe dict (serialized EvidenceCoverageReport) for
+    # parity with routing_report. Populated by the evidence_curation
+    # node after the external_evidence_pack is built; consumed by the
+    # final artifact gate.
+    evidence_coverage_report: dict | None = None
+
     # ─── Analysis / Evidence Curation ───
     reference_index: ReferenceIndex | None = None
     external_evidence_pack: ExternalEvidencePack | None = None

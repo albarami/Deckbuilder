@@ -619,6 +619,51 @@ async def evidence_curation_node(state: DeckForgeState) -> dict[str, Any]:
         elif "session" in external_result:
             updates["session"] = external_result["session"]
 
+    # ── Slice 3.5: classify external_methodology + coverage ──
+    # After external_evidence_pack is finalized, classify every source
+    # into ClaimProvenance, register under state.claim_registry, and
+    # build an EvidenceCoverageReport with one requirement per primary
+    # routing domain. RFP facts and internal claims in the registry are
+    # not touched. Coverage report attaches to state for the final
+    # artifact gate.
+    pack_for_methodology = updates.get("external_evidence_pack")
+    if pack_for_methodology is not None and getattr(
+        pack_for_methodology, "sources", [],
+    ):
+        try:
+            from src.services.external_methodology_classifier import (
+                register_external_methodology,
+            )
+
+            routing_dict = state.routing_report or {}
+            classification = routing_dict.get("classification") or {}
+            primary = classification.get("primary_domains") or []
+            secondary = classification.get("secondary_domains") or []
+
+            registry = state.claim_registry
+            coverage = register_external_methodology(
+                pack_for_methodology,
+                registry,
+                primary_domains=primary,
+                secondary_domains=secondary,
+            )
+            updates["claim_registry"] = registry
+            updates["evidence_coverage_report"] = coverage.model_dump(
+                mode="json",
+            )
+            logger.info(
+                "Slice 3.5 wiring: registered %d external_methodology claims; "
+                "coverage status=%s across %d topic(s)",
+                len(registry.external_methodology),
+                coverage.status,
+                len(coverage.requirements),
+            )
+        except Exception as e:
+            logger.error(
+                "Slice 3.5 external-methodology wiring failed: %s", e,
+            )
+            # Non-fatal — pipeline continues without coverage gating.
+
     return updates
 
 
