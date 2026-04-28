@@ -632,13 +632,14 @@ async def validate_conformance(
 ) -> ConformanceReport:
     """Validate Source Book conformance against hard requirements.
 
-    Six-pass architecture:
+    Seven-pass architecture:
       Pass 1: Deterministic checks (ComplianceIndex-first when provided)
       Pass 2: Forbidden absolute-claim scan
       Pass 3: LLM-assisted semantic checks
       Pass 4: Missing annex detection
       Pass 5: Section-aware forbidden internal-claim leakage scan (Slice 2.2)
       Pass 6: Numeric commitment + unapproved-option scan (Slice 4.3)
+      Pass 7: Unlabelled generated_inference leakage scan (Slice 5.4)
     """
     # Filter to source_book scope
     sb_reqs = [hr for hr in hard_requirements if hr.validation_scope == "source_book"]
@@ -812,6 +813,80 @@ async def validate_conformance(
         forbidden_claims.extend(commitment_failures)
         forbidden_claims.extend(option_failures)
 
+    # Pass 7: Unlabelled-inference scan (Slice 5.4)
+    # For every generated_inference claim in the registry whose text
+    # appears in a non-internal rendered section, apply the correct
+    # context gate. Failures (labelled inference without the right
+    # inference_allowed_context, or any inference in slide_body /
+    # slide_proof_points / proof_column) become critical
+    # UNLABELLED_INFERENCE entries that drive conformance fail.
+    if claim_registry is not None and claim_registry.generated_inferences:
+        from src.services.artifact_gates import (
+            can_use_in_slide_blueprint,
+            can_use_in_source_book_analysis,
+            can_use_in_speaker_notes,
+        )
+
+        inference_failures: list[ConformanceFailure] = []
+        internal_section_types = {
+            "internal_gap_appendix",
+            "internal_bid_notes",
+            "evidence_ledger",
+            "drafting_notes",
+        }
+
+        def _gate_for_section(claim, section_type: str) -> bool:
+            # Internal-only sections: anything goes.
+            if section_type in internal_section_types:
+                return True
+            if section_type == "speaker_notes":
+                return can_use_in_speaker_notes(claim)
+            if section_type in {"slide_body", "slide_proof_points"}:
+                return can_use_in_slide_blueprint(claim)
+            # client_facing_body / proof_column / others
+            return can_use_in_source_book_analysis(claim, "client_facing_body")
+
+        inference_claims = list(claim_registry.generated_inferences)
+        for section in rendered:
+            for claim in inference_claims:
+                claim_text = (claim.text or "").strip()
+                if not claim_text:
+                    continue
+                if claim_text not in section.text:
+                    continue
+                if _gate_for_section(claim, section.section_type):
+                    continue
+                inference_failures.append(ConformanceFailure(
+                    requirement_id="UNLABELLED_INFERENCE",
+                    requirement_text=(
+                        f"generated_inference {claim.claim_id} in "
+                        f"{section.section_type}"
+                    ),
+                    failure_reason=(
+                        f"generated_inference {claim.claim_id!r} text appears "
+                        f"in {section.section_path} ({section.section_type}) "
+                        f"but does not pass the inference label / context gate "
+                        f"(label_present={claim.inference_label_present}, "
+                        f"allowed_context={claim.inference_allowed_context})."
+                    ),
+                    severity="critical",
+                    source_book_section=section.section_path,
+                    suggested_fix=(
+                        "Either set inference_label_present=True and add the "
+                        "appropriate context to inference_allowed_context "
+                        "(e.g. 'source_book_analysis' / 'speaker_notes'), or "
+                        "relocate the text to internal_gap_appendix / "
+                        "internal_bid_notes."
+                    ),
+                ))
+
+        if inference_failures:
+            logger.warning(
+                "Pass 7: %d unlabelled-inference leakages detected",
+                len(inference_failures),
+            )
+        forbidden_claims.extend(inference_failures)
+
     # Compute totals — deduplicate by requirement_id so the same root issue
     # appearing in both missing_commitments and forbidden_claims is counted once.
     total_checked = len(sb_reqs)
@@ -832,6 +907,7 @@ async def validate_conformance(
         "FORBIDDEN-LEAKAGE",
         "UNRESOLVED_COMMITMENT",
         "UNAPPROVED_OPTION",
+        "UNLABELLED_INFERENCE",
     })
     total_passed = total_checked - total_failed
     if total_passed < 0:
