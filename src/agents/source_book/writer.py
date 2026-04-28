@@ -1673,6 +1673,31 @@ instead of: "يستوفي", "موثقة", "مثبتة", "كامل"
 
     section6 = result.parsed
     logger.info("Stage 2a produced: %d blueprints", len(section6.slide_blueprints))
+
+    # ── Slice 2.3: gate every proof_point against the ClaimRegistry ──
+    # Drop any proof_point or must_have_evidence whose linked claim is
+    # not registered AND verified+permissioned. PRJ-/CLI-/CLM- identifiers
+    # cannot survive this gate without a backing internal_verified claim.
+    if state is not None and state.claim_registry.claims:
+        from src.services.artifact_gates import gate_slide_proof_points
+
+        gated, violations = gate_slide_proof_points(
+            section6.slide_blueprints, state.claim_registry,
+        )
+        if violations:
+            unresolved = sum(
+                1 for v in violations if v.reason == "unresolved_in_registry"
+            )
+            blocked = sum(
+                1 for v in violations if v.reason == "not_a_proof_point"
+            )
+            slides_affected = len({v.slide_number for v in violations})
+            logger.warning(
+                "Slice 2.3: dropped %d proof points across %d slides "
+                "(%d unresolved, %d not a proof point)",
+                len(violations), slides_affected, unresolved, blocked,
+            )
+            section6.slide_blueprints = gated
     return section6, result
 
 

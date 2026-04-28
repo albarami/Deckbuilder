@@ -428,6 +428,75 @@ def render_source_book_sections(source_book: object) -> list[ArtifactSection]:
     return sections
 
 
+# ── Slide proof-point gating (Slice 2.3) ─────────────────────────
+
+
+class ProofPointGatingViolation(DeckForgeBaseModel):
+    """One slide proof_point that failed registry resolution or proof gating."""
+
+    slide_number: int
+    proof_point: str
+    reason: Literal["unresolved_in_registry", "not_a_proof_point"]
+    claim_id: str = ""
+    verification_status: str = ""
+
+
+def gate_slide_proof_points(
+    blueprints: list[object],
+    registry: ClaimRegistry,
+) -> tuple[list[object], list[ProofPointGatingViolation]]:
+    """Resolve every proof_point + must_have_evidence against the
+    ClaimRegistry and drop anything that doesn't pass
+    ``can_use_as_proof_point``.
+
+    Returns ``(gated_blueprints, violations)``. Each violation records the
+    slide_number, the offending proof string, the reason, and (when the
+    claim was found) the claim_id + verification_status.
+
+    PRJ-/CLI-/CLM- identifiers that don't resolve to a registered claim
+    fail with ``unresolved_in_registry``. Resolved claims that are
+    unverified (or external methodology with the wrong evidence_role,
+    proposal options, etc.) fail with ``not_a_proof_point``.
+    """
+    gated: list[object] = []
+    violations: list[ProofPointGatingViolation] = []
+
+    for bp in blueprints:
+        slide_number = int(getattr(bp, "slide_number", 0) or 0)
+
+        def _gate_one(candidate: str) -> bool:
+            claim = registry.resolve_proof_point(candidate)
+            if claim is None:
+                violations.append(ProofPointGatingViolation(
+                    slide_number=slide_number,
+                    proof_point=candidate,
+                    reason="unresolved_in_registry",
+                ))
+                return False
+            if not can_use_as_proof_point(claim):
+                violations.append(ProofPointGatingViolation(
+                    slide_number=slide_number,
+                    proof_point=candidate,
+                    reason="not_a_proof_point",
+                    claim_id=claim.claim_id,
+                    verification_status=claim.verification_status,
+                ))
+                return False
+            return True
+
+        kept_proofs = [p for p in (getattr(bp, "proof_points", []) or []) if _gate_one(p)]
+        kept_must = [m for m in (getattr(bp, "must_have_evidence", []) or []) if _gate_one(m)]
+
+        # Use model_copy so the entry's own validators (e.g. auto-restore
+        # proof_points from must_have_evidence) re-run against the gated lists.
+        gated.append(bp.model_copy(update={
+            "proof_points": kept_proofs,
+            "must_have_evidence": kept_must,
+        }))
+
+    return gated, violations
+
+
 # ── Evidence Coverage ────────────────────────────────────────────
 
 
