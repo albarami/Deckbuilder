@@ -691,10 +691,36 @@ async def proposal_strategy_node(state: DeckForgeState) -> dict[str, Any]:
     Reads reference_index, external_evidence_pack, and rfp_context.
     Produces ProposalStrategy with win themes, evaluator priorities,
     and methodology recommendation.
+
+    Slice 4.5 — also reflects every entry in ``state.proposal_options``
+    into ``state.claim_registry`` as a canonical proposal_option
+    ClaimProvenance, so Pass 6 sees a single source of truth.
     """
     from src.agents.proposal_strategy import agent as proposal_strategy_agent
+    from src.services.proposal_option_registrar import register_proposal_options
 
-    return await proposal_strategy_agent.run(state)
+    updates = await proposal_strategy_agent.run(state)
+    if not isinstance(updates, dict):
+        updates = {}
+
+    try:
+        register_proposal_options(state)
+        updates["claim_registry"] = state.claim_registry
+        updates["proposal_options"] = state.proposal_options
+        logger.info(
+            "Slice 4.5 wiring: %d proposal_option claim(s) reflected into "
+            "claim_registry from state.proposal_options",
+            len(state.claim_registry.proposal_options),
+        )
+    except Exception as e:
+        # Slice 4.5 fail-closed: if reflection fails, leave the
+        # registry untouched. Pass 6 will then catch any client-facing
+        # numeric commitment as UNRESOLVED_COMMITMENT and the
+        # orchestrator will reject. We do not silence the error.
+        logger.error(
+            "Slice 4.5 proposal_option wiring failed: %s", e,
+        )
+    return updates
 
 
 def _build_compact_repair_plan(report: Any) -> str:
