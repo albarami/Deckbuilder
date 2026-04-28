@@ -79,6 +79,21 @@ _MODEL_PROVIDER: dict[str, str] = {
 }
 
 
+# ── Temperature compatibility ────────────────────────────────────
+# GPT-5 series: only accepts temperature=1 (default); any other value → 400.
+# Claude Opus 4.7+: temperature fully deprecated; any value → 400.
+# For these models, temperature is silently omitted from API calls.
+_TEMPERATURE_UNSUPPORTED_PREFIXES: tuple[str, ...] = (
+    "gpt-5",           # GPT-5, 5.4, 5.5, 5.5-pro, etc.
+    "claude-opus-4-7",  # Opus 4.7+
+)
+
+
+def _supports_temperature(model: str) -> bool:
+    """Check if a model supports the temperature parameter."""
+    return not any(model.startswith(prefix) for prefix in _TEMPERATURE_UNSUPPORTED_PREFIXES)
+
+
 def _classify_provider(model: str) -> str:
     """Classify a model ID to its provider bucket."""
     provider = _MODEL_PROVIDER.get(model)
@@ -251,22 +266,26 @@ async def _call_openai(  # noqa: UP047
 ) -> tuple[T, int, int]:
     """Call OpenAI chat completions with structured JSON output."""
     client = _get_openai_client()
-    response = await client.chat.completions.create(
-        model=model,
-        messages=[
+    # Build kwargs — omit temperature for models that don't support it
+    create_kwargs: dict = {
+        "model": model,
+        "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
         ],
-        response_format={
+        "response_format": {
             "type": "json_schema",
             "json_schema": {
                 "name": response_model.__name__,
                 "schema": response_model.model_json_schema(),
             },
         },
-        temperature=temperature,
-        max_completion_tokens=max_tokens,
-    )
+        "max_completion_tokens": max_tokens,
+    }
+    if _supports_temperature(model):
+        create_kwargs["temperature"] = temperature
+
+    response = await client.chat.completions.create(**create_kwargs)
     content = response.choices[0].message.content
     if not content:
         raise LLMError(
@@ -301,19 +320,23 @@ async def _call_anthropic(  # noqa: UP047
 ) -> tuple[T, int, int]:
     """Call Anthropic messages with tool-use-based structured output."""
     client = _get_anthropic_client()
-    response = await client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_message}],
-        tools=[{
+    # Build kwargs — omit temperature for models that deprecate it
+    create_kwargs: dict = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "system": system_prompt,
+        "messages": [{"role": "user", "content": user_message}],
+        "tools": [{
             "name": "structured_output",
             "description": f"Return structured data matching {response_model.__name__}",
             "input_schema": response_model.model_json_schema(),
         }],
-        tool_choice={"type": "tool", "name": "structured_output"},
-        temperature=temperature,
-    )
+        "tool_choice": {"type": "tool", "name": "structured_output"},
+    }
+    if _supports_temperature(model):
+        create_kwargs["temperature"] = temperature
+
+    response = await client.messages.create(**create_kwargs)
     tool_block = next((block for block in response.content if block.type == "tool_use"), None)
     if tool_block is None:
         raise LLMError(
