@@ -286,6 +286,72 @@ class ProposalOptionLedger(DeckForgeBaseModel):
         return self
 
 
+# ── Proposal Option (Slice 4.1) ──────────────────────────────────
+
+
+class ProposalOption(DeckForgeBaseModel):
+    """Option metadata sidecar for a ClaimProvenance whose claim_kind
+    is ``proposal_option``.
+
+    The ClaimProvenance carries the option's text, kind, and
+    verification status; this model carries the gating fields the
+    proposal_option kind needs:
+
+    * approved_for_external_use — gate for client-facing sections
+    * priced — whether the option is costed in the bid
+    * approved_by — accountable approver
+    * pricing_impact_note — required when priced=False
+    """
+
+    option_id: str
+    text: str
+    claim_provenance_id: str  # → ClaimRegistry.get(...)
+
+    category: Literal[
+        "numeric_range",
+        "methodology_choice",
+        "resource_allocation",
+        "scope_boundary",
+        "timeline_assumption",
+    ]
+
+    approved_for_external_use: bool = False
+    priced: bool = False
+    approved_by: str | None = None
+    pricing_impact_note: str = ""
+
+    @model_validator(mode="after")
+    def _option_id_required(self) -> "ProposalOption":
+        if not self.option_id:
+            raise ValueError("option_id must be a non-empty string")
+        if not self.claim_provenance_id:
+            raise ValueError("claim_provenance_id must be a non-empty string")
+        return self
+
+
+class ProposalOptionRegistry(DeckForgeBaseModel):
+    """Sidecar registry for ProposalOption metadata.
+
+    Indexed by option_id (which equals claim_provenance_id by
+    convention so the option and its ClaimProvenance share the same
+    addressing namespace). Use alongside ClaimRegistry: the claim
+    registry holds the proposal_option ClaimProvenance, this registry
+    holds the option's gating metadata.
+    """
+
+    by_id: dict[str, ProposalOption] = Field(default_factory=dict)
+
+    def register(self, option: ProposalOption) -> None:
+        self.by_id[option.option_id] = option
+
+    def get(self, option_id: str) -> "ProposalOption | None":
+        return self.by_id.get(option_id)
+
+    @property
+    def options(self) -> list[ProposalOption]:
+        return list(self.by_id.values())
+
+
 # ── Compliance Index ─────────────────────────────────────────────
 
 

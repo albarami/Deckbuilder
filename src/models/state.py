@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from .actions import ConversationResponse
-from .claim_provenance import ClaimRegistry
+from .claim_provenance import ClaimRegistry, ProposalOptionRegistry
 from .claims import ReferenceIndex
 from .common import DeckForgeBaseModel
 from .conformance import ConformanceReport
@@ -110,6 +110,9 @@ class DeckForgeState(DeckForgeBaseModel):
     # ─── Gate 1: Context ───
     rfp_context: RFPContext | None = None
     claim_registry: ClaimRegistry = Field(default_factory=ClaimRegistry)
+    proposal_options: ProposalOptionRegistry = Field(
+        default_factory=ProposalOptionRegistry,
+    )
     gate_1: GateDecision | None = None
 
     # ─── Gate 2: Retrieval ───
