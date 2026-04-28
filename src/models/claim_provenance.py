@@ -328,6 +328,28 @@ class ProposalOption(DeckForgeBaseModel):
             raise ValueError("claim_provenance_id must be a non-empty string")
         return self
 
+    @property
+    def is_externally_publishable(self) -> bool:
+        """Acceptance gate combining approval + pricing discipline.
+
+        Pricing-relevant categories (numeric_range, resource_allocation,
+        timeline_assumption) require the option to be either priced
+        OR carry an explicit pricing_impact_note. Without one of those
+        signals an approved option still cannot land in client-facing
+        text, because the bid team has not declared how the commitment
+        feeds the financial offer.
+        """
+        if not self.approved_for_external_use:
+            return False
+        if self.category in {
+            "numeric_range",
+            "resource_allocation",
+            "timeline_assumption",
+        }:
+            if not self.priced and not (self.pricing_impact_note or "").strip():
+                return False
+        return True
+
 
 class ProposalOptionRegistry(DeckForgeBaseModel):
     """Sidecar registry for ProposalOption metadata.

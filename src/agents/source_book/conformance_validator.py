@@ -764,7 +764,7 @@ async def validate_conformance(
             if opt is None:
                 # Treat absence as unapproved (fail closed).
                 unapproved_option_claims.append((c, None))
-            elif not opt.approved_for_external_use:
+            elif not opt.is_externally_publishable:
                 unapproved_option_claims.append((c, opt))
 
         client_facing_types = {

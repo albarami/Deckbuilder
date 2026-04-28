@@ -116,12 +116,14 @@ def _resolve(
             return "rfp_fact", c.claim_id, ""
 
     # Approved proposal options: claim text must mention canonical AND
-    # the linked ProposalOption must be approved_for_external_use.
+    # the linked ProposalOption must be externally publishable (which
+    # requires approved_for_external_use AND, for pricing-relevant
+    # categories, priced=True OR a non-empty pricing_impact_note).
     for c in claim_registry.proposal_options:
         if canonical not in (c.text or ""):
             continue
         option = option_registry.get(c.claim_id)
-        if option is not None and option.approved_for_external_use:
+        if option is not None and option.is_externally_publishable:
             return "approved_option", "", option.option_id
 
     return "unresolved", "", ""
