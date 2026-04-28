@@ -1,0 +1,112 @@
+﻿{
+    "purpose":  "Temporary validation input transfer for controlled Source Book run. DO NOT MERGE.",
+    "base_branch":  "claude/claim-provenance-on-source-base",
+    "base_head":  "94e56bf02a86012086fb88508ce0b5b19c78c7b1",
+    "archive_name":  "sb-validation-input.tar.gz",
+    "archive_sha256":  "3113ea21957229222c1fc30421718b756e0b100008d667e0be8e2b809e0e8572",
+    "archive_size_bytes":  769243449,
+    "chunk_size_bytes":  47185920,
+    "part_count":  17,
+    "payload":  {
+                    "rfp":  "real_example/sdaia_unesco_ai_ethics.pdf",
+                    "file_count":  63,
+                    "total_uncompressed_bytes":  798450092,
+                    "evidence_corpus":  "data test/"
+                },
+    "reconstruct_linux":  [
+                              "cat _validation_transfer/sb-validation-input.tar.gz.part* \u003e /tmp/sb-validation-input.tar.gz",
+                              "sha256sum /tmp/sb-validation-input.tar.gz",
+                              "mkdir -p /tmp/sb_validation_payload /tmp/sb_validation_input",
+                              "tar -xzf /tmp/sb-validation-input.tar.gz -C /tmp/sb_validation_payload",
+                              "cp /tmp/sb_validation_payload/real_example/sdaia_unesco_ai_ethics.pdf /tmp/sb_validation_input/00_sdaia_unesco_ai_ethics.pdf",
+                              "find \"/tmp/sb_validation_payload/data test\" -maxdepth 1 -type f \\( -iname \"*.pdf\" -o -iname \"*.pptx\" -o -iname \"*.docx\" -o -iname \"*.xlsx\" \\) -exec cp {} /tmp/sb_validation_input/ \\;",
+                              ".venv/bin/python scripts/source_book_only.py --language ar --docs-path /tmp/sb_validation_input --max-summary-chars 12000"
+                          ],
+    "parts":  [
+                  {
+                      "name":  "sb-validation-input.tar.gz.part000",
+                      "size_bytes":  47185920,
+                      "sha256":  "dd0dbd3ea436de3268961e88f40f5ee8227930b225bcfed8d281e92e44cd6a97"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part001",
+                      "size_bytes":  47185920,
+                      "sha256":  "5bdda32ee13937acbf2ce1303c2937aabd435347244872476fade19b2ce29bc8"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part002",
+                      "size_bytes":  47185920,
+                      "sha256":  "b372781241f37223fc10e014755d62af9d78b2283312423b39129e800382ed6a"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part003",
+                      "size_bytes":  47185920,
+                      "sha256":  "df941e65d631659822965f5338cad62793ba0d1dedcc8009942b2236c408405e"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part004",
+                      "size_bytes":  47185920,
+                      "sha256":  "8051747da37e913dcc9170df574b08f02f4d27242b3b7eebf0083cde4f27ee88"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part005",
+                      "size_bytes":  47185920,
+                      "sha256":  "f7a3b6a10368b27a6b0a9698dd0b2d3e09f79806f77922802f5fc96ac1688fbd"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part006",
+                      "size_bytes":  47185920,
+                      "sha256":  "9449ce6e82d2a2c2721b908728be6b7d7a7d7942251c10e70ad822e02f82cee9"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part007",
+                      "size_bytes":  47185920,
+                      "sha256":  "2d5cfef858406c0390ec25fc4321412278f72bfe423f209517660f54ae727603"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part008",
+                      "size_bytes":  47185920,
+                      "sha256":  "6700402dfc863277dffb739295edd59b808ccd5d3356b9357810a2a1b9076f33"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part009",
+                      "size_bytes":  47185920,
+                      "sha256":  "30b657bab181abfab2c453e7dd31ad51016c163ff9046ef40824d1e3cc1fc4d2"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part010",
+                      "size_bytes":  47185920,
+                      "sha256":  "03e48b7d6096a9477025f5323701af13f2e38b9df2decc4eac543001aa7fc761"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part011",
+                      "size_bytes":  47185920,
+                      "sha256":  "e90a59d258e1393f5f5c24a2e456bc85b18d93c5f16e9b3329e142de4f1ec263"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part012",
+                      "size_bytes":  47185920,
+                      "sha256":  "257ce48c52988732f1b3eb9180cac28dcf2f332b4f5052481daa019d14c29a34"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part013",
+                      "size_bytes":  47185920,
+                      "sha256":  "fc7beceab136399404fbea9ccf67e6e15045db9c38436a73a1410136fb784ee7"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part014",
+                      "size_bytes":  47185920,
+                      "sha256":  "c11679ba9e586e9e4e8bcc2c2b43c8eb679b4b6ec6750a7c30fb07ca692e579c"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part015",
+                      "size_bytes":  47185920,
+                      "sha256":  "fdd4720ebcb4df69b2745dc6730e0c9479a982750d7b370c241883db7720d28a"
+                  },
+                  {
+                      "name":  "sb-validation-input.tar.gz.part016",
+                      "size_bytes":  14268729,
+                      "sha256":  "e498a125889f94481182bbca50c9f60c5d90e11523ed3e4ca57f5022eed23dd3"
+                  }
+              ]
+}
