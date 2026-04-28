@@ -16,11 +16,118 @@ from typing import Literal
 
 from pydantic import Field
 
+from src.models.claim_provenance import ComplianceIndex, ComplianceIndexEntry
 from src.models.common import DeckForgeBaseModel
 from src.models.conformance import HardRequirement
 from src.models.rfp import RFPContext
 
 logger = logging.getLogger(__name__)
+
+
+# ── Compliance Arabic alias dictionary (Slice 1.3) ──────────────────────
+# Maps an English compliance subject phrase (lowercased, stable enough to
+# survive small wording variations) to its Arabic + English aliases. The
+# ComplianceIndex builder scans the Source Book text for any alias to mark
+# a compliance requirement as content-conformance-passing — replacing the
+# brittle English keyword scan in the legacy validator.
+_COMPLIANCE_ARABIC_ALIASES: dict[str, list[str]] = {
+    "commercial registration": [
+        "السجل التجاري", "سجل تجاري", "commercial registration",
+    ],
+    "zakat": ["الزكاة", "شهادة الزكاة", "zakat"],
+    "zakat certificate": ["الزكاة", "شهادة الزكاة", "zakat"],
+    "tax certificate": [
+        "شهادة الضريبة", "الضريبة", "ضريبة القيمة المضافة",
+        "vat certificate", "tax certificate",
+    ],
+    "tax": ["الضريبة", "ضريبة", "tax"],
+    "vat": ["ضريبة القيمة المضافة", "vat"],
+    "social insurance": [
+        "التأمينات الاجتماعية", "التأمينات", "gosi", "social insurance",
+    ],
+    "social insurance certificate": [
+        "التأمينات الاجتماعية", "التأمينات", "gosi",
+    ],
+    "chamber of commerce": [
+        "الغرفة التجارية", "اشتراك الغرفة", "غرفة تجارية",
+        "chamber of commerce",
+    ],
+    "chamber of commerce subscription certificate": [
+        "الغرفة التجارية", "اشتراك الغرفة",
+    ],
+    "chamber": ["الغرفة التجارية", "اشتراك الغرفة"],
+    "saudization": [
+        "السعودة", "نسبة السعودة", "شهادة السعودة", "saudization",
+    ],
+    "saudization certificate": ["السعودة", "شهادة السعودة"],
+    "iso": ["شهادة الايزو", "iso"],
+}
+
+
+def _aliases_for_subject(subject: str) -> list[str]:
+    """Return Arabic + English aliases for a compliance subject.
+
+    Performs (1) exact lowercased lookup, (2) substring match against keys,
+    and (3) falls back to the subject itself when no alias is registered.
+    The subject text itself is always included so the matcher can find a
+    direct mention even when no alias dictionary entry exists.
+    """
+    s = subject.lower().strip()
+    if s in _COMPLIANCE_ARABIC_ALIASES:
+        return list(_COMPLIANCE_ARABIC_ALIASES[s]) + [subject]
+    for key, aliases in _COMPLIANCE_ARABIC_ALIASES.items():
+        if key in s:
+            return list(aliases) + [subject]
+    return [subject]
+
+
+def _is_arabic_text(text: str) -> bool:
+    return any("؀" <= c <= "ۿ" for c in text)
+
+
+def build_compliance_index(
+    hard_requirements: list[HardRequirement],
+    source_book_text: str,
+) -> ComplianceIndex:
+    """Build a structured ComplianceIndex from compliance hard requirements.
+
+    For each ``category="compliance"`` HR, scan ``source_book_text`` for the
+    subject and its Arabic aliases. Mark ``covered_by_response_text`` when a
+    match is found and ``missing`` otherwise. Non-compliance HRs are skipped.
+    """
+    sb_text = source_book_text or ""
+    sb_lower = sb_text.lower()
+    entries: list[ComplianceIndexEntry] = []
+
+    for hr in hard_requirements:
+        if hr.category != "compliance":
+            continue
+        aliases = _aliases_for_subject(hr.subject)
+
+        found = False
+        for alias in aliases:
+            if not alias:
+                continue
+            if _is_arabic_text(alias):
+                if alias in sb_text:
+                    found = True
+                    break
+            else:
+                if alias.lower() in sb_lower:
+                    found = True
+                    break
+
+        status = "covered_by_response_text" if found else "missing"
+        entries.append(
+            ComplianceIndexEntry(
+                requirement_id=hr.requirement_id,
+                requirement_text=hr.value_text or hr.subject,
+                response_status=status,
+                arabic_aliases=[a for a in aliases if _is_arabic_text(a)],
+                rfp_requirement_claim_id=hr.requirement_id,
+            )
+        )
+    return ComplianceIndex(entries=entries)
 
 
 # ── Obligation patterns for Layer 2 regex pre-filter ───────────────────
