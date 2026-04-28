@@ -533,6 +533,56 @@ class EvidenceCoverageReport(DeckForgeBaseModel):
         return self
 
 
+# ── Coverage builder (Slice 3.2) ────────────────────────────────
+
+
+class CoverageTopic(DeckForgeBaseModel):
+    """Per-topic spec used to drive build_evidence_coverage_report.
+
+    keywords are case-insensitive substrings searched against each
+    external_methodology claim's text. minimum_direct_sources is the
+    bar a topic must hit on direct_topic claims alone — adjacent and
+    analogical sources do not satisfy it (Slice 3 acceptance #3).
+    """
+
+    name: str
+    keywords: list[str]
+    minimum_direct_sources: int = 1
+
+
+def build_evidence_coverage_report(
+    registry: "ClaimRegistry",
+    topics: list[CoverageTopic],
+) -> EvidenceCoverageReport:
+    """Count external_methodology claims per topic and bucket by
+    relevance_class. Only direct_topic counts toward
+    minimum_direct_sources."""
+    requirements: list[EvidenceCoverageRequirement] = []
+    methodology_claims = list(registry.external_methodology)
+
+    for topic in topics:
+        direct = adjacent = analogical = 0
+        for claim in methodology_claims:
+            text = (claim.text or "").lower()
+            if not any(kw.lower() in text for kw in topic.keywords if kw):
+                continue
+            if claim.relevance_class == "direct_topic":
+                direct += 1
+            elif claim.relevance_class == "adjacent_domain":
+                adjacent += 1
+            elif claim.relevance_class == "analogical":
+                analogical += 1
+        requirements.append(EvidenceCoverageRequirement(
+            topic=topic.name,
+            minimum_direct_sources=topic.minimum_direct_sources,
+            found_direct=direct,
+            found_adjacent=adjacent,
+            found_analogical=analogical,
+        ))
+
+    return EvidenceCoverageReport(requirements=requirements)
+
+
 # ── Gate Failure ─────────────────────────────────────────────────
 
 
