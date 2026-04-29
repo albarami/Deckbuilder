@@ -18,7 +18,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.models.common import DeckForgeBaseModel
-from src.services.llm import _call_anthropic, _call_openai, _supports_temperature
+from src.services.llm import (
+    _call_anthropic,
+    _call_openai,
+    _supports_temperature,
+    _unwrap_tool_output,
+)
 
 
 # ── _supports_temperature helper ─────────────────────────────────
@@ -193,3 +198,100 @@ async def test_anthropic_sonnet46_keeps_temperature_in_api_call():
     call_kwargs = mock_create.call_args.kwargs
     assert "temperature" in call_kwargs, "temperature should be kept for claude-sonnet-4-6"
     assert call_kwargs["temperature"] == 0.1
+
+
+# ── Anthropic tool output unwrapping ─────────────────────────────
+
+
+def test_unwrap_structured_output_wrapper():
+    """Opus 4.7 wraps payload in {"structured_output": {payload}}."""
+    raw = {"structured_output": {"answer": "test"}}
+    result = _unwrap_tool_output(raw)
+    assert result == {"answer": "test"}
+
+
+def test_unwrap_parameter_name_wrapper():
+    """Opus 4.7 wraps payload in {"$PARAMETER_NAME": {payload}}."""
+    raw = {"$PARAMETER_NAME": {"answer": "test"}}
+    result = _unwrap_tool_output(raw)
+    assert result == {"answer": "test"}
+
+
+def test_no_unwrap_for_unknown_single_key():
+    """Genuine extra field must NOT be unwrapped — strict validation rejects it."""
+    raw = {"some_unknown_field": {"answer": "test"}}
+    result = _unwrap_tool_output(raw)
+    assert result == raw  # unchanged — Pydantic will reject
+
+
+def test_no_unwrap_when_multi_key():
+    """Multi-key dicts are never unwrapped."""
+    raw = {"answer": "test", "extra_bad_field": "x"}
+    result = _unwrap_tool_output(raw)
+    assert result == raw
+
+
+def test_no_unwrap_when_inner_is_string():
+    """Do NOT unwrap when inner value is a string, not a dict."""
+    raw = {"$PARAMETER_NAME": "_Section1Classification"}
+    result = _unwrap_tool_output(raw)
+    assert result == raw
+
+
+def test_non_wrapped_valid_payload_unchanged():
+    """Normal (non-wrapped) payload passes through unchanged."""
+    raw = {"answer": "test"}
+    result = _unwrap_tool_output(raw)
+    assert result == {"answer": "test"}
+
+
+@pytest.mark.asyncio
+async def test_anthropic_opus47_unwraps_structured_output_wrapper():
+    """Full mock: Opus 4.7 returns wrapped payload, validation succeeds."""
+    wrapped_response = SimpleNamespace(
+        content=[SimpleNamespace(
+            type="tool_use",
+            name="structured_output",
+            input={"structured_output": {"answer": "unwrapped"}},
+        )],
+        stop_reason="end_turn",
+        usage=SimpleNamespace(input_tokens=10, output_tokens=5),
+    )
+    mock_create = AsyncMock(return_value=wrapped_response)
+    mock_client = SimpleNamespace(messages=SimpleNamespace(create=mock_create))
+    with patch("src.services.llm._get_anthropic_client", return_value=mock_client):
+        parsed, in_tok, out_tok = await _call_anthropic(
+            model="claude-opus-4-7",
+            system_prompt="t",
+            user_message="t",
+            response_model=_DummyResponse,
+            temperature=0.0,
+            max_tokens=100,
+        )
+    assert parsed.answer == "unwrapped"
+
+
+@pytest.mark.asyncio
+async def test_anthropic_opus47_unwraps_parameter_name_wrapper():
+    """Full mock: Opus 4.7 returns {"$PARAMETER_NAME": {payload}}, validation succeeds."""
+    wrapped_response = SimpleNamespace(
+        content=[SimpleNamespace(
+            type="tool_use",
+            name="structured_output",
+            input={"$PARAMETER_NAME": {"answer": "unwrapped"}},
+        )],
+        stop_reason="end_turn",
+        usage=SimpleNamespace(input_tokens=10, output_tokens=5),
+    )
+    mock_create = AsyncMock(return_value=wrapped_response)
+    mock_client = SimpleNamespace(messages=SimpleNamespace(create=mock_create))
+    with patch("src.services.llm._get_anthropic_client", return_value=mock_client):
+        parsed, in_tok, out_tok = await _call_anthropic(
+            model="claude-opus-4-7",
+            system_prompt="t",
+            user_message="t",
+            response_model=_DummyResponse,
+            temperature=0.0,
+            max_tokens=100,
+        )
+    assert parsed.answer == "unwrapped"

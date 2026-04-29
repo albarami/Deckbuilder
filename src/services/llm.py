@@ -310,6 +310,38 @@ async def _call_openai(  # noqa: UP047
     return parsed, response.usage.prompt_tokens, response.usage.completion_tokens
 
 
+# ── Anthropic tool output unwrapping ─────────────────────────────
+# Opus 4.7 sometimes wraps the tool payload in a single extra key.
+# Only the two observed wrapper key names are unwrapped — all other
+# single-key dicts are left for strict Pydantic validation to reject.
+_KNOWN_WRAPPER_KEYS = {"structured_output", "$PARAMETER_NAME"}
+
+
+def _unwrap_tool_output(raw_input: dict) -> dict:
+    """Unwrap known Anthropic Opus 4.7 tool output wrappers.
+
+    Observed patterns:
+      {"structured_output": {actual_payload}}
+      {"$PARAMETER_NAME": {actual_payload}}
+
+    Only unwraps when the dict has exactly one key that matches a known
+    wrapper name AND the inner value is a dict. Otherwise returns as-is.
+    """
+    if len(raw_input) != 1:
+        return raw_input
+    only_key = next(iter(raw_input))
+    if only_key not in _KNOWN_WRAPPER_KEYS:
+        return raw_input
+    inner = raw_input[only_key]
+    if not isinstance(inner, dict):
+        return raw_input
+    logger.info(
+        "Anthropic tool output: unwrapped '%s' wrapper key",
+        only_key,
+    )
+    return inner
+
+
 async def _call_anthropic(  # noqa: UP047
     model: str,
     system_prompt: str,
@@ -356,8 +388,12 @@ async def _call_anthropic(  # noqa: UP047
             max_tokens,
         )
 
+    raw_input = _unwrap_tool_output(
+        tool_block.input if tool_block.input else {},
+    )
+
     try:
-        parsed = response_model.model_validate(tool_block.input)
+        parsed = response_model.model_validate(raw_input)
     except Exception as first_err:
         # Retry: if any field value is a JSON string instead of a dict/list,
         # recursively parse it. This handles Anthropic returning e.g.
@@ -393,7 +429,6 @@ async def _call_anthropic(  # noqa: UP047
                 return fixed_list, changed
             return obj, False
 
-        raw_input = tool_block.input if tool_block.input else {}
         fixed_input, did_fix = _fix_string_json(raw_input)
 
         if did_fix:

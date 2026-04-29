@@ -176,10 +176,16 @@ def register_rfp_facts(rfp: RFPContext, registry: ClaimRegistry) -> None:
 
     # ── Language / source language rule ─────────────────────────────
     if rfp.source_language is not None:
+        # source_language may be a plain string (use_enum_values=True) or an enum
+        lang = (
+            rfp.source_language.value
+            if hasattr(rfp.source_language, "value")
+            else str(rfp.source_language)
+        )
         registry.register(
             _make_rfp_fact(
                 claim_id=next_id("LANG"),
-                text=f"RFP source language: {rfp.source_language.value}",
+                text=f"RFP source language: {lang}",
                 source_location="source_language",
             )
         )
