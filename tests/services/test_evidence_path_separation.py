@@ -245,3 +245,102 @@ def test_rfp_uploaded_documents_not_contaminated_by_evidence():
     sig = inspect.signature(_build_domain_agnostic_input)
     param_names = list(sig.parameters.keys())
     assert "evidence" not in " ".join(param_names).lower()
+
+
+# ── Fail-closed on consistency mismatch ──────────────────────────
+
+
+def test_mismatch_does_not_load_evidence_backend(tmp_path):
+    """Cache/docs mismatch must NOT call load_evidence_backend_from_cache."""
+    # Create mismatched setup: cache says 2 docs, disk has 1
+    (tmp_path / "alpha.pdf").write_bytes(b"%PDF-fake")
+
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    manifest = {
+        "total_documents": 2,
+        "documents": [
+            {"doc_id": "DOC-001", "filename": "alpha.pdf"},
+            {"doc_id": "DOC-002", "filename": "beta.pptx"},
+        ],
+    }
+    (cache_dir / "manifest.json").write_text(
+        json.dumps(manifest), encoding="utf-8"
+    )
+
+    # Validate — should fail
+    ok, msg = validate_evidence_cache_consistency(str(cache_dir), str(tmp_path))
+    assert ok is False
+
+    # After a failed consistency check, these must remain unset
+    assert search_mod.EVIDENCE_DOCS_PATH is None
+    assert search_mod.EVIDENCE_CACHE_PATH is None
+    assert search_mod.EVIDENCE_KG_PATH is None
+    assert search_mod._backend is None
+
+
+def test_mismatch_leaves_kg_path_unset(tmp_path):
+    """After consistency mismatch, EVIDENCE_KG_PATH must not be set."""
+    (tmp_path / "alpha.pdf").write_bytes(b"%PDF-fake")
+
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    (cache_dir / "manifest.json").write_text(
+        json.dumps({"total_documents": 5, "documents": []}),
+        encoding="utf-8",
+    )
+
+    ok, _ = validate_evidence_cache_consistency(str(cache_dir), str(tmp_path))
+    assert ok is False
+
+    # Simulate what the runner does on mismatch: nothing loaded
+    # All evidence globals must remain None
+    assert search_mod.EVIDENCE_KG_PATH is None
+
+
+def test_mismatch_does_not_leave_backend_pointing_at_evidence():
+    """After mismatch, _backend must not point at evidence cache."""
+    # _backend starts as None (reset by fixture)
+    assert search_mod._backend is None
+
+    # A mismatch means load_evidence_backend_from_cache was never called
+    # so _backend stays None (or stays at whatever it was before)
+    assert search_mod._backend is None
+
+
+def test_successful_consistency_loads_all_three(tmp_path):
+    """After consistency passes, backend + docs path + KG path are all set."""
+    # Create matched setup
+    (tmp_path / "alpha.pdf").write_bytes(b"%PDF-fake")
+    (tmp_path / "beta.pptx").write_bytes(b"PK-fake")
+
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    manifest = {
+        "total_documents": 2,
+        "documents": [
+            {"doc_id": "DOC-001", "filename": "alpha.pdf"},
+            {"doc_id": "DOC-002", "filename": "beta.pptx"},
+        ],
+    }
+    (cache_dir / "manifest.json").write_text(
+        json.dumps(manifest), encoding="utf-8"
+    )
+    # Create fake embeddings so backend.load() doesn't crash
+    import numpy as np
+    np.save(str(cache_dir / "embeddings.npy"), np.zeros((2, 10)))
+    (cache_dir / "chunks.json").write_text("[]", encoding="utf-8")
+
+    # Validate
+    ok, msg = validate_evidence_cache_consistency(str(cache_dir), str(tmp_path))
+    assert ok is True
+
+    # Now simulate what the runner does on success
+    load_evidence_backend_from_cache(str(cache_dir))
+    set_evidence_docs_path(str(tmp_path))
+    search_mod.EVIDENCE_KG_PATH = f"{cache_dir}/knowledge_graph.json"
+
+    assert search_mod._backend is not None
+    assert search_mod.EVIDENCE_DOCS_PATH == str(tmp_path)
+    assert search_mod.EVIDENCE_CACHE_PATH == str(cache_dir)
+    assert "knowledge_graph.json" in search_mod.EVIDENCE_KG_PATH

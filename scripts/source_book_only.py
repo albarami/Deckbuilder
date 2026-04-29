@@ -192,35 +192,41 @@ async def run_source_book_only(
     # ── Step 2: Build RFP-only index (resets _backend, overrides DEFAULT_CACHE_PATH) ──
     _cache_path, index_status, index_reason = await ensure_search_index(docs_path=docs_path)
 
-    # ── Step 3: Load evidence backend AFTER RFP index (replaces _backend) ──
+    # ── Step 3: Validate + load evidence (AFTER RFP index) ──
     import src.services.search as _search_mod
 
     evidence_status = "OK"
     evidence_reason = ""
     evidence_consistent = True
+    evidence_enabled = False
     evidence_manifest_docs = 0
     evidence_kg_people = 0
     evidence_kg_projects = 0
     evidence_kg_clients = 0
 
     if evidence_cache_path:
-        _search_mod.load_evidence_backend_from_cache(evidence_cache_path)
-
-        # ── Step 3b: Validate cache/docs consistency if both provided ──
         if evidence_docs_path:
+            # ── Step 3a: Validate cache/docs consistency BEFORE loading ──
             consistent, msg = _search_mod.validate_evidence_cache_consistency(
                 evidence_cache_path, evidence_docs_path,
             )
             print(f"  [EVIDENCE] {msg}")
             evidence_consistent = consistent
+
             if not consistent:
+                # FAIL CLOSED: do NOT load evidence backend, docs path, or KG.
+                # Wrong evidence is worse than no evidence.
                 evidence_status = "DEGRADED"
                 evidence_reason = msg
-                print(f"  [EVIDENCE] ⚠ MISMATCH — disabling evidence full-doc loading")
-                # Disable evidence docs path so load_evidence_full_documents falls
-                # back to DEFAULT_DOCS_PATH. This prevents DOC-### mismatch.
-                _search_mod.EVIDENCE_DOCS_PATH = None
+                print(f"  [EVIDENCE] ⚠ MISMATCH — evidence mode DISABLED entirely")
+                print(f"  [EVIDENCE]   Pipeline will run in RFP-only mode")
             else:
+                # ── Step 3b: Consistency passed — load everything ──
+                _search_mod.load_evidence_backend_from_cache(evidence_cache_path)
+                _search_mod.set_evidence_docs_path(evidence_docs_path)
+                _search_mod.EVIDENCE_KG_PATH = f"{evidence_cache_path}/knowledge_graph.json"
+                evidence_enabled = True
+
                 # Read manifest doc count for provenance
                 manifest_path = Path(evidence_cache_path) / "manifest.json"
                 if manifest_path.exists():
@@ -228,16 +234,13 @@ async def run_source_book_only(
                     manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
                     evidence_manifest_docs = manifest.get("total_documents", 0)
         else:
+            # Cache provided without docs path — retrieval/KG only mode
             print("  [EVIDENCE] ⚠ --evidence-cache-path set without --evidence-docs-path")
-            print("  [EVIDENCE]   Retrieval + KG available, but full-doc loading may be unavailable")
-
-    # ── Step 4: Set evidence docs path (after consistency check) ──
-    if evidence_docs_path and evidence_consistent:
-        _search_mod.set_evidence_docs_path(evidence_docs_path)
-
-    # ── Step 5: Set evidence KG path ──
-    if evidence_cache_path:
-        _search_mod.EVIDENCE_KG_PATH = f"{evidence_cache_path}/knowledge_graph.json"
+            print("  [EVIDENCE]   Loading retrieval backend + KG only")
+            print("  [EVIDENCE]   Full-doc evidence loading NOT available")
+            _search_mod.load_evidence_backend_from_cache(evidence_cache_path)
+            _search_mod.EVIDENCE_KG_PATH = f"{evidence_cache_path}/knowledge_graph.json"
+            evidence_enabled = True  # partial: retrieval + KG, no full-doc
 
     # Build graph
     print("\n[BUILD] Building production pipeline graph...")
@@ -839,6 +842,7 @@ async def run_source_book_only(
         "evidence_docs_path": evidence_docs_path or "(not provided)",
         "evidence_cache_path": evidence_cache_path or "(not provided)",
         "evidence_cache_consistent": evidence_consistent if evidence_cache_path else None,
+        "evidence_enabled": evidence_enabled,
         "evidence_manifest_doc_count": evidence_manifest_docs,
         "evidence_kg_people": evidence_kg_people,
         "evidence_kg_projects": evidence_kg_projects,
