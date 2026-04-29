@@ -459,14 +459,14 @@ async def analysis_node(state: DeckForgeState) -> dict[str, Any]:
     approved_source_ids.  For local dev, we auto-approve all retrieved
     sources if no explicit IDs were set.
     """
-    from src.services.search import load_full_documents
+    from src.services.search import load_evidence_full_documents
 
     approved_ids = state.approved_source_ids
     if not approved_ids:
         # Auto-approve all retrieved sources for local dev
         approved_ids = [s.doc_id for s in state.retrieved_sources]
 
-    documents = await load_full_documents(approved_ids)
+    documents = await load_evidence_full_documents(approved_ids)
     result = state
     merged_index = None
 
@@ -506,17 +506,18 @@ async def analysis_node(state: DeckForgeState) -> dict[str, Any]:
     try:
         from pathlib import Path as P
 
+        import src.services.search as search_mod
         from src.agents.indexing.entity_extractor import load_knowledge_graph
-        from src.services.search import DEFAULT_CACHE_PATH
 
-        kg_file = P(DEFAULT_CACHE_PATH) / "knowledge_graph.json"
+        kg_path = search_mod.EVIDENCE_KG_PATH or f"{search_mod.DEFAULT_CACHE_PATH}/knowledge_graph.json"
+        kg_file = P(kg_path)
         if kg_file.exists():
             knowledge_graph = load_knowledge_graph(str(kg_file))
             if knowledge_graph and knowledge_graph.people:
                 logger.info(
                     "Knowledge graph loaded from %s: "
                     "%d people, %d projects, %d clients",
-                    DEFAULT_CACHE_PATH,
+                    kg_path,
                     len(knowledge_graph.people),
                     len(knowledge_graph.projects),
                     len(knowledge_graph.clients),

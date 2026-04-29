@@ -51,6 +51,125 @@ DEFAULT_CACHE_PATH = os.environ.get(
 )
 
 
+# ── Evidence corpus runtime config ───────────────────────────────
+# Set by the runner when --evidence-docs-path / --evidence-cache-path
+# are provided. None = not configured, use current single-path behavior.
+EVIDENCE_DOCS_PATH: str | None = None
+EVIDENCE_CACHE_PATH: str | None = None
+EVIDENCE_KG_PATH: str | None = None
+
+
+def load_evidence_backend_from_cache(cache_path: str) -> None:
+    """Load pre-built search backend for internal evidence retrieval.
+
+    Replaces the module-level _backend with the evidence corpus index.
+    Does NOT re-index. Only loads existing embeddings + chunks.
+
+    Must be called AFTER ensure_search_index() so the RFP-only index
+    build does not overwrite the evidence backend.
+    """
+    global _backend, EVIDENCE_CACHE_PATH
+    backend = NumpySearchBackend()
+    backend.load(cache_path)
+    _backend = backend
+    EVIDENCE_CACHE_PATH = cache_path
+    chunk_count = len(backend._chunks) if hasattr(backend, "_chunks") else -1
+    logger.info(
+        "Evidence backend loaded from cache: %s (%d chunks)",
+        cache_path,
+        chunk_count,
+    )
+
+
+def set_evidence_docs_path(path: str) -> None:
+    """Set the evidence corpus document path for full-document loading."""
+    global EVIDENCE_DOCS_PATH
+    EVIDENCE_DOCS_PATH = path
+    logger.info("Evidence docs path set: %s", path)
+
+
+def validate_evidence_cache_consistency(
+    cache_path: str,
+    docs_path: str,
+) -> tuple[bool, str]:
+    """Check that evidence cache manifest matches evidence docs folder.
+
+    Uses lightweight file listing (no OCR/extraction). Compares manifest
+    filenames against supported files on disk.
+
+    Returns (is_consistent, message).
+    If inconsistent, caller must disable evidence full-doc loading to
+    prevent DOC-### ID mismatch.
+    """
+    manifest_path = Path(cache_path) / "manifest.json"
+    if not manifest_path.exists():
+        return False, f"No manifest.json in evidence cache: {cache_path}"
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    cached_doc_count = manifest.get("total_documents", 0)
+    cached_filenames = {
+        doc.get("filename", "") for doc in manifest.get("documents", [])
+    }
+
+    # Lightweight listing — no extraction, just file enumeration
+    disk_docs = _list_supported_documents(docs_path)
+    disk_filenames = {d["metadata"]["filename"] for d in disk_docs}
+    disk_count = len(disk_docs)
+
+    if cached_doc_count != disk_count:
+        return False, (
+            f"Evidence cache has {cached_doc_count} docs but "
+            f"evidence-docs-path has {disk_count} files. "
+            f"DOC-### IDs may not resolve correctly."
+        )
+
+    missing = cached_filenames - disk_filenames
+    extra = disk_filenames - cached_filenames
+    if missing or extra:
+        parts = []
+        if missing:
+            parts.append(f"{len(missing)} in cache but not on disk")
+        if extra:
+            parts.append(f"{len(extra)} on disk but not in cache")
+        return False, f"Evidence cache/docs mismatch: {'; '.join(parts)}."
+
+    return True, f"Evidence cache consistent: {cached_doc_count} documents"
+
+
+async def load_evidence_full_documents(
+    approved_ids: list[str],
+    max_chars_per_document: int = 50_000,
+) -> list[dict]:
+    """Load full documents from the EVIDENCE corpus, not the RFP folder.
+
+    Resolves DOC-### IDs against EVIDENCE_DOCS_PATH. Falls back to
+    load_full_documents() with DEFAULT_DOCS_PATH if EVIDENCE_DOCS_PATH
+    is not configured.
+    """
+    if EVIDENCE_DOCS_PATH:
+        return await load_full_documents(
+            approved_ids,
+            docs_path=EVIDENCE_DOCS_PATH,
+            max_chars_per_document=max_chars_per_document,
+        )
+    return await load_full_documents(
+        approved_ids,
+        max_chars_per_document=max_chars_per_document,
+    )
+
+
+def reset_evidence_runtime_config() -> None:
+    """Reset all evidence-related module globals.
+
+    Call in test teardown to prevent config leaking between tests/runs.
+    """
+    global _backend, EVIDENCE_DOCS_PATH, EVIDENCE_CACHE_PATH, EVIDENCE_KG_PATH
+    _backend = None
+    EVIDENCE_DOCS_PATH = None
+    EVIDENCE_CACHE_PATH = None
+    EVIDENCE_KG_PATH = None
+
+
 # ──────────────────────────────────────────────────────────────
 # Models
 # ──────────────────────────────────────────────────────────────

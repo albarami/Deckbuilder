@@ -163,6 +163,8 @@ async def run_source_book_only(
     language: str,
     docs_path: str = "data_positive_proof",
     max_summary_chars: int = 12_000,
+    evidence_docs_path: str | None = None,
+    evidence_cache_path: str | None = None,
 ) -> dict[str, Any]:
     """Run pipeline through Source Book only. No PPT. No render."""
     from src.services.llm import get_cost_summary, reset_cost_tracker
@@ -174,14 +176,68 @@ async def run_source_book_only(
     print(f"  SOURCE BOOK ONLY: language={language}")
     print("  Stops at: source_book (before assembly_plan)")
     print("  NO PPTX. NO DECK. NO RENDER.")
+    if evidence_cache_path:
+        print(f"  Evidence cache: {evidence_cache_path}")
+    if evidence_docs_path:
+        print(f"  Evidence docs:  {evidence_docs_path}")
     print(f"{'=' * 80}\n")
 
+    # ── Step 1: Build RFP input from --docs-path (RFP only) ──
     ai_summary, uploaded_documents = _build_domain_agnostic_input(
         docs_path,
         language,
         max_summary_chars=max_summary_chars,
     )
+
+    # ── Step 2: Build RFP-only index (resets _backend, overrides DEFAULT_CACHE_PATH) ──
     _cache_path, index_status, index_reason = await ensure_search_index(docs_path=docs_path)
+
+    # ── Step 3: Load evidence backend AFTER RFP index (replaces _backend) ──
+    import src.services.search as _search_mod
+
+    evidence_status = "OK"
+    evidence_reason = ""
+    evidence_consistent = True
+    evidence_manifest_docs = 0
+    evidence_kg_people = 0
+    evidence_kg_projects = 0
+    evidence_kg_clients = 0
+
+    if evidence_cache_path:
+        _search_mod.load_evidence_backend_from_cache(evidence_cache_path)
+
+        # ── Step 3b: Validate cache/docs consistency if both provided ──
+        if evidence_docs_path:
+            consistent, msg = _search_mod.validate_evidence_cache_consistency(
+                evidence_cache_path, evidence_docs_path,
+            )
+            print(f"  [EVIDENCE] {msg}")
+            evidence_consistent = consistent
+            if not consistent:
+                evidence_status = "DEGRADED"
+                evidence_reason = msg
+                print(f"  [EVIDENCE] ⚠ MISMATCH — disabling evidence full-doc loading")
+                # Disable evidence docs path so load_evidence_full_documents falls
+                # back to DEFAULT_DOCS_PATH. This prevents DOC-### mismatch.
+                _search_mod.EVIDENCE_DOCS_PATH = None
+            else:
+                # Read manifest doc count for provenance
+                manifest_path = Path(evidence_cache_path) / "manifest.json"
+                if manifest_path.exists():
+                    import json as _json
+                    manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
+                    evidence_manifest_docs = manifest.get("total_documents", 0)
+        else:
+            print("  [EVIDENCE] ⚠ --evidence-cache-path set without --evidence-docs-path")
+            print("  [EVIDENCE]   Retrieval + KG available, but full-doc loading may be unavailable")
+
+    # ── Step 4: Set evidence docs path (after consistency check) ──
+    if evidence_docs_path and evidence_consistent:
+        _search_mod.set_evidence_docs_path(evidence_docs_path)
+
+    # ── Step 5: Set evidence KG path ──
+    if evidence_cache_path:
+        _search_mod.EVIDENCE_KG_PATH = f"{evidence_cache_path}/knowledge_graph.json"
 
     # Build graph
     print("\n[BUILD] Building production pipeline graph...")
@@ -286,6 +342,12 @@ async def run_source_book_only(
     docx_path = result.get("report_docx_path")
     fallback_events = result.get("fallback_events", [])
     routing_report = result.get("routing_report", {})
+
+    # Populate evidence KG counts for provenance reporting
+    if knowledge_graph:
+        evidence_kg_people = len(getattr(knowledge_graph, "people", []) or [])
+        evidence_kg_projects = len(getattr(knowledge_graph, "projects", []) or [])
+        evidence_kg_clients = len(getattr(knowledge_graph, "clients", []) or [])
 
     # Print routing report
     if routing_report:
@@ -771,6 +833,16 @@ async def run_source_book_only(
             "perplexity": perplexity_usage,
             "semantic_scholar": s2_usage,
         },
+        # Evidence provenance
+        "rfp_docs_path": docs_path,
+        "rfp_cache_path": _cache_path,
+        "evidence_docs_path": evidence_docs_path or "(not provided)",
+        "evidence_cache_path": evidence_cache_path or "(not provided)",
+        "evidence_cache_consistent": evidence_consistent if evidence_cache_path else None,
+        "evidence_manifest_doc_count": evidence_manifest_docs,
+        "evidence_kg_people": evidence_kg_people,
+        "evidence_kg_projects": evidence_kg_projects,
+        "evidence_kg_clients": evidence_kg_clients,
     }
 
 
@@ -898,7 +970,17 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--docs-path", default="data_positive_proof",
-        help="Path to curated data directory",
+        help="Path to RFP input documents (RFP only)",
+    )
+    parser.add_argument(
+        "--evidence-docs-path", default=None,
+        help="Path to internal evidence corpus (original files). "
+             "Used for full-document loading after retrieval.",
+    )
+    parser.add_argument(
+        "--evidence-cache-path", default=None,
+        help="Path to pre-built internal evidence index (embeddings, KG). "
+             "Used for retrieval search and knowledge graph loading.",
     )
     parser.add_argument(
         "--max-summary-chars",
@@ -913,6 +995,8 @@ if __name__ == "__main__":
             args.language,
             args.docs_path,
             max_summary_chars=args.max_summary_chars,
+            evidence_docs_path=args.evidence_docs_path,
+            evidence_cache_path=args.evidence_cache_path,
         ),
     )
 
