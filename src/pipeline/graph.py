@@ -118,9 +118,31 @@ async def context_node(state: DeckForgeState) -> dict[str, Any]:
             )
 
             extras = state.pipeline_extras or {}
+            portal_spans = extras.get("portal_spans")
+
+            # When no OCR-tagged spans are provided, synthesize basic
+            # spans from uploaded_documents text so the portal guard can
+            # at least check for brand mentions. region_type="unknown"
+            # means confidence cannot reach "explicit_submission_clause"
+            # — it will be "unknown_named_portal" at best.
+            if portal_spans is None and state.uploaded_documents:
+                from src.services.portal_inference_guard import (
+                    ExtractedTextSpan,
+                )
+
+                portal_spans = [
+                    ExtractedTextSpan(
+                        text=doc.content_text[:5000],
+                        page=0,
+                        region_type="unknown",
+                    )
+                    for doc in state.uploaded_documents
+                    if doc.content_text
+                ]
+
             wire_generated_inferences(
                 state,
-                portal_spans=extras.get("portal_spans"),
+                portal_spans=portal_spans,
                 deliverable_origins=extras.get("deliverable_origins"),
                 conflicts=extras.get("conflicts"),
             )
@@ -1191,6 +1213,16 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
 
                 from src.models.source_book import EvidenceLedger
 
+                # Reconcile legacy CLM-* entries against ClaimRegistry
+                # so RFP facts are not misclassified as internal claims.
+                from src.services.ledger_reconciliation import (
+                    reconcile_ledger_with_registry,
+                )
+
+                ledger_entries = reconcile_ledger_with_registry(
+                    ledger_entries, current_state.claim_registry,
+                )
+
                 final_sb.evidence_ledger = EvidenceLedger(
                     entries=ledger_entries,
                 )
@@ -1255,6 +1287,31 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     except Exception as e:
         logger.warning("Could not compute theme_coverage for DOCX: %s", e)
 
+    # Pre-export sanitization: remove forbidden leakage from client-facing
+    # sections BEFORE DOCX export. Each removal is recorded so the gate
+    # can enforce fail-closed behavior — sanitizing does NOT make the
+    # section "clean", it makes it "sanitized with gaps."
+    sanitization_removals: list = []
+    try:
+        from src.services.pre_export_sanitizer import sanitize_source_book_sections
+
+        sb_dict = current_state.source_book.model_dump(mode="json")
+        sanitize_result = sanitize_source_book_sections(sb_dict)
+        sanitization_removals = sanitize_result.removals
+
+        if sanitize_result.total_removals > 0:
+            logger.warning(
+                "Pre-export sanitizer: %d forbidden pattern(s) removed from "
+                "client-facing sections. Gate should treat as unsupported proof.",
+                sanitize_result.total_removals,
+            )
+            # Rebuild the source book from sanitized dict
+            current_state.source_book = type(current_state.source_book).model_validate(
+                sanitize_result.sanitized,
+            )
+    except Exception as e:
+        logger.error("Pre-export sanitizer failed: %s", e)
+
     try:
         await export_source_book_docx(
             current_state.source_book,
@@ -1286,6 +1343,10 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
         "fallback_events": all_fallback_events,
         "routing_report": routing_report.model_dump(mode="json"),
         "pack_context": pack_context,
+        "sanitization_removals": [
+            r.model_dump(mode="json") for r in sanitization_removals
+        ],
+        "claim_registry": current_state.claim_registry,
     }
 
     # Surface export failure structurally

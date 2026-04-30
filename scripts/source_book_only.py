@@ -465,6 +465,96 @@ async def run_source_book_only(
     )
     print(f"  Research results raw: {raw_path}")
 
+    # 7. Debug artifacts — claim_registry, routing_report, gate_decision
+    claim_registry = result.get("claim_registry")
+    if claim_registry is not None:
+        try:
+            cr_data = claim_registry.model_dump(mode="json")
+            cr_path = str(output_dir / "claim_registry.json")
+            Path(cr_path).write_text(
+                json.dumps(cr_data, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            print(f"  Claim registry: {cr_path} ({len(cr_data.get('claims', {}))} claims)")
+        except Exception as e:
+            print(f"  Claim registry: export failed — {e}")
+
+    if routing_report:
+        rr_path = str(output_dir / "routing_report.json")
+        Path(rr_path).write_text(
+            json.dumps(routing_report, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        print(f"  Routing report: {rr_path}")
+
+    # 8. evidence_coverage_report.json — when available
+    evidence_coverage_report = result.get("evidence_coverage_report")
+    evidence_coverage_status = "not_available"
+    if evidence_coverage_report is not None:
+        try:
+            if hasattr(evidence_coverage_report, "model_dump"):
+                ecr_data = evidence_coverage_report.model_dump(mode="json")
+            else:
+                ecr_data = evidence_coverage_report
+            evidence_coverage_status = ecr_data.get("status", "unknown")
+            ecr_path = str(output_dir / "evidence_coverage_report.json")
+            Path(ecr_path).write_text(
+                json.dumps(ecr_data, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            print(f"  Evidence coverage: {ecr_path} (status={evidence_coverage_status})")
+        except Exception as e:
+            print(f"  Evidence coverage: export failed — {e}")
+
+    # 9. gate_decision.json — live acceptance summary
+    gate_decision = {
+        "live_gate": "should_accept_source_book",
+        "conformance_status": conformance_report.conformance_status if conformance_report else "not_run",
+        "final_acceptance_decision": conformance_report.final_acceptance_decision if conformance_report else "not_run",
+        "hard_requirements_checked": conformance_report.hard_requirements_checked if conformance_report else 0,
+        "hard_requirements_passed": conformance_report.hard_requirements_passed if conformance_report else 0,
+        "hard_requirements_failed": conformance_report.hard_requirements_failed if conformance_report else 0,
+        "forbidden_claims": len(conformance_report.forbidden_claims) if conformance_report else 0,
+        "missing_inputs": len(conformance_report.missing_inputs) if conformance_report else 0,
+        "reviewer_threshold_met": (
+            source_book_review.pass_threshold_met if source_book_review else False
+        ),
+        "reviewer_score": (
+            source_book_review.overall_score if source_book_review else 0
+        ),
+        "evidence_coverage_status": evidence_coverage_status,
+        "sanitization_removals": len(result.get("sanitization_removals", [])),
+        "proposal_ready": False,
+        "deck_generation_allowed": False,
+    }
+    # Compute proposal_ready: all gates must pass
+    gate_decision["proposal_ready"] = (
+        gate_decision["conformance_status"] == "pass"
+        and gate_decision["forbidden_claims"] == 0
+        and gate_decision["reviewer_threshold_met"] is True
+        and gate_decision["sanitization_removals"] == 0
+        and gate_decision["missing_inputs"] == 0
+        and gate_decision["evidence_coverage_status"] in ("pass", "not_available")
+    )
+    gate_decision["deck_generation_allowed"] = gate_decision["proposal_ready"]
+
+    gd_path = str(output_dir / "gate_decision.json")
+    Path(gd_path).write_text(
+        json.dumps(gate_decision, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    print(f"  Gate decision: {gd_path} (proposal_ready={gate_decision['proposal_ready']})")
+
+    # 10. sanitization_removals.json — if any content was sanitized
+    sanitization_removals = result.get("sanitization_removals", [])
+    if sanitization_removals:
+        sr_path = str(output_dir / "sanitization_removals.json")
+        Path(sr_path).write_text(
+            json.dumps(sanitization_removals, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        print(f"  Sanitization removals: {sr_path} ({len(sanitization_removals)} removals)")
+
     # ── Compute metrics ──
     sb_word_count = 0
     cap_count = 0

@@ -363,9 +363,16 @@ class EvidenceLedgerEntry(DeckForgeBaseModel):
     source_reference: str = ""
     confidence: float = 0.0
     verifiability_status: Literal[
-        "verified", "partially_verified", "unverified", "gap",
+        "verified", "verified_from_rfp", "partially_verified", "unverified", "gap",
     ] = "unverified"
     verification_note: str = ""
+
+    # Typed provenance fields — populated by ledger reconciliation when
+    # a legacy CLM-* entry maps to a registered ClaimProvenance.
+    # None = not reconciled (legacy behavior preserved).
+    claim_kind: str | None = None
+    source_kind: str | None = None
+    registry_claim_id: str | None = None
 
 
 class EvidenceLedger(DeckForgeBaseModel):

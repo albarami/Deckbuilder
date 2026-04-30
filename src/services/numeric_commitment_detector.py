@@ -56,6 +56,28 @@ _RANGE_RE = re.compile(
     flags=re.IGNORECASE,
 )
 
+# Patterns that look like numeric ranges but are actually structured IDs
+# or Hijri dates. When any of these match in the lookbehind window around
+# a range match, the range is excluded from commitment detection.
+_ID_OR_DATE_CONTEXT_RE = re.compile(
+    r"HR-L\d-\d+|"           # HR requirement IDs (HR-L1-009)
+    r"CR-\d+|"               # Compliance requirement IDs
+    r"COMP-\d+|"             # Compliance row IDs
+    r"DEL-\d+|"              # Deliverable IDs
+    r"SCOPE-\d+|"            # Scope item IDs
+    r"CLM-\w+-\d+|"          # Claim ledger IDs
+    r"14\d{2}[-/]\d{2}",     # Hijri year-month (14xx-MM)
+    re.IGNORECASE,
+)
+
+
+def _is_id_or_date_context(text: str, match_start: int, match_end: int) -> bool:
+    """Check if a range match falls inside a structured ID or Hijri date."""
+    window_start = max(0, match_start - 20)
+    window_end = min(len(text), match_end + 10)
+    window = text[window_start:window_end]
+    return bool(_ID_OR_DATE_CONTEXT_RE.search(window))
+
 # Single-number commitment with a scope-shaping unit. The unit list
 # covers contract-duration / scope / cohort / workshop / deliverable
 # language in English and Arabic. We only flag a single number when it
@@ -158,6 +180,9 @@ def detect_numeric_commitments(
                 continue
             if _is_year_range(lo, hi):
                 continue
+            # Exclude structured IDs (HR-L1-009) and Hijri dates (1447-11)
+            if _is_id_or_date_context(text_for_match, m.start(), m.end()):
+                continue
             lo_c, hi_c = (lo, hi) if lo <= hi else (hi, lo)
             canonical = f"{lo_c}-{hi_c}"
             resolution, claim_id, option_id = _resolve(
@@ -179,6 +204,9 @@ def detect_numeric_commitments(
             # expression we already emitted.
             num_start = m.start("num")
             if any(s[0] <= num_start < s[1] for s in consumed_spans):
+                continue
+            # Exclude structured IDs and Hijri dates
+            if _is_id_or_date_context(text_for_match, m.start(), m.end()):
                 continue
             try:
                 num = int(m.group("num"))
