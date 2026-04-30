@@ -573,6 +573,7 @@ def _add_section_4(
     source_book: SourceBook,
     evidence_enrichment: dict[str, dict] | None = None,
     theme_coverage: dict | None = None,
+    audience: str = "internal",
 ) -> None:
     """Section 4: External Evidence — enriched for proposal-building.
 
@@ -653,16 +654,20 @@ def _add_section_4(
         # (not hardcoded to any jurisdiction)
         doc.add_paragraph()
         doc.add_heading("Evidence Gap Summary", level=3)
+        _e2_suffix = (
+            "" if audience == "client"
+            else " {action}"
+        )
         gap_items = [
             ("Jurisdiction-specific benchmarks",
-             "No local jurisdiction benchmarks found in external evidence. "
-             "Engine 2 action: source from client's institutional databases."),
+             "No local jurisdiction benchmarks found in external evidence."
+             + (_e2_suffix.format(action="Engine 2 action: source from client's institutional databases.") if audience != "client" else " Internal evidence follow-up required.")),
             ("SLA/KPI frameworks",
-             "No specific service level agreement frameworks found. "
-             "Engine 2 action: source from client's existing SLA framework."),
+             "No specific service level agreement frameworks found."
+             + (_e2_suffix.format(action="Engine 2 action: source from client's existing SLA framework.") if audience != "client" else " Internal evidence follow-up required.")),
             ("National program alignment",
-             "Limited evidence on jurisdiction-specific national programs. "
-             "Engine 2 action: source from relevant national program documentation."),
+             "Limited evidence on jurisdiction-specific national programs."
+             + (_e2_suffix.format(action="Engine 2 action: source from relevant national program documentation.") if audience != "client" else " Internal evidence follow-up required.")),
         ]
         for gap_name, gap_desc in gap_items:
             p = doc.add_paragraph()
@@ -715,7 +720,11 @@ def _add_section_4(
         f"Tier breakdown: {primary_count} primary source(s), "
         f"{secondary_count} secondary source(s). "
         "Coverage gaps are tagged in the Evidence Gap Summary above and "
-        "flagged for Engine 2 retrieval from company backend databases."
+        + (
+            "flagged for Engine 2 retrieval from company backend databases."
+            if audience != "client"
+            else "flagged for internal evidence follow-up before proposal submission."
+        )
     )
 
     # ── Theme Coverage ─────────────────────────────────────
@@ -758,7 +767,11 @@ def _add_section_4(
     doc.add_paragraph(
         "Theme coverage is determined by the number and quality of retained "
         "external evidence sources mapped to each proposal theme. Gaps indicate "
-        "areas where additional evidence from Engine 2 or manual research is needed."
+        + (
+            "areas where additional evidence from Engine 2 or manual research is needed."
+            if audience != "client"
+            else "areas where additional internal evidence is needed before proposal submission."
+        )
     )
 
     # All metadata is surfaced directly in the evidence table above.
@@ -1087,6 +1100,7 @@ async def export_source_book_docx(
     external_evidence_pack: object | None = None,
     routing_report: dict | None = None,
     theme_coverage: dict | None = None,
+    audience: str = "internal",
 ) -> str:
     """Export a SourceBook as a .docx file.
 
@@ -1099,6 +1113,9 @@ async def export_source_book_docx(
         external_evidence_pack: Optional ExternalEvidencePack with rich
             metadata (provider, url, mapped_rfp_theme) to enrich Section 4.
         routing_report: Optional routing report dict to render as an appendix.
+        audience: "client" suppresses internal workflow language (Engine 2
+            appendix, internal proof gap instructions). "internal" preserves
+            all content for debugging/review.
 
     Returns the output path.
     """
@@ -1128,17 +1145,19 @@ async def export_source_book_docx(
     _add_section_1(doc, source_book)
     _add_section_2(doc, source_book)
     _add_section_3(doc, source_book)
-    _add_section_4(doc, source_book, _evidence_enrichment, theme_coverage=theme_coverage)
+    _add_section_4(doc, source_book, _evidence_enrichment, theme_coverage=theme_coverage, audience=audience)
     _add_section_5(doc, source_book)
     _add_section_6(doc, source_book)
     _add_section_7(doc, source_book)
 
-    # Appendix: Engine 2 Requirements (proof gaps)
-    _add_engine2_requirements(doc, source_book)
+    # Internal appendices — suppressed in client audience mode
+    if audience != "client":
+        # Appendix: Engine 2 Requirements (proof gaps)
+        _add_engine2_requirements(doc, source_book)
 
-    # Appendix: Routing Summary
-    if routing_report:
-        _add_routing_appendix(doc, routing_report)
+        # Appendix: Routing Summary
+        if routing_report:
+            _add_routing_appendix(doc, routing_report)
 
     # Save
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

@@ -146,6 +146,8 @@ class DeckForgeState(DeckForgeBaseModel):
     source_book: SourceBook | None = None
     source_book_review: SourceBookReview | None = None
     conformance_report: ConformanceReport | None = None
+    sanitization_removals: list[dict] = Field(default_factory=list)
+    post_export_forbidden: list[dict] = Field(default_factory=list)
     fallback_events: list[dict] = Field(default_factory=list)
 
     # ─── Gate 3: Research Report ───

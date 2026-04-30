@@ -209,7 +209,8 @@ FORBIDDEN_ID_PATTERNS = [
     r"\bCLI-\d+\b",
     r"\bCLM-\d+\b",
     r"INTERNAL_PROOF_PLACEHOLDER",
-    r"ENGINE\s*2\s*REQUIRED",
+    r"Engine\s*2\b",           # Generic Engine 2 references (covers "ENGINE 2 REQUIRED",
+                               # "Engine 2 must retrieve", "Engine 2 action", "من Engine 2")
     r"إثبات داخلي مطلوب",
     r"قيد الاستكمال من سجلات",
 ]
@@ -607,6 +608,51 @@ class ArtifactGateDecision(DeckForgeBaseModel):
 
 
 # ── Final Artifact Gate ──────────────────────────────────────────
+
+
+def scan_docx_for_forbidden_leakage(docx_path: str) -> list[dict]:
+    """Scan an exported DOCX file for forbidden internal-proof patterns.
+
+    Checks both FORBIDDEN_ID_PATTERNS (regex) and FORBIDDEN_SEMANTIC_PHRASES
+    (substring). Returns a list of finding dicts, each with pattern,
+    matched_text, and source fields.
+
+    Raises on file-not-found or parse errors — caller must handle.
+    """
+    from docx import Document as DocxDoc
+
+    doc = DocxDoc(docx_path)
+    all_text: list[str] = []
+    for p in doc.paragraphs:
+        all_text.append(p.text)
+    for t in doc.tables:
+        for row in t.rows:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    all_text.append(p.text)
+    docx_text = "\n".join(all_text)
+
+    findings: list[dict] = []
+
+    # ID patterns (regex)
+    for pattern_str in FORBIDDEN_ID_PATTERNS:
+        for m in re.finditer(pattern_str, docx_text, re.IGNORECASE):
+            findings.append({
+                "pattern": pattern_str,
+                "matched_text": m.group(),
+                "source": "post_export_docx_scan",
+            })
+
+    # Semantic phrases (substring)
+    for phrase in FORBIDDEN_SEMANTIC_PHRASES:
+        if phrase in docx_text:
+            findings.append({
+                "pattern": f"semantic:{phrase}",
+                "matched_text": phrase,
+                "source": "post_export_docx_scan",
+            })
+
+    return findings
 
 
 def final_artifact_gate(

@@ -30,7 +30,7 @@ def test_engine2_removed_from_certifications():
     certs = result.sanitized["why_strategic_gears"]["certifications_and_compliance"]
     assert not any("ENGINE 2" in c for c in certs)
     assert len(result.removals) >= 1
-    assert any("ENGINE 2 REQUIRED" in r.matched_text for r in result.removals)
+    assert any("ENGINE 2" in r.matched_text.upper() for r in result.removals)
 
 
 def test_prj_id_removed_from_client_body():
@@ -81,7 +81,7 @@ def test_removals_reported_with_location():
     assert len(result.removals) >= 1
     r = result.removals[0]
     assert r.section_path == "proposed_solution/methodology_overview"
-    assert "ENGINE 2 REQUIRED" in r.matched_text
+    assert "ENGINE 2" in r.matched_text.upper()
 
 
 def test_removal_leaves_conformance_finding():

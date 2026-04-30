@@ -1319,9 +1319,10 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
             external_evidence_pack=current_state.external_evidence_pack,
             routing_report=routing_report.model_dump(mode="json"),
             theme_coverage=_theme_coverage,
+            audience="client",
         )
         exported_docx_path = docx_path
-        logger.info("Source Book DOCX exported: %s", docx_path)
+        logger.info("Source Book DOCX exported: %s (audience=client)", docx_path)
     except Exception as e:
         logger.error("Source Book DOCX export failed: %s", e)
         export_error = ErrorInfo(
@@ -1329,6 +1330,34 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
             error_type="DocxExportError",
             message=f"Source Book DOCX export failed: {e}",
         )
+
+    # Post-export DOCX scan — catch forbidden text introduced by the exporter.
+    # Uses reusable helper that checks both ID patterns AND semantic phrases.
+    post_export_forbidden: list[dict] = []
+    if exported_docx_path:
+        try:
+            from src.services.artifact_gates import scan_docx_for_forbidden_leakage
+
+            post_export_forbidden = scan_docx_for_forbidden_leakage(exported_docx_path)
+
+            if post_export_forbidden:
+                logger.warning(
+                    "Post-export DOCX scan: %d forbidden pattern(s) found in "
+                    "exported DOCX. Exporter introduced internal workflow text.",
+                    len(post_export_forbidden),
+                )
+            else:
+                logger.info("Post-export DOCX scan: clean — 0 forbidden patterns")
+        except Exception as e:
+            # FAIL-CLOSED: scan failure must not allow proposal_ready=True.
+            # Add a synthetic critical finding so the gate blocks.
+            logger.error("Post-export DOCX scan failed: %s", e)
+            post_export_forbidden = [{
+                "pattern": "POST_EXPORT_SCAN_FAILED",
+                "matched_text": str(e),
+                "source": "post_export_docx_scan",
+                "severity": "critical",
+            }]
 
     # Populate report_markdown from Source Book
     report_md = orchestrator.source_book_to_markdown(current_state.source_book)
@@ -1344,8 +1373,10 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
         "routing_report": routing_report.model_dump(mode="json"),
         "pack_context": pack_context,
         "sanitization_removals": [
-            r.model_dump(mode="json") for r in sanitization_removals
+            r.model_dump(mode="json") if hasattr(r, "model_dump") else r
+            for r in sanitization_removals
         ],
+        "post_export_forbidden": post_export_forbidden,
         "claim_registry": current_state.claim_registry,
     }
 

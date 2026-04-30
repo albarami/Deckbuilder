@@ -507,6 +507,9 @@ async def run_source_book_only(
             print(f"  Evidence coverage: export failed — {e}")
 
     # 9. gate_decision.json — live acceptance summary
+    sanitization_removals = result.get("sanitization_removals") or []
+    post_export_forbidden = result.get("post_export_forbidden") or []
+
     gate_decision = {
         "live_gate": "should_accept_source_book",
         "conformance_status": conformance_report.conformance_status if conformance_report else "not_run",
@@ -514,7 +517,8 @@ async def run_source_book_only(
         "hard_requirements_checked": conformance_report.hard_requirements_checked if conformance_report else 0,
         "hard_requirements_passed": conformance_report.hard_requirements_passed if conformance_report else 0,
         "hard_requirements_failed": conformance_report.hard_requirements_failed if conformance_report else 0,
-        "forbidden_claims": len(conformance_report.forbidden_claims) if conformance_report else 0,
+        # Pre-sanitization: what the writer actually produced
+        "pre_sanitization_forbidden_claims": len(conformance_report.forbidden_claims) if conformance_report else 0,
         "missing_inputs": len(conformance_report.missing_inputs) if conformance_report else 0,
         "reviewer_threshold_met": (
             source_book_review.pass_threshold_met if source_book_review else False
@@ -523,16 +527,20 @@ async def run_source_book_only(
             source_book_review.overall_score if source_book_review else 0
         ),
         "evidence_coverage_status": evidence_coverage_status,
-        "sanitization_removals": len(result.get("sanitization_removals", [])),
+        # Pre-export sanitizer: what was removed from the model before DOCX
+        "sanitization_removals": len(sanitization_removals),
+        # Post-export: what the exporter itself introduced into the DOCX
+        "post_export_forbidden_claims": len(post_export_forbidden),
         "proposal_ready": False,
         "deck_generation_allowed": False,
     }
     # Compute proposal_ready: all gates must pass
     gate_decision["proposal_ready"] = (
         gate_decision["conformance_status"] == "pass"
-        and gate_decision["forbidden_claims"] == 0
+        and gate_decision["pre_sanitization_forbidden_claims"] == 0
         and gate_decision["reviewer_threshold_met"] is True
         and gate_decision["sanitization_removals"] == 0
+        and gate_decision["post_export_forbidden_claims"] == 0
         and gate_decision["missing_inputs"] == 0
         and gate_decision["evidence_coverage_status"] in ("pass", "not_available")
     )
@@ -546,7 +554,6 @@ async def run_source_book_only(
     print(f"  Gate decision: {gd_path} (proposal_ready={gate_decision['proposal_ready']})")
 
     # 10. sanitization_removals.json — if any content was sanitized
-    sanitization_removals = result.get("sanitization_removals", [])
     if sanitization_removals:
         sr_path = str(output_dir / "sanitization_removals.json")
         Path(sr_path).write_text(
@@ -554,6 +561,15 @@ async def run_source_book_only(
             encoding="utf-8",
         )
         print(f"  Sanitization removals: {sr_path} ({len(sanitization_removals)} removals)")
+
+    # 11. post_export_forbidden.json — exporter-introduced forbidden text
+    if post_export_forbidden:
+        pef_path = str(output_dir / "post_export_forbidden.json")
+        Path(pef_path).write_text(
+            json.dumps(post_export_forbidden, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        print(f"  Post-export forbidden: {pef_path} ({len(post_export_forbidden)} findings)")
 
     # ── Compute metrics ──
     sb_word_count = 0
