@@ -245,7 +245,10 @@ class ConsultantProfile(DeckForgeBaseModel):
     name: str = ""
     role: str = ""
     staffing_status: Literal[
-        "confirmed_candidate", "recommended_candidate", "open_role_profile",
+        "confirmed_candidate",
+        "recommended_candidate",
+        "candidate_pending_verification",
+        "open_role_profile",
     ] = "recommended_candidate"
     relevance: str = ""
     evidence_ids: list[str] = Field(default_factory=list)
@@ -274,6 +277,10 @@ class ProjectExperience(DeckForgeBaseModel):
     sector: str = ""
     duration: str = ""
     methodologies: list[str] = Field(default_factory=list)
+    # Engine 1/2 boundary: verification status for internal evidence candidates.
+    # Set by _engine1_guard when a KG-matched project is kept in the Source Book.
+    verification_status: str = ""  # "", "candidate_pending_verification", "verified"
+    evidence_source: str = ""      # "", "internal_kg", "engine2_verified"
 
 
 class WhyStrategicGears(DeckForgeBaseModel):

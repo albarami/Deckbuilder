@@ -220,19 +220,23 @@ def _engine1_guard(
     source_book: SourceBook,
     state: DeckForgeState,
 ) -> SourceBook:
-    """Engine 1 / Engine 2 guard — validate firm-specific data against KG.
+    """Engine 1 / Engine 2 boundary guard.
 
-    After the Writer produces content, this guard checks every consultant
-    name and project against the actual knowledge graph. Anything the LLM
-    fabricated (not in KG) is stripped and replaced with honest placeholders.
+    The Source Book is an internal/full intelligence artifact. It SHOULD
+    contain Engine 2 candidate names/projects — they are useful for the
+    proposal team. But they must be clearly labelled with verification
+    and disclosure status, not treated as client-ready proof.
 
     Rules:
-    - Consultant names must exist in KG people list → recommended_candidate
-    - Consultant names NOT in KG → cleared, set to open_role_profile
+    - KG-matched consultants → staffing_status="candidate_pending_verification"
+      (kept with name, but clearly labelled as internal evidence candidate)
+    - Fabricated consultants (not in KG) → cleared, set to open_role_profile
     - No consultant is ever confirmed_candidate (Engine 2 not integrated)
-    - Projects must exist in KG projects list → kept with clear sourcing
-    - Projects NOT in KG → stripped, evidence_gap added
-    - Evidence ledger: internal entries without real KG/ref backing → gap
+    - KG-matched projects → kept with source_of_recommendation noting
+      internal evidence candidate status
+    - Fabricated projects (not in KG) → stripped, evidence_gap added
+    - Client-facing filtering (removing unverified names) belongs in the
+      later proposal/PPT generation layer, not in the Source Book.
     """
     wsg = source_book.why_strategic_gears
 
@@ -248,16 +252,23 @@ def _engine1_guard(
                 kg_project_names.add(pr.project_name.strip().lower())
 
     # ── Guard: Consultants ────────────────────────────────
+    # KG-matched names are kept in the Source Book as internal evidence
+    # candidates. They are labelled candidate_pending_verification so the
+    # proposal team knows verification + disclosure is still needed.
+    # Fabricated names (not in KG) are stripped entirely.
     fabricated_names: list[str] = []
+    candidate_count = 0
     for nc in wsg.named_consultants:
         # Never allow confirmed_candidate — Engine 2 not integrated
         if nc.staffing_status == "confirmed_candidate":
-            nc.staffing_status = "recommended_candidate"
+            nc.staffing_status = "candidate_pending_verification"
             nc.source_of_recommendation = (
-                "indexed from data test folder — not authoritative company backend"
+                "internal_evidence_candidate (KG match — requires Engine 2 "
+                "verification, availability confirmation, and disclosure "
+                "permission before client-facing proposal use)"
             )
             logger.info(
-                "Engine 1 guard: downgraded '%s' from confirmed → recommended",
+                "Engine 1 guard: downgraded '%s' from confirmed → candidate_pending_verification",
                 nc.name,
             )
 
@@ -265,13 +276,14 @@ def _engine1_guard(
         if nc.name and nc.name.strip():
             name_lower = nc.name.strip().lower()
             if kg_names and name_lower in kg_names:
-                # Name is real — keep as recommended_candidate
-                nc.staffing_status = "recommended_candidate"
-                if "indexed from" not in (nc.source_of_recommendation or ""):
-                    nc.source_of_recommendation = (
-                        "indexed from data test folder — "
-                        "not authoritative company backend"
-                    )
+                # KG match — keep name in Source Book as internal candidate
+                nc.staffing_status = "candidate_pending_verification"
+                nc.source_of_recommendation = (
+                    "internal_evidence_candidate (KG match — requires Engine 2 "
+                    "verification, availability confirmation, and disclosure "
+                    "permission before client-facing proposal use)"
+                )
+                candidate_count += 1
             elif not kg_names:
                 # KG has 0 people — all names are fabricated
                 fabricated_names.append(nc.name)
@@ -294,6 +306,12 @@ def _engine1_guard(
             len(fabricated_names),
             fabricated_names,
             len(kg_names),
+        )
+    if candidate_count:
+        logger.info(
+            "Engine 1 guard: %d KG-matched consultants labelled as "
+            "candidate_pending_verification (internal evidence candidates)",
+            candidate_count,
         )
 
     # ── Guard: Project-evidence leakage (B6) ────────────────
@@ -344,6 +362,9 @@ def _engine1_guard(
             )
             continue
         if kg_project_names and proj_lower in kg_project_names:
+            # KG match — keep in Source Book as internal evidence candidate
+            pe.verification_status = "candidate_pending_verification"
+            pe.evidence_source = "internal_kg"
             real_projects.append(pe)
         elif not kg_project_names:
             # KG has 0 projects — all are fabricated

@@ -128,6 +128,24 @@ def test_export_default_audience_is_internal():
     assert sig.parameters["audience"].default == "internal"
 
 
+def test_source_book_only_runner_sets_internal_audience():
+    """source_book_only.py must set pipeline_extras.source_book_audience='internal'."""
+    # The runner creates DeckForgeState with pipeline_extras
+    # containing source_book_audience="internal". Verify by checking
+    # the source code directly.
+    import ast
+    from pathlib import Path
+
+    runner_path = Path("scripts/source_book_only.py")
+    if not runner_path.exists():
+        # Try worktree path
+        runner_path = Path("C:/Projects/Deckbuilder/.claude/worktrees/"
+                          "claim-provenance-live-validation/scripts/source_book_only.py")
+    source = runner_path.read_text(encoding="utf-8")
+    assert 'source_book_audience' in source
+    assert '"internal"' in source or "'internal'" in source
+
+
 @pytest.mark.asyncio
 async def test_export_client_mode_suppresses_engine2_appendix(tmp_path):
     """audience='client' must NOT produce the Engine 2 appendix."""
@@ -311,6 +329,87 @@ async def test_export_internal_mode_section4_has_engine2(tmp_path):
     full_text = "\n".join(p.text for p in doc.paragraphs)
     # Internal mode should contain Engine 2 workflow language
     assert "Engine 2" in full_text or "engine 2" in full_text.lower()
+
+
+@pytest.mark.asyncio
+async def test_export_internal_mode_preserves_engine2_in_section4(tmp_path):
+    """Internal mode must preserve Engine 2 workflow language in Section 4."""
+    from src.models.source_book import (
+        ExternalEvidenceEntry,
+        ExternalEvidenceSection,
+        SourceBook,
+    )
+    from src.services.source_book_export import export_source_book_docx
+
+    sb = SourceBook(client_name="Test", rfp_name="Test", language="en")
+    sb.external_evidence = ExternalEvidenceSection(
+        entries=[ExternalEvidenceEntry(
+            source_id="EXT-001", title="Test", year=2024, key_finding="Finding",
+        )],
+        coverage_assessment="Gaps remain.",
+    )
+    out_path = str(tmp_path / "internal_full.docx")
+    await export_source_book_docx(
+        sb, out_path, audience="internal",
+        theme_coverage={"methodology": {"retained_sources": 1, "status": "weak"}},
+    )
+
+    from docx import Document
+    doc = Document(out_path)
+    full_text = "\n".join(p.text for p in doc.paragraphs)
+    # Internal mode preserves Engine 2 workflow language
+    assert "Engine 2" in full_text
+
+
+def test_internal_mode_sanitizer_not_called():
+    """In internal mode, pre-export sanitizer should be skipped."""
+    from pathlib import Path
+
+    graph_path = Path("src/pipeline/graph.py")
+    if not graph_path.exists():
+        graph_path = Path("C:/Projects/Deckbuilder/.claude/worktrees/"
+                          "claim-provenance-live-validation/src/pipeline/graph.py")
+    source = graph_path.read_text(encoding="utf-8")
+    assert 'export_audience == "client"' in source
+    assert "sanitizer skipped" in source.lower() or "sanitizer skipped" in source
+
+
+def test_internal_mode_no_post_export_forbidden_scan():
+    """Internal mode must NOT run client-facing forbidden scan."""
+    from pathlib import Path
+
+    graph_path = Path("src/pipeline/graph.py")
+    if not graph_path.exists():
+        graph_path = Path("C:/Projects/Deckbuilder/.claude/worktrees/"
+                          "claim-provenance-live-validation/src/pipeline/graph.py")
+    source = graph_path.read_text(encoding="utf-8")
+    # Post-export scan must be guarded by audience == "client"
+    assert 'export_audience == "client"' in source
+    # Internal mode produces audit, not forbidden
+    assert "internal_export_audit" in source
+
+
+def test_internal_export_audit_on_state():
+    """DeckForgeState carries internal_export_audit field."""
+    state = DeckForgeState()
+    assert state.internal_export_audit == []
+
+
+def test_gate_decision_internal_mode_fields():
+    """source_book_only gate_decision must have internal-mode fields."""
+    from pathlib import Path
+
+    runner_path = Path("scripts/source_book_only.py")
+    if not runner_path.exists():
+        runner_path = Path("C:/Projects/Deckbuilder/.claude/worktrees/"
+                          "claim-provenance-live-validation/scripts/source_book_only.py")
+    source = runner_path.read_text(encoding="utf-8")
+    assert "client_proposal_ready" in source
+    assert "not_evaluated" in source
+    assert "internal_source_book_generated" in source
+    assert "internal_source_book_quality_status" in source
+    assert "internal_export_audit_count" in source
+    assert "client_post_export_forbidden_claims" in source
 
 
 def test_post_export_scan_failure_produces_synthetic_finding():

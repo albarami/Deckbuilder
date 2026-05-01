@@ -148,6 +148,7 @@ class DeckForgeState(DeckForgeBaseModel):
     conformance_report: ConformanceReport | None = None
     sanitization_removals: list[dict] = Field(default_factory=list)
     post_export_forbidden: list[dict] = Field(default_factory=list)
+    internal_export_audit: list[dict] = Field(default_factory=list)
     fallback_events: list[dict] = Field(default_factory=list)
 
     # ─── Gate 3: Research Report ───

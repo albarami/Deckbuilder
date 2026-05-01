@@ -254,6 +254,12 @@ async def run_source_book_only(
         output_language=language,
         renderer_mode=RendererMode.TEMPLATE_V2,
         session=SessionMetadata(session_id=session_id),
+        # Source Book-only runner generates internal/full intelligence artifact.
+        # The Source Book is NOT the final client-facing proposal — it is the
+        # intelligence artifact used by the proposal team, AI builder, and
+        # reviewers. Internal mode preserves Engine 2 candidates, evidence
+        # gaps, and internal workflow language.
+        pipeline_extras={"source_book_audience": "internal"},
     )
     config = {"configurable": {"thread_id": session_id}}
 
@@ -510,14 +516,16 @@ async def run_source_book_only(
     sanitization_removals = result.get("sanitization_removals") or []
     post_export_forbidden = result.get("post_export_forbidden") or []
 
+    internal_export_audit = result.get("internal_export_audit") or []
+
     gate_decision = {
         "live_gate": "should_accept_source_book",
+        "export_audience": "internal",
         "conformance_status": conformance_report.conformance_status if conformance_report else "not_run",
         "final_acceptance_decision": conformance_report.final_acceptance_decision if conformance_report else "not_run",
         "hard_requirements_checked": conformance_report.hard_requirements_checked if conformance_report else 0,
         "hard_requirements_passed": conformance_report.hard_requirements_passed if conformance_report else 0,
         "hard_requirements_failed": conformance_report.hard_requirements_failed if conformance_report else 0,
-        # Pre-sanitization: what the writer actually produced
         "pre_sanitization_forbidden_claims": len(conformance_report.forbidden_claims) if conformance_report else 0,
         "missing_inputs": len(conformance_report.missing_inputs) if conformance_report else 0,
         "reviewer_threshold_met": (
@@ -527,24 +535,22 @@ async def run_source_book_only(
             source_book_review.overall_score if source_book_review else 0
         ),
         "evidence_coverage_status": evidence_coverage_status,
-        # Pre-export sanitizer: what was removed from the model before DOCX
+        # Internal mode: sanitizer skipped, no client-facing forbidden scan
         "sanitization_removals": len(sanitization_removals),
-        # Post-export: what the exporter itself introduced into the DOCX
-        "post_export_forbidden_claims": len(post_export_forbidden),
+        "client_post_export_forbidden_claims": None,  # not evaluated in internal mode
+        "internal_export_audit_count": len(internal_export_audit),
+        # Source Book generation status
+        "internal_source_book_generated": docx_path is not None and Path(docx_path).exists() if docx_path else False,
+        "internal_source_book_quality_status": (
+            "pass" if conformance_report and conformance_report.conformance_status == "pass"
+            else "degraded" if conformance_report
+            else "not_evaluated"
+        ),
+        # Client proposal readiness — not evaluated from source_book_only runner
+        "client_proposal_ready": "not_evaluated",
         "proposal_ready": False,
         "deck_generation_allowed": False,
     }
-    # Compute proposal_ready: all gates must pass
-    gate_decision["proposal_ready"] = (
-        gate_decision["conformance_status"] == "pass"
-        and gate_decision["pre_sanitization_forbidden_claims"] == 0
-        and gate_decision["reviewer_threshold_met"] is True
-        and gate_decision["sanitization_removals"] == 0
-        and gate_decision["post_export_forbidden_claims"] == 0
-        and gate_decision["missing_inputs"] == 0
-        and gate_decision["evidence_coverage_status"] in ("pass", "not_available")
-    )
-    gate_decision["deck_generation_allowed"] = gate_decision["proposal_ready"]
 
     gd_path = str(output_dir / "gate_decision.json")
     Path(gd_path).write_text(
@@ -562,14 +568,14 @@ async def run_source_book_only(
         )
         print(f"  Sanitization removals: {sr_path} ({len(sanitization_removals)} removals)")
 
-    # 11. post_export_forbidden.json — exporter-introduced forbidden text
-    if post_export_forbidden:
-        pef_path = str(output_dir / "post_export_forbidden.json")
-        Path(pef_path).write_text(
-            json.dumps(post_export_forbidden, indent=2, ensure_ascii=False),
+    # 11. Internal export audit (informational, not "forbidden")
+    if internal_export_audit:
+        audit_path = str(output_dir / "internal_export_audit.json")
+        Path(audit_path).write_text(
+            json.dumps(internal_export_audit, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
-        print(f"  Post-export forbidden: {pef_path} ({len(post_export_forbidden)} findings)")
+        print(f"  Internal export audit: {audit_path} ({len(internal_export_audit)} mentions)")
 
     # ── Compute metrics ──
     sb_word_count = 0

@@ -1287,30 +1287,45 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
     except Exception as e:
         logger.warning("Could not compute theme_coverage for DOCX: %s", e)
 
-    # Pre-export sanitization: remove forbidden leakage from client-facing
-    # sections BEFORE DOCX export. Each removal is recorded so the gate
-    # can enforce fail-closed behavior — sanitizing does NOT make the
-    # section "clean", it makes it "sanitized with gaps."
+    # Determine export audience from pipeline config.
+    # Source Book-only runs use "internal" (full intelligence artifact).
+    # Final proposal/PPT generation uses "client" (disclosure-safe).
+    export_audience = (state.pipeline_extras or {}).get(
+        "source_book_audience", "internal",
+    )
+    logger.info("Source Book export audience: %s", export_audience)
+
+    # Pre-export sanitization: runs ONLY in client mode.
+    # Internal/full Source Book preserves all Engine 2 candidates,
+    # evidence gaps, and internal workflow language — they are useful
+    # for the proposal team. Sanitizing them away would reduce the
+    # Source Book's intelligence value.
     sanitization_removals: list = []
-    try:
-        from src.services.pre_export_sanitizer import sanitize_source_book_sections
+    if export_audience == "client":
+        try:
+            from src.services.pre_export_sanitizer import sanitize_source_book_sections
 
-        sb_dict = current_state.source_book.model_dump(mode="json")
-        sanitize_result = sanitize_source_book_sections(sb_dict)
-        sanitization_removals = sanitize_result.removals
+            sb_dict = current_state.source_book.model_dump(mode="json")
+            sanitize_result = sanitize_source_book_sections(sb_dict)
+            sanitization_removals = sanitize_result.removals
 
-        if sanitize_result.total_removals > 0:
-            logger.warning(
-                "Pre-export sanitizer: %d forbidden pattern(s) removed from "
-                "client-facing sections. Gate should treat as unsupported proof.",
-                sanitize_result.total_removals,
-            )
-            # Rebuild the source book from sanitized dict
-            current_state.source_book = type(current_state.source_book).model_validate(
-                sanitize_result.sanitized,
-            )
-    except Exception as e:
-        logger.error("Pre-export sanitizer failed: %s", e)
+            if sanitize_result.total_removals > 0:
+                logger.warning(
+                    "Pre-export sanitizer: %d forbidden pattern(s) removed from "
+                    "client-facing sections. Gate should treat as unsupported proof.",
+                    sanitize_result.total_removals,
+                )
+                current_state.source_book = type(current_state.source_book).model_validate(
+                    sanitize_result.sanitized,
+                )
+        except Exception as e:
+            logger.error("Pre-export sanitizer failed: %s", e)
+    else:
+        logger.info(
+            "Pre-export sanitizer skipped: audience=%s (internal Source Book "
+            "preserves all Engine 2 candidates and evidence gaps)",
+            export_audience,
+        )
 
     try:
         await export_source_book_docx(
@@ -1319,10 +1334,10 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
             external_evidence_pack=current_state.external_evidence_pack,
             routing_report=routing_report.model_dump(mode="json"),
             theme_coverage=_theme_coverage,
-            audience="client",
+            audience=export_audience,
         )
         exported_docx_path = docx_path
-        logger.info("Source Book DOCX exported: %s (audience=client)", docx_path)
+        logger.info("Source Book DOCX exported: %s (audience=%s)", docx_path, export_audience)
     except Exception as e:
         logger.error("Source Book DOCX export failed: %s", e)
         export_error = ErrorInfo(
@@ -1331,10 +1346,15 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
             message=f"Source Book DOCX export failed: {e}",
         )
 
-    # Post-export DOCX scan — catch forbidden text introduced by the exporter.
-    # Uses reusable helper that checks both ID patterns AND semantic phrases.
+    # Post-export DOCX scan — audience-aware.
+    # CLIENT mode: run forbidden-leakage scan, fail-closed if leakage found.
+    # INTERNAL mode: skip client-facing forbidden scan. Engine 2 candidates,
+    #   PRJ/PER references, and internal evidence notes are EXPECTED content
+    #   in the internal Source Book — calling them "forbidden" is wrong.
     post_export_forbidden: list[dict] = []
-    if exported_docx_path:
+    internal_export_audit: list[dict] = []
+
+    if exported_docx_path and export_audience == "client":
         try:
             from src.services.artifact_gates import scan_docx_for_forbidden_leakage
 
@@ -1342,15 +1362,12 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
 
             if post_export_forbidden:
                 logger.warning(
-                    "Post-export DOCX scan: %d forbidden pattern(s) found in "
-                    "exported DOCX. Exporter introduced internal workflow text.",
+                    "Post-export DOCX scan (client): %d forbidden pattern(s) found.",
                     len(post_export_forbidden),
                 )
             else:
-                logger.info("Post-export DOCX scan: clean — 0 forbidden patterns")
+                logger.info("Post-export DOCX scan (client): clean — 0 forbidden patterns")
         except Exception as e:
-            # FAIL-CLOSED: scan failure must not allow proposal_ready=True.
-            # Add a synthetic critical finding so the gate blocks.
             logger.error("Post-export DOCX scan failed: %s", e)
             post_export_forbidden = [{
                 "pattern": "POST_EXPORT_SCAN_FAILED",
@@ -1358,6 +1375,19 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
                 "source": "post_export_docx_scan",
                 "severity": "critical",
             }]
+    elif exported_docx_path and export_audience != "client":
+        # Internal mode: informational audit only (not "forbidden")
+        try:
+            from src.services.artifact_gates import scan_docx_for_forbidden_leakage
+
+            internal_export_audit = scan_docx_for_forbidden_leakage(exported_docx_path)
+            logger.info(
+                "Post-export DOCX audit (internal): %d internal-evidence "
+                "mentions found (expected in internal Source Book)",
+                len(internal_export_audit),
+            )
+        except Exception as e:
+            logger.debug("Post-export internal audit failed: %s", e)
 
     # Populate report_markdown from Source Book
     report_md = orchestrator.source_book_to_markdown(current_state.source_book)
@@ -1377,6 +1407,7 @@ async def source_book_node(state: DeckForgeState) -> dict[str, Any]:
             for r in sanitization_removals
         ],
         "post_export_forbidden": post_export_forbidden,
+        "internal_export_audit": internal_export_audit,
         "claim_registry": current_state.claim_registry,
     }
 

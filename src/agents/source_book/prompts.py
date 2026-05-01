@@ -497,73 +497,90 @@ Minimum 5 rows. Cover: technical capabilities, domain expertise,
 methodology, governance, team, certifications, partnerships.
 
 ──────────────────────────────────────
-3.2 TEAM STRUCTURE — DATA-GROUNDED STAFFING
+3.2 TEAM STRUCTURE — ENGINE 1 REQUIREMENTS + ENGINE 2 CANDIDATES
 ──────────────────────────────────────
 
-*** ZERO FABRICATION: Check knowledge_graph.people FIRST. ***
-- If the people list is EMPTY (0 entries): EVERY role MUST use
-  staffing_status="open_role_profile". Set name="". Do NOT invent names.
-- If the people list has entries: ONLY use names that appear in the list.
-  Match KG people to RFP roles by expertise. Use "recommended_candidate"
-  for KG-sourced names, "open_role_profile" for unfilled roles.
-- NEVER use "confirmed_candidate" unless the KG source explicitly says so.
+The Source Book is an internal intelligence artifact. It contains BOTH:
+A. Engine 1 role requirements (what the proposal needs)
+B. Engine 2 candidate matches (who from SG might fill the role)
 
-STEP 1 — RFP ROLE MATRIX: Check rfp_team_requirements AND the
-mandatory_constraints for the RFP's required roles. For EACH required role,
-the profile must cover: role name, required years, required certifications,
-required expertise, required project experience, language/regional requirements.
+*** ENGINE 1 / ENGINE 2 BOUNDARY ***
+- Engine 1 (you) defines WHAT roles are needed, with skills and proof requirements.
+- Engine 2 (internal evidence) provides WHO might fill the role.
+- KG people are INTERNAL EVIDENCE CANDIDATES, not verified proposal proof.
+- NEVER use "confirmed_candidate" — Engine 2 verification is not integrated.
+- NEVER use "recommended_candidate" — KG existence is not a recommendation.
+- Use "candidate_pending_verification" for KG-matched people.
+- Use "open_role_profile" when no KG person matches.
+
+*** ZERO FABRICATION ***
+- If KG people list is EMPTY: EVERY role uses open_role_profile, name="".
+- If KG has people: match by expertise. Use candidate_pending_verification
+  for matches, open_role_profile for gaps. Do NOT invent names.
+
+STEP 1 — RFP ROLE MATRIX: For EACH required role, define:
+- role title, required years, certifications, expertise, project experience
+- language/regional requirements
+- what proof Engine 2 must provide (CV, certificates, project evidence)
 
 STEP 2 — FOR EACH RFP ROLE, create one entry:
-* If a KG person matches → staffing_status="recommended_candidate",
-  name=exact KG name, populate all fields from KG data
+* If a KG person matches → staffing_status="candidate_pending_verification",
+  name=exact KG name, populate fields from KG data.
+  source_of_recommendation must include:
+  "internal_evidence_candidate (KG match — requires Engine 2 verification,
+  availability confirmation, and disclosure permission before client-facing
+  proposal use)"
 * If NO KG person matches → staffing_status="open_role_profile",
-  name="", describe the ideal candidate profile in detail:
-  - Required education, certifications, years of experience
-  - Required domain expertise for THIS RFP
-  - Required project experience profile
-  - Why this role is critical to the engagement
-  - What recruitment/sourcing action is needed
+  name="", describe the ideal candidate profile in detail.
 
 STEP 3 — PROFILE DEPTH: For EACH entry, populate ALL 13 fields:
 * name (from KG or "" for open roles), role, staffing_status
-* relevance: 3-4 sentences on how this role/person meets RFP requirements
+* relevance: 3-4 sentences on how this role meets RFP requirements
 * certifications, years_experience, education, domain_expertise, prior_employers
-  (ALL from KG for recommended; ALL from RFP requirements for open roles)
-* justification (why recommended, or why this profile is needed)
-* source_of_recommendation ("knowledge_graph" or "open_role_requirement")
+* justification (why this candidate is a potential match, or what profile is needed)
+* source_of_recommendation (see above)
 * confidence, evidence_ids
 
-Goal: downstream user knows exactly what role is needed, who is suggested
-(if anyone), and what gaps must be filled from the company staffing system.
+Goal: the proposal team knows exactly what each role requires, who from
+SG might be a candidate, what verification is still needed, and what
+gaps must be filled.
 
 ──────────────────────────────────────
-3.3 PROJECT EXPERIENCE — DATA-GROUNDED ONLY
+3.3 PROJECT EXPERIENCE — ENGINE 2 CANDIDATES + PROOF ARCHETYPES
 ──────────────────────────────────────
 
-*** ZERO FABRICATION: Check knowledge_graph.projects FIRST. ***
-- Count the actual projects in the KG data provided.
+The Source Book contains BOTH:
+A. KG-matched project candidates (internal evidence, pending verification)
+B. Proof archetypes (what types of project evidence would strengthen the proposal)
+
+*** ENGINE 1 / ENGINE 2 BOUNDARY ***
+- KG projects are INTERNAL EVIDENCE CANDIDATES, not verified case studies.
+- Include KG project names in the Source Book — the proposal team needs them.
+- But label them clearly: verification_status="candidate_pending_verification",
+  evidence_source="internal_kg".
+- Do NOT describe KG projects as verified proof or confirmed case studies.
+- Do NOT invent projects that do not exist in the KG.
+
+*** ZERO FABRICATION ***
 - ONLY include projects that EXIST in knowledge_graph.projects.
-- If KG has 1 project, include that 1 project. Do NOT invent 14 more.
-- If KG has 0 projects, this section must state:
-  "No documented prior projects found in internal reference data.
-  The following project evidence is required for a competitive submission:"
-  Then list the TYPES of projects needed (based on RFP scope).
+- If KG has 0 projects, list proof archetypes only.
 
-For EACH real KG project, populate ALL fields:
-* project_name: Exact name from KG (no renaming or paraphrasing)
+For EACH KG-matched project, populate ALL fields:
+* project_name: Exact name from KG (no renaming)
 * client: Exact client name from KG
-* sector: From KG project record
-* duration: From KG or estimate
-* methodologies: Specific frameworks used
-* outcomes: Challenge → SG Contribution → Impact with NUMBERS from KG
-  Do NOT invent outcomes. Use only what the KG provides.
-* evidence_ids: CLM-xxxx references (only if they exist in reference_index)
+* sector, duration, methodologies, outcomes: From KG data only
+* evidence_ids: CLM-xxxx references (only if in reference_index)
+* verification_status: "candidate_pending_verification"
+* evidence_source: "internal_kg"
 
-After listing real projects, add an EVIDENCE GAP SUMMARY:
-* What types of additional projects are needed for this RFP
+After listing KG candidates, add a PROOF ARCHETYPE SUMMARY:
+* What types of additional projects would strengthen the proposal
 * What sectors/domains should be represented
-* What outcomes/scale would strengthen the proposal
-* Action required: "Populate from company project database before submission"
+* What outcomes/scale would be compelling
+* What proof Engine 2 should search for (case studies, completion
+  certificates, client references, outcome metrics)
+* Action: "Engine 2 must verify candidate projects and search for
+  additional matching evidence before proposal submission"
 
 VALIDATION: Every project_name must exist in knowledge_graph.projects.
 No invented projects. No invented clients. No invented outcomes.
