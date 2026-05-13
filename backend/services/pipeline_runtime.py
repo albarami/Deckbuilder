@@ -299,7 +299,7 @@ async def _sync_source_book_session(
                 "ar": state.rfp_context.rfp_name.ar or "",
             },
             issuing_entity=state.rfp_context.issuing_entity.en,
-            procurement_platform=state.rfp_context.procurement_platform or "",
+            procurement_platform=(state.rfp_context.procurement_platform.en if state.rfp_context.procurement_platform else ""),
             mandate_summary=state.rfp_context.mandate.en,
             scope_requirements=[
                 scope_item.description.en for scope_item in state.rfp_context.scope_items
@@ -1044,7 +1044,7 @@ async def _sync_session_from_result(
                 "ar": state.rfp_context.rfp_name.ar or "",
             },
             issuing_entity=state.rfp_context.issuing_entity.en,
-            procurement_platform=state.rfp_context.procurement_platform or "",
+            procurement_platform=(state.rfp_context.procurement_platform.en if state.rfp_context.procurement_platform else ""),
             mandate_summary=state.rfp_context.mandate.en,
             scope_requirements=[
                 scope_item.description.en for scope_item in state.rfp_context.scope_items
@@ -1449,7 +1449,7 @@ def _build_gate1_payload(state: DeckForgeState) -> Gate1ContextData:
         rfp_brief=RfpBriefInput(
             rfp_name={"en": context.rfp_name.en, "ar": context.rfp_name.ar or ""},
             issuing_entity=context.issuing_entity.en,
-            procurement_platform=context.procurement_platform or "",
+            procurement_platform=(context.procurement_platform.en if context.procurement_platform else ""),
             mandate_summary=context.mandate.en,
             scope_requirements=[item.description.en for item in context.scope_items],
             deliverables=[item.description.en for item in context.deliverables],

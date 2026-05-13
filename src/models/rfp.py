@@ -86,7 +86,7 @@ class SubmissionFormat(DeckForgeBaseModel):
     separate_envelopes: bool = False
     technical_envelope: bool = False
     financial_envelope: bool = False
-    bank_guarantee_required: bool = False
+    bank_guarantee_required: bool | None = None
     additional_requirements: list[str] = Field(default_factory=list)
 
 
@@ -140,7 +140,7 @@ class RFPContext(DeckForgeBaseModel):
     """Full parsed RFP — output of the Context Agent."""
     rfp_name: BilingualText
     issuing_entity: BilingualText
-    procurement_platform: str | None = None
+    procurement_platform: BilingualText | None = None
     mandate: BilingualText
     scope_items: list[ScopeItem] = Field(default_factory=list)
     deliverables: list[Deliverable] = Field(default_factory=list)
