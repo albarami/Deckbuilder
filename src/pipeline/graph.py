@@ -97,7 +97,11 @@ async def context_node(state: DeckForgeState) -> dict[str, Any]:
         try:
             from src.services.rfp_fact_registrar import register_rfp_facts
 
-            register_rfp_facts(rfp_context, claim_registry)
+            register_rfp_facts(
+                rfp_context,
+                claim_registry,
+                uploaded_documents=state.uploaded_documents,
+            )
             logger.info(
                 "RFP fact registration: %d rfp_fact claims in registry",
                 len(claim_registry.rfp_facts),

@@ -11,7 +11,7 @@ from .claim_provenance import ClaimRegistry, ProposalOptionRegistry
 from .claims import ReferenceIndex
 from .common import DeckForgeBaseModel
 from .conformance import ConformanceReport
-from .enums import DeckMode, Language, PipelineStage, PresentationType, RendererMode, UserRole
+from .enums import DeckMode, ExtractionQuality, Language, PipelineStage, PresentationType, RendererMode, UserRole
 from .external_evidence import ExternalEvidencePack
 from .knowledge import KnowledgeGraph
 from .methodology_blueprint import MethodologyBlueprint
@@ -28,10 +28,17 @@ from .waiver import WaiverObject
 
 
 class UploadedDocument(DeckForgeBaseModel):
-    """A document uploaded by the user as part of the RFP intake."""
+    """A document uploaded by the user as part of the RFP intake.
+
+    `extraction_quality` carries the OCR/parsing quality forward from the
+    extractor so downstream stages can gate confidence-1.0 claims when the
+    source text came from degraded OCR. See `register_rfp_facts` for how
+    this gates the `verified_from_rfp` tag.
+    """
     filename: str
     content_text: str
     language: Language = Language.EN
+    extraction_quality: ExtractionQuality = ExtractionQuality.CLEAN
 
 
 class ConversationTurn(DeckForgeBaseModel):

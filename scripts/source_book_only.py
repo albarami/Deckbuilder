@@ -144,6 +144,7 @@ def _build_domain_agnostic_input(
                 filename=doc.filename,
                 content_text=text,
                 language=language,
+                extraction_quality=doc.extraction_quality,
             )
         )
         summary_parts.append(f"[{doc.filename}]\n{text[:max_summary_chars]}")

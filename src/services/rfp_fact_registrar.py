@@ -3,10 +3,18 @@
 Walks an RFPContext and registers every directly-extractable RFP fact
 (dates, bid bond, deliverables, compliance requirements, contract
 duration, evaluation criteria, language rules, etc.) into a ClaimRegistry
-as ``rfp_fact`` claims with ``verification_status="verified_from_rfp"``.
+as ``rfp_fact`` claims.
 
-These claims must NEVER be sent to Engine 2 for proof-shopping — they
-are RFP-side facts, not bidder claims that need verification.
+Default verification_status is ``verified_from_rfp``. However, when the
+source document came from degraded OCR (extraction_quality != CLEAN),
+verification_status is downgraded to ``partially_verified`` and a flag
+``source_refs[].clause`` notes the OCR origin. This addresses an audit
+finding (Salim, 2026-05-13) that fabricated values from degraded OCR
+regions were being tagged at confidence 1.0 verified_from_rfp.
+
+These claims (regardless of verification_status) must NEVER be sent to
+Engine 2 for proof-shopping — they are RFP-side facts identified by
+``claim_kind="rfp_fact"``, not bidder claims that need verification.
 """
 from __future__ import annotations
 
@@ -15,38 +23,85 @@ from src.models.claim_provenance import (
     ClaimRegistry,
     SourceReference,
 )
+from src.models.enums import ExtractionQuality
 from src.models.rfp import RFPContext
+from src.models.state import UploadedDocument
 
 
-def _make_rfp_fact(
-    claim_id: str,
-    text: str,
-    *,
-    source_location: str = "",
-    deliverable_origin: str = "not_applicable",
-) -> ClaimProvenance:
-    return ClaimProvenance(
-        claim_id=claim_id,
-        text=text,
-        claim_kind="rfp_fact",
-        source_kind="rfp_document",
-        verification_status="verified_from_rfp",
-        evidence_role="requirement_source",
-        source_refs=(
-            [SourceReference(file="rfp", clause=source_location)]
-            if source_location
-            else []
-        ),
-        deliverable_origin=deliverable_origin,  # type: ignore[arg-type]
+def _ocr_is_degraded(uploaded_documents: list[UploadedDocument] | None) -> bool:
+    """Return True if ANY uploaded RFP doc was OCR'd at degraded quality.
+
+    Conservative all-or-nothing: if the RFP intake includes any document
+    that wasn't cleanly extracted, we treat the entire RFPContext as
+    OCR-sourced because per-field provenance to specific documents isn't
+    tracked at this layer.
+    """
+    if not uploaded_documents:
+        return False
+    return any(
+        doc.extraction_quality != ExtractionQuality.CLEAN
+        for doc in uploaded_documents
     )
 
 
-def register_rfp_facts(rfp: RFPContext, registry: ClaimRegistry) -> None:
+def _build_rfp_fact_factory(ocr_degraded: bool):
+    """Return a `_make_rfp_fact` closure with OCR-degradation status baked in.
+
+    When ocr_degraded=True, every fact produced by the returned factory is
+    tagged `partially_verified` instead of `verified_from_rfp`, and its
+    source_ref clause is annotated with an OCR_DEGRADED marker. See module
+    docstring for rationale.
+    """
+    status = "partially_verified" if ocr_degraded else "verified_from_rfp"
+
+    def _make_rfp_fact(
+        claim_id: str,
+        text: str,
+        *,
+        source_location: str = "",
+        deliverable_origin: str = "not_applicable",
+    ) -> ClaimProvenance:
+        clause = (
+            f"{source_location} [OCR_DEGRADED — manual verification required]"
+            if ocr_degraded and source_location
+            else source_location
+        )
+        return ClaimProvenance(
+            claim_id=claim_id,
+            text=text,
+            claim_kind="rfp_fact",
+            source_kind="rfp_document",
+            verification_status=status,
+            evidence_role="requirement_source",
+            source_refs=(
+                [SourceReference(file="rfp", clause=clause)]
+                if source_location
+                else []
+            ),
+            deliverable_origin=deliverable_origin,  # type: ignore[arg-type]
+        )
+
+    return _make_rfp_fact
+
+
+def register_rfp_facts(
+    rfp: RFPContext,
+    registry: ClaimRegistry,
+    *,
+    uploaded_documents: list[UploadedDocument] | None = None,
+) -> None:
     """Register RFP-side facts as ``rfp_fact`` claims in ``registry``.
 
     Idempotent per claim_id: calling twice with the same RFP overwrites
     rather than duplicates because ClaimRegistry.register replaces by id.
+
+    When ``uploaded_documents`` is provided and any of them has
+    extraction_quality != CLEAN, all registered facts are tagged
+    ``partially_verified`` instead of ``verified_from_rfp``. See module
+    docstring for rationale.
     """
+    ocr_degraded = _ocr_is_degraded(uploaded_documents)
+    _make_rfp_fact = _build_rfp_fact_factory(ocr_degraded)
     fact_seq = 0
 
     def next_id(prefix: str) -> str:
