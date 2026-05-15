@@ -44,15 +44,24 @@ def _ocr_is_degraded(uploaded_documents: list[UploadedDocument] | None) -> bool:
     )
 
 
-def _build_rfp_fact_factory(ocr_degraded: bool):
+def _build_rfp_fact_factory(
+    ocr_degraded: bool,
+    source_quotes: dict[str, str] | None = None,
+):
     """Return a `_make_rfp_fact` closure with OCR-degradation status baked in.
 
     When ocr_degraded=True, every fact produced by the returned factory is
     tagged `partially_verified` instead of `verified_from_rfp`, and its
-    source_ref clause is annotated with an OCR_DEGRADED marker. See module
-    docstring for rationale.
+    source_ref clause is annotated with an OCR_DEGRADED marker.
+
+    When ``source_quotes`` is provided (Salim audit primitive #4: verbatim
+    source-span contract), the factory looks up the dotted-path source
+    location in the dict and embeds the verbatim quote in the
+    SourceReference.clause. The reviewer agent uses these quotes to
+    mechanically verify each fact against the original RFP text.
     """
     status = "partially_verified" if ocr_degraded else "verified_from_rfp"
+    quotes = source_quotes or {}
 
     def _make_rfp_fact(
         claim_id: str,
@@ -61,11 +70,17 @@ def _build_rfp_fact_factory(ocr_degraded: bool):
         source_location: str = "",
         deliverable_origin: str = "not_applicable",
     ) -> ClaimProvenance:
-        clause = (
-            f"{source_location} [OCR_DEGRADED — manual verification required]"
-            if ocr_degraded and source_location
-            else source_location
-        )
+        quote = quotes.get(source_location, "")
+        # Build the clause: location + optional verbatim quote + optional
+        # OCR-degraded marker. Format keeps the location head-of-clause so
+        # downstream tools that look it up still work, but appends the
+        # quote for the reviewer to verify.
+        if quote and source_location:
+            clause = f"{source_location} :: \"{quote}\""
+        else:
+            clause = source_location
+        if ocr_degraded and source_location:
+            clause = f"{clause} [OCR_DEGRADED — manual verification required]"
         return ClaimProvenance(
             claim_id=claim_id,
             text=text,
@@ -101,7 +116,9 @@ def register_rfp_facts(
     docstring for rationale.
     """
     ocr_degraded = _ocr_is_degraded(uploaded_documents)
-    _make_rfp_fact = _build_rfp_fact_factory(ocr_degraded)
+    # Salim audit primitive #4: thread verbatim source quotes through to claims
+    source_quotes = getattr(rfp, "source_quotes", None) or {}
+    _make_rfp_fact = _build_rfp_fact_factory(ocr_degraded, source_quotes)
     fact_seq = 0
 
     def next_id(prefix: str) -> str:

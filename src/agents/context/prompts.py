@@ -141,6 +141,44 @@ gap entry. Specifically re-check:
 - deliverables — is each one explicitly named in the RFP, or did you
   generate the list from the project's apparent shape?
 
+SOURCE-QUOTE CONTRACT (populate `source_quotes` for every verifiable fact):
+For every RFP fact you populate, attach the verbatim source text to the
+`source_quotes` dict. Key is the dotted field path; value is the exact
+quote from the RFP that supports it. The downstream reviewer agent uses
+these quotes to mechanically verify each fact against the original PDF —
+if a quote cannot be located in the source text, the corresponding fact
+will be flagged as unsupported regardless of how plausible it reads.
+
+Required `source_quotes` entries (populate ALL that you populate the
+corresponding field for):
+- "project_timeline.total_duration" → verbatim duration text
+  (e.g., "the duration of this Contract shall be twelve (12) months")
+- "project_timeline.total_duration_months" → the same quote containing
+  the numeric duration
+- "key_dates.submission_deadline" → the exact RFP sentence stating the
+  deadline date
+- "key_dates.inquiry_deadline" → the exact RFP sentence stating the
+  inquiry/clarification deadline (do NOT populate if you cannot find it
+  verbatim; this exact pattern has been hallucinated before)
+- "submission_format.bank_guarantee_required" → the exact bid-bond clause
+- "submission_format.separate_envelopes" → the envelope-split clause
+- "evaluation_criteria.award_mechanism" → the award-mechanism clause
+- "evaluation_criteria.technical.weight_pct" → the exact percentage clause
+  (do NOT populate if percentages are not stated verbatim)
+
+Rules for quotes:
+- Quote ATOMIC clauses — do not concatenate quotes from multiple articles
+  into a single quote. If a fact requires evidence from two articles, you
+  are CONFLATING — leave the field null and add a gap entry instead.
+- Quote should be 30-300 characters — enough context for the reviewer to
+  locate, but not so much it dilutes the signal.
+- Quote should match the source text EXACTLY (verbatim). Do not paraphrase,
+  translate, or normalize. If the RFP says "twelve (12) months", quote
+  exactly that — not "12 months".
+- If you cannot produce a verbatim quote for a fact you would otherwise
+  populate, set the field to null + add a gap entry. The reviewer treats
+  facts WITHOUT quotes as low-confidence by default.
+
 EVALUATION MODEL EXTRACTION:
 - Identify the award mechanism ONLY when the RFP text states it:
   * "pass technical then lowest price" / "أقل الأسعار" / a technical gate

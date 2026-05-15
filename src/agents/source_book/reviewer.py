@@ -2,6 +2,12 @@
 
 Red-team critique of the Source Book with per-section scoring,
 unsupported claim detection, and fluff identification.
+
+As of 2026-05-14, the reviewer also receives the original RFP text
+(from state.uploaded_documents) and is instructed to re-anchor every
+high-confidence claim back to a verbatim source span. See
+REVIEWER_SYSTEM_PROMPT in prompts.py — sections "PDF RE-ANCHORING",
+"ADVERSARIAL OBJECTIVE", and "REVERSE-COVERAGE PASS".
 """
 
 from __future__ import annotations
@@ -18,6 +24,42 @@ from .prompts import REVIEWER_SYSTEM_PROMPT as SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
+# Cap for RFP text injected into the reviewer's user message. Anthropic
+# Opus and OpenAI GPT-5.4 both handle this fine; the cap keeps cost
+# bounded on huge RFPs. A 200K-char window covers ~50K tokens of input
+# text. Qatar QNRES was 447K chars — half of it is enough for the
+# reviewer to re-anchor most claims; uncovered sections will be flagged
+# as gaps rather than silently mis-passed.
+_RFP_TEXT_CAP_CHARS = 200_000
+
+
+def _build_rfp_source_text(state: DeckForgeState) -> str:
+    """Build the original RFP source text the reviewer should re-anchor against.
+
+    Concatenates the text content of every uploaded document, separated by
+    filename headers so the reviewer can cite which document a span came from.
+    Truncates at _RFP_TEXT_CAP_CHARS with a clear marker so the reviewer
+    knows when source coverage is incomplete.
+    """
+    if not state.uploaded_documents:
+        return ""
+    parts: list[str] = []
+    for doc in state.uploaded_documents:
+        text = (doc.content_text or "").strip()
+        if not text:
+            continue
+        parts.append(f"=== SOURCE DOCUMENT: {doc.filename} ===\n{text}")
+    full = "\n\n".join(parts)
+    if len(full) > _RFP_TEXT_CAP_CHARS:
+        full = full[:_RFP_TEXT_CAP_CHARS] + (
+            "\n\n[TRUNCATED — original RFP exceeds reviewer's text-window "
+            f"cap of {_RFP_TEXT_CAP_CHARS:,} chars. Any claim that would "
+            "anchor in the truncated portion should be flagged as "
+            "'cannot be re-anchored within reviewer's source window' "
+            "rather than as a passing claim.]"
+        )
+    return full
+
 
 def _build_user_message(state: DeckForgeState) -> str:
     """Build the reviewer user message from Source Book and RFP context."""
@@ -28,6 +70,8 @@ def _build_user_message(state: DeckForgeState) -> str:
     rfp_dump = None
     if state.rfp_context:
         rfp_dump = state.rfp_context.model_dump(mode="json")
+
+    rfp_source_text = _build_rfp_source_text(state)
 
     # Include reference_index for evidence verification
     ref_index_summary = None
@@ -80,6 +124,7 @@ def _build_user_message(state: DeckForgeState) -> str:
     payload = {
         "source_book": source_book_dump,
         "rfp_context": rfp_dump,
+        "rfp_source_text": rfp_source_text,
         "reference_index_summary": ref_index_summary,
         "hard_requirements_summary": hard_requirements_summary,
         "conformance_report_summary": conformance_report_summary,

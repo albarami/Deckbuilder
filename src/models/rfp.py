@@ -152,5 +152,16 @@ class RFPContext(DeckForgeBaseModel):
     team_requirements: list[TeamRequirement] = Field(default_factory=list)
     gaps: list[RFPGap] = Field(default_factory=list)
     source_language: Language = Language.EN
+
+    # ── Salim audit primitive #4: verbatim-source-span contract ──
+    # For every populated field that asserts an RFP fact (key_dates,
+    # project_timeline, evaluation_criteria, submission_format, etc.),
+    # the context_agent should attach a verbatim quote from the original
+    # RFP text plus an optional page reference. The reviewer then
+    # mechanically verifies each quote exists in rfp_source_text.
+    # Empty dict = no quotes attached (legacy/backward-compat).
+    # Keys are dotted field paths like "project_timeline.total_duration_months"
+    # or "key_dates.submission_deadline". Values are the verbatim source text.
+    source_quotes: dict[str, str] = Field(default_factory=dict)
     completeness: Completeness = Field(default_factory=Completeness)
     hard_requirements: list[HardRequirement] = Field(default_factory=list)

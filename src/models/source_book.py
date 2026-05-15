@@ -598,3 +598,15 @@ class SourceBookReview(DeckForgeBaseModel):
     ] = "adequate"
     pass_threshold_met: bool = False  # True if overall >= 4 and no section < 3
     rewrite_required: bool = True
+
+    # ── Salim audit primitive #5: source-anchored quality metrics ──
+    # Replace "pass count" as the quality signal. Track instead:
+    #   - claims_verified / total claims (anti-fabrication signal)
+    #   - rfp_constraints_covered / total (anti-omission signal)
+    # Pass count was misleading because two passes of the same broken review
+    # process is still zero verification. These metrics surface the actual
+    # work the reviewer is doing.
+    claims_verified_count: int = 0
+    claims_unverified_count: int = 0
+    rfp_constraints_total: int = 0
+    rfp_constraints_covered: int = 0
